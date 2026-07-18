@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Auth.js (NextAuth) Prisma adapter standard models ---
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- Application models ---
+
+enum UserRole {
+  USER
+  MOD
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum LobbyEntryStatus {
+  WAITING
+  PAIRED
+  CANCELLED
+  EXPIRED
+}
+
+enum PairingMethod {
+  MANUAL
+  AUTO
+}
+
+enum MatchStatus {
+  PENDING_REPORT
+  REPORTED
+  CONFIRMED
+  DISPUTED
+  CANCELLED
+  EXPIRED
+}
+
+enum ConfirmationMethod {
+  SELF_CONFIRMED
+  AUTO_TIMEOUT
+  ADMIN_RESOLVED
+}
+
+enum PostStatus {
+  OPEN
+  MATCHED
+  CLOSED
+  EXPIRED
+}
+
+model User {
+  id          String     @id @default(cuid())
+  discordId   String     @unique
+  username    String
+  avatarUrl   String?
+  email       String?    @unique
+  rating      Int        @default(1500)
+  gamesPlayed Int        @default(0) // drives isProvisional + K-factor tier
+  noShowCount Int        @default(0)
+  cancelCount Int        @default(0)
+  role        UserRole   @default(USER)
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  freeBattlePosts FreeBattlePost[]
+  lobbyEntries    RatingLobbyEntry[]
+  matchesAsP1     RatingMatch[]      @relation("Player1Matches")
+  matchesAsP2     RatingMatch[]      @relation("Player2Matches")
+  ratingHistory   RatingHistory[]
+
+  @@index([rating])
+}
+
+model RatingLobbyEntry {
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id])
+  status        LobbyEntryStatus  @default(WAITING)
+  pairingMethod PairingMethod     @default(MANUAL)
+  pairedEntryId String?           @unique
+  pairedEntry   RatingLobbyEntry? @relation("EntryPairing", fields: [pairedEntryId], references: [id])
+  pairedByEntry RatingLobbyEntry? @relation("EntryPairing")
+  matchId       String?           @unique
+  match         RatingMatch?      @relation(fields: [matchId], references: [id])
+  joinedAt      DateTime          @default(now())
+  expiresAt     DateTime
+  cancelledAt   DateTime?
+
+  @@index([status, expiresAt])
+}
+
+model RatingMatch {
+  id                   String              @id @default(cuid())
+  player1Id            String
+  player1              User                @relation("Player1Matches", fields: [player1Id], references: [id])
+  player2Id            String
+  player2              User                @relation("Player2Matches", fields: [player2Id], references: [id])
+  pairingMethod        PairingMethod       @default(MANUAL)
+  roomCode             String? // never rendered outside the paired pair's own view
+  status               MatchStatus         @default(PENDING_REPORT)
+  reportedWinnerId     String?
+  reportedById         String?
+  reportedAt           DateTime?
+  secondReportWinnerId String?
+  secondReportById     String?
+  secondReportAt       DateTime?
+  confirmedAt          DateTime?
+  confirmationMethod   ConfirmationMethod?
+  disputeReason        String?
+  player1RatingBefore  Int?
+  player1RatingAfter   Int?
+  player2RatingBefore  Int?
+  player2RatingAfter   Int?
+  createdAt            DateTime            @default(now())
+  expiresAt            DateTime // no-show / no-report cutoff
+
+  ratingHistory RatingHistory[]
+  lobbyEntry    RatingLobbyEntry?
+
+  @@index([status])
+  @@index([player1Id])
+  @@index([player2Id])
+}
+
+model RatingHistory {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  matchId      String
+  match        RatingMatch @relation(fields: [matchId], references: [id])
+  ratingBefore Int
+  ratingAfter  Int
+  delta        Int
+  createdAt    DateTime    @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model FreeBattlePost {
+  id            String     @id @default(cuid())
+  authorId      String
+  author        User       @relation(fields: [authorId], references: [id])
+  comment       String
+  region        String?
+  status        PostStatus @default(OPEN)
+  matchedWithId String?
+  createdAt     DateTime   @default(now())
+  expiresAt     DateTime // 24h TTL, same lazy-read/external-cron finalizer as RatingMatch
+  matchedAt     DateTime?
+
+  @@index([status, createdAt])
+}
