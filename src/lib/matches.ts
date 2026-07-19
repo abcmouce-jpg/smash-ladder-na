@@ -69,7 +69,13 @@ export async function reportMatchResult(matchId: string, userId: string, won: bo
     }
 
     if (match.reportedWinnerId === winnerId) {
-      await confirmMatch(tx, match.id, match.player1Id, match.player2Id, winnerId, userId);
+      await applyEloAndConfirm(
+        tx,
+        { id: match.id, player1Id: match.player1Id, player2Id: match.player2Id },
+        winnerId,
+        ConfirmationMethod.SELF_CONFIRMED,
+        { winnerId, reporterId: userId },
+      );
     } else {
       await tx.ratingMatch.update({
         where: { id: matchId },
@@ -85,17 +91,19 @@ export async function reportMatchResult(matchId: string, userId: string, won: bo
   });
 }
 
-async function confirmMatch(
+// Applies the Elo update, marks the match CONFIRMED, and records rating history.
+// Shared by self-confirmation (both players agree) and the cron finalizer's
+// auto-timeout path (only one player reported before the match expired).
+export async function applyEloAndConfirm(
   tx: Prisma.TransactionClient,
-  matchId: string,
-  player1Id: string,
-  player2Id: string,
+  match: { id: string; player1Id: string; player2Id: string },
   winnerId: string,
-  secondReporterId: string,
+  confirmationMethod: ConfirmationMethod,
+  secondReport: { winnerId: string; reporterId: string } | null,
 ) {
   const [p1, p2] = await Promise.all([
-    tx.user.findUniqueOrThrow({ where: { id: player1Id } }),
-    tx.user.findUniqueOrThrow({ where: { id: player2Id } }),
+    tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
+    tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
   ]);
 
   const p1Won = winnerId === p1.id;
@@ -108,14 +116,16 @@ async function confirmMatch(
   const p2After = Math.round(p2.rating + kFactor(p2.gamesPlayed) * (score2 - expected2));
 
   await tx.ratingMatch.update({
-    where: { id: matchId },
+    where: { id: match.id },
     data: {
       status: MatchStatus.CONFIRMED,
-      secondReportWinnerId: winnerId,
-      secondReportById: secondReporterId,
-      secondReportAt: new Date(),
+      ...(secondReport && {
+        secondReportWinnerId: secondReport.winnerId,
+        secondReportById: secondReport.reporterId,
+        secondReportAt: new Date(),
+      }),
       confirmedAt: new Date(),
-      confirmationMethod: ConfirmationMethod.SELF_CONFIRMED,
+      confirmationMethod,
       player1RatingBefore: p1.rating,
       player1RatingAfter: p1After,
       player2RatingBefore: p2.rating,
@@ -136,14 +146,14 @@ async function confirmMatch(
     data: [
       {
         userId: p1.id,
-        matchId,
+        matchId: match.id,
         ratingBefore: p1.rating,
         ratingAfter: p1After,
         delta: p1After - p1.rating,
       },
       {
         userId: p2.id,
-        matchId,
+        matchId: match.id,
         ratingBefore: p2.rating,
         ratingAfter: p2After,
         delta: p2After - p2.rating,
