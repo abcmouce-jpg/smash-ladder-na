@@ -8,6 +8,22 @@ const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // no-show / no-report cutoff
 
 export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
 
+// For the lobby page's live "who's around right now" readout. Waiting is a
+// direct RatingLobbyEntry count; in-match goes through RatingMatch.status
+// instead of RatingLobbyEntry.status, since PAIRED rows never get cleaned
+// up after a match resolves and would overcount actual activity.
+export async function getLobbyActivityStats() {
+  const [waiting, inMatch] = await Promise.all([
+    prisma.ratingLobbyEntry.count({
+      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() } },
+    }),
+    prisma.ratingMatch.count({
+      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] } },
+    }),
+  ]);
+  return { waiting, inMatch: inMatch * 2 };
+}
+
 // Fires after the pairing transaction has already committed — a DM is a
 // network call and has no business holding a DB transaction open.
 async function notifyMatchPaired(player1Id: string, player2Id: string) {

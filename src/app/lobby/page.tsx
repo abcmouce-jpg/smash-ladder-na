@@ -1,8 +1,8 @@
 import Image from "next/image";
-import { Loader2, Swords } from "lucide-react";
+import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { getActiveLobbyEntry } from "@/lib/lobby";
+import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { NA_REGIONS } from "@/lib/regions";
@@ -36,11 +36,13 @@ type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEnt
 
 export default async function LobbyPage() {
   const session = await auth();
+  const activity = await getLobbyActivityStats();
 
   if (!session?.user?.id) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
         <PageTitle />
+        <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} />
         <p className="mt-2 text-sm text-muted-foreground">
           Sign in with Discord (top right) to join the matchmaking lobby.
         </p>
@@ -53,6 +55,7 @@ export default async function LobbyPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <PageTitle />
+      <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} />
 
       <Card className="mt-8">
         <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
@@ -83,7 +86,6 @@ export default async function LobbyPage() {
               </Button>
             </form>
           </CardContent>
-          <LobbyPoller />
         </Card>
       )}
 
@@ -99,6 +101,24 @@ function PageTitle() {
     <div className="flex items-center gap-2">
       <Swords className="size-5 text-muted-foreground" />
       <h1 className="text-2xl font-semibold tracking-tight">Lobby</h1>
+    </div>
+  );
+}
+
+function ActivityLine({ waiting, inMatch }: { waiting: number; inMatch: number }) {
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+      <Users className="size-3.5" />
+      <span className="tabular-nums">
+        <span className="font-medium text-foreground">{waiting}</span> waiting to be matched
+        {inMatch > 0 && (
+          <>
+            {" "}
+            · <span className="font-medium text-foreground">{inMatch}</span> currently playing
+          </>
+        )}
+      </span>
+      <LobbyPoller />
     </div>
   );
 }
@@ -342,7 +362,6 @@ function GameSection({
           </form>
         ))}
       </div>
-      {!myTurn && <LobbyPoller />}
     </CardContent>
   );
 }
@@ -384,7 +403,6 @@ function ReportGameSection({
         <p className="text-sm text-muted-foreground">
           Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s result…
         </p>
-        <LobbyPoller />
       </CardContent>
     );
   }
