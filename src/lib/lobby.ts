@@ -1,15 +1,11 @@
 import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
+import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
 
 const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
-const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // no-show / no-report cutoff, reporting flow lands separately
+const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // no-show / no-report cutoff
 
 export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
-
-const matchWithPlayers = {
-  player1: { select: { id: true, username: true, avatarUrl: true, rating: true } },
-  player2: { select: { id: true, username: true, avatarUrl: true, rating: true } },
-} as const;
 
 export async function getActiveLobbyEntry(userId: string) {
   const entry = await prisma.ratingLobbyEntry.findFirst({
@@ -24,21 +20,18 @@ export async function getActiveLobbyEntry(userId: string) {
 
   // matchId lives on only one side of the pair (it's unique per RatingLobbyEntry),
   // so the paired-but-not-owning side looks its match up by player instead.
-  const match = await prisma.ratingMatch.findFirst({
-    where: {
-      OR: [{ player1Id: userId }, { player2Id: userId }],
-      status: MatchStatus.PENDING_REPORT,
-    },
-    orderBy: { createdAt: "desc" },
-    include: matchWithPlayers,
-  });
-
+  const match = await getLatestMatchForUser(userId);
   return { ...entry, match };
 }
 
 export async function joinLobbyAndTryPair(userId: string) {
-  const existing = await getActiveLobbyEntry(userId);
-  if (existing) return existing;
+  const [waitingEntry, unresolvedMatch] = await Promise.all([
+    prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
+    getUnresolvedMatchForUser(userId),
+  ]);
+  // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
+  // though its RatingLobbyEntry rows are still sitting there as PAIRED.
+  if (waitingEntry || unresolvedMatch) return getActiveLobbyEntry(userId);
 
   const now = new Date();
   const newEntry = await prisma.ratingLobbyEntry.create({

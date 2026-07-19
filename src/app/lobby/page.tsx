@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { getActiveLobbyEntry } from "@/lib/lobby";
 import { Button } from "@/components/ui/button";
 import { LobbyPoller } from "@/components/lobby-poller";
-import { cancelLobby, joinLobby, submitRoomCode } from "./actions";
+import { cancelLobby, joinLobby, reportResult, submitRoomCode } from "./actions";
 
 export default async function LobbyPage() {
   const session = await auth();
@@ -82,8 +82,103 @@ function PairedView({
       </div>
 
       <RoomCodeForm matchId={match.id} initialValue={match.roomCode ?? ""} />
+
+      <ResultSection userId={userId} match={match} opponentName={opponent.username} />
     </div>
   );
+}
+
+function ResultSection({
+  userId,
+  match,
+  opponentName,
+}: {
+  userId: string;
+  match: NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
+  opponentName: string;
+}) {
+  if (match.status === "PENDING_REPORT") {
+    return (
+      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <p className="text-sm text-zinc-500">Report the result once you&apos;ve played.</p>
+        <div className="mt-4 flex gap-2">
+          <form action={reportResult.bind(null, match.id, true)}>
+            <Button type="submit">I Won</Button>
+          </form>
+          <form action={reportResult.bind(null, match.id, false)}>
+            <Button type="submit" variant="outline">
+              I Lost
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (match.status === "REPORTED" && match.reportedById === userId) {
+    return (
+      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <p className="text-sm text-zinc-500">Waiting for {opponentName} to confirm the result…</p>
+        <LobbyPoller />
+      </div>
+    );
+  }
+
+  if (match.status === "REPORTED" && match.reportedById !== userId) {
+    const theyClaimedTheyWon = match.reportedWinnerId !== userId;
+    return (
+      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <p className="text-sm text-zinc-500">
+          {opponentName} reported that {theyClaimedTheyWon ? "they won" : "you won"}. Does that
+          match what happened?
+        </p>
+        <div className="mt-4 flex gap-2">
+          <form action={reportResult.bind(null, match.id, !theyClaimedTheyWon)}>
+            <Button type="submit">Yes, that&apos;s right</Button>
+          </form>
+          <form action={reportResult.bind(null, match.id, theyClaimedTheyWon)}>
+            <Button type="submit" variant="outline">
+              No, that&apos;s wrong
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (match.status === "CONFIRMED") {
+    const won = match.reportedWinnerId === userId;
+    const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
+    const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
+    const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
+
+    return (
+      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <p className="text-sm font-medium">
+          Match confirmed — you {won ? "won" : "lost"}
+        </p>
+        <p className="mt-1 text-sm text-zinc-500 tabular-nums">
+          {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
+          {delta})
+        </p>
+        <form action={joinLobby} className="mt-4">
+          <Button type="submit">Join Lobby</Button>
+        </form>
+      </div>
+    );
+  }
+
+  if (match.status === "DISPUTED") {
+    return (
+      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <p className="text-sm text-zinc-500">
+          You and {opponentName} reported different results. This match is awaiting review.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function RoomCodeForm({ matchId, initialValue }: { matchId: string; initialValue: string }) {
