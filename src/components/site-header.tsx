@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarClock, Flag, Gamepad2, Medal, Shield, Swords, Trophy, Users } from "lucide-react";
+import { CalendarClock, Flag, Gamepad2, Gauge, Medal, Shield, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 
@@ -52,6 +52,15 @@ export async function SiteHeader() {
                 <Medal className="size-3.5" />
                 Tournaments
               </Link>
+              {(user.role === "MOD" || user.role === "ADMIN") && (
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-1.5 hover:text-foreground"
+                >
+                  <Gauge className="size-3.5" />
+                  Admin
+                </Link>
+              )}
               {(user.role === "MOD" || user.role === "ADMIN") && (
                 <Link
                   href="/admin/disputes"
