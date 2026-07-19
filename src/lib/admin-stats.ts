@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { LobbyEntryStatus, MatchStatus, ReportStatus, UserStatus } from "@/generated/prisma/enums";
+import { LobbyEntryStatus, ReportStatus, UserStatus } from "@/generated/prisma/enums";
 
 export async function getAdminOverview() {
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -10,7 +10,7 @@ export async function getAdminOverview() {
     suspendedUsers,
     bannedUsers,
     matchesToday,
-    openDisputes,
+    disputedGameCandidates,
     openReports,
     lobbyWaiting,
     lobbyPaired,
@@ -21,12 +21,24 @@ export async function getAdminOverview() {
     prisma.user.count({ where: { status: UserStatus.SUSPENDED } }),
     prisma.user.count({ where: { status: UserStatus.BANNED } }),
     prisma.ratingMatch.count({ where: { createdAt: { gte: dayAgo } } }),
-    prisma.ratingMatch.count({ where: { status: MatchStatus.DISPUTED } }),
+    // A disputed game no longer flips the whole match to a blocking status
+    // — "disputed" now lives at the game level (winnerId still null, but
+    // both a report and a conflicting second report exist). Prisma can't
+    // compare two columns in a where clause, so the not-equal check happens
+    // in JS below on this narrowed-down candidate set.
+    prisma.matchGame.findMany({
+      where: { winnerId: null, reportedWinnerId: { not: null }, secondReportWinnerId: { not: null } },
+      select: { reportedWinnerId: true, secondReportWinnerId: true },
+    }),
     prisma.conductReport.count({ where: { status: ReportStatus.OPEN } }),
     prisma.ratingLobbyEntry.count({ where: { status: LobbyEntryStatus.WAITING } }),
     prisma.ratingLobbyEntry.count({ where: { status: LobbyEntryStatus.PAIRED } }),
     prisma.tournament.count({ where: { status: { in: ["SIGNUPS", "IN_PROGRESS"] } } }),
   ]);
+
+  const openDisputes = disputedGameCandidates.filter(
+    (g) => g.reportedWinnerId !== g.secondReportWinnerId,
+  ).length;
 
   return {
     activeUsers24h,

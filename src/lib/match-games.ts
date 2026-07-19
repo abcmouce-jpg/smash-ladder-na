@@ -1,11 +1,12 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
+import { ConfirmationMethod } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { sendDiscordDM } from "@/lib/discord-bot";
 
-const GAMES_TO_WIN = 2; // best of 3
+export const GAMES_TO_WIN = 2; // best of 3
+const MAX_GAMES = 2 * GAMES_TO_WIN - 1;
 
 function requireParticipant(match: { player1Id: string; player2Id: string }, userId: string) {
   if (match.player1Id !== userId && match.player2Id !== userId) {
@@ -133,7 +134,7 @@ export async function pickGameStage(
 
 type ReportOutcome =
   | { type: "reported"; opponentId: string }
-  | { type: "disputed"; player1Id: string; player2Id: string }
+  | { type: "disputed"; player1Id: string; player2Id: string; setDecidedDespiteDispute: boolean }
   | { type: "game_won"; player1Id: string; player2Id: string; nextGameNumber: number }
   | { type: "set_confirmed"; player1Id: string; player2Id: string };
 
@@ -170,27 +171,35 @@ export async function reportGameResult(
       if (game.reportedById === userId) throw new Error("You already reported this game");
 
       if (game.reportedWinnerId !== winnerId) {
-        // A per-game disagreement is rare and not worth its own resolution
-        // UI — fold it into the existing match-level dispute queue that
-        // MOD/ADMIN already handles.
-        await tx.ratingMatch.update({
-          where: { id: matchId },
-          data: {
-            status: MatchStatus.DISPUTED,
-            reportedWinnerId: game.reportedWinnerId,
-            reportedById: game.reportedById,
-            reportedAt: game.reportedAt,
-            secondReportWinnerId: winnerId,
-            secondReportById: userId,
-            secondReportAt: new Date(),
-            disputeReason: `Disagreement on game ${gameNumber}'s winner`,
-          },
-        });
+        // A per-game disagreement used to flip the whole match to DISPUTED,
+        // which blocked every later game until a mod ruled — in a BO3 that
+        // meant one contested game could freeze the entire set. Now the
+        // disputed game itself just stays unresolved (winnerId left null,
+        // so it's excluded from the win tally and queued for mod review via
+        // listDisputedGames/resolveDisputedGame), while the set continues
+        // immediately: the first reporter's claimed winner is used as a
+        // working assumption for the next game's stage-strike order only.
+        // If the mod's ruling differs, that only changes who's credited
+        // this one game — games already played aren't affected, and the
+        // match still can't confirm until the tally actually reaches 2 wins,
+        // so an unresolved dispute can't accidentally hand someone the set.
         await tx.matchGame.update({
           where: { id: game.id },
           data: { secondReportWinnerId: winnerId, secondReportById: userId, secondReportAt: new Date() },
         });
-        return { type: "disputed", player1Id: match.player1Id, player2Id: match.player2Id };
+        await tx.ratingMatch.update({
+          where: { id: matchId },
+          data: { disputeReason: `Disagreement on game ${gameNumber}'s winner` },
+        });
+
+        const tentativeWinnerId = game.reportedWinnerId!;
+        const setWinnerId = await progressSet(tx, match, gameNumber, tentativeWinnerId);
+        return {
+          type: "disputed",
+          player1Id: match.player1Id,
+          player2Id: match.player2Id,
+          setDecidedDespiteDispute: !!setWinnerId,
+        };
       }
 
       await tx.matchGame.update({
@@ -240,9 +249,12 @@ async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
   if (!p1 || !p2) return;
 
   if (outcome.type === "disputed") {
+    const continuation = outcome.setDecidedDespiteDispute
+      ? " Your set is already decided by the other games either way, so this won't change the result."
+      : " The set continues in the meantime — head to the lobby.";
     await Promise.all([
-      sendDiscordDM(p1.discordId, `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.`),
-      sendDiscordDM(p2.discordId, `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.`),
+      sendDiscordDM(p1.discordId, `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
+      sendDiscordDM(p2.discordId, `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
     ]);
   } else if (outcome.type === "game_won") {
     await Promise.all([
@@ -301,6 +313,20 @@ export async function autoConfirmStaleGameReport(
   return { nonReporterId };
 }
 
+// Only counts games with a settled winnerId, so a still-disputed game
+// (winnerId left null on purpose) never contributes to either side's tally.
+export function tallySetWins(games: { winnerId: string | null }[]) {
+  const wins: Record<string, number> = {};
+  for (const g of games) {
+    if (g.winnerId) wins[g.winnerId] = (wins[g.winnerId] ?? 0) + 1;
+  }
+  return wins;
+}
+
+function getSetWinnerId(wins: Record<string, number>) {
+  return Object.entries(wins).find(([, count]) => count >= GAMES_TO_WIN)?.[0];
+}
+
 async function progressSet(
   tx: Prisma.TransactionClient,
   match: { id: string; player1Id: string; player2Id: string },
@@ -309,12 +335,7 @@ async function progressSet(
   confirmationMethod: ConfirmationMethod = ConfirmationMethod.SELF_CONFIRMED,
 ): Promise<string | null> {
   const games = await tx.matchGame.findMany({ where: { matchId: match.id } });
-  const wins: Record<string, number> = {};
-  for (const g of games) {
-    if (g.winnerId) wins[g.winnerId] = (wins[g.winnerId] ?? 0) + 1;
-  }
-
-  const setWinnerId = Object.entries(wins).find(([, count]) => count >= GAMES_TO_WIN)?.[0];
+  const setWinnerId = getSetWinnerId(tallySetWins(games));
   if (setWinnerId) {
     await tx.ratingMatch.update({
       where: { id: match.id },
@@ -326,6 +347,12 @@ async function progressSet(
     });
     return setWinnerId;
   }
+
+  // Reachable when the game that would've decided the set (e.g. game 3 of a
+  // BO3) is itself disputed — nobody has 2 confirmed wins yet, but there's
+  // no game left to play either. Nothing to create; just wait for a mod to
+  // resolve the disputed game via resolveDisputedGame.
+  if (decidedGameNumber >= MAX_GAMES) return null;
 
   const loserId = gameWinnerId === match.player1Id ? match.player2Id : match.player1Id;
   await tx.matchGame.create({

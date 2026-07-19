@@ -225,6 +225,15 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         />
       </CardContent>
 
+      {games.filter(isDisputedGame).map((g) => (
+        <CardContent key={g.id} className="border-t border-border pt-4">
+          <p className="text-sm text-muted-foreground">
+            ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod review — this
+            doesn&apos;t block the rest of the set.
+          </p>
+        </CardContent>
+      ))}
+
       {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
         <GameSection userId={userId} match={match} games={games} opponentName={opponent.username} />
       )}
@@ -295,6 +304,10 @@ function MatchFooterActions({ match }: { match: Match }) {
   );
 }
 
+function isDisputedGame(game: { winnerId: string | null; reportedWinnerId: string | null; secondReportWinnerId: string | null }) {
+  return !game.winnerId && !!game.secondReportWinnerId && game.secondReportWinnerId !== game.reportedWinnerId;
+}
+
 function GameSection({
   userId,
   match,
@@ -306,9 +319,23 @@ function GameSection({
   games: Awaited<ReturnType<typeof getMatchGames>>;
   opponentName: string;
 }) {
-  const current = games.find((g) => !g.winnerId);
+  // A disputed game is skipped here — it doesn't block the rest of the set,
+  // so the next (or first playable) game becomes "current" instead.
+  const current = games.find((g) => !g.winnerId && !isDisputedGame(g));
+  const lastGame = games[games.length - 1];
 
   if (!current) {
+    if (games.length > 0 && lastGame && isDisputedGame(lastGame)) {
+      return (
+        <CardContent className="border-t border-border pt-4">
+          <p className="text-sm text-muted-foreground">
+            Game {lastGame.gameNumber}&apos;s result is disputed — a mod will resolve it.
+            {lastGame.finalStage && ` Stage was ${lastGame.finalStage}.`}
+          </p>
+        </CardContent>
+      );
+    }
+
     const gameNumber = games.length + 1;
     return (
       <CardContent className="border-t border-border pt-4">

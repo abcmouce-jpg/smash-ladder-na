@@ -1,16 +1,16 @@
 import { Shield } from "lucide-react";
 import { auth } from "@/auth";
-import { listDisputedMatches } from "@/lib/disputes";
+import { listDisputedGames } from "@/lib/disputes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cancelDispute, resolveDispute } from "./actions";
 
-type DisputedMatch = Awaited<ReturnType<typeof listDisputedMatches>>[number];
+type DisputedGame = Awaited<ReturnType<typeof listDisputedGames>>[number];
 
-function nameFor(match: DisputedMatch, userId: string | null) {
+function nameFor(game: DisputedGame, userId: string | null) {
   if (!userId) return "no one";
-  return userId === match.player1Id ? match.player1.username : match.player2.username;
+  return userId === game.match.player1Id ? game.match.player1.username : game.match.player2.username;
 }
 
 export default async function DisputesPage() {
@@ -28,7 +28,7 @@ export default async function DisputesPage() {
     );
   }
 
-  const matches = await listDisputedMatches();
+  const games = await listDisputedGames();
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -36,46 +36,53 @@ export default async function DisputesPage() {
         <Shield className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">Disputes</h1>
       </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Resolving a game doesn&apos;t block the rest of the set — players can keep playing other
+        games while one is pending here.
+      </p>
 
-      {matches.length === 0 && (
-        <p className="mt-4 text-sm text-muted-foreground">No disputed matches.</p>
+      {games.length === 0 && (
+        <p className="mt-4 text-sm text-muted-foreground">No disputed games.</p>
       )}
 
       <ul className="mt-6 flex flex-col gap-4">
-        {matches.map((match) => (
-          <li key={match.id}>
+        {games.map((game) => (
+          <li key={game.id}>
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">
-                    {match.player1.username} vs {match.player2.username}
+                    {game.match.player1.username} vs {game.match.player2.username}
                   </p>
-                  <Badge variant="warning">disputed</Badge>
+                  <Badge variant="warning">game {game.gameNumber} disputed</Badge>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {nameFor(match, match.reportedById)} reported{" "}
-                  {nameFor(match, match.reportedWinnerId)} won.{" "}
-                  {nameFor(match, match.secondReportById)} reported{" "}
-                  {nameFor(match, match.secondReportWinnerId)} won.
+                  {nameFor(game, game.reportedById)} reported{" "}
+                  {nameFor(game, game.reportedWinnerId)} won.{" "}
+                  {nameFor(game, game.secondReportById)} reported{" "}
+                  {nameFor(game, game.secondReportWinnerId)} won.
                 </p>
-                {match.roomCode && (
+                {game.finalStage && (
+                  <p className="mt-1 text-xs text-muted-foreground">Stage: {game.finalStage}</p>
+                )}
+                {game.match.roomCode && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Room code: {match.roomCode}
+                    Room code: {game.match.roomCode}
                   </p>
                 )}
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <form action={resolveDispute.bind(null, match.id, match.player1Id)}>
+                  <form action={resolveDispute.bind(null, game.matchId, game.gameNumber, game.match.player1Id)}>
                     <Button type="submit" size="sm">
-                      {match.player1.username} won
+                      {game.match.player1.username} won
                     </Button>
                   </form>
-                  <form action={resolveDispute.bind(null, match.id, match.player2Id)}>
+                  <form action={resolveDispute.bind(null, game.matchId, game.gameNumber, game.match.player2Id)}>
                     <Button type="submit" size="sm">
-                      {match.player2.username} won
+                      {game.match.player2.username} won
                     </Button>
                   </form>
-                  <form action={cancelDispute.bind(null, match.id)}>
+                  <form action={cancelDispute.bind(null, game.matchId)}>
                     <Button type="submit" variant="outline" size="sm">
                       Cancel match
                     </Button>

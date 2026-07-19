@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { cancelDisputedMatch, resolveDisputedMatch } from "@/lib/disputes";
+import { adminCancelMatch, resolveDisputedGame } from "@/lib/disputes";
 
 async function requireModerator() {
   const session = await auth();
@@ -12,14 +12,16 @@ async function requireModerator() {
   }
 }
 
-export async function resolveDispute(matchId: string, winnerId: string) {
+export async function resolveDispute(matchId: string, gameNumber: number, winnerId: string) {
   await requireModerator();
-  await resolveDisputedMatch(matchId, winnerId);
+  await resolveDisputedGame(matchId, gameNumber, winnerId);
   revalidatePath("/admin/disputes");
+  revalidatePath("/lobby");
 }
 
 export async function cancelDispute(matchId: string) {
   await requireModerator();
-  await cancelDisputedMatch(matchId);
+  await adminCancelMatch(matchId);
   revalidatePath("/admin/disputes");
+  revalidatePath("/lobby");
 }
