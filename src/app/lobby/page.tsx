@@ -1,7 +1,10 @@
 import Image from "next/image";
+import { Loader2, Swords } from "lucide-react";
 import { auth } from "@/auth";
 import { getActiveLobbyEntry } from "@/lib/lobby";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { cancelLobby, joinLobby, reportResult, submitRoomCode } from "./actions";
 
@@ -11,8 +14,8 @@ export default async function LobbyPage() {
   if (!session?.user?.id) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
-        <h1 className="text-2xl font-semibold tracking-tight">Lobby</h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <PageTitle />
+        <p className="mt-2 text-sm text-muted-foreground">
           Sign in with Discord (top right) to join the matchmaking lobby.
         </p>
       </main>
@@ -23,33 +26,49 @@ export default async function LobbyPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-2xl font-semibold tracking-tight">Lobby</h1>
+      <PageTitle />
 
       {!entry && (
-        <div className="mt-8">
-          <p className="text-sm text-zinc-500">You&apos;re not in the queue.</p>
-          <form action={joinLobby} className="mt-4">
-            <Button type="submit">Join Lobby</Button>
-          </form>
-        </div>
+        <Card className="mt-8">
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
+            <form action={joinLobby} className="mt-4">
+              <Button type="submit">Join Lobby</Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       {entry?.status === "WAITING" && (
-        <div className="mt-8">
-          <p className="text-sm text-zinc-500">Waiting for an opponent…</p>
-          <form action={cancelLobby} className="mt-4">
-            <Button type="submit" variant="outline">
-              Cancel
-            </Button>
-          </form>
+        <Card className="mt-8">
+          <CardContent className="flex items-center gap-3 pt-4">
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Waiting for an opponent…</p>
+          </CardContent>
+          <CardContent className="pt-0">
+            <form action={cancelLobby}>
+              <Button type="submit" variant="outline">
+                Cancel
+              </Button>
+            </form>
+          </CardContent>
           <LobbyPoller />
-        </div>
+        </Card>
       )}
 
       {entry?.status === "PAIRED" && entry.match && (
         <PairedView userId={session.user.id} match={entry.match} />
       )}
     </main>
+  );
+}
+
+function PageTitle() {
+  return (
+    <div className="flex items-center gap-2">
+      <Swords className="size-5 text-muted-foreground" />
+      <h1 className="text-2xl font-semibold tracking-tight">Lobby</h1>
+    </div>
   );
 }
 
@@ -63,9 +82,16 @@ function PairedView({
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
 
   return (
-    <div className="mt-8">
-      <p className="text-sm text-zinc-500">Matched!</p>
-      <div className="mt-4 flex items-center gap-3">
+    <Card className="mt-8">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">Matched!</p>
+          <Badge variant={match.status === "CONFIRMED" ? "success" : "secondary"}>
+            {match.status.replace("_", " ").toLowerCase()}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="flex items-center gap-3">
         {opponent.avatarUrl && (
           <Image
             src={opponent.avatarUrl}
@@ -77,14 +103,16 @@ function PairedView({
         )}
         <div>
           <p className="font-medium">{opponent.username}</p>
-          <p className="text-sm text-zinc-500 tabular-nums">{opponent.rating} rating</p>
+          <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
         </div>
-      </div>
+      </CardContent>
 
-      <RoomCodeForm matchId={match.id} initialValue={match.roomCode ?? ""} />
+      <CardContent>
+        <RoomCodeForm matchId={match.id} initialValue={match.roomCode ?? ""} />
+      </CardContent>
 
       <ResultSection userId={userId} match={match} opponentName={opponent.username} />
-    </div>
+    </Card>
   );
 }
 
@@ -99,8 +127,10 @@ function ResultSection({
 }) {
   if (match.status === "PENDING_REPORT") {
     return (
-      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-        <p className="text-sm text-zinc-500">Report the result once you&apos;ve played.</p>
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          Report the result once you&apos;ve played.
+        </p>
         <div className="mt-4 flex gap-2">
           <form action={reportResult.bind(null, match.id, true)}>
             <Button type="submit">I Won</Button>
@@ -111,24 +141,26 @@ function ResultSection({
             </Button>
           </form>
         </div>
-      </div>
+      </CardContent>
     );
   }
 
   if (match.status === "REPORTED" && match.reportedById === userId) {
     return (
-      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-        <p className="text-sm text-zinc-500">Waiting for {opponentName} to confirm the result…</p>
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          Waiting for {opponentName} to confirm the result…
+        </p>
         <LobbyPoller />
-      </div>
+      </CardContent>
     );
   }
 
   if (match.status === "REPORTED" && match.reportedById !== userId) {
     const theyClaimedTheyWon = match.reportedWinnerId !== userId;
     return (
-      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-        <p className="text-sm text-zinc-500">
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
           {opponentName} reported that {theyClaimedTheyWon ? "they won" : "you won"}. Does that
           match what happened?
         </p>
@@ -142,39 +174,39 @@ function ResultSection({
             </Button>
           </form>
         </div>
-      </div>
+      </CardContent>
     );
   }
 
   if (match.status === "CONFIRMED") {
     const won = match.reportedWinnerId === userId;
-    const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
-    const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
+    const ratingBefore =
+      match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
+    const ratingAfter =
+      match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
     const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
 
     return (
-      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-        <p className="text-sm font-medium">
-          Match confirmed — you {won ? "won" : "lost"}
-        </p>
-        <p className="mt-1 text-sm text-zinc-500 tabular-nums">
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm font-medium">Match confirmed — you {won ? "won" : "lost"}</p>
+        <p className="mt-1 text-sm tabular-nums text-muted-foreground">
           {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
           {delta})
         </p>
         <form action={joinLobby} className="mt-4">
           <Button type="submit">Join Lobby</Button>
         </form>
-      </div>
+      </CardContent>
     );
   }
 
   if (match.status === "DISPUTED") {
     return (
-      <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-        <p className="text-sm text-zinc-500">
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
           You and {opponentName} reported different results. This match is awaiting review.
         </p>
-      </div>
+      </CardContent>
     );
   }
 
@@ -189,14 +221,14 @@ function RoomCodeForm({ matchId, initialValue }: { matchId: string; initialValue
   }
 
   return (
-    <form action={action} className="mt-6 flex items-end gap-2">
+    <form action={action} className="flex items-end gap-2">
       <label className="flex flex-col gap-1 text-sm">
         Room code
         <input
           name="roomCode"
           defaultValue={initialValue}
           placeholder="e.g. AB12CD"
-          className="h-8 w-40 rounded-lg border border-zinc-300 bg-transparent px-2.5 text-sm outline-none focus-visible:border-zinc-500 dark:border-zinc-700"
+          className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
       </label>
       <Button type="submit" size="sm">

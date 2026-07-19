@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 
 export default async function Home() {
@@ -15,9 +18,12 @@ export default async function Home() {
     : null;
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">Smash Ladder NA</h1>
-      <p className="mt-2 text-sm text-zinc-500">
+    <main className="mx-auto max-w-2xl px-6 py-20">
+      <Badge variant="outline" className="mb-4">
+        North America
+      </Badge>
+      <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
+      <p className="mt-3 max-w-md text-muted-foreground">
         A ranked ladder and matchmaking hub for the North American Smash community.
       </p>
 
@@ -29,41 +35,46 @@ export default async function Home() {
           }}
           className="mt-8"
         >
-          <Button type="submit">Sign in with Discord to get started</Button>
+          <Button type="submit" size="lg">
+            Sign in with Discord to get started
+          </Button>
         </form>
       )}
 
       {user && me && (
-        <p className="mt-6 text-sm text-zinc-500 tabular-nums">
-          You&apos;re {me.rating} rated across {me.gamesPlayed} games.
+        <p className="mt-6 text-sm text-muted-foreground tabular-nums">
+          You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated
+          across {me.gamesPlayed} games.
         </p>
       )}
 
-      <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Link
-          href="/lobby"
-          className="rounded-lg border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-        >
-          <p className="text-sm font-medium">Ranked Lobby</p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Queue up and get auto-paired for a rated match.
-          </p>
+      <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Link href="/lobby">
+          <Card className="h-full transition-colors hover:border-foreground/30">
+            <CardHeader>
+              <Swords className="size-5 text-muted-foreground" />
+              <CardTitle className="text-base">Ranked Lobby</CardTitle>
+              <CardDescription>Queue up and get auto-paired for a rated match.</CardDescription>
+            </CardHeader>
+          </Card>
         </Link>
-        <Link
-          href="/free-battle"
-          className="rounded-lg border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-        >
-          <p className="text-sm font-medium">Free Battle</p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Post up for casual, unranked friendlies.
-          </p>
+        <Link href="/free-battle">
+          <Card className="h-full transition-colors hover:border-foreground/30">
+            <CardHeader>
+              <Users className="size-5 text-muted-foreground" />
+              <CardTitle className="text-base">Free Battle</CardTitle>
+              <CardDescription>Post up for casual, unranked friendlies.</CardDescription>
+            </CardHeader>
+          </Card>
         </Link>
-        <Link
-          href="/leaderboard"
-          className="rounded-lg border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-        >
-          <p className="text-sm font-medium">Leaderboard</p>
-          <p className="mt-1 text-sm text-zinc-500">See where you stack up.</p>
+        <Link href="/leaderboard">
+          <Card className="h-full transition-colors hover:border-foreground/30">
+            <CardHeader>
+              <Trophy className="size-5 text-muted-foreground" />
+              <CardTitle className="text-base">Leaderboard</CardTitle>
+              <CardDescription>See where you stack up.</CardDescription>
+            </CardHeader>
+          </Card>
         </Link>
       </div>
     </main>

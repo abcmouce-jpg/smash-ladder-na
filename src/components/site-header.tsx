@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Shield, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 
@@ -8,26 +9,41 @@ export async function SiteHeader() {
   const user = session?.user;
 
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800">
+    <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-3">
         <div className="flex items-center gap-6">
-          <span className="text-sm font-semibold tracking-tight">Smash Ladder NA</span>
+          <Link href="/" className="text-sm font-semibold tracking-tight">
+            Smash Ladder <span className="text-muted-foreground">NA</span>
+          </Link>
           {user && (
-            <nav className="flex items-center gap-4 text-sm text-zinc-500">
-              <Link href="/lobby" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+            <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+              <Link
+                href="/lobby"
+                className="flex items-center gap-1.5 hover:text-foreground"
+              >
+                <Swords className="size-3.5" />
                 Lobby
               </Link>
-              <Link href="/free-battle" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link
+                href="/free-battle"
+                className="flex items-center gap-1.5 hover:text-foreground"
+              >
+                <Users className="size-3.5" />
                 Free Battle
               </Link>
-              <Link href="/leaderboard" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link
+                href="/leaderboard"
+                className="flex items-center gap-1.5 hover:text-foreground"
+              >
+                <Trophy className="size-3.5" />
                 Leaderboard
               </Link>
               {(user.role === "MOD" || user.role === "ADMIN") && (
                 <Link
                   href="/admin/disputes"
-                  className="hover:text-zinc-900 dark:hover:text-zinc-100"
+                  className="flex items-center gap-1.5 hover:text-foreground"
                 >
+                  <Shield className="size-3.5" />
                   Disputes
                 </Link>
               )}
@@ -47,7 +63,7 @@ export async function SiteHeader() {
                   className="rounded-full"
                 />
               )}
-              <span className="text-sm text-zinc-600 hover:underline dark:text-zinc-400">
+              <span className="text-sm text-muted-foreground hover:text-foreground hover:underline">
                 {user.name}
               </span>
             </Link>

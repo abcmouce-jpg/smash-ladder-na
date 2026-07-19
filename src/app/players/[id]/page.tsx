@@ -1,6 +1,9 @@
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPlayerMatchHistory, getPlayerProfile } from "@/lib/players";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 export default async function PlayerProfilePage({
   params,
@@ -29,34 +32,50 @@ export default async function PlayerProfilePage({
         )}
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{player.username}</h1>
-          <p className="text-sm text-zinc-500 tabular-nums">
+          <p className="text-sm tabular-nums text-muted-foreground">
             {player.rating} rating · {player.gamesPlayed} games played
           </p>
         </div>
       </div>
 
       <div className="mt-10">
-        <h2 className="text-sm font-medium text-zinc-500">
-          Recent matches ({wins}W–{losses}L of last {history.length})
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-muted-foreground">Recent matches</h2>
+          {history.length > 0 && (
+            <Badge variant="outline">
+              {wins}W–{losses}L of last {history.length}
+            </Badge>
+          )}
+        </div>
 
         {history.length === 0 && (
-          <p className="mt-4 text-sm text-zinc-500">No confirmed matches yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">No confirmed matches yet.</p>
         )}
 
-        <ul className="mt-4 flex flex-col divide-y divide-zinc-100 dark:divide-zinc-900">
-          {history.map((match) => (
-            <li key={match.id} className="flex items-center justify-between py-2 text-sm">
-              <span>
-                {match.won ? "W" : "L"} vs {match.opponent.username}
-              </span>
-              <span className="tabular-nums text-zinc-500">
-                {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
-                {match.delta})
-              </span>
-            </li>
-          ))}
-        </ul>
+        {history.length > 0 && (
+          <Card className="mt-4 divide-y divide-border overflow-hidden py-0">
+            {history.map((match) => (
+              <div
+                key={match.id}
+                className="flex items-center justify-between px-4 py-2.5 text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
+                    {match.won ? "W" : "L"}
+                  </Badge>
+                  vs{" "}
+                  <Link href={`/players/${match.opponent.id}`} className="hover:underline">
+                    {match.opponent.username}
+                  </Link>
+                </span>
+                <span className="tabular-nums text-muted-foreground">
+                  {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
+                  {match.delta})
+                </span>
+              </div>
+            ))}
+          </Card>
+        )}
       </div>
     </main>
   );
