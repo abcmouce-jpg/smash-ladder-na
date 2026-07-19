@@ -37,16 +37,20 @@ export async function SiteHeader() {
 
         {user ? (
           <div className="flex items-center gap-3">
-            {user.image && (
-              <Image
-                src={user.image}
-                alt={user.name ?? "avatar"}
-                width={24}
-                height={24}
-                className="rounded-full"
-              />
-            )}
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">{user.name}</span>
+            <Link href={`/players/${user.id}`} className="flex items-center gap-2">
+              {user.image && (
+                <Image
+                  src={user.image}
+                  alt={user.name ?? "avatar"}
+                  width={24}
+                  height={24}
+                  className="rounded-full"
+                />
+              )}
+              <span className="text-sm text-zinc-600 hover:underline dark:text-zinc-400">
+                {user.name}
+              </span>
+            </Link>
             <form
               action={async () => {
                 "use server";

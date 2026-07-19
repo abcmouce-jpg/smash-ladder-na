@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 
 export default async function LeaderboardPage() {
@@ -10,9 +11,7 @@ export default async function LeaderboardPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Leaderboard</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Sprint 0 verification: Neon → Prisma → Next.js round trip.
-      </p>
+      <p className="mt-1 text-sm text-zinc-500">Ranked players with 10+ games played.</p>
 
       <table className="mt-8 w-full text-left text-sm">
         <thead>
@@ -27,7 +26,11 @@ export default async function LeaderboardPage() {
           {players.map((player, index) => (
             <tr key={player.id} className="border-b border-zinc-100 dark:border-zinc-900">
               <td className="py-2 tabular-nums">{index + 1}</td>
-              <td className="py-2">{player.username}</td>
+              <td className="py-2">
+                <Link href={`/players/${player.id}`} className="hover:underline">
+                  {player.username}
+                </Link>
+              </td>
               <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
               <td className="py-2 text-right tabular-nums">{player.gamesPlayed}</td>
             </tr>
