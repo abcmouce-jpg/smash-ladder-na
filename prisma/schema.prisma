@@ -112,6 +112,7 @@ model User {
   gamesPlayed   Int        @default(0) // drives isProvisional + K-factor tier
   noShowCount   Int        @default(0)
   cancelCount   Int        @default(0)
+  misconductScore Int      @default(0) // bumped only when a mod actions a ConductReport, not on filing
   mainCharacter String? // self-declared; drives the character leaderboard filter
   role          UserRole   @default(USER)
   status        UserStatus @default(ACTIVE)

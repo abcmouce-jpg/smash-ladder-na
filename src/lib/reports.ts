@@ -27,7 +27,15 @@ export async function listOpenReports() {
     orderBy: { createdAt: "desc" },
     include: {
       reporter: { select: { id: true, username: true } },
-      reportedUser: { select: { id: true, username: true, status: true } },
+      reportedUser: {
+        select: {
+          id: true,
+          username: true,
+          status: true,
+          misconductScore: true,
+          _count: { select: { reportsReceived: true } },
+        },
+      },
       match: { select: { id: true } },
     },
   });
@@ -40,15 +48,40 @@ export async function dismissReport(reportId: string) {
   });
 }
 
-export async function actionReport(
-  reportId: string,
-  newStatus: "SUSPENDED" | "BANNED",
-) {
+// Only a mod actually confirming a report moves the needle — filing one is
+// free, so raw report counts would be trivial to game.
+const MISCONDUCT_POINTS: Record<"SUSPENDED" | "BANNED", number> = {
+  SUSPENDED: 2,
+  BANNED: 5,
+};
+
+// A single report shouldn't be able to take someone's account down — require
+// a pattern (any status counts, so previously-dismissed reports still show
+// as part of a history) before a mod can actually suspend or ban.
+export const ACTION_THRESHOLDS: Record<"SUSPENDED" | "BANNED", number> = {
+  SUSPENDED: 3,
+  BANNED: 5,
+};
+
+export async function actionReport(reportId: string, newStatus: "SUSPENDED" | "BANNED") {
   const report = await prisma.conductReport.findUnique({ where: { id: reportId } });
   if (!report) throw new Error("Report not found");
 
+  const totalReports = await prisma.conductReport.count({
+    where: { reportedUserId: report.reportedUserId },
+  });
+  const threshold = ACTION_THRESHOLDS[newStatus];
+  if (totalReports < threshold) {
+    throw new Error(
+      `This player has only been reported ${totalReports} time${totalReports === 1 ? "" : "s"} — ${newStatus.toLowerCase()} requires at least ${threshold}.`,
+    );
+  }
+
   await prisma.$transaction([
-    prisma.user.update({ where: { id: report.reportedUserId }, data: { status: newStatus } }),
+    prisma.user.update({
+      where: { id: report.reportedUserId },
+      data: { status: newStatus, misconductScore: { increment: MISCONDUCT_POINTS[newStatus] } },
+    }),
     prisma.conductReport.update({ where: { id: reportId }, data: { status: ReportStatus.ACTIONED } }),
   ]);
 }
