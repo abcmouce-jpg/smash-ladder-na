@@ -7,12 +7,14 @@ import { getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { NA_REGIONS } from "@/lib/regions";
 import { SMASH_CHARACTERS } from "@/lib/characters";
+import { didTierUp, getRankTier } from "@/lib/rank-tier";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { WiredConnectionForm } from "@/components/wired-connection-form";
+import { VictoryCelebration } from "@/components/victory-celebration";
 import {
   beginFirstGame,
   cancelLobby,
@@ -392,7 +394,7 @@ function ReportGameSection({
   );
 }
 
-function ConfirmedSection({
+async function ConfirmedSection({
   userId,
   match,
   opponentName,
@@ -412,13 +414,33 @@ function ConfirmedSection({
     if (character) await reportOpponentCharacterAction(match.id, character);
   }
 
+  let celebration: React.ReactNode = null;
+  if (won && ratingBefore !== null && ratingAfter !== null) {
+    const me = await prisma.user.findUnique({ where: { id: userId }, select: { gamesPlayed: true } });
+    const gamesPlayed = me?.gamesPlayed ?? 10;
+    const tierUp = didTierUp(ratingBefore, ratingAfter, gamesPlayed);
+    const tier = getRankTier(ratingAfter, gamesPlayed);
+    celebration = (
+      <VictoryCelebration
+        ratingBefore={ratingBefore}
+        ratingAfter={ratingAfter}
+        tierUp={tierUp}
+        tierName={tier?.name}
+      />
+    );
+  }
+
   return (
     <CardContent className="border-t border-border pt-4">
-      <p className="text-sm font-medium">Set confirmed — you {won ? "won" : "lost"}</p>
-      <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-        {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
-        {delta})
-      </p>
+      {celebration ?? (
+        <>
+          <p className="text-sm font-medium">Set confirmed — you lost</p>
+          <p className="mt-1 text-sm tabular-nums text-muted-foreground">
+            {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
+            {delta})
+          </p>
+        </>
+      )}
 
       <form action={reportCharacter} className="mt-4 flex items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">

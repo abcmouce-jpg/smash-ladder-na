@@ -47,3 +47,15 @@ export function getRankTier(rating: number, gamesPlayed: number): RankTier | nul
   if (gamesPlayed < 10) return null;
   return TIERS.find((t) => rating >= t.minRating) ?? TIERS[TIERS.length - 1];
 }
+
+// True only when a match's rating gain crossed into a strictly higher tier
+// — used to surface a special "tier up" moment rather than the regular win
+// celebration. Same gamesPlayed used for both sides on purpose: what
+// matters here is which side of a rating threshold the match landed on,
+// not reconstructing a historical games-played count.
+export function didTierUp(ratingBefore: number, ratingAfter: number, gamesPlayed: number) {
+  const before = getRankTier(ratingBefore, gamesPlayed);
+  const after = getRankTier(ratingAfter, gamesPlayed);
+  if (!before || !after) return false;
+  return TIERS.indexOf(after) < TIERS.indexOf(before);
+}
