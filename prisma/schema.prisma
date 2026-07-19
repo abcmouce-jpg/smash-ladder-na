@@ -80,6 +80,13 @@ enum ReportStatus {
   ACTIONED
 }
 
+enum TournamentStatus {
+  SIGNUPS
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 enum MatchStatus {
   PENDING_REPORT
   REPORTED
@@ -133,6 +140,8 @@ model User {
   reportsFiled     ConductReport[] @relation("ReportsFiled")
   reportsReceived  ConductReport[] @relation("ReportsReceived")
   seasonStandings  SeasonStanding[]
+  tournamentsHosted Tournament[]
+  tournamentEntries TournamentEntry[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -294,6 +303,39 @@ model SeasonStanding {
 
   @@unique([seasonId, userId])
   @@index([seasonId, rank])
+}
+
+// Single-elimination bracket, run by its host (or a MOD/ADMIN). Unrated —
+// results here don't touch ladder Elo, this is a separate casual/community
+// event system layered on top of the ladder. The bracket itself (double
+// elimination, by convention) runs on start.gg — this just tracks who's
+// hosting, who from the ladder is in, and links out to the real bracket.
+model Tournament {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  startggUrl  String?
+  hostId      String
+  host        User             @relation(fields: [hostId], references: [id])
+  status      TournamentStatus @default(SIGNUPS)
+  createdAt   DateTime         @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  entries TournamentEntry[]
+
+  @@index([status])
+}
+
+model TournamentEntry {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  joinedAt     DateTime   @default(now())
+
+  @@unique([tournamentId, userId])
 }
 
 model RatingHistory {
