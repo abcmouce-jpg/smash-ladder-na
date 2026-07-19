@@ -36,7 +36,12 @@ export async function getActiveLobbyEntry(userId: string) {
 
   // matchId lives on only one side of the pair (it's unique per RatingLobbyEntry),
   // so the paired-but-not-owning side looks its match up by player instead.
-  const match = await getLatestMatchForUser(userId);
+  // Prefer an actually-unresolved match over "whatever's newest" — a user
+  // can have a genuinely stuck PENDING_REPORT match from earlier and a more
+  // recently created (already CANCELLED/EXPIRED) one; showing the newer but
+  // irrelevant one hid the real match still blocking them from requeuing,
+  // since joinLobbyAndTryPair's own block check looks for exactly this.
+  const match = (await getUnresolvedMatchForUser(userId)) ?? (await getLatestMatchForUser(userId));
   return { ...entry, match };
 }
 
