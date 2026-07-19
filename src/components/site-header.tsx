@@ -13,7 +13,7 @@ export async function SiteHeader() {
       <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-3">
         <div className="flex items-center gap-6">
           <Link href="/" className="text-sm font-semibold tracking-tight">
-            Smash Ladder <span className="text-muted-foreground">NA</span>
+            Smash Ladder <span className="text-primary">NA</span>
           </Link>
           {user && (
             <nav className="flex items-center gap-4 text-sm text-muted-foreground">

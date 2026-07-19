@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { ensureActiveSeason } from "@/lib/seasons";
 import { CharacterIcon } from "@/components/character-icon";
+import { RankBadge } from "@/components/rank-badge";
 import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,13 +69,19 @@ export default async function LeaderboardPage({
             <tr className="border-b border-border text-muted-foreground">
               <th className="py-2 pl-4 font-medium">#</th>
               <th className="py-2 font-medium">Player</th>
+              <th className="py-2 font-medium">Tier</th>
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
               <th className="py-2 pr-4 font-medium text-right tabular-nums">Games</th>
             </tr>
           </thead>
           <tbody>
             {players.map((player, index) => (
-              <tr key={player.id} className="border-b border-border/60 last:border-0">
+              <tr
+                key={player.id}
+                className={`border-b border-border/60 last:border-0 ${
+                  index < 3 ? "bg-primary/[0.04]" : ""
+                }`}
+              >
                 <td className="py-2 pl-4 tabular-nums text-muted-foreground">
                   {MEDALS[index] ?? index + 1}
                 </td>
@@ -86,6 +93,9 @@ export default async function LeaderboardPage({
                     {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
                     {player.username}
                   </Link>
+                </td>
+                <td className="py-2">
+                  <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
                 </td>
                 <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
                 <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">

@@ -1,25 +1,31 @@
+import Image from "next/image";
 import Link from "next/link";
-import { Swords, Trophy, Users } from "lucide-react";
+import { Activity, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn } from "@/auth";
+import { getPublicStats } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { RankBadge } from "@/components/rank-badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 
 export default async function Home() {
   const session = await auth();
   const user = session?.user;
 
-  const me = user?.id
-    ? await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { rating: true, gamesPlayed: true },
-      })
-    : null;
+  const [me, stats] = await Promise.all([
+    user?.id
+      ? prisma.user.findUnique({
+          where: { id: user.id },
+          select: { rating: true, gamesPlayed: true },
+        })
+      : null,
+    getPublicStats(),
+  ]);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-20">
-      <Badge variant="outline" className="mb-4">
+      <Badge variant="outline" className="mb-4 border-primary/30 text-primary">
         North America
       </Badge>
       <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
@@ -46,6 +52,52 @@ export default async function Home() {
           You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated
           across {me.gamesPlayed} games.
         </p>
+      )}
+
+      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+        <span className="flex items-center gap-1.5 tabular-nums">
+          <Users className="size-3.5 text-primary" />
+          <span className="font-medium text-foreground">{stats.totalPlayers}</span> players
+        </span>
+        <span className="flex items-center gap-1.5 tabular-nums">
+          <Activity className="size-3.5 text-primary" />
+          <span className="font-medium text-foreground">{stats.matchesToday}</span> matches today
+        </span>
+      </div>
+
+      {stats.topPlayers.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Top of the ladder
+          </h2>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {stats.topPlayers.map((p, i) => (
+              <Link key={p.id} href={`/players/${p.id}`}>
+                <Card className="h-full py-0 transition-colors hover:border-foreground/30">
+                  <CardContent className="flex items-center gap-3 py-3">
+                    <span className="text-lg tabular-nums text-muted-foreground">
+                      {["🥇", "🥈", "🥉"][i]}
+                    </span>
+                    {p.avatarUrl && (
+                      <Image
+                        src={p.avatarUrl}
+                        alt={p.username}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{p.username}</p>
+                      <p className="text-xs tabular-nums text-muted-foreground">{p.rating} rating</p>
+                    </div>
+                    <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-3">

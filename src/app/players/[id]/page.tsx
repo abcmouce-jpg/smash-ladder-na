@@ -10,6 +10,7 @@ import {
   getRatingChartPoints,
 } from "@/lib/players";
 import { CharacterIcon } from "@/components/character-icon";
+import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,7 @@ export default async function PlayerProfilePage({
             {player.mainCharacter ? ` · mains ${player.mainCharacter}` : ""}
           </p>
           <div className="mt-1.5 flex items-center gap-1.5">
+            <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
             {player.region && (
               <Badge variant="outline">
                 <MapPin className="size-3" />
