@@ -166,6 +166,11 @@ async function OwnPostCard({
             <p className="text-sm font-medium">{matchedWith.username}</p>
           </div>
         )}
+        <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
+          <Button type="submit" variant="outline" size="sm">
+            Done — post again
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

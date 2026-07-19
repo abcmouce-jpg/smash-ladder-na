@@ -55,7 +55,10 @@ export async function createPost(userId: string, comment: string) {
 
 export async function closePost(userId: string, postId: string) {
   await prisma.freeBattlePost.updateMany({
-    where: { id: postId, authorId: userId, status: PostStatus.OPEN },
+    // MATCHED must be closable too, not just OPEN — otherwise a claimed
+    // post counts as "active" forever (per getOwnActivePost) and the
+    // author can never post again.
+    where: { id: postId, authorId: userId, status: { in: [PostStatus.OPEN, PostStatus.MATCHED] } },
     data: { status: PostStatus.CLOSED },
   });
 }
