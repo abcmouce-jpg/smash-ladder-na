@@ -1,11 +1,27 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
+import { sendDiscordDM } from "@/lib/discord-bot";
 
 const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
 const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // no-show / no-report cutoff
 
 export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
+
+// Fires after the pairing transaction has already committed — a DM is a
+// network call and has no business holding a DB transaction open.
+async function notifyMatchPaired(player1Id: string, player2Id: string) {
+  const [p1, p2] = await Promise.all([
+    prisma.user.findUnique({ where: { id: player1Id }, select: { discordId: true, username: true } }),
+    prisma.user.findUnique({ where: { id: player2Id }, select: { discordId: true, username: true } }),
+  ]);
+  if (p1 && p2) {
+    await Promise.all([
+      sendDiscordDM(p1.discordId, `🎮 You've been matched with **${p2.username}**! Head to the lobby to get the stage picked.`),
+      sendDiscordDM(p2.discordId, `🎮 You've been matched with **${p1.username}**! Head to the lobby to get the stage picked.`),
+    ]);
+  }
+}
 
 export async function getActiveLobbyEntry(userId: string) {
   const entry = await prisma.ratingLobbyEntry.findFirst({
@@ -90,6 +106,8 @@ export async function joinLobbyAndTryPair(userId: string) {
     return match;
   }, TX_OPTIONS));
 
+  if (paired) await notifyMatchPaired(paired.player1Id, paired.player2Id);
+
   return paired ? getActiveLobbyEntry(userId) : newEntry;
 }
 
@@ -109,7 +127,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           orderBy: { joinedAt: "asc" },
           take: 2,
         });
-        if (!a || !b) return false;
+        if (!a || !b) return null;
 
         // Claim both atomically so a join happening at the same moment can't
         // grab one of them out from under this sweep.
@@ -117,7 +135,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           where: { id: { in: [a.id, b.id] }, status: LobbyEntryStatus.WAITING },
           data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
         });
-        if (claim.count !== 2) return false;
+        if (claim.count !== 2) return null;
 
         const match = await tx.ratingMatch.create({
           data: {
@@ -134,10 +152,11 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           where: { id: a.id },
           data: { matchId: match.id, pairedEntryId: b.id },
         });
-        return true;
+        return { player1Id: a.userId, player2Id: b.userId };
       }, TX_OPTIONS),
     );
     if (!madeMatch) break;
+    await notifyMatchPaired(madeMatch.player1Id, madeMatch.player2Id);
     paired++;
   }
   return paired;

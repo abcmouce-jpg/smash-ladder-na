@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { sendDiscordDM } from "@/lib/discord-bot";
 
 const GAMES_TO_WIN = 2; // best of 3
 
@@ -130,6 +131,12 @@ export async function pickGameStage(
   });
 }
 
+type ReportOutcome =
+  | { type: "reported"; opponentId: string }
+  | { type: "disputed"; player1Id: string; player2Id: string }
+  | { type: "game_won"; player1Id: string; player2Id: string; nextGameNumber: number }
+  | { type: "set_confirmed"; player1Id: string; player2Id: string };
+
 export async function reportGameResult(
   userId: string,
   matchId: string,
@@ -140,8 +147,8 @@ export async function reportGameResult(
   if (!match) throw new Error("Match not found");
   requireParticipant(match, userId);
 
-  await withTransientRetry(() =>
-    prisma.$transaction(async (tx) => {
+  const outcome = await withTransientRetry(() =>
+    prisma.$transaction<ReportOutcome>(async (tx) => {
       const game = await tx.matchGame.findUnique({
         where: { matchId_gameNumber: { matchId, gameNumber } },
       });
@@ -157,7 +164,7 @@ export async function reportGameResult(
           where: { id: game.id },
           data: { reportedWinnerId: winnerId, reportedById: userId, reportedAt: new Date() },
         });
-        return;
+        return { type: "reported", opponentId };
       }
 
       if (game.reportedById === userId) throw new Error("You already reported this game");
@@ -183,7 +190,7 @@ export async function reportGameResult(
           where: { id: game.id },
           data: { secondReportWinnerId: winnerId, secondReportById: userId, secondReportAt: new Date() },
         });
-        return;
+        return { type: "disputed", player1Id: match.player1Id, player2Id: match.player2Id };
       }
 
       await tx.matchGame.update({
@@ -196,9 +203,58 @@ export async function reportGameResult(
         },
       });
 
-      await progressSet(tx, match, gameNumber, winnerId);
+      const setWinnerId = await progressSet(tx, match, gameNumber, winnerId);
+      return setWinnerId
+        ? { type: "set_confirmed", player1Id: match.player1Id, player2Id: match.player2Id }
+        : {
+            type: "game_won",
+            player1Id: match.player1Id,
+            player2Id: match.player2Id,
+            nextGameNumber: gameNumber + 1,
+          };
     }, TX_OPTIONS),
   );
+
+  await notifyReportOutcome(outcome, gameNumber);
+}
+
+async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
+  if (outcome.type === "reported") {
+    const opponent = await prisma.user.findUnique({
+      where: { id: outcome.opponentId },
+      select: { discordId: true },
+    });
+    if (opponent) {
+      await sendDiscordDM(
+        opponent.discordId,
+        `📋 Your opponent reported game ${gameNumber}'s result — head to the lobby to confirm or dispute it.`,
+      );
+    }
+    return;
+  }
+
+  const [p1, p2] = await Promise.all([
+    prisma.user.findUnique({ where: { id: outcome.player1Id }, select: { discordId: true, username: true, rating: true } }),
+    prisma.user.findUnique({ where: { id: outcome.player2Id }, select: { discordId: true, username: true, rating: true } }),
+  ]);
+  if (!p1 || !p2) return;
+
+  if (outcome.type === "disputed") {
+    await Promise.all([
+      sendDiscordDM(p1.discordId, `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.`),
+      sendDiscordDM(p2.discordId, `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.`),
+    ]);
+  } else if (outcome.type === "game_won") {
+    await Promise.all([
+      sendDiscordDM(p1.discordId, `Game ${gameNumber} is decided — on to game ${outcome.nextGameNumber}. Head to the lobby.`),
+      sendDiscordDM(p2.discordId, `Game ${gameNumber} is decided — on to game ${outcome.nextGameNumber}. Head to the lobby.`),
+    ]);
+  } else if (outcome.type === "set_confirmed") {
+    await Promise.all([
+      sendDiscordDM(p1.discordId, `✅ Your set vs ${p2.username} is confirmed! New rating: ${p1.rating}.`),
+      sendDiscordDM(p2.discordId, `✅ Your set vs ${p1.username} is confirmed! New rating: ${p2.rating}.`),
+    ]);
+  }
 }
 
 async function progressSet(
@@ -206,7 +262,7 @@ async function progressSet(
   match: { id: string; player1Id: string; player2Id: string },
   decidedGameNumber: number,
   gameWinnerId: string,
-) {
+): Promise<string | null> {
   const games = await tx.matchGame.findMany({ where: { matchId: match.id } });
   const wins: Record<string, number> = {};
   for (const g of games) {
@@ -223,7 +279,7 @@ async function progressSet(
       winnerId: setWinnerId,
       reporterId: setWinnerId,
     });
-    return;
+    return setWinnerId;
   }
 
   const loserId = gameWinnerId === match.player1Id ? match.player2Id : match.player1Id;
@@ -238,4 +294,5 @@ async function progressSet(
       stagesRemaining: [...COUNTERPICK_STAGES],
     },
   });
+  return null;
 }

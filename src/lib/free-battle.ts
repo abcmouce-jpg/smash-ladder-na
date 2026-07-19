@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { PostStatus } from "@/generated/prisma/enums";
+import { sendDiscordDM } from "@/lib/discord-bot";
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -78,4 +79,12 @@ export async function claimPost(userId: string, postId: string) {
     data: { status: PostStatus.MATCHED, matchedWithId: userId, matchedAt: new Date() },
   });
   if (claim.count === 0) throw new Error("This post was just claimed by someone else");
+
+  const [author, claimer] = await Promise.all([
+    prisma.user.findUnique({ where: { id: post.authorId }, select: { discordId: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
+  ]);
+  if (author && claimer) {
+    await sendDiscordDM(author.discordId, `🙋 ${claimer.username} is in on your free battle post!`);
+  }
 }

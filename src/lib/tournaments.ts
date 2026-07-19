@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { TournamentStatus } from "@/generated/prisma/enums";
+import { sendDiscordDM } from "@/lib/discord-bot";
 
 const entryWithUser = {
   user: { select: { id: true, username: true, avatarUrl: true, rating: true } },
@@ -107,11 +108,20 @@ export async function markInProgress(
   tournamentId: string,
   role: "USER" | "MOD" | "ADMIN",
 ) {
-  await requireHostOrMod(tournamentId, userId, role);
+  const tournament = await requireHostOrMod(tournamentId, userId, role);
   await prisma.tournament.update({
     where: { id: tournamentId },
     data: { status: TournamentStatus.IN_PROGRESS, startedAt: new Date() },
   });
+
+  const entries = await prisma.tournamentEntry.findMany({
+    where: { tournamentId },
+    select: { user: { select: { discordId: true } } },
+  });
+  const message = tournament.startggUrl
+    ? `🏆 **${tournament.name}** is starting! Bracket: ${tournament.startggUrl}`
+    : `🏆 **${tournament.name}** is starting!`;
+  await Promise.all(entries.map((e) => sendDiscordDM(e.user.discordId, message)));
 }
 
 export async function markCompleted(
