@@ -65,10 +65,14 @@ export async function applyEloAndConfirm(
   confirmationMethod: ConfirmationMethod,
   secondReport: { winnerId: string; reporterId: string } | null,
 ) {
-  const [p1, p2] = await Promise.all([
+  const [p1, p2, season] = await Promise.all([
     tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
     tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
+    tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } }),
   ]);
+  // Stamped at confirm time (not creation), since that's when the result
+  // actually counts — falls back to creating Season 1 if none exists yet.
+  const seasonId = season?.id ?? (await tx.season.create({ data: { name: "Season 1" } })).id;
 
   const p1Won = winnerId === p1.id;
   const expected1 = expectedScore(p1.rating, p2.rating);
@@ -90,6 +94,7 @@ export async function applyEloAndConfirm(
       }),
       confirmedAt: new Date(),
       confirmationMethod,
+      seasonId,
       player1RatingBefore: p1.rating,
       player1RatingAfter: p1After,
       player2RatingBefore: p2.rating,

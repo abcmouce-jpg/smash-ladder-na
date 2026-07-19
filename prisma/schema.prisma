@@ -131,6 +131,7 @@ model User {
   matchComments    MatchComment[]
   reportsFiled     ConductReport[] @relation("ReportsFiled")
   reportsReceived  ConductReport[] @relation("ReportsReceived")
+  seasonStandings  SeasonStanding[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -191,6 +192,8 @@ model RatingMatch {
   player2RatingAfter   Int?
   createdAt            DateTime            @default(now())
   expiresAt            DateTime // no-show / no-report cutoff
+  seasonId             String?
+  season               Season?             @relation(fields: [seasonId], references: [id])
 
   ratingHistory RatingHistory[]
   lobbyEntry    RatingLobbyEntry?
@@ -262,6 +265,34 @@ model ConductReport {
 
   @@index([reportedUserId])
   @@index([status])
+}
+
+// endsAt null = the currently active season. Ending one snapshots standings
+// into SeasonStanding and resets User.rating/gamesPlayed for the next season.
+model Season {
+  id       String    @id @default(cuid())
+  name     String
+  startsAt DateTime  @default(now())
+  endsAt   DateTime?
+
+  matches   RatingMatch[]
+  standings SeasonStanding[]
+
+  @@index([endsAt])
+}
+
+model SeasonStanding {
+  id          String @id @default(cuid())
+  seasonId    String
+  season      Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User   @relation(fields: [userId], references: [id])
+  finalRating Int
+  gamesPlayed Int
+  rank        Int
+
+  @@unique([seasonId, userId])
+  @@index([seasonId, rank])
 }
 
 model RatingHistory {
