@@ -148,5 +148,14 @@ export async function setMatchRoomCode(userId: string, matchId: string, roomCode
   if (match.player1Id !== userId && match.player2Id !== userId) {
     throw new Error("Not a participant in this match");
   }
-  await prisma.ratingMatch.update({ where: { id: matchId }, data: { roomCode } });
+  // Only the person who actually hosts the in-game arena has a code to
+  // enter; the other side just reads it, so only the original setter (or
+  // whoever gets there first) can update it — no accidental overwrites.
+  if (match.roomCodeSetById && match.roomCodeSetById !== userId) {
+    throw new Error("Only the player who entered the room code can change it");
+  }
+  await prisma.ratingMatch.update({
+    where: { id: matchId },
+    data: { roomCode, roomCodeSetById: userId },
+  });
 }

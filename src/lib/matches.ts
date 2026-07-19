@@ -1,4 +1,4 @@
-import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 
@@ -26,6 +26,24 @@ export async function getLatestMatchForUser(userId: string) {
   });
 }
 
+// Either player can back out unilaterally while the set is still in
+// progress — no rating impact either way. Once a result's been confirmed
+// (or is already disputed) it's too late to just walk away from.
+export async function cancelMatch(userId: string, matchId: string) {
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  if (match.player1Id !== userId && match.player2Id !== userId) {
+    throw new Error("Not a participant in this match");
+  }
+  if (match.status !== MatchStatus.PENDING_REPORT) {
+    throw new Error("This match can no longer be cancelled");
+  }
+  await prisma.ratingMatch.update({
+    where: { id: matchId },
+    data: { status: MatchStatus.CANCELLED },
+  });
+}
+
 // Provisional players (few games) swing faster so their rating converges quickly.
 function kFactor(gamesPlayed: number) {
   if (gamesPlayed < 10) return 40;
@@ -35,60 +53,6 @@ function kFactor(gamesPlayed: number) {
 
 function expectedScore(ratingSelf: number, ratingOpp: number) {
   return 1 / (1 + 10 ** ((ratingOpp - ratingSelf) / 400));
-}
-
-export async function reportMatchResult(matchId: string, userId: string, won: boolean) {
-  await withTransientRetry(() => prisma.$transaction(async (tx) => {
-    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
-    if (match.player1Id !== userId && match.player2Id !== userId) {
-      throw new Error("Not a participant in this match");
-    }
-
-    const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
-    const winnerId = won ? userId : opponentId;
-
-    if (match.status === MatchStatus.PENDING_REPORT) {
-      await tx.ratingMatch.update({
-        where: { id: matchId },
-        data: {
-          status: MatchStatus.REPORTED,
-          reportedWinnerId: winnerId,
-          reportedById: userId,
-          reportedAt: new Date(),
-        },
-      });
-      return;
-    }
-
-    if (match.status !== MatchStatus.REPORTED) {
-      throw new Error("Match is not open for reporting");
-    }
-    if (match.reportedById === userId) {
-      throw new Error("You already reported this match");
-    }
-
-    if (match.reportedWinnerId === winnerId) {
-      await applyEloAndConfirm(
-        tx,
-        { id: match.id, player1Id: match.player1Id, player2Id: match.player2Id },
-        winnerId,
-        ConfirmationMethod.SELF_CONFIRMED,
-        { winnerId, reporterId: userId },
-      );
-    } else {
-      await tx.ratingMatch.update({
-        where: { id: matchId },
-        data: {
-          status: MatchStatus.DISPUTED,
-          secondReportWinnerId: winnerId,
-          secondReportById: userId,
-          secondReportAt: new Date(),
-          disputeReason: "Players reported different winners",
-        },
-      });
-    }
-  }, TX_OPTIONS));
 }
 
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.

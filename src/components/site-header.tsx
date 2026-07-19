@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Gamepad2, Shield, Swords, Trophy, Users } from "lucide-react";
+import { Flag, Gamepad2, Shield, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 
@@ -52,6 +52,15 @@ export async function SiteHeader() {
                 >
                   <Shield className="size-3.5" />
                   Disputes
+                </Link>
+              )}
+              {(user.role === "MOD" || user.role === "ADMIN") && (
+                <Link
+                  href="/admin/reports"
+                  className="flex items-center gap-1.5 hover:text-foreground"
+                >
+                  <Flag className="size-3.5" />
+                  Reports
                 </Link>
               )}
             </nav>

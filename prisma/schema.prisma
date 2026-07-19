@@ -74,6 +74,12 @@ enum PairingMethod {
   AUTO
 }
 
+enum ReportStatus {
+  OPEN
+  DISMISSED
+  ACTIONED
+}
+
 enum MatchStatus {
   PENDING_REPORT
   REPORTED
@@ -118,8 +124,11 @@ model User {
   lobbyEntries    RatingLobbyEntry[]
   matchesAsP1     RatingMatch[]      @relation("Player1Matches")
   matchesAsP2     RatingMatch[]      @relation("Player2Matches")
-  ratingHistory   RatingHistory[]
-  characterVote   CharacterVote?
+  ratingHistory    RatingHistory[]
+  characterVote    CharacterVote?
+  matchComments    MatchComment[]
+  reportsFiled     ConductReport[] @relation("ReportsFiled")
+  reportsReceived  ConductReport[] @relation("ReportsReceived")
 
   @@index([rating])
   @@index([mainCharacter])
@@ -162,6 +171,7 @@ model RatingMatch {
   player2              User                @relation("Player2Matches", fields: [player2Id], references: [id])
   pairingMethod        PairingMethod       @default(MANUAL)
   roomCode             String? // never rendered outside the paired pair's own view
+  roomCodeSetById      String? // whoever entered it owns it; the other side can only read it
   status               MatchStatus         @default(PENDING_REPORT)
   reportedWinnerId     String?
   reportedById         String?
@@ -181,10 +191,74 @@ model RatingMatch {
 
   ratingHistory RatingHistory[]
   lobbyEntry    RatingLobbyEntry?
+  comments      MatchComment[]
+  games         MatchGame[] // best-of-3: game 1 decides the stage via strike+pick, games 2-3 are counterpicks
+  conductReports ConductReport[]
 
   @@index([status])
   @@index([player1Id])
   @@index([player2Id])
+}
+
+// One game within a RatingMatch's best-of-3 set. Stage selection is
+// strike-then-pick: actorA strikes actorAStrikes stages, actorB strikes
+// actorBStrikes, then whichever of the two struck fewer stages picks the
+// final stage from what's left (game 1: actorA struck 1 vs actorB's 2, so
+// actorA picks; games 2-3: the previous game's winner strikes 2 and the
+// loser, who struck 0, picks).
+model MatchGame {
+  id               String      @id @default(cuid())
+  matchId          String
+  match            RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  gameNumber       Int
+  actorAId         String
+  actorAStrikes    Int
+  actorBId         String
+  actorBStrikes    Int
+  stagesRemaining  String[]    @default([])
+  struckStages     String[]    @default([])
+  finalStage       String?
+
+  reportedWinnerId     String?
+  reportedById         String?
+  reportedAt           DateTime?
+  secondReportWinnerId String?
+  secondReportById     String?
+  secondReportAt       DateTime?
+  winnerId             String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([matchId, gameNumber])
+  @@index([matchId])
+}
+
+model MatchComment {
+  id        String      @id @default(cuid())
+  matchId   String
+  match     RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User        @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime    @default(now())
+
+  @@index([matchId, createdAt])
+}
+
+model ConductReport {
+  id             String       @id @default(cuid())
+  matchId        String?
+  match          RatingMatch? @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  reporterId     String
+  reporter       User         @relation("ReportsFiled", fields: [reporterId], references: [id])
+  reportedUserId String
+  reportedUser   User         @relation("ReportsReceived", fields: [reportedUserId], references: [id])
+  reason         String
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+
+  @@index([reportedUserId])
+  @@index([status])
 }
 
 model RatingHistory {

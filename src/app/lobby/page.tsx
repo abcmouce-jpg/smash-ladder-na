@@ -2,11 +2,26 @@ import Image from "next/image";
 import { Loader2, Swords } from "lucide-react";
 import { auth } from "@/auth";
 import { getActiveLobbyEntry } from "@/lib/lobby";
+import { getMatchGames, gameTurnState } from "@/lib/match-games";
+import { listMatchComments } from "@/lib/match-comments";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LobbyPoller } from "@/components/lobby-poller";
-import { cancelLobby, joinLobby, reportResult, submitRoomCode } from "./actions";
+import {
+  beginFirstGame,
+  cancelLobby,
+  cancelMatchInProgress,
+  joinLobby,
+  pickStage,
+  reportConduct,
+  reportGame,
+  sendMatchComment,
+  strikeStage,
+  submitRoomCode,
+} from "./actions";
+
+type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
 
 export default async function LobbyPage() {
   const session = await auth();
@@ -72,14 +87,14 @@ function PageTitle() {
   );
 }
 
-function PairedView({
-  userId,
-  match,
-}: {
-  userId: string;
-  match: NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
-}) {
+async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
+  const games = await getMatchGames(match.id);
+  const wins = { me: 0, opponent: 0 };
+  for (const g of games) {
+    if (g.winnerId === userId) wins.me++;
+    else if (g.winnerId) wins.opponent++;
+  }
 
   return (
     <Card className="mt-8">
@@ -105,37 +120,179 @@ function PairedView({
           <p className="font-medium">{opponent.username}</p>
           <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
         </div>
+        {games.length > 0 && (
+          <Badge variant="outline" className="ml-auto tabular-nums">
+            {wins.me}–{wins.opponent}
+          </Badge>
+        )}
       </CardContent>
 
       <CardContent>
-        <RoomCodeForm matchId={match.id} initialValue={match.roomCode ?? ""} />
+        <RoomCodeForm
+          matchId={match.id}
+          initialValue={match.roomCode ?? ""}
+          readOnly={!!match.roomCodeSetById && match.roomCodeSetById !== userId}
+          setByOpponent={match.roomCodeSetById === opponent.id}
+        />
       </CardContent>
 
-      <ResultSection userId={userId} match={match} opponentName={opponent.username} />
+      {match.status === "PENDING_REPORT" && (
+        <GameSection userId={userId} match={match} games={games} opponentName={opponent.username} />
+      )}
+
+      {match.status === "DISPUTED" && (
+        <CardContent className="border-t border-border pt-4">
+          <p className="text-sm text-muted-foreground">
+            You and {opponent.username} reported different results. This match is awaiting review.
+          </p>
+        </CardContent>
+      )}
+
+      {match.status === "CONFIRMED" && (
+        <ConfirmedSection userId={userId} match={match} />
+      )}
+
+      <CommentsSection userId={userId} match={match} />
+
+      <MatchFooterActions match={match} />
     </Card>
   );
 }
 
-function ResultSection({
+function MatchFooterActions({ match }: { match: Match }) {
+  async function report(formData: FormData) {
+    "use server";
+    const reason = String(formData.get("reason") ?? "");
+    if (reason.trim()) await reportConduct(match.id, reason);
+  }
+
+  return (
+    <CardContent className="flex flex-col gap-3 border-t border-border pt-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Problem with this match? Cancel it or report your opponent.
+        </p>
+        {match.status === "PENDING_REPORT" && (
+          <form action={cancelMatchInProgress.bind(null, match.id)}>
+            <Button type="submit" variant="destructive" size="sm">
+              Cancel match
+            </Button>
+          </form>
+        )}
+      </div>
+      <details className="text-xs">
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+          Report a problem
+        </summary>
+        <form action={report} className="mt-2 flex items-end gap-2">
+          <textarea
+            name="reason"
+            required
+            rows={2}
+            placeholder="What happened?"
+            maxLength={1000}
+            className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
+          />
+          <Button type="submit" size="sm" variant="outline">
+            Submit
+          </Button>
+        </form>
+      </details>
+    </CardContent>
+  );
+}
+
+function GameSection({
   userId,
   match,
+  games,
   opponentName,
 }: {
   userId: string;
-  match: NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
+  match: Match;
+  games: Awaited<ReturnType<typeof getMatchGames>>;
   opponentName: string;
 }) {
-  if (match.status === "PENDING_REPORT") {
+  const current = games.find((g) => !g.winnerId);
+
+  if (!current) {
+    const gameNumber = games.length + 1;
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Report the result once you&apos;ve played.
+          {gameNumber === 1
+            ? "Settle on a stage before you play."
+            : `Game ${gameNumber} — winner of the last game strikes first.`}
+        </p>
+        <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
+          <Button type="submit" variant="outline" size="sm">
+            Start Game {gameNumber}
+          </Button>
+        </form>
+      </CardContent>
+    );
+  }
+
+  const turn = gameTurnState(current);
+
+  if (turn.phase === "done") {
+    return (
+      <>
+        <CardContent className="border-t border-border pt-4">
+          <p className="text-sm text-muted-foreground">Game {current.gameNumber} stage</p>
+          <p className="mt-1 font-medium">{current.finalStage}</p>
+        </CardContent>
+        <ReportGameSection userId={userId} match={match} game={current} opponentName={opponentName} />
+      </>
+    );
+  }
+
+  const myTurn = turn.actorId === userId;
+  const action = turn.phase === "striking" ? strikeStage : pickStage;
+  const verb = turn.phase === "striking" ? "strike" : "pick";
+
+  return (
+    <CardContent className="border-t border-border pt-4">
+      <p className="text-sm text-muted-foreground">
+        Game {current.gameNumber} —{" "}
+        {myTurn ? `Your turn — ${verb} a stage.` : `Waiting for ${opponentName} to ${verb}…`}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {current.stagesRemaining.map((stage) => (
+          <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
+            <Button type="submit" size="sm" variant="outline" disabled={!myTurn}>
+              {stage}
+            </Button>
+          </form>
+        ))}
+      </div>
+      {!myTurn && <LobbyPoller />}
+    </CardContent>
+  );
+}
+
+function ReportGameSection({
+  userId,
+  match,
+  game,
+  opponentName,
+}: {
+  userId: string;
+  match: Match;
+  game: Awaited<ReturnType<typeof getMatchGames>>[number];
+  opponentName: string;
+}) {
+  if (!game.reportedById) {
+    return (
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          Report game {game.gameNumber}&apos;s result once you&apos;ve played.
         </p>
         <div className="mt-4 flex gap-2">
-          <form action={reportResult.bind(null, match.id, true)}>
+          <form action={reportGame.bind(null, match.id, game.gameNumber, true)}>
             <Button type="submit">I Won</Button>
           </form>
-          <form action={reportResult.bind(null, match.id, false)}>
+          <form action={reportGame.bind(null, match.id, game.gameNumber, false)}>
             <Button type="submit" variant="outline">
               I Lost
             </Button>
@@ -145,79 +302,122 @@ function ResultSection({
     );
   }
 
-  if (match.status === "REPORTED" && match.reportedById === userId) {
+  if (game.reportedById === userId) {
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Waiting for {opponentName} to confirm the result…
+          Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s result…
         </p>
         <LobbyPoller />
       </CardContent>
     );
   }
 
-  if (match.status === "REPORTED" && match.reportedById !== userId) {
-    const theyClaimedTheyWon = match.reportedWinnerId !== userId;
-    return (
-      <CardContent className="border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">
-          {opponentName} reported that {theyClaimedTheyWon ? "they won" : "you won"}. Does that
-          match what happened?
-        </p>
-        <div className="mt-4 flex gap-2">
-          <form action={reportResult.bind(null, match.id, !theyClaimedTheyWon)}>
-            <Button type="submit">Yes, that&apos;s right</Button>
-          </form>
-          <form action={reportResult.bind(null, match.id, theyClaimedTheyWon)}>
-            <Button type="submit" variant="outline">
-              No, that&apos;s wrong
-            </Button>
-          </form>
-        </div>
-      </CardContent>
-    );
-  }
-
-  if (match.status === "CONFIRMED") {
-    const won = match.reportedWinnerId === userId;
-    const ratingBefore =
-      match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
-    const ratingAfter =
-      match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
-    const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
-
-    return (
-      <CardContent className="border-t border-border pt-4">
-        <p className="text-sm font-medium">Match confirmed — you {won ? "won" : "lost"}</p>
-        <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-          {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
-          {delta})
-        </p>
-        <form action={joinLobby} className="mt-4">
-          <Button type="submit">Join Lobby</Button>
+  const theyClaimedTheyWon = game.reportedWinnerId !== userId;
+  return (
+    <CardContent className="border-t border-border pt-4">
+      <p className="text-sm text-muted-foreground">
+        {opponentName} reported that {theyClaimedTheyWon ? "they won" : "you won"} game{" "}
+        {game.gameNumber}. Does that match what happened?
+      </p>
+      <div className="mt-4 flex gap-2">
+        <form action={reportGame.bind(null, match.id, game.gameNumber, !theyClaimedTheyWon)}>
+          <Button type="submit">Yes, that&apos;s right</Button>
         </form>
-      </CardContent>
-    );
-  }
-
-  if (match.status === "DISPUTED") {
-    return (
-      <CardContent className="border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">
-          You and {opponentName} reported different results. This match is awaiting review.
-        </p>
-      </CardContent>
-    );
-  }
-
-  return null;
+        <form action={reportGame.bind(null, match.id, game.gameNumber, theyClaimedTheyWon)}>
+          <Button type="submit" variant="outline">
+            No, that&apos;s wrong
+          </Button>
+        </form>
+      </div>
+    </CardContent>
+  );
 }
 
-function RoomCodeForm({ matchId, initialValue }: { matchId: string; initialValue: string }) {
+function ConfirmedSection({ userId, match }: { userId: string; match: Match }) {
+  const won = match.reportedWinnerId === userId;
+  const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
+  const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
+  const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
+
+  return (
+    <CardContent className="border-t border-border pt-4">
+      <p className="text-sm font-medium">Set confirmed — you {won ? "won" : "lost"}</p>
+      <p className="mt-1 text-sm tabular-nums text-muted-foreground">
+        {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
+        {delta})
+      </p>
+      <form action={joinLobby} className="mt-4">
+        <Button type="submit">Join Lobby</Button>
+      </form>
+    </CardContent>
+  );
+}
+
+async function CommentsSection({ userId, match }: { userId: string; match: Match }) {
+  const comments = await listMatchComments(userId, match.id);
+
+  async function action(formData: FormData) {
+    "use server";
+    const body = String(formData.get("body") ?? "");
+    if (body.trim()) await sendMatchComment(match.id, body);
+  }
+
+  return (
+    <CardContent className="border-t border-border pt-4">
+      <p className="text-sm text-muted-foreground">Comments</p>
+      {comments.length === 0 && (
+        <p className="mt-2 text-sm text-muted-foreground">No messages yet.</p>
+      )}
+      <ul className="mt-2 flex flex-col gap-1.5">
+        {comments.map((c) => (
+          <li key={c.id} className="text-sm">
+            <span className="font-medium">{c.author.username}:</span> {c.body}
+          </li>
+        ))}
+      </ul>
+      <form action={action} className="mt-3 flex gap-2">
+        <input
+          name="body"
+          placeholder="Say something…"
+          maxLength={500}
+          className="h-8 flex-1 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+        />
+        <Button type="submit" size="sm">
+          Send
+        </Button>
+      </form>
+    </CardContent>
+  );
+}
+
+function RoomCodeForm({
+  matchId,
+  initialValue,
+  readOnly,
+  setByOpponent,
+}: {
+  matchId: string;
+  initialValue: string;
+  readOnly: boolean;
+  setByOpponent: boolean;
+}) {
   async function action(formData: FormData) {
     "use server";
     const roomCode = String(formData.get("roomCode") ?? "");
     await submitRoomCode(matchId, roomCode);
+  }
+
+  if (readOnly) {
+    return (
+      <div className="flex flex-col gap-1 text-sm">
+        Room code
+        <p className="font-medium tabular-nums">{initialValue || "Not set yet"}</p>
+        {setByOpponent && (
+          <p className="text-xs text-muted-foreground">Set by your opponent — join with this.</p>
+        )}
+      </div>
+    );
   }
 
   return (
