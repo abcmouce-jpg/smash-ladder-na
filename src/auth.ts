@@ -69,8 +69,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (token.userId) session.user.id = token.userId;
-      if (token.role) session.user.role = token.role;
+      if (token.userId) {
+        session.user.id = token.userId;
+        // Re-read fresh from the DB on every session check rather than
+        // trusting the JWT's role claim, which is only ever populated at
+        // sign-in time (the `profile` param the jwt callback keys off is
+        // absent on subsequent calls). Otherwise, revoking a MOD/ADMIN's
+        // role wouldn't take effect until they happened to sign out —
+        // their existing session would silently keep admin access.
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.userId },
+          select: { role: true },
+        });
+        session.user.role = dbUser?.role ?? "USER";
+      }
       return session;
     },
   },
