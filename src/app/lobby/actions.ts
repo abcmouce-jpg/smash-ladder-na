@@ -13,6 +13,7 @@ import {
 import { postMatchComment } from "@/lib/match-comments";
 import { cancelMatch } from "@/lib/matches";
 import { fileMatchReport } from "@/lib/reports";
+import { reportOpponentCharacter } from "@/lib/character-stats";
 import { prisma } from "@/lib/db";
 import { enforceRateLimit, minutesAgo } from "@/lib/rate-limit";
 
@@ -137,4 +138,12 @@ export async function updateWiredConnection(wired: boolean) {
   await setWiredConnection(userId, wired);
   revalidatePath("/lobby");
   revalidatePath(`/players/${userId}`);
+}
+
+export async function reportOpponentCharacterAction(matchId: string, character: string) {
+  const userId = await requireUserId();
+  await reportOpponentCharacter(userId, matchId, character);
+  revalidatePath("/lobby");
+  revalidatePath("/characters");
+  revalidatePath("/leaderboard");
 }

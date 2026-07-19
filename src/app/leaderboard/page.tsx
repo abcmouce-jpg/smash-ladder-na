@@ -3,6 +3,7 @@ import { Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { ensureActiveSeason } from "@/lib/seasons";
+import { CharacterIcon } from "@/components/character-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,7 +25,7 @@ export default async function LeaderboardPage({
       ...(isValidCharacter ? { mainCharacter: character } : {}),
     },
     orderBy: { rating: "desc" },
-    select: { id: true, username: true, rating: true, gamesPlayed: true },
+    select: { id: true, username: true, rating: true, gamesPlayed: true, mainCharacter: true },
   });
 
   return (
@@ -77,7 +78,11 @@ export default async function LeaderboardPage({
                   {MEDALS[index] ?? index + 1}
                 </td>
                 <td className="py-2">
-                  <Link href={`/players/${player.id}`} className="hover:underline">
+                  <Link
+                    href={`/players/${player.id}`}
+                    className="flex items-center gap-2 hover:underline"
+                  >
+                    {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
                     {player.username}
                   </Link>
                 </td>

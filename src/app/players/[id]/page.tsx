@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Cable, MapPin } from "lucide-react";
 import { getPlayerMatchHistory, getPlayerProfile } from "@/lib/players";
+import { CharacterIcon } from "@/components/character-icon";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -32,7 +33,10 @@ export default async function PlayerProfilePage({
           />
         )}
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{player.username}</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            {player.username}
+            {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={22} />}
+          </h1>
           <p className="text-sm tabular-nums text-muted-foreground">
             {player.rating} rating · {player.gamesPlayed} games played
             {player.mainCharacter ? ` · mains ${player.mainCharacter}` : ""}

@@ -6,6 +6,7 @@ import { getActiveLobbyEntry } from "@/lib/lobby";
 import { getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { NA_REGIONS } from "@/lib/regions";
+import { SMASH_CHARACTERS } from "@/lib/characters";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import {
   pickStage,
   reportConduct,
   reportGame,
+  reportOpponentCharacterAction,
   sendMatchComment,
   strikeStage,
   submitRoomCode,
@@ -218,7 +220,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
       )}
 
       {match.status === "CONFIRMED" && (
-        <ConfirmedSection userId={userId} match={match} />
+        <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
       )}
 
       <CommentsSection userId={userId} match={match} />
@@ -403,11 +405,25 @@ function ReportGameSection({
   );
 }
 
-function ConfirmedSection({ userId, match }: { userId: string; match: Match }) {
+function ConfirmedSection({
+  userId,
+  match,
+  opponentName,
+}: {
+  userId: string;
+  match: Match;
+  opponentName: string;
+}) {
   const won = match.reportedWinnerId === userId;
   const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
   const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
   const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
+
+  async function reportCharacter(formData: FormData) {
+    "use server";
+    const character = String(formData.get("character") ?? "");
+    if (character) await reportOpponentCharacterAction(match.id, character);
+  }
 
   return (
     <CardContent className="border-t border-border pt-4">
@@ -416,6 +432,28 @@ function ConfirmedSection({ userId, match }: { userId: string; match: Match }) {
         {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
         {delta})
       </p>
+
+      <form action={reportCharacter} className="mt-4 flex items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm">
+          What did {opponentName} play? (optional)
+          <select
+            name="character"
+            defaultValue=""
+            className="h-8 w-48 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+          >
+            <option value="">Skip</option>
+            {SMASH_CHARACTERS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button type="submit" size="sm" variant="outline">
+          Report
+        </Button>
+      </form>
+
       <form action={joinLobby} className="mt-4">
         <Button type="submit">Join Lobby</Button>
       </form>

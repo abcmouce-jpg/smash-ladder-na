@@ -135,7 +135,6 @@ model User {
   matchesAsP1     RatingMatch[]      @relation("Player1Matches")
   matchesAsP2     RatingMatch[]      @relation("Player2Matches")
   ratingHistory    RatingHistory[]
-  characterVote    CharacterVote?
   matchComments    MatchComment[]
   reportsFiled     ConductReport[] @relation("ReportsFiled")
   reportsReceived  ConductReport[] @relation("ReportsReceived")
@@ -146,17 +145,6 @@ model User {
   @@index([rating])
   @@index([mainCharacter])
   @@index([region])
-}
-
-model CharacterVote {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  character String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([character])
 }
 
 model RatingLobbyEntry {
