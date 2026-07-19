@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LobbyPoller } from "@/components/lobby-poller";
-import { JoinLobbyButton } from "@/components/join-lobby-button";
+import { JoinLobbyForm } from "@/components/join-lobby-button";
 import {
   beginFirstGame,
   cancelLobby,
@@ -58,9 +58,7 @@ export default async function LobbyPage() {
           </CardContent>
           <CardContent className="pt-0">
             <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
-            <form action={joinLobby} className="mt-4">
-              <JoinLobbyButton />
-            </form>
+            <JoinLobbyForm action={joinLobby} className="mt-4" />
           </CardContent>
         </Card>
       )}
@@ -459,9 +457,7 @@ function ConfirmedSection({
         </Button>
       </form>
 
-      <form action={joinLobby} className="mt-4">
-        <JoinLobbyButton />
-      </form>
+      <JoinLobbyForm action={joinLobby} className="mt-4" />
     </CardContent>
   );
 }
@@ -474,9 +470,7 @@ function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
           ? "This match was cancelled — no rating impact."
           : "Nobody reported a result in time, so this match expired with no rating impact."}
       </p>
-      <form action={joinLobby} className="mt-4">
-        <JoinLobbyButton />
-      </form>
+      <JoinLobbyForm action={joinLobby} className="mt-4" />
     </CardContent>
   );
 }

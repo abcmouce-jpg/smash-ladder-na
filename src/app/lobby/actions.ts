@@ -46,17 +46,30 @@ async function ignoringStaleGameRaces(fn: () => Promise<void>) {
   }
 }
 
-export async function joinLobby() {
+export type JoinLobbyState = { error: string | null };
+
+// Takes (prevState, formData) so it can be driven by useActionState on the
+// client — a plain thrown error here would otherwise vanish silently, since
+// nothing was displaying it: the button's pending state would just clear
+// and the page would fall back to the pre-join view with zero explanation
+// (e.g. hitting the rate limit, or being region-locked out).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- useActionState requires this exact (prevState, formData) shape
+export async function joinLobby(_prevState: JoinLobbyState, _formData: FormData): Promise<JoinLobbyState> {
   const userId = await requireUserId();
-  await requireNotBanned(userId); // ranked play stays open at Level-1 (SUSPENDED)
-  await enforceRateLimit({
-    count: () =>
-      prisma.ratingLobbyEntry.count({ where: { userId, joinedAt: { gt: minutesAgo(1) } } }),
-    limit: 5,
-    windowLabel: "minute",
-  });
-  await joinLobbyAndTryPair(userId);
+  try {
+    await requireNotBanned(userId); // ranked play stays open at Level-1 (SUSPENDED)
+    await enforceRateLimit({
+      count: () =>
+        prisma.ratingLobbyEntry.count({ where: { userId, joinedAt: { gt: minutesAgo(1) } } }),
+      limit: 5,
+      windowLabel: "minute",
+    });
+    await joinLobbyAndTryPair(userId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath("/lobby");
+  return { error: null };
 }
 
 export async function cancelLobby() {
