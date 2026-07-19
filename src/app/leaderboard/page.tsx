@@ -1,14 +1,26 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { SMASH_CHARACTERS } from "@/lib/characters";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-export default async function LeaderboardPage() {
+export default async function LeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ character?: string }>;
+}) {
+  const { character } = await searchParams;
+  const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
+
   const players = await prisma.user.findMany({
-    where: { gamesPlayed: { gte: 10 } }, // provisional players excluded, per rating design
+    where: {
+      gamesPlayed: { gte: 10 }, // provisional players excluded, per rating design
+      ...(isValidCharacter ? { mainCharacter: character } : {}),
+    },
     orderBy: { rating: "desc" },
     select: { id: true, username: true, rating: true, gamesPlayed: true },
   });
@@ -19,9 +31,33 @@ export default async function LeaderboardPage() {
         <Trophy className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">Leaderboard</h1>
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">Ranked players with 10+ games played.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Ranked players with 10+ games played
+        {isValidCharacter ? ` who main ${character}` : ""}.
+      </p>
 
-      <Card className="mt-8 overflow-hidden py-0">
+      <form method="get" className="mt-4 flex items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm">
+          Character
+          <select
+            name="character"
+            defaultValue={isValidCharacter ? character : ""}
+            className="h-8 w-48 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+          >
+            <option value="">All players</option>
+            {SMASH_CHARACTERS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button type="submit" size="sm" variant="outline">
+          Filter
+        </Button>
+      </form>
+
+      <Card className="mt-6 overflow-hidden py-0">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
