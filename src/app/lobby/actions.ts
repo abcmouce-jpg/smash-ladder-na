@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/lobby";
-import { requireActiveUser, setUserRegion, setWiredConnection } from "@/lib/account";
+import { requireActiveUser, requireNotBanned, setUserRegion, setWiredConnection } from "@/lib/account";
 import {
   pickGameStage,
   reportGameResult,
@@ -47,7 +47,7 @@ async function ignoringStaleGameRaces(fn: () => Promise<void>) {
 
 export async function joinLobby() {
   const userId = await requireUserId();
-  await requireActiveUser(userId);
+  await requireNotBanned(userId); // ranked play stays open at Level-1 (SUSPENDED)
   await enforceRateLimit({
     count: () =>
       prisma.ratingLobbyEntry.count({ where: { userId, joinedAt: { gt: minutesAgo(1) } } }),
@@ -90,7 +90,7 @@ export async function pickStage(matchId: string, gameNumber: number, stage: stri
 
 export async function reportGame(matchId: string, gameNumber: number, won: boolean) {
   const userId = await requireUserId();
-  await requireActiveUser(userId);
+  await requireNotBanned(userId); // must still be able to close out ranked matches at Level-1
   await reportGameResult(userId, matchId, gameNumber, won);
   revalidatePath("/lobby");
 }
@@ -115,6 +115,7 @@ export async function cancelMatchInProgress(matchId: string) {
 
 export async function reportConduct(matchId: string, reason: string) {
   const userId = await requireUserId();
+  await requireActiveUser(userId); // Level-1 (SUSPENDED) can't file new reports — no retaliation
   await enforceRateLimit({
     count: () =>
       prisma.conductReport.count({ where: { reporterId: userId, createdAt: { gt: minutesAgo(60) } } }),
