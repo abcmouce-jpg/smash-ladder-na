@@ -59,20 +59,31 @@ export async function setUserRegion(userId: string, region: string | null) {
 
 // A self-declared "wired" claim exists to help pair people with a stable
 // connection — enough cancellations (a common symptom of connection
-// trouble) makes that claim unreliable, so it stops being self-settable
-// past this point. cancelMatch also auto-clears the flag when a cancel
-// pushes someone over this line.
-export const WIRED_TRUST_CANCEL_THRESHOLD = 3;
+// trouble) makes that claim unreliable. Judged by ratio rather than a flat
+// count: a long-time player with a handful of legitimate cancels across
+// hundreds of games shouldn't be flagged the same as someone who cancels
+// almost every match. WIRED_TRUST_MIN_CANCELS gates the ratio check so a
+// tiny sample (e.g. a single cancel with 0 games played) doesn't trip it
+// instantly. cancelMatch auto-clears the flag once someone crosses this;
+// setWiredConnection blocks re-declaring it while still over the line.
+export const WIRED_TRUST_MIN_CANCELS = 3;
+export const WIRED_TRUST_MAX_CANCEL_RATIO = 0.25;
+
+export function isWiredClaimUntrustworthy(cancelCount: number, gamesPlayed: number) {
+  if (cancelCount < WIRED_TRUST_MIN_CANCELS) return false;
+  const ratio = cancelCount / (cancelCount + gamesPlayed);
+  return ratio > WIRED_TRUST_MAX_CANCEL_RATIO;
+}
 
 export async function setWiredConnection(userId: string, wired: boolean) {
   if (wired) {
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { cancelCount: true },
+      select: { cancelCount: true, gamesPlayed: true },
     });
-    if (user.cancelCount >= WIRED_TRUST_CANCEL_THRESHOLD) {
+    if (isWiredClaimUntrustworthy(user.cancelCount, user.gamesPlayed)) {
       throw new Error(
-        `Too many cancelled matches (${user.cancelCount}) to self-declare a wired connection.`,
+        `Too many cancelled matches relative to games played (${user.cancelCount} cancelled, ${user.gamesPlayed} played) to self-declare a wired connection.`,
       );
     }
   }

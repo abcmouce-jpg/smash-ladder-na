@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
-import { WIRED_TRUST_CANCEL_THRESHOLD } from "@/lib/account";
+import { isWiredClaimUntrustworthy } from "@/lib/account";
 
 export const matchWithPlayers = {
   player1: { select: { id: true, username: true, avatarUrl: true, rating: true } },
@@ -36,7 +36,11 @@ export async function cancelMatch(userId: string, matchId: string) {
   if (match.player1Id !== userId && match.player2Id !== userId) {
     throw new Error("Not a participant in this match");
   }
-  if (match.status !== MatchStatus.PENDING_REPORT) {
+  // REPORTED is legacy (pre-BO3) status that nothing in the current app
+  // writes anymore, but old rows can still carry it — treated the same as
+  // PENDING_REPORT here so a match can never get permanently stuck just
+  // because of its status value.
+  if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
     throw new Error("This match can no longer be cancelled");
   }
   const [, updatedUser] = await prisma.$transaction([
@@ -46,7 +50,7 @@ export async function cancelMatch(userId: string, matchId: string) {
 
   // A self-declared wired connection stops being credible once cancels
   // pile up — clear it rather than keep pairing others against a stale claim.
-  if (updatedUser.wiredConnection && updatedUser.cancelCount >= WIRED_TRUST_CANCEL_THRESHOLD) {
+  if (updatedUser.wiredConnection && isWiredClaimUntrustworthy(updatedUser.cancelCount, updatedUser.gamesPlayed)) {
     await prisma.user.update({ where: { id: userId }, data: { wiredConnection: false } });
   }
 }

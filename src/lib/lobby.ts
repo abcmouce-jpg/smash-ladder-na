@@ -55,28 +55,30 @@ export async function joinLobbyAndTryPair(userId: string) {
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
   if (waitingEntry || unresolvedMatch) return getActiveLobbyEntry(userId);
 
+  // Matching is a strict region match, not a soft preference — both sides
+  // have to have picked the same region, so a region has to be set first.
+  if (!me.region) {
+    throw new Error(
+      "Set your region before joining the queue — you'll only be matched with players in the same region.",
+    );
+  }
+
   const now = new Date();
   const newEntry = await prisma.ratingLobbyEntry.create({
     data: { userId, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
   });
 
   const paired = await withTransientRetry(() => prisma.$transaction(async (tx) => {
-    const baseWhere = {
-      status: LobbyEntryStatus.WAITING,
-      expiresAt: { gt: now },
-      userId: { not: userId },
-      id: { not: newEntry.id },
-    };
-
-    // Prefer a same-region opponent for connection quality, but don't make
-    // anyone wait forever for one — fall back to anyone else queued.
-    const candidate =
-      (me.region &&
-        (await tx.ratingLobbyEntry.findFirst({
-          where: { ...baseWhere, user: { region: me.region } },
-          orderBy: { joinedAt: "asc" },
-        }))) ||
-      (await tx.ratingLobbyEntry.findFirst({ where: baseWhere, orderBy: { joinedAt: "asc" } }));
+    const candidate = await tx.ratingLobbyEntry.findFirst({
+      where: {
+        status: LobbyEntryStatus.WAITING,
+        expiresAt: { gt: now },
+        userId: { not: userId },
+        id: { not: newEntry.id },
+        user: { region: me.region },
+      },
+      orderBy: { joinedAt: "asc" },
+    });
     if (!candidate) return null;
 
     // Atomically claim the candidate so two concurrent joins can't pair with the same entry.
@@ -123,46 +125,64 @@ export async function joinLobbyAndTryPair(userId: string) {
 // queue periodically and pairs up whoever's left waiting.
 export async function sweepLobbyPairing(maxPairs = 50) {
   let paired = 0;
-  for (let i = 0; i < maxPairs; i++) {
-    const now = new Date();
-    const madeMatch = await withTransientRetry(() =>
-      prisma.$transaction(async (tx) => {
-        const [a, b] = await tx.ratingLobbyEntry.findMany({
-          where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
-          orderBy: { joinedAt: "asc" },
-          take: 2,
-        });
-        if (!a || !b) return null;
+  const now = new Date();
 
-        // Claim both atomically so a join happening at the same moment can't
-        // grab one of them out from under this sweep.
-        const claim = await tx.ratingLobbyEntry.updateMany({
-          where: { id: { in: [a.id, b.id] }, status: LobbyEntryStatus.WAITING },
-          data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
-        });
-        if (claim.count !== 2) return null;
+  // Region matching is strict, so straggler pairing has to group by region
+  // first — grabbing just the two oldest waiting entries overall (as before)
+  // could pair mismatched regions. Grouped up front in one read rather than
+  // per-iteration, since the group membership doesn't change mid-sweep.
+  const waiting = await prisma.ratingLobbyEntry.findMany({
+    where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
+    orderBy: { joinedAt: "asc" },
+    include: { user: { select: { region: true } } },
+  });
 
-        const match = await tx.ratingMatch.create({
-          data: {
-            player1Id: a.userId,
-            player2Id: b.userId,
-            pairingMethod: PairingMethod.AUTO,
-            status: MatchStatus.PENDING_REPORT,
-            expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
-          },
-        });
-        // Only one side records matchId/pairedEntryId — see the join-time
-        // pairing above for why (unique per RatingLobbyEntry).
-        await tx.ratingLobbyEntry.update({
-          where: { id: a.id },
-          data: { matchId: match.id, pairedEntryId: b.id },
-        });
-        return { player1Id: a.userId, player2Id: b.userId };
-      }, TX_OPTIONS),
-    );
-    if (!madeMatch) break;
-    await notifyMatchPaired(madeMatch.player1Id, madeMatch.player2Id);
-    paired++;
+  const byRegion = new Map<string | null, typeof waiting>();
+  for (const entry of waiting) {
+    const key = entry.user.region;
+    const group = byRegion.get(key);
+    if (group) group.push(entry);
+    else byRegion.set(key, [entry]);
+  }
+
+  outer: for (const group of byRegion.values()) {
+    for (let i = 0; i + 1 < group.length; i += 2) {
+      if (paired >= maxPairs) break outer;
+      const [a, b] = [group[i], group[i + 1]];
+
+      const madeMatch = await withTransientRetry(() =>
+        prisma.$transaction(async (tx) => {
+          // Claim both atomically so a join happening at the same moment can't
+          // grab one of them out from under this sweep.
+          const claim = await tx.ratingLobbyEntry.updateMany({
+            where: { id: { in: [a.id, b.id] }, status: LobbyEntryStatus.WAITING },
+            data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+          });
+          if (claim.count !== 2) return null;
+
+          const match = await tx.ratingMatch.create({
+            data: {
+              player1Id: a.userId,
+              player2Id: b.userId,
+              pairingMethod: PairingMethod.AUTO,
+              status: MatchStatus.PENDING_REPORT,
+              expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
+            },
+          });
+          // Only one side records matchId/pairedEntryId — see the join-time
+          // pairing above for why (unique per RatingLobbyEntry).
+          await tx.ratingLobbyEntry.update({
+            where: { id: a.id },
+            data: { matchId: match.id, pairedEntryId: b.id },
+          });
+          return { player1Id: a.userId, player2Id: b.userId };
+        }, TX_OPTIONS),
+      );
+      if (madeMatch) {
+        await notifyMatchPaired(madeMatch.player1Id, madeMatch.player2Id);
+        paired++;
+      }
+    }
   }
   return paired;
 }

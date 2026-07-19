@@ -51,13 +51,16 @@ export default async function LobbyPage() {
     <main className="mx-auto max-w-2xl px-6 py-16">
       <PageTitle />
 
+      <Card className="mt-8">
+        <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
+          <RegionForm userId={session.user.id} />
+          <WiredConnectionField userId={session.user.id} />
+        </CardContent>
+      </Card>
+
       {!entry && (
-        <Card className="mt-8">
-          <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
-            <RegionForm userId={session.user.id} />
-            <WiredConnectionField userId={session.user.id} />
-          </CardContent>
-          <CardContent className="pt-0">
+        <Card className="mt-4">
+          <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
             <JoinLobbyForm action={joinLobby} className="mt-4" />
           </CardContent>
@@ -65,7 +68,7 @@ export default async function LobbyPage() {
       )}
 
       {entry?.status === "WAITING" && (
-        <Card className="mt-8">
+        <Card className="mt-4">
           <CardContent className="flex items-center gap-3 pt-4">
             <Loader2 className="size-4 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Waiting for an opponent…</p>
@@ -108,9 +111,9 @@ async function RegionForm({ userId }: { userId: string }) {
   return (
     <form action={action} className="flex items-end gap-2">
       <label className="flex flex-col gap-1 text-sm">
-        Your region
+        Match region
         <span className="text-xs font-normal text-muted-foreground">
-          Used to prefer close-by opponents for a better connection.
+          Required to queue — you&apos;ll only be matched with players in the same region.
         </span>
         <select
           name="region"
@@ -148,7 +151,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   }
 
   return (
-    <Card className="mt-8">
+    <Card className="mt-4">
       <CardHeader>
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">Matched!</p>
@@ -187,7 +190,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         />
       </CardContent>
 
-      {match.status === "PENDING_REPORT" && (
+      {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
         <GameSection userId={userId} match={match} games={games} opponentName={opponent.username} />
       )}
 
@@ -227,7 +230,7 @@ function MatchFooterActions({ match }: { match: Match }) {
         <p className="text-xs text-muted-foreground">
           Problem with this match? Cancel it or report your opponent.
         </p>
-        {match.status === "PENDING_REPORT" && (
+        {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <form action={cancelMatchInProgress.bind(null, match.id)}>
             <Button type="submit" variant="destructive" size="sm">
               Cancel match
