@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, ConfirmationMethod, PostStatus } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 
@@ -32,13 +32,15 @@ export async function finalizeExpiredMatches(now = new Date()) {
     // such signal: neither player reported, so blame isn't attributable.)
     const nonReporterId =
       match.reportedById === match.player1Id ? match.player2Id : match.player1Id;
-    await prisma.$transaction(async (tx) => {
-      await applyEloAndConfirm(tx, match, match.reportedWinnerId!, ConfirmationMethod.AUTO_TIMEOUT, null);
-      await tx.user.update({
-        where: { id: nonReporterId },
-        data: { noShowCount: { increment: 1 } },
-      });
-    });
+    await withTransientRetry(() =>
+      prisma.$transaction(async (tx) => {
+        await applyEloAndConfirm(tx, match, match.reportedWinnerId!, ConfirmationMethod.AUTO_TIMEOUT, null);
+        await tx.user.update({
+          where: { id: nonReporterId },
+          data: { noShowCount: { increment: 1 } },
+        });
+      }, TX_OPTIONS),
+    );
     autoConfirmed++;
   }
 

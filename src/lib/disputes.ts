@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 import { applyEloAndConfirm, matchWithPlayers } from "@/lib/matches";
 
@@ -11,17 +11,19 @@ export async function listDisputedMatches() {
 }
 
 export async function resolveDisputedMatch(matchId: string, winnerId: string) {
-  await prisma.$transaction(async (tx) => {
-    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
-    if (match.status !== MatchStatus.DISPUTED) throw new Error("Match is not disputed");
-    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-      throw new Error("Winner must be one of the two players");
-    }
-    // secondReport* already records the disagreeing second report from
-    // reportMatchResult; an admin ruling shouldn't overwrite that history.
-    await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.ADMIN_RESOLVED, null);
-  });
+  await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+      if (!match) throw new Error("Match not found");
+      if (match.status !== MatchStatus.DISPUTED) throw new Error("Match is not disputed");
+      if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+        throw new Error("Winner must be one of the two players");
+      }
+      // secondReport* already records the disagreeing second report from
+      // reportMatchResult; an admin ruling shouldn't overwrite that history.
+      await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.ADMIN_RESOLVED, null);
+    }, TX_OPTIONS),
+  );
 }
 
 export async function cancelDisputedMatch(matchId: string) {

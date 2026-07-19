@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 
@@ -38,7 +38,7 @@ function expectedScore(ratingSelf: number, ratingOpp: number) {
 }
 
 export async function reportMatchResult(matchId: string, userId: string, won: boolean) {
-  await prisma.$transaction(async (tx) => {
+  await withTransientRetry(() => prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
     if (!match) throw new Error("Match not found");
     if (match.player1Id !== userId && match.player2Id !== userId) {
@@ -88,7 +88,7 @@ export async function reportMatchResult(matchId: string, userId: string, won: bo
         },
       });
     }
-  });
+  }, TX_OPTIONS));
 }
 
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.

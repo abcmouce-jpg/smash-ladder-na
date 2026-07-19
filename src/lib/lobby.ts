@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
 
@@ -38,7 +38,7 @@ export async function joinLobbyAndTryPair(userId: string) {
     data: { userId, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
   });
 
-  const paired = await prisma.$transaction(async (tx) => {
+  const paired = await withTransientRetry(() => prisma.$transaction(async (tx) => {
     const candidate = await tx.ratingLobbyEntry.findFirst({
       where: {
         status: LobbyEntryStatus.WAITING,
@@ -80,9 +80,59 @@ export async function joinLobbyAndTryPair(userId: string) {
     });
 
     return match;
-  });
+  }, TX_OPTIONS));
 
   return paired ? getActiveLobbyEntry(userId) : newEntry;
+}
+
+// A burst of near-simultaneous joins can each fail to see one another as a
+// candidate (nobody else has committed yet when they check) and pile up as
+// WAITING even though plenty of mutual partners exist. Rather than only
+// pairing opportunistically at join time, the cron finalizer sweeps the
+// queue periodically and pairs up whoever's left waiting.
+export async function sweepLobbyPairing(maxPairs = 50) {
+  let paired = 0;
+  for (let i = 0; i < maxPairs; i++) {
+    const now = new Date();
+    const madeMatch = await withTransientRetry(() =>
+      prisma.$transaction(async (tx) => {
+        const [a, b] = await tx.ratingLobbyEntry.findMany({
+          where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
+          orderBy: { joinedAt: "asc" },
+          take: 2,
+        });
+        if (!a || !b) return false;
+
+        // Claim both atomically so a join happening at the same moment can't
+        // grab one of them out from under this sweep.
+        const claim = await tx.ratingLobbyEntry.updateMany({
+          where: { id: { in: [a.id, b.id] }, status: LobbyEntryStatus.WAITING },
+          data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+        });
+        if (claim.count !== 2) return false;
+
+        const match = await tx.ratingMatch.create({
+          data: {
+            player1Id: a.userId,
+            player2Id: b.userId,
+            pairingMethod: PairingMethod.AUTO,
+            status: MatchStatus.PENDING_REPORT,
+            expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
+          },
+        });
+        // Only one side records matchId/pairedEntryId — see the join-time
+        // pairing above for why (unique per RatingLobbyEntry).
+        await tx.ratingLobbyEntry.update({
+          where: { id: a.id },
+          data: { matchId: match.id, pairedEntryId: b.id },
+        });
+        return true;
+      }, TX_OPTIONS),
+    );
+    if (!madeMatch) break;
+    paired++;
+  }
+  return paired;
 }
 
 export async function cancelLobbyEntry(userId: string) {
