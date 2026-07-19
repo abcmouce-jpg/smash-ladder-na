@@ -344,11 +344,27 @@ function GameSection({
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
 
+  // Strikes happen actorA's-share-then-actorB's-share, in order, so the
+  // count already struck tells us how many the current actor still owes
+  // this turn — worth spelling out since a 2-strike turn (games 2-3's
+  // winner) looks identical in the UI to a 1-strike one otherwise.
+  const struckSoFar = current.struckStages.length;
+  const remainingStrikes =
+    turn.phase === "striking"
+      ? struckSoFar < current.actorAStrikes
+        ? current.actorAStrikes - struckSoFar
+        : current.actorAStrikes + current.actorBStrikes - struckSoFar
+      : 1;
+  const turnDescription =
+    turn.phase === "striking"
+      ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
+      : `${verb} a stage`;
+
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">
         Game {current.gameNumber} —{" "}
-        {myTurn ? `Your turn — ${verb} a stage.` : `Waiting for ${opponentName} to ${verb}…`}
+        {myTurn ? `Your turn — ${turnDescription}.` : `Waiting for ${opponentName} to ${verb}…`}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {current.stagesRemaining.map((stage) => (
