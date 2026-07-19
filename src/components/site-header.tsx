@@ -17,6 +17,9 @@ export async function SiteHeader() {
               <Link href="/lobby" className="hover:text-zinc-900 dark:hover:text-zinc-100">
                 Lobby
               </Link>
+              <Link href="/free-battle" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+                Free Battle
+              </Link>
               <Link href="/leaderboard" className="hover:text-zinc-900 dark:hover:text-zinc-100">
                 Leaderboard
               </Link>

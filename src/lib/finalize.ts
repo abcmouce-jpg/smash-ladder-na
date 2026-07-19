@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { LobbyEntryStatus, MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
+import { LobbyEntryStatus, MatchStatus, ConfirmationMethod, PostStatus } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 
 export async function finalizeExpiredLobbyEntries(now = new Date()) {
@@ -34,4 +34,12 @@ export async function finalizeExpiredMatches(now = new Date()) {
   }
 
   return { expiredNoReport: expiredNoReport.count, autoConfirmed };
+}
+
+export async function finalizeExpiredFreeBattlePosts(now = new Date()) {
+  const result = await prisma.freeBattlePost.updateMany({
+    where: { status: PostStatus.OPEN, expiresAt: { lt: now } },
+    data: { status: PostStatus.EXPIRED },
+  });
+  return result.count;
 }

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { finalizeExpiredLobbyEntries, finalizeExpiredMatches } from "@/lib/finalize";
+import {
+  finalizeExpiredFreeBattlePosts,
+  finalizeExpiredLobbyEntries,
+  finalizeExpiredMatches,
+} from "@/lib/finalize";
 
 function isAuthorized(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -19,8 +23,14 @@ async function handle(request: Request) {
 
   const expiredLobbyEntries = await finalizeExpiredLobbyEntries();
   const { expiredNoReport, autoConfirmed } = await finalizeExpiredMatches();
+  const expiredFreeBattlePosts = await finalizeExpiredFreeBattlePosts();
 
-  return NextResponse.json({ expiredLobbyEntries, expiredNoReport, autoConfirmed });
+  return NextResponse.json({
+    expiredLobbyEntries,
+    expiredNoReport,
+    autoConfirmed,
+    expiredFreeBattlePosts,
+  });
 }
 
 export async function GET(request: Request) {
