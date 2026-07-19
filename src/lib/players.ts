@@ -11,6 +11,9 @@ export async function getPlayerProfile(userId: string) {
       rating: true,
       gamesPlayed: true,
       createdAt: true,
+      region: true,
+      wiredConnection: true,
+      mainCharacter: true,
     },
   });
 }

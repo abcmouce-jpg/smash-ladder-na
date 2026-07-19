@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/lobby";
-import { requireActiveUser, setUserRegion } from "@/lib/account";
+import { requireActiveUser, setUserRegion, setWiredConnection } from "@/lib/account";
 import {
   pickGameStage,
   reportGameResult,
@@ -129,4 +129,11 @@ export async function updateRegion(region: string) {
   const userId = await requireUserId();
   await setUserRegion(userId, region || null);
   revalidatePath("/lobby");
+}
+
+export async function updateWiredConnection(wired: boolean) {
+  const userId = await requireUserId();
+  await setWiredConnection(userId, wired);
+  revalidatePath("/lobby");
+  revalidatePath(`/players/${userId}`);
 }

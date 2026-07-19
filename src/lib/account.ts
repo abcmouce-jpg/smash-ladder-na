@@ -33,3 +33,7 @@ export async function setUserRegion(userId: string, region: string | null) {
   }
   await prisma.user.update({ where: { id: userId }, data: { region } });
 }
+
+export async function setWiredConnection(userId: string, wired: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { wiredConnection: wired } });
+}

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Cable, MapPin } from "lucide-react";
 import { getPlayerMatchHistory, getPlayerProfile } from "@/lib/players";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -34,7 +35,22 @@ export default async function PlayerProfilePage({
           <h1 className="text-2xl font-semibold tracking-tight">{player.username}</h1>
           <p className="text-sm tabular-nums text-muted-foreground">
             {player.rating} rating · {player.gamesPlayed} games played
+            {player.mainCharacter ? ` · mains ${player.mainCharacter}` : ""}
           </p>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            {player.region && (
+              <Badge variant="outline">
+                <MapPin className="size-3" />
+                {player.region}
+              </Badge>
+            )}
+            {player.wiredConnection && (
+              <Badge variant="outline">
+                <Cable className="size-3" />
+                Wired
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
