@@ -38,10 +38,10 @@ export async function cancelMatch(userId: string, matchId: string) {
   if (match.status !== MatchStatus.PENDING_REPORT) {
     throw new Error("This match can no longer be cancelled");
   }
-  await prisma.ratingMatch.update({
-    where: { id: matchId },
-    data: { status: MatchStatus.CANCELLED },
-  });
+  await prisma.$transaction([
+    prisma.ratingMatch.update({ where: { id: matchId }, data: { status: MatchStatus.CANCELLED } }),
+    prisma.user.update({ where: { id: userId }, data: { cancelCount: { increment: 1 } } }),
+  ]);
 }
 
 // Provisional players (few games) swing faster so their rating converges quickly.

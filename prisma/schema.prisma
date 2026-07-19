@@ -305,10 +305,8 @@ model SeasonStanding {
   @@index([seasonId, rank])
 }
 
-// Single-elimination bracket, run by its host (or a MOD/ADMIN). Unrated —
-// results here don't touch ladder Elo, this is a separate casual/community
-// event system layered on top of the ladder. The bracket itself (double
-// elimination, by convention) runs on start.gg — this just tracks who's
+// Unrated — results here don't touch ladder Elo. The bracket itself (double
+// elimination, by convention) runs on start.gg; this just tracks who's
 // hosting, who from the ladder is in, and links out to the real bracket.
 model Tournament {
   id          String           @id @default(cuid())

@@ -50,6 +50,14 @@ export default async function PlayerProfilePage({
                 Wired
               </Badge>
             )}
+            {player.noShowCount > 0 && (
+              <Badge variant="warning">{player.noShowCount} no-show{player.noShowCount === 1 ? "" : "s"}</Badge>
+            )}
+            {player.cancelCount > 0 && (
+              <Badge variant="warning">
+                {player.cancelCount} cancel{player.cancelCount === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
         </div>
       </div>

@@ -92,8 +92,7 @@ function PostForm() {
   async function action(formData: FormData) {
     "use server";
     const comment = String(formData.get("comment") ?? "");
-    const region = String(formData.get("region") ?? "");
-    await postFreeBattle(comment, region);
+    await postFreeBattle(comment);
   }
 
   return (
@@ -110,14 +109,9 @@ function PostForm() {
               className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Region (optional)
-            <input
-              name="region"
-              placeholder="e.g. East Coast"
-              className="h-8 w-48 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-            />
-          </label>
+          <p className="text-xs text-muted-foreground">
+            Region is pulled from your profile — set it on the Lobby page.
+          </p>
           <Button type="submit" className="self-start">
             Post
           </Button>

@@ -14,6 +14,8 @@ export async function getPlayerProfile(userId: string) {
       region: true,
       wiredConnection: true,
       mainCharacter: true,
+      noShowCount: true,
+      cancelCount: true,
     },
   });
 }

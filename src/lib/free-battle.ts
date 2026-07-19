@@ -27,18 +27,26 @@ export async function getOwnActivePost(userId: string) {
   });
 }
 
-export async function createPost(userId: string, comment: string, region: string) {
+export async function createPost(userId: string, comment: string) {
   const existing = await getOwnActivePost(userId);
   if (existing) throw new Error("You already have an active post");
 
   const trimmed = comment.trim();
   if (!trimmed) throw new Error("Comment is required");
 
+  // Region comes from the player's own profile (set on the Lobby page) so
+  // it stays consistent with the structured NA_REGIONS list used for
+  // ranked pairing, instead of a separate free-text field going stale.
+  const author = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { region: true },
+  });
+
   return prisma.freeBattlePost.create({
     data: {
       authorId: userId,
       comment: trimmed,
-      region: region.trim() || null,
+      region: author.region,
       expiresAt: new Date(Date.now() + POST_TTL_MS),
     },
   });
