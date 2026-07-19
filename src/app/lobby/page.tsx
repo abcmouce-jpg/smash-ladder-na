@@ -1,9 +1,11 @@
 import Image from "next/image";
 import { Loader2, Swords } from "lucide-react";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry } from "@/lib/lobby";
 import { getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
+import { NA_REGIONS } from "@/lib/regions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,6 +21,7 @@ import {
   sendMatchComment,
   strikeStage,
   submitRoomCode,
+  updateRegion,
 } from "./actions";
 
 type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
@@ -46,6 +49,9 @@ export default async function LobbyPage() {
       {!entry && (
         <Card className="mt-8">
           <CardContent className="pt-4">
+            <RegionForm userId={session.user.id} />
+          </CardContent>
+          <CardContent className="pt-0">
             <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
             <form action={joinLobby} className="mt-4">
               <Button type="submit">Join Lobby</Button>
@@ -84,6 +90,41 @@ function PageTitle() {
       <Swords className="size-5 text-muted-foreground" />
       <h1 className="text-2xl font-semibold tracking-tight">Lobby</h1>
     </div>
+  );
+}
+
+async function RegionForm({ userId }: { userId: string }) {
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { region: true } });
+
+  async function action(formData: FormData) {
+    "use server";
+    await updateRegion(String(formData.get("region") ?? ""));
+  }
+
+  return (
+    <form action={action} className="flex items-end gap-2">
+      <label className="flex flex-col gap-1 text-sm">
+        Your region
+        <span className="text-xs font-normal text-muted-foreground">
+          Used to prefer close-by opponents for a better connection.
+        </span>
+        <select
+          name="region"
+          defaultValue={me?.region ?? ""}
+          className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+        >
+          <option value="">Not set</option>
+          {NA_REGIONS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Button type="submit" size="sm" variant="outline">
+        Save
+      </Button>
+    </form>
   );
 }
 

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/lobby";
-import { requireActiveUser } from "@/lib/account";
+import { requireActiveUser, setUserRegion } from "@/lib/account";
 import {
   pickGameStage,
   reportGameResult,
@@ -102,5 +102,11 @@ export async function cancelMatchInProgress(matchId: string) {
 export async function reportConduct(matchId: string, reason: string) {
   const userId = await requireUserId();
   await fileMatchReport(userId, matchId, reason);
+  revalidatePath("/lobby");
+}
+
+export async function updateRegion(region: string) {
+  const userId = await requireUserId();
+  await setUserRegion(userId, region || null);
   revalidatePath("/lobby");
 }

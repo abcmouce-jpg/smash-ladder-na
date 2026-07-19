@@ -25,9 +25,10 @@ export async function getActiveLobbyEntry(userId: string) {
 }
 
 export async function joinLobbyAndTryPair(userId: string) {
-  const [waitingEntry, unresolvedMatch] = await Promise.all([
+  const [waitingEntry, unresolvedMatch, me] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { region: true } }),
   ]);
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
@@ -39,15 +40,22 @@ export async function joinLobbyAndTryPair(userId: string) {
   });
 
   const paired = await withTransientRetry(() => prisma.$transaction(async (tx) => {
-    const candidate = await tx.ratingLobbyEntry.findFirst({
-      where: {
-        status: LobbyEntryStatus.WAITING,
-        expiresAt: { gt: now },
-        userId: { not: userId },
-        id: { not: newEntry.id },
-      },
-      orderBy: { joinedAt: "asc" },
-    });
+    const baseWhere = {
+      status: LobbyEntryStatus.WAITING,
+      expiresAt: { gt: now },
+      userId: { not: userId },
+      id: { not: newEntry.id },
+    };
+
+    // Prefer a same-region opponent for connection quality, but don't make
+    // anyone wait forever for one — fall back to anyone else queued.
+    const candidate =
+      (me.region &&
+        (await tx.ratingLobbyEntry.findFirst({
+          where: { ...baseWhere, user: { region: me.region } },
+          orderBy: { joinedAt: "asc" },
+        }))) ||
+      (await tx.ratingLobbyEntry.findFirst({ where: baseWhere, orderBy: { joinedAt: "asc" } }));
     if (!candidate) return null;
 
     // Atomically claim the candidate so two concurrent joins can't pair with the same entry.
