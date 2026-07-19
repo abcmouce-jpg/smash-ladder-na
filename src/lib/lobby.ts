@@ -42,6 +42,13 @@ export async function getActiveLobbyEntry(userId: string) {
   // irrelevant one hid the real match still blocking them from requeuing,
   // since joinLobbyAndTryPair's own block check looks for exactly this.
   const match = (await getUnresolvedMatchForUser(userId)) ?? (await getLatestMatchForUser(userId));
+
+  // A PAIRED entry with no resolvable match at all is orphaned data (e.g.
+  // the match record got removed some other way) rather than a real
+  // in-progress pairing — nothing in the UI can act on it, so treat it the
+  // same as not being in the queue instead of rendering a dead end.
+  if (!match) return null;
+
   return { ...entry, match };
 }
 
