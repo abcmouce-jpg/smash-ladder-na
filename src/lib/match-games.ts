@@ -257,11 +257,56 @@ async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
   }
 }
 
+export const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // mirrors lobby.ts's match no-show/no-report cutoff
+
+// Called by the cron finalizer for a PENDING_REPORT match past its deadline.
+// If the current game has one player's report sitting unconfirmed, accept
+// it as the result — the reporting player did their part, so the match
+// shouldn't just silently expire with no consequence for whoever ghosted.
+// Mirrors the pre-BO3 single-report auto-timeout, but at game granularity:
+// if this doesn't decide the whole set, the match gets a fresh deadline so
+// the set can continue rather than expiring mid-way regardless.
+export async function autoConfirmStaleGameReport(
+  match: { id: string; player1Id: string; player2Id: string },
+  now: Date,
+): Promise<{ nonReporterId: string } | null> {
+  const hangingGame = await prisma.matchGame.findFirst({
+    where: { matchId: match.id, winnerId: null, reportedById: { not: null } },
+    orderBy: { gameNumber: "desc" },
+  });
+  if (!hangingGame?.reportedWinnerId || !hangingGame.reportedById) return null;
+
+  const reportedWinnerId = hangingGame.reportedWinnerId;
+  const nonReporterId =
+    hangingGame.reportedById === match.player1Id ? match.player2Id : match.player1Id;
+
+  await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      await tx.matchGame.update({
+        where: { id: hangingGame.id },
+        data: { winnerId: reportedWinnerId },
+      });
+      await tx.ratingMatch.update({
+        where: { id: match.id },
+        data: { expiresAt: new Date(now.getTime() + MATCH_TTL_MS) },
+      });
+      await progressSet(tx, match, hangingGame.gameNumber, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT);
+      await tx.user.update({
+        where: { id: nonReporterId },
+        data: { noShowCount: { increment: 1 } },
+      });
+    }, TX_OPTIONS),
+  );
+
+  return { nonReporterId };
+}
+
 async function progressSet(
   tx: Prisma.TransactionClient,
   match: { id: string; player1Id: string; player2Id: string },
   decidedGameNumber: number,
   gameWinnerId: string,
+  confirmationMethod: ConfirmationMethod = ConfirmationMethod.SELF_CONFIRMED,
 ): Promise<string | null> {
   const games = await tx.matchGame.findMany({ where: { matchId: match.id } });
   const wins: Record<string, number> = {};
@@ -275,7 +320,7 @@ async function progressSet(
       where: { id: match.id },
       data: { reportedWinnerId: setWinnerId, reportedById: setWinnerId, reportedAt: new Date() },
     });
-    await applyEloAndConfirm(tx, match, setWinnerId, ConfirmationMethod.SELF_CONFIRMED, {
+    await applyEloAndConfirm(tx, match, setWinnerId, confirmationMethod, {
       winnerId: setWinnerId,
       reporterId: setWinnerId,
     });

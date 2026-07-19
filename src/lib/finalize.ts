@@ -1,6 +1,6 @@
-import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
-import { LobbyEntryStatus, MatchStatus, ConfirmationMethod, PostStatus } from "@/generated/prisma/enums";
-import { applyEloAndConfirm } from "@/lib/matches";
+import { prisma } from "@/lib/db";
+import { LobbyEntryStatus, MatchStatus, PostStatus } from "@/generated/prisma/enums";
+import { autoConfirmStaleGameReport } from "@/lib/match-games";
 
 export async function finalizeExpiredLobbyEntries(now = new Date()) {
   const result = await prisma.ratingLobbyEntry.updateMany({
@@ -11,38 +11,35 @@ export async function finalizeExpiredLobbyEntries(now = new Date()) {
 }
 
 export async function finalizeExpiredMatches(now = new Date()) {
-  // Nobody reported before the deadline: no rating impact, just close it out.
-  const expiredNoReport = await prisma.ratingMatch.updateMany({
+  const overdue = await prisma.ratingMatch.findMany({
     where: { status: MatchStatus.PENDING_REPORT, expiresAt: { lt: now } },
+    select: { id: true, player1Id: true, player2Id: true },
+  });
+
+  // Reporting is per-game (BO3), not per-match, so "timed out" is decided
+  // per match by whether its current game has a lone unconfirmed report —
+  // that side did their part, so their report is accepted and the other
+  // side is charged a no-show. A match with no hanging report (nobody
+  // reported anything, or the current game isn't even decided yet) just
+  // expires below with no rating impact for either player.
+  let autoConfirmed = 0;
+  const handledIds: string[] = [];
+  for (const match of overdue) {
+    const result = await autoConfirmStaleGameReport(match, now);
+    if (result) {
+      autoConfirmed++;
+      handledIds.push(match.id);
+    }
+  }
+
+  const expiredNoReport = await prisma.ratingMatch.updateMany({
+    where: {
+      status: MatchStatus.PENDING_REPORT,
+      expiresAt: { lt: now },
+      id: { notIn: handledIds },
+    },
     data: { status: MatchStatus.EXPIRED },
   });
-
-  // One player reported and the other never responded: accept the lone
-  // report as the result once the deadline passes.
-  const timedOut = await prisma.ratingMatch.findMany({
-    where: { status: MatchStatus.REPORTED, expiresAt: { lt: now } },
-    select: { id: true, player1Id: true, player2Id: true, reportedWinnerId: true, reportedById: true },
-  });
-
-  let autoConfirmed = 0;
-  for (const match of timedOut) {
-    if (!match.reportedWinnerId || !match.reportedById) continue;
-    // Only the side that never responded is charged a no-show — the reporter
-    // showed up and did their part. (A PENDING_REPORT expiry above has no
-    // such signal: neither player reported, so blame isn't attributable.)
-    const nonReporterId =
-      match.reportedById === match.player1Id ? match.player2Id : match.player1Id;
-    await withTransientRetry(() =>
-      prisma.$transaction(async (tx) => {
-        await applyEloAndConfirm(tx, match, match.reportedWinnerId!, ConfirmationMethod.AUTO_TIMEOUT, null);
-        await tx.user.update({
-          where: { id: nonReporterId },
-          data: { noShowCount: { increment: 1 } },
-        });
-      }, TX_OPTIONS),
-    );
-    autoConfirmed++;
-  }
 
   return { expiredNoReport: expiredNoReport.count, autoConfirmed };
 }
