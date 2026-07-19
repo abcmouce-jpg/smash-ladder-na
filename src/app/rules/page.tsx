@@ -44,6 +44,11 @@ export default function RulesPage() {
             One player sets the room code per match; it locks to them once set so it can&apos;t be
             silently changed out from under the other player mid-setup.
           </p>
+          <p>
+            The in-game room password is always <span className="font-medium text-foreground">1122</span> —
+            set every room to this. Standardizing it means nobody has to communicate a password
+            separately from the room code.
+          </p>
         </Section>
 
         <Section title="Reporting results">
