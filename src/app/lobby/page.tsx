@@ -15,6 +15,7 @@ import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { WiredConnectionForm } from "@/components/wired-connection-form";
 import { VictoryCelebration } from "@/components/victory-celebration";
+import { AutoSubmitForm } from "@/components/auto-submit-form";
 import {
   beginFirstGame,
   cancelLobby,
@@ -136,30 +137,26 @@ async function RegionForm({ userId }: { userId: string }) {
   }
 
   return (
-    <form action={action} className="flex flex-col gap-2">
-      <div className="flex items-end gap-2">
-        <label className="flex flex-col gap-1 text-sm">
-          Match region
-          <span className="text-xs font-normal text-muted-foreground">
-            Required to queue — same-region players are matched by default.
-          </span>
-          <select
-            name="region"
-            defaultValue={me?.region ?? ""}
-            className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-          >
-            <option value="">Not set</option>
-            {NA_REGIONS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button type="submit" size="sm" variant="outline">
-          Save
-        </Button>
-      </div>
+    <AutoSubmitForm action={action} className="flex flex-col gap-2">
+      <label className="flex flex-col gap-1 text-sm">
+        Match region
+        <span className="text-xs font-normal text-muted-foreground">
+          Required to queue — same-region players are matched by default. Saves as soon as you
+          pick one.
+        </span>
+        <select
+          name="region"
+          defaultValue={me?.region ?? ""}
+          className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+        >
+          <option value="">Not set</option>
+          {NA_REGIONS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -169,7 +166,7 @@ async function RegionForm({ userId }: { userId: string }) {
         />
         Also match across regions (queue faster, may increase latency)
       </label>
-    </form>
+    </AutoSubmitForm>
   );
 }
 
