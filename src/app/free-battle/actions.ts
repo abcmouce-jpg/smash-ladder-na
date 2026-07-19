@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { claimPost, closePost, createPost } from "@/lib/free-battle";
+import { requireActiveUser } from "@/lib/account";
 
 async function requireUserId() {
   const session = await auth();
@@ -12,6 +13,7 @@ async function requireUserId() {
 
 export async function postFreeBattle(comment: string, region: string) {
   const userId = await requireUserId();
+  await requireActiveUser(userId);
   await createPost(userId, comment, region);
   revalidatePath("/free-battle");
 }
@@ -24,6 +26,7 @@ export async function closeFreeBattlePost(postId: string) {
 
 export async function claimFreeBattlePost(postId: string) {
   const userId = await requireUserId();
+  await requireActiveUser(userId);
   await claimPost(userId, postId);
   revalidatePath("/free-battle");
 }

@@ -5,6 +5,7 @@ import type { DiscordProfile } from "next-auth/providers/discord";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required for the module augmentation below to resolve
 import type { JWT } from "next-auth/jwt";
 import { prisma } from "@/lib/db";
+import { UserStatus } from "@/generated/prisma/enums";
 import type { UserRole } from "@/generated/prisma/enums";
 
 declare module "next-auth" {
@@ -31,6 +32,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ profile }) {
       const discordProfile = profile as DiscordProfile | undefined;
       if (!discordProfile?.id) return false;
+
+      const existing = await prisma.user.findUnique({
+        where: { discordId: discordProfile.id },
+        select: { status: true },
+      });
+      if (existing?.status === UserStatus.BANNED) return false;
 
       await prisma.user.upsert({
         where: { discordId: discordProfile.id },

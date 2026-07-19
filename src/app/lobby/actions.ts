@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/lobby";
 import { reportMatchResult } from "@/lib/matches";
+import { requireActiveUser } from "@/lib/account";
 
 async function requireUserId() {
   const session = await auth();
@@ -13,6 +14,7 @@ async function requireUserId() {
 
 export async function joinLobby() {
   const userId = await requireUserId();
+  await requireActiveUser(userId);
   await joinLobbyAndTryPair(userId);
   revalidatePath("/lobby");
 }
@@ -31,6 +33,7 @@ export async function submitRoomCode(matchId: string, roomCode: string) {
 
 export async function reportResult(matchId: string, won: boolean) {
   const userId = await requireUserId();
+  await requireActiveUser(userId);
   await reportMatchResult(matchId, userId, won);
   revalidatePath("/lobby");
 }
