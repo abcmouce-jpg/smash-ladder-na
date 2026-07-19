@@ -223,6 +223,10 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
       )}
 
+      {(match.status === "CANCELLED" || match.status === "EXPIRED") && (
+        <TerminatedSection status={match.status} />
+      )}
+
       <CommentsSection userId={userId} match={match} />
 
       <MatchFooterActions match={match} />
@@ -454,6 +458,21 @@ function ConfirmedSection({
         </Button>
       </form>
 
+      <form action={joinLobby} className="mt-4">
+        <Button type="submit">Join Lobby</Button>
+      </form>
+    </CardContent>
+  );
+}
+
+function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
+  return (
+    <CardContent className="border-t border-border pt-4">
+      <p className="text-sm text-muted-foreground">
+        {status === "CANCELLED"
+          ? "This match was cancelled — no rating impact."
+          : "Nobody reported a result in time, so this match expired with no rating impact."}
+      </p>
       <form action={joinLobby} className="mt-4">
         <Button type="submit">Join Lobby</Button>
       </form>
