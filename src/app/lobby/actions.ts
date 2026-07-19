@@ -150,11 +150,21 @@ export async function updateRegion(region: string) {
   revalidatePath("/lobby");
 }
 
-export async function updateWiredConnection(wired: boolean) {
+export type WiredConnectionState = { error: string | null };
+
+export async function updateWiredConnection(
+  _prevState: WiredConnectionState,
+  formData: FormData,
+): Promise<WiredConnectionState> {
   const userId = await requireUserId();
-  await setWiredConnection(userId, wired);
+  try {
+    await setWiredConnection(userId, formData.get("wired") === "on");
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath("/lobby");
   revalidatePath(`/players/${userId}`);
+  return { error: null };
 }
 
 export async function reportOpponentCharacterAction(matchId: string, character: string) {

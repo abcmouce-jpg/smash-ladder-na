@@ -57,7 +57,25 @@ export async function setUserRegion(userId: string, region: string | null) {
   await prisma.user.update({ where: { id: userId }, data: { region } });
 }
 
+// A self-declared "wired" claim exists to help pair people with a stable
+// connection — enough cancellations (a common symptom of connection
+// trouble) makes that claim unreliable, so it stops being self-settable
+// past this point. cancelMatch also auto-clears the flag when a cancel
+// pushes someone over this line.
+export const WIRED_TRUST_CANCEL_THRESHOLD = 3;
+
 export async function setWiredConnection(userId: string, wired: boolean) {
+  if (wired) {
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { cancelCount: true },
+    });
+    if (user.cancelCount >= WIRED_TRUST_CANCEL_THRESHOLD) {
+      throw new Error(
+        `Too many cancelled matches (${user.cancelCount}) to self-declare a wired connection.`,
+      );
+    }
+  }
   await prisma.user.update({ where: { id: userId }, data: { wiredConnection: wired } });
 }
 

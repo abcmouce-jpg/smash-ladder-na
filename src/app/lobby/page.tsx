@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
+import { WiredConnectionForm } from "@/components/wired-connection-form";
 import {
   beginFirstGame,
   cancelLobby,
@@ -54,7 +55,7 @@ export default async function LobbyPage() {
         <Card className="mt-8">
           <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
             <RegionForm userId={session.user.id} />
-            <WiredConnectionForm userId={session.user.id} />
+            <WiredConnectionField userId={session.user.id} />
           </CardContent>
           <CardContent className="pt-0">
             <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
@@ -131,30 +132,10 @@ async function RegionForm({ userId }: { userId: string }) {
   );
 }
 
-async function WiredConnectionForm({ userId }: { userId: string }) {
+async function WiredConnectionField({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({ where: { id: userId }, select: { wiredConnection: true } });
 
-  async function action(formData: FormData) {
-    "use server";
-    await updateWiredConnection(formData.get("wired") === "on");
-  }
-
-  return (
-    <form action={action} className="flex items-center gap-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="wired"
-          defaultChecked={me?.wiredConnection ?? false}
-          className="size-4 rounded border-border"
-        />
-        On a wired (LAN) connection
-      </label>
-      <Button type="submit" size="sm" variant="outline">
-        Save
-      </Button>
-    </form>
-  );
+  return <WiredConnectionForm action={updateWiredConnection} defaultChecked={me?.wiredConnection ?? false} />;
 }
 
 async function PairedView({ userId, match }: { userId: string; match: Match }) {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
+import { WIRED_TRUST_CANCEL_THRESHOLD } from "@/lib/account";
 
 export const matchWithPlayers = {
   player1: { select: { id: true, username: true, avatarUrl: true, rating: true } },
@@ -38,10 +39,16 @@ export async function cancelMatch(userId: string, matchId: string) {
   if (match.status !== MatchStatus.PENDING_REPORT) {
     throw new Error("This match can no longer be cancelled");
   }
-  await prisma.$transaction([
+  const [, updatedUser] = await prisma.$transaction([
     prisma.ratingMatch.update({ where: { id: matchId }, data: { status: MatchStatus.CANCELLED } }),
     prisma.user.update({ where: { id: userId }, data: { cancelCount: { increment: 1 } } }),
   ]);
+
+  // A self-declared wired connection stops being credible once cancels
+  // pile up — clear it rather than keep pairing others against a stale claim.
+  if (updatedUser.wiredConnection && updatedUser.cancelCount >= WIRED_TRUST_CANCEL_THRESHOLD) {
+    await prisma.user.update({ where: { id: userId }, data: { wiredConnection: false } });
+  }
 }
 
 // Provisional players (few games) swing faster so their rating converges quickly.
