@@ -163,6 +163,7 @@ model RatingLobbyEntry {
   cancelledAt   DateTime?
 
   @@index([status, expiresAt])
+  @@index([userId, joinedAt])
 }
 
 model RatingMatch {
@@ -351,4 +352,5 @@ model FreeBattlePost {
   matchedAt     DateTime?
 
   @@index([status, createdAt])
+  @@index([authorId])
 }
