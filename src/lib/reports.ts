@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { ReportStatus } from "@/generated/prisma/enums";
+import { ReportStatus, UserStatus } from "@/generated/prisma/enums";
 
 export async function fileMatchReport(
   reporterId: string,
@@ -63,6 +63,12 @@ export const ACTION_THRESHOLDS: Record<"SUSPENDED" | "BANNED", number> = {
   BANNED: 5,
 };
 
+const STATUS_RANK: Record<UserStatus, number> = {
+  [UserStatus.ACTIVE]: 0,
+  [UserStatus.SUSPENDED]: 1,
+  [UserStatus.BANNED]: 2,
+};
+
 export async function actionReport(reportId: string, newStatus: "SUSPENDED" | "BANNED") {
   const report = await prisma.conductReport.findUnique({ where: { id: reportId } });
   if (!report) throw new Error("Report not found");
@@ -77,11 +83,30 @@ export async function actionReport(reportId: string, newStatus: "SUSPENDED" | "B
     );
   }
 
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: report.reportedUserId },
+    select: { status: true },
+  });
+  // A leftover OPEN report against an already-banned user shouldn't be able
+  // to downgrade them back to suspended, or double-count misconduct points
+  // for a decision that's already been made.
+  const isEscalation = STATUS_RANK[newStatus] > STATUS_RANK[user.status];
+
   await prisma.$transaction([
-    prisma.user.update({
-      where: { id: report.reportedUserId },
-      data: { status: newStatus, misconductScore: { increment: MISCONDUCT_POINTS[newStatus] } },
+    ...(isEscalation
+      ? [
+          prisma.user.update({
+            where: { id: report.reportedUserId },
+            data: { status: newStatus, misconductScore: { increment: MISCONDUCT_POINTS[newStatus] } },
+          }),
+        ]
+      : []),
+    // This user's standing has now been decided — close out every other
+    // open report against them too, not just the one clicked, so the mod
+    // queue doesn't keep resurfacing an already-actioned player.
+    prisma.conductReport.updateMany({
+      where: { reportedUserId: report.reportedUserId, status: ReportStatus.OPEN },
+      data: { status: ReportStatus.ACTIONED },
     }),
-    prisma.conductReport.update({ where: { id: reportId }, data: { status: ReportStatus.ACTIONED } }),
   ]);
 }

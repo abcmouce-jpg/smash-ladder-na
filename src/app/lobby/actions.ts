@@ -67,24 +67,28 @@ export async function cancelLobby() {
 
 export async function submitRoomCode(matchId: string, roomCode: string) {
   const userId = await requireUserId();
+  await requireNotBanned(userId); // still a ranked-lobby action, mid-match
   await setMatchRoomCode(userId, matchId, roomCode.trim());
   revalidatePath("/lobby");
 }
 
 export async function beginFirstGame(matchId: string) {
   const userId = await requireUserId();
+  await requireNotBanned(userId);
   await startFirstGame(userId, matchId);
   revalidatePath("/lobby");
 }
 
 export async function strikeStage(matchId: string, gameNumber: number, stage: string) {
   const userId = await requireUserId();
+  await requireNotBanned(userId);
   await ignoringStaleGameRaces(() => strikeGameStage(userId, matchId, gameNumber, stage));
   revalidatePath("/lobby");
 }
 
 export async function pickStage(matchId: string, gameNumber: number, stage: string) {
   const userId = await requireUserId();
+  await requireNotBanned(userId);
   await ignoringStaleGameRaces(() => pickGameStage(userId, matchId, gameNumber, stage));
   revalidatePath("/lobby");
 }
