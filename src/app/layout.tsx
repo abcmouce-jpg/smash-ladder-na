@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { RegionSetupBanner } from "@/components/region-setup-banner";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import "./globals.css";
 
@@ -45,6 +46,7 @@ export default function RootLayout({
           />
         )}
         <SiteHeader />
+        <RegionSetupBanner />
         {children}
         <SiteFooter />
       </body>
