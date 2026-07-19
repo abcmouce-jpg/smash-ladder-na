@@ -23,6 +23,14 @@ export async function SiteHeader() {
               <Link href="/leaderboard" className="hover:text-zinc-900 dark:hover:text-zinc-100">
                 Leaderboard
               </Link>
+              {(user.role === "MOD" || user.role === "ADMIN") && (
+                <Link
+                  href="/admin/disputes"
+                  className="hover:text-zinc-900 dark:hover:text-zinc-100"
+                >
+                  Disputes
+                </Link>
+              )}
             </nav>
           )}
         </div>
