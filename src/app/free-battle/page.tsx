@@ -5,6 +5,7 @@ import { getOwnActivePost, getUserBrief, listOpenPosts } from "@/lib/free-battle
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AdSlot } from "@/components/ad-slot";
 import { claimFreeBattlePost, closeFreeBattlePost, postFreeBattle } from "./actions";
 
 export default async function FreeBattlePage() {
@@ -75,6 +76,8 @@ export default async function FreeBattlePage() {
           ))}
         </ul>
       </div>
+
+      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_FREE_BATTLE} />
     </main>
   );
 }

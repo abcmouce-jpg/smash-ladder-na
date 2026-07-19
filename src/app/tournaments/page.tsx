@@ -6,6 +6,7 @@ import { listTournaments } from "@/lib/tournaments";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { AdSlot } from "@/components/ad-slot";
 import { createTournamentAction } from "./actions";
 
 const STATUS_VARIANT = {
@@ -58,6 +59,8 @@ export default async function TournamentsPage() {
           <p className="text-sm text-muted-foreground">No tournaments yet — host one above.</p>
         )}
       </div>
+
+      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_TOURNAMENTS} />
     </main>
   );
 }

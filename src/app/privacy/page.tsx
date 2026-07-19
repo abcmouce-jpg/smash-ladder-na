@@ -36,16 +36,33 @@ export default function PrivacyPage() {
           <h2 className="text-sm font-medium text-foreground">Who else sees it</h2>
           <p className="mt-2">
             Discord (for sign-in and, optionally, DM notifications) and Neon (our database host)
-            process your data on our behalf. We don&apos;t sell your data. If ads are ever added
-            to the site, that&apos;ll be reflected here before it happens.
+            process your data on our behalf. We don&apos;t sell your data.
+          </p>
+          <p className="mt-2">
+            Some read-only pages (leaderboard, characters, tournaments, free battle) may show ads
+            served by Google AdSense. AdSense can set its own cookies and use data about your
+            visits to this and other sites to serve and measure ads — this isn&apos;t data we
+            collect or control ourselves. You can see and adjust what Google uses for ad
+            personalization at{" "}
+            <a
+              href="https://adssettings.google.com"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              adssettings.google.com
+            </a>
+            . We don&apos;t place ads on the lobby or an active match — that experience stays
+            ad-free.
           </p>
         </section>
 
         <section>
           <h2 className="text-sm font-medium text-foreground">Cookies</h2>
           <p className="mt-2">
-            One session cookie, used only to keep you signed in. No tracking or advertising
-            cookies today.
+            One session cookie, used only to keep you signed in. On pages where an ad is shown,
+            Google AdSense may also set its own cookies, per the section above — otherwise no
+            tracking or advertising cookies are set.
           </p>
         </section>
 

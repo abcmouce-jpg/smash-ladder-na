@@ -3,6 +3,7 @@ import { Swords } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { CharacterIcon } from "@/components/character-icon";
+import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -42,6 +43,8 @@ export default async function CharactersPage() {
           </Link>
         ))}
       </Card>
+
+      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_CHARACTERS} />
     </main>
   );
 }

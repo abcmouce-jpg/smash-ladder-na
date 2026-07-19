@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -35,6 +36,14 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">
           {`try{if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}`}
         </Script>
+        {ADSENSE_CLIENT_ID && (
+          <Script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
+        )}
         <SiteHeader />
         {children}
         <SiteFooter />

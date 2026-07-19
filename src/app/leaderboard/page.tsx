@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { ensureActiveSeason } from "@/lib/seasons";
 import { CharacterIcon } from "@/components/character-icon";
+import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -105,6 +106,8 @@ export default async function LeaderboardPage({
           {players.length} ranked player{players.length === 1 ? "" : "s"}
         </Badge>
       )}
+
+      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEADERBOARD} />
     </main>
   );
 }
