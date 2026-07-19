@@ -15,6 +15,10 @@ export async function listDisputedGames() {
       winnerId: null,
       reportedWinnerId: { not: null },
       secondReportWinnerId: { not: null },
+      // If the set already confirmed via its other games (or got cancelled),
+      // this dispute is moot — resolving it can't change the outcome, so it
+      // shouldn't keep cluttering the mod queue.
+      match: { status: { notIn: [MatchStatus.CONFIRMED, MatchStatus.CANCELLED] } },
     },
     orderBy: { createdAt: "desc" },
     include: { match: { include: matchWithPlayers } },
