@@ -13,6 +13,8 @@ import {
 import { postMatchComment } from "@/lib/match-comments";
 import { cancelMatch } from "@/lib/matches";
 import { fileMatchReport } from "@/lib/reports";
+import { prisma } from "@/lib/db";
+import { enforceRateLimit, minutesAgo } from "@/lib/rate-limit";
 
 async function requireUserId() {
   const session = await auth();
@@ -46,6 +48,12 @@ async function ignoringStaleGameRaces(fn: () => Promise<void>) {
 export async function joinLobby() {
   const userId = await requireUserId();
   await requireActiveUser(userId);
+  await enforceRateLimit({
+    count: () =>
+      prisma.ratingLobbyEntry.count({ where: { userId, joinedAt: { gt: minutesAgo(1) } } }),
+    limit: 5,
+    windowLabel: "minute",
+  });
   await joinLobbyAndTryPair(userId);
   revalidatePath("/lobby");
 }
@@ -89,6 +97,12 @@ export async function reportGame(matchId: string, gameNumber: number, won: boole
 
 export async function sendMatchComment(matchId: string, body: string) {
   const userId = await requireUserId();
+  await enforceRateLimit({
+    count: () =>
+      prisma.matchComment.count({ where: { authorId: userId, createdAt: { gt: minutesAgo(1) } } }),
+    limit: 15,
+    windowLabel: "minute",
+  });
   await postMatchComment(userId, matchId, body);
   revalidatePath("/lobby");
 }
@@ -101,6 +115,12 @@ export async function cancelMatchInProgress(matchId: string) {
 
 export async function reportConduct(matchId: string, reason: string) {
   const userId = await requireUserId();
+  await enforceRateLimit({
+    count: () =>
+      prisma.conductReport.count({ where: { reporterId: userId, createdAt: { gt: minutesAgo(60) } } }),
+    limit: 5,
+    windowLabel: "hour",
+  });
   await fileMatchReport(userId, matchId, reason);
   revalidatePath("/lobby");
 }
