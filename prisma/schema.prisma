@@ -203,6 +203,8 @@ model RatingMatch {
   @@index([status])
   @@index([player1Id])
   @@index([player2Id])
+  @@index([player1Id, status, confirmedAt])
+  @@index([player2Id, status, confirmedAt])
 }
 
 // One game within a RatingMatch's best-of-3 set. Stage selection is
