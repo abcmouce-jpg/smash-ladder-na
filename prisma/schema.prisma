@@ -121,7 +121,8 @@ model User {
   cancelCount   Int        @default(0)
   misconductScore Int      @default(0) // bumped only when a mod actions a ConductReport, not on filing
   mainCharacter String? // self-declared; drives the character leaderboard filter
-  region        String? // self-declared NA region; drives latency-aware pairing + the NA-East launch gate
+  region        String? // self-declared NA region; drives strict same-region matchmaking + the NA-East launch gate
+  crossRegionOk Boolean @default(false) // opt-in: still matches same-region first in effect, but also accepts pairing across regions
   wiredConnection Boolean @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
   role          UserRole   @default(USER)
   status        UserStatus @default(ACTIVE)

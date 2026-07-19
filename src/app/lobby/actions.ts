@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/lobby";
-import { requireActiveUser, requireNotBanned, setUserRegion, setWiredConnection } from "@/lib/account";
+import {
+  requireActiveUser,
+  requireNotBanned,
+  setCrossRegionOk,
+  setUserRegion,
+  setWiredConnection,
+} from "@/lib/account";
 import {
   pickGameStage,
   reportGameResult,
@@ -147,6 +153,12 @@ export async function reportConduct(matchId: string, reason: string) {
 export async function updateRegion(region: string) {
   const userId = await requireUserId();
   await setUserRegion(userId, region || null);
+  revalidatePath("/lobby");
+}
+
+export async function updateCrossRegionOk(crossRegionOk: boolean) {
+  const userId = await requireUserId();
+  await setCrossRegionOk(userId, crossRegionOk);
   revalidatePath("/lobby");
 }
 

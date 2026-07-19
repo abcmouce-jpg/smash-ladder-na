@@ -55,6 +55,15 @@ export default async function Home() {
       )}
 
       <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+        {stats.playingNow > 0 && (
+          <span className="flex items-center gap-1.5 tabular-nums">
+            <span className="relative flex size-2">
+              <span className="live-pulse absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="font-medium text-foreground">{stats.playingNow}</span> playing now
+          </span>
+        )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
           <span className="font-medium text-foreground">{stats.totalPlayers}</span> players

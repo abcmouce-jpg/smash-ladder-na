@@ -57,6 +57,13 @@ export async function setUserRegion(userId: string, region: string | null) {
   await prisma.user.update({ where: { id: userId }, data: { region } });
 }
 
+// Opt-in: removes the region restriction for this player's own searches,
+// and makes them an eligible partner for anyone else's search too — for
+// players who'd rather queue faster than wait for a same-region opponent.
+export async function setCrossRegionOk(userId: string, crossRegionOk: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { crossRegionOk } });
+}
+
 // A self-declared "wired" claim exists to help pair people with a stable
 // connection — enough cancellations (a common symptom of connection
 // trouble) makes that claim unreliable. Judged by ratio rather than a flat

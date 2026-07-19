@@ -27,6 +27,7 @@ import {
   sendMatchComment,
   strikeStage,
   submitRoomCode,
+  updateCrossRegionOk,
   updateRegion,
   updateWiredConnection,
 } from "./actions";
@@ -103,36 +104,51 @@ function PageTitle() {
 }
 
 async function RegionForm({ userId }: { userId: string }) {
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { region: true } });
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { region: true, crossRegionOk: true },
+  });
 
   async function action(formData: FormData) {
     "use server";
     await updateRegion(String(formData.get("region") ?? ""));
+    await updateCrossRegionOk(formData.get("crossRegionOk") === "on");
   }
 
   return (
-    <form action={action} className="flex items-end gap-2">
-      <label className="flex flex-col gap-1 text-sm">
-        Match region
-        <span className="text-xs font-normal text-muted-foreground">
-          Required to queue — you&apos;ll only be matched with players in the same region.
-        </span>
-        <select
-          name="region"
-          defaultValue={me?.region ?? ""}
-          className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-        >
-          <option value="">Not set</option>
-          {NA_REGIONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
+    <form action={action} className="flex flex-col gap-2">
+      <div className="flex items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm">
+          Match region
+          <span className="text-xs font-normal text-muted-foreground">
+            Required to queue — same-region players are matched by default.
+          </span>
+          <select
+            name="region"
+            defaultValue={me?.region ?? ""}
+            className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+          >
+            <option value="">Not set</option>
+            {NA_REGIONS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button type="submit" size="sm" variant="outline">
+          Save
+        </Button>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="crossRegionOk"
+          defaultChecked={me?.crossRegionOk ?? false}
+          className="size-4 rounded border-border"
+        />
+        Also match across regions (queue faster, may increase latency)
       </label>
-      <Button type="submit" size="sm" variant="outline">
-        Save
-      </Button>
     </form>
   );
 }

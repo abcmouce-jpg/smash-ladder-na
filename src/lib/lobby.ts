@@ -49,17 +49,18 @@ export async function joinLobbyAndTryPair(userId: string) {
   const [waitingEntry, unresolvedMatch, me] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { region: true } }),
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { region: true, crossRegionOk: true } }),
   ]);
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
   if (waitingEntry || unresolvedMatch) return getActiveLobbyEntry(userId);
 
-  // Matching is a strict region match, not a soft preference — both sides
-  // have to have picked the same region, so a region has to be set first.
+  // Matching is same-region by default — both sides have to have picked
+  // the same region, so a region has to be set first — but either side can
+  // opt into crossRegionOk to accept (or offer) any region instead.
   if (!me.region) {
     throw new Error(
-      "Set your region before joining the queue — you'll only be matched with players in the same region.",
+      "Set your region before joining the queue — you'll only be matched with players in the same region unless you opt into cross-region matching.",
     );
   }
 
@@ -75,7 +76,7 @@ export async function joinLobbyAndTryPair(userId: string) {
         expiresAt: { gt: now },
         userId: { not: userId },
         id: { not: newEntry.id },
-        user: { region: me.region },
+        ...(me.crossRegionOk ? {} : { OR: [{ user: { region: me.region } }, { user: { crossRegionOk: true } }] }),
       },
       orderBy: { joinedAt: "asc" },
     });
@@ -123,32 +124,36 @@ export async function joinLobbyAndTryPair(userId: string) {
 // WAITING even though plenty of mutual partners exist. Rather than only
 // pairing opportunistically at join time, the cron finalizer sweeps the
 // queue periodically and pairs up whoever's left waiting.
+function canMatchRegion(
+  a: { region: string | null; crossRegionOk: boolean },
+  b: { region: string | null; crossRegionOk: boolean },
+) {
+  return a.region === b.region || a.crossRegionOk || b.crossRegionOk;
+}
+
 export async function sweepLobbyPairing(maxPairs = 50) {
   let paired = 0;
   const now = new Date();
 
-  // Region matching is strict, so straggler pairing has to group by region
-  // first — grabbing just the two oldest waiting entries overall (as before)
-  // could pair mismatched regions. Grouped up front in one read rather than
-  // per-iteration, since the group membership doesn't change mid-sweep.
+  // Region matching isn't a strict single-bucket split anymore — a
+  // crossRegionOk entry can pair with anyone — so straggler pairing greedily
+  // scans for the oldest eligible partner per entry instead of grouping by
+  // region. The waiting queue is small enough in practice for this to be
+  // cheap; read once up front since membership doesn't change mid-sweep.
   const waiting = await prisma.ratingLobbyEntry.findMany({
     where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
     orderBy: { joinedAt: "asc" },
-    include: { user: { select: { region: true } } },
+    include: { user: { select: { region: true, crossRegionOk: true } } },
   });
 
-  const byRegion = new Map<string | null, typeof waiting>();
-  for (const entry of waiting) {
-    const key = entry.user.region;
-    const group = byRegion.get(key);
-    if (group) group.push(entry);
-    else byRegion.set(key, [entry]);
-  }
+  const used = new Set<string>();
+  for (let i = 0; i < waiting.length && paired < maxPairs; i++) {
+    const a = waiting[i];
+    if (used.has(a.id)) continue;
 
-  outer: for (const group of byRegion.values()) {
-    for (let i = 0; i + 1 < group.length; i += 2) {
-      if (paired >= maxPairs) break outer;
-      const [a, b] = [group[i], group[i + 1]];
+    for (let j = i + 1; j < waiting.length; j++) {
+      const b = waiting[j];
+      if (used.has(b.id) || !canMatchRegion(a.user, b.user)) continue;
 
       const madeMatch = await withTransientRetry(() =>
         prisma.$transaction(async (tx) => {
@@ -180,8 +185,11 @@ export async function sweepLobbyPairing(maxPairs = 50) {
       );
       if (madeMatch) {
         await notifyMatchPaired(madeMatch.player1Id, madeMatch.player2Id);
+        used.add(a.id);
+        used.add(b.id);
         paired++;
       }
+      break;
     }
   }
   return paired;

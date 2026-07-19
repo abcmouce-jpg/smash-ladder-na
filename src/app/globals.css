@@ -163,11 +163,30 @@
   animation: victory-pop 400ms ease-out forwards;
 }
 
+@keyframes live-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.live-pulse {
+  animation: live-pulse 1.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .confetti-piece {
     display: none;
   }
   .victory-pop {
+    animation: none;
+  }
+  .live-pulse {
     animation: none;
   }
 }
