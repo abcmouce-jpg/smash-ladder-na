@@ -2,10 +2,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Cable, MapPin } from "lucide-react";
-import { getPlayerMatchHistory, getPlayerProfile } from "@/lib/players";
+import {
+  currentStreak,
+  getPlayerMatchHistory,
+  getPlayerProfile,
+  getRatingChartPoints,
+} from "@/lib/players";
 import { CharacterIcon } from "@/components/character-icon";
+import { RatingChart } from "@/components/rating-chart";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default async function PlayerProfilePage({
   params,
@@ -16,9 +22,14 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const history = await getPlayerMatchHistory(id);
+  const [history, chartPoints] = await Promise.all([
+    getPlayerMatchHistory(id),
+    getRatingChartPoints(id),
+  ]);
   const wins = history.filter((m) => m.won).length;
   const losses = history.length - wins;
+  const winRate = history.length > 0 ? Math.round((wins / history.length) * 100) : null;
+  const streak = currentStreak(history);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -65,6 +76,29 @@ export default async function PlayerProfilePage({
           </div>
         </div>
       </div>
+
+      {chartPoints.length >= 2 && (
+        <Card className="mt-8">
+          <CardContent className="pt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium">Rating over time</p>
+              <div className="flex gap-2">
+                {winRate !== null && (
+                  <Badge variant="outline" className="tabular-nums">
+                    {winRate}% win rate
+                  </Badge>
+                )}
+                {streak !== 0 && (
+                  <Badge variant={streak > 0 ? "success" : "destructive"} className="tabular-nums">
+                    {Math.abs(streak)} {streak > 0 ? "win" : "loss"} streak
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <RatingChart points={chartPoints.map((p) => ({ date: p.date.toISOString(), rating: p.rating }))} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mt-10">
         <div className="flex items-center gap-2">

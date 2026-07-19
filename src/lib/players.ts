@@ -51,3 +51,26 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
     };
   });
 }
+
+export async function getRatingChartPoints(userId: string, limit = 50) {
+  const rows = await prisma.ratingHistory.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { ratingAfter: true, createdAt: true },
+  });
+  return rows.reverse().map((r) => ({ date: r.createdAt, rating: r.ratingAfter }));
+}
+
+// Current streak: how many of the most recent confirmed matches in a row
+// share the same result. Positive = win streak, negative = loss streak.
+export function currentStreak(history: { won: boolean }[]) {
+  if (history.length === 0) return 0;
+  const leadingResult = history[0].won;
+  let count = 0;
+  for (const m of history) {
+    if (m.won !== leadingResult) break;
+    count++;
+  }
+  return leadingResult ? count : -count;
+}
