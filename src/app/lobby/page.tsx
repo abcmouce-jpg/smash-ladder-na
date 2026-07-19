@@ -554,7 +554,7 @@ function RoomCodeForm({
         <input
           name="roomCode"
           defaultValue={initialValue}
-          placeholder="e.g. AB12CD"
+          placeholder="e.g. AB123"
           className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
       </label>

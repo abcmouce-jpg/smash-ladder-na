@@ -104,10 +104,11 @@ export default function RulesPage() {
 
         <Section title="Matchmaking">
           <p>
-            Set a match region before you queue — NA East, NA Central, NA South, NA West, Canada,
-            or Other. Matching is strict: you&apos;ll only ever be paired with someone who picked
-            the same region, for a better connection. Wired-connection status is self-declared too
-            and shown on profiles, though it isn&apos;t part of matching.
+            &quot;NA&quot; means North America — the US and Canada both. Set a match region before
+            you queue — NA East, NA Central, NA South, NA West, or Other. Matching is strict:
+            you&apos;ll only ever be paired with someone who picked the same region, for a better
+            connection. Wired-connection status is self-declared too and shown on profiles,
+            though it isn&apos;t part of matching.
           </p>
           <p>
             Joining the ranked lobby queues you for up to 10 minutes before the entry expires. You
