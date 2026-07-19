@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Cable, MapPin } from "lucide-react";
+import { auth } from "@/auth";
 import {
   currentStreak,
   getPlayerMatchHistory,
@@ -10,8 +11,10 @@ import {
 } from "@/lib/players";
 import { CharacterIcon } from "@/components/character-icon";
 import { RatingChart } from "@/components/rating-chart";
+import { DeleteAccountButton } from "@/components/delete-account-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { deleteAccountAction } from "../actions";
 
 export default async function PlayerProfilePage({
   params,
@@ -19,6 +22,8 @@ export default async function PlayerProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth();
+  const isOwnProfile = session?.user?.id === id;
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
@@ -139,6 +144,19 @@ export default async function PlayerProfilePage({
           </Card>
         )}
       </div>
+
+      {isOwnProfile && (
+        <div className="mt-12 border-t border-border pt-6">
+          <h2 className="text-sm font-medium text-destructive">Danger zone</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Deletes your username, avatar, and email. Match history stays, anonymized, so other
+            players&apos; win/loss records stay accurate.
+          </p>
+          <div className="mt-3">
+            <DeleteAccountButton action={deleteAccountAction} />
+          </div>
+        </div>
+      )}
     </main>
   );
 }

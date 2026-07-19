@@ -60,3 +60,23 @@ export async function setUserRegion(userId: string, region: string | null) {
 export async function setWiredConnection(userId: string, wired: boolean) {
   await prisma.user.update({ where: { id: userId }, data: { wiredConnection: wired } });
 }
+
+// Anonymize rather than hard-delete: match history, ratings, and comments
+// involve other players' legitimate competitive records too, and Prisma's
+// default onDelete: Restrict on most of this user's relations would just
+// throw anyway. Scrambling discordId means a future login with the same
+// Discord account starts a genuinely fresh row instead of reviving this one.
+export async function deleteMyAccount(userId: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      username: "Deleted User",
+      avatarUrl: null,
+      email: null,
+      discordId: `deleted-${userId}`,
+      mainCharacter: null,
+      region: null,
+      wiredConnection: false,
+    },
+  });
+}
