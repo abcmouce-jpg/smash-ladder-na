@@ -12,13 +12,14 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
       <div className="mx-auto flex max-w-2xl items-start justify-between px-6 py-3 md:items-center">
         <div className="flex min-w-0 flex-wrap items-center gap-6">
-          <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight">
+          <Link href="/" prefetch={false} className="shrink-0 text-sm font-semibold tracking-tight">
             Smash Ladder <span className="text-primary">NA</span>
           </Link>
           {user && (
             <nav className="flex min-w-0 basis-full items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 md:basis-auto">
               <Link
                 href="/lobby"
+                prefetch={false}
                 className="flex items-center gap-1.5 hover:text-foreground"
               >
                 <Swords className="size-3.5" />
@@ -26,6 +27,7 @@ export async function SiteHeader() {
               </Link>
               <Link
                 href="/free-battle"
+                prefetch={false}
                 className="flex items-center gap-1.5 hover:text-foreground"
               >
                 <Users className="size-3.5" />
@@ -33,6 +35,7 @@ export async function SiteHeader() {
               </Link>
               <Link
                 href="/leaderboard"
+                prefetch={false}
                 className="flex items-center gap-1.5 hover:text-foreground"
               >
                 <Trophy className="size-3.5" />
@@ -40,6 +43,7 @@ export async function SiteHeader() {
               </Link>
               <Link
                 href="/characters"
+                prefetch={false}
                 className="flex items-center gap-1.5 hover:text-foreground"
               >
                 <Gamepad2 className="size-3.5" />
@@ -47,6 +51,7 @@ export async function SiteHeader() {
               </Link>
               <Link
                 href="/tournaments"
+                prefetch={false}
                 className="flex items-center gap-1.5 hover:text-foreground"
               >
                 <Medal className="size-3.5" />
@@ -55,6 +60,7 @@ export async function SiteHeader() {
               {(user.role === "MOD" || user.role === "ADMIN") && (
                 <Link
                   href="/admin"
+                  prefetch={false}
                   className="flex items-center gap-1.5 hover:text-foreground"
                 >
                   <Gauge className="size-3.5" />
@@ -64,6 +70,7 @@ export async function SiteHeader() {
               {(user.role === "MOD" || user.role === "ADMIN") && (
                 <Link
                   href="/admin/disputes"
+                  prefetch={false}
                   className="flex items-center gap-1.5 hover:text-foreground"
                 >
                   <Shield className="size-3.5" />
@@ -73,6 +80,7 @@ export async function SiteHeader() {
               {(user.role === "MOD" || user.role === "ADMIN") && (
                 <Link
                   href="/admin/reports"
+                  prefetch={false}
                   className="flex items-center gap-1.5 hover:text-foreground"
                 >
                   <Flag className="size-3.5" />
@@ -82,6 +90,7 @@ export async function SiteHeader() {
               {(user.role === "MOD" || user.role === "ADMIN") && (
                 <Link
                   href="/admin/seasons"
+                  prefetch={false}
                   className="flex items-center gap-1.5 hover:text-foreground"
                 >
                   <CalendarClock className="size-3.5" />
@@ -94,7 +103,7 @@ export async function SiteHeader() {
 
         {user ? (
           <div className="flex items-center gap-3">
-            <Link href={`/players/${user.id}`} className="flex items-center gap-2">
+            <Link href={`/players/${user.id}`} prefetch={false} className="flex items-center gap-2">
               {user.image && (
                 <Image
                   src={user.image}
