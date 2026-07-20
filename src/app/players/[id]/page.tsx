@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Cable, MapPin } from "lucide-react";
+import { Cable, ExternalLink, MapPin } from "lucide-react";
 import { auth } from "@/auth";
 import {
   currentStreak,
@@ -81,6 +81,17 @@ export default async function PlayerProfilePage({
               </Badge>
             )}
           </div>
+          {player.startggUrl && (
+            <a
+              href={player.startggUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              View on start.gg
+              <ExternalLink className="size-3" />
+            </a>
+          )}
         </div>
       </div>
 

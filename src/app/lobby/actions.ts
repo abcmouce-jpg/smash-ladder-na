@@ -8,6 +8,7 @@ import {
   requireNotBanned,
   setMaxMatchDistance,
   setUserRegion,
+  setUserStartggUrl,
   setWiredConnection,
 } from "@/lib/account";
 import {
@@ -160,6 +161,13 @@ export async function updateMaxMatchDistance(maxMatchDistanceKm: number | null) 
   const userId = await requireUserId();
   await setMaxMatchDistance(userId, maxMatchDistanceKm);
   revalidatePath("/lobby");
+}
+
+export async function updateStartggUrl(url: string) {
+  const userId = await requireUserId();
+  await setUserStartggUrl(userId, url);
+  revalidatePath("/lobby");
+  revalidatePath(`/players/${userId}`);
 }
 
 export type WiredConnectionState = { error: string | null };

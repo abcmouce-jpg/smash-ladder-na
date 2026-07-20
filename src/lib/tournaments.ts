@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { TournamentStatus } from "@/generated/prisma/enums";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { normalizeStartggUrl } from "@/lib/startgg";
 
 const entryWithUser = {
   user: { select: { id: true, username: true, avatarUrl: true, rating: true } },
@@ -24,15 +25,6 @@ export async function getTournament(id: string) {
       entries: { include: entryWithUser, orderBy: { joinedAt: "asc" } },
     },
   });
-}
-
-function normalizeStartggUrl(url: string) {
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-  if (!/^https:\/\/(www\.)?start\.gg\//.test(trimmed)) {
-    throw new Error("That doesn't look like a start.gg link");
-  }
-  return trimmed;
 }
 
 export async function createTournament(

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
+import { normalizeStartggUrl } from "@/lib/startgg";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -66,6 +67,14 @@ export async function setMaxMatchDistance(userId: string, maxMatchDistanceKm: nu
     throw new Error("Not a recognized match distance");
   }
   await prisma.user.update({ where: { id: userId }, data: { maxMatchDistanceKm } });
+}
+
+// Self-declared, unverified — a player could enter someone else's link.
+// Fine for now since nothing automated reads this yet; revisit if a future
+// feature (e.g. feeding start.gg results into ratings) depends on it being
+// trustworthy.
+export async function setUserStartggUrl(userId: string, url: string) {
+  await prisma.user.update({ where: { id: userId }, data: { startggUrl: normalizeStartggUrl(url) } });
 }
 
 // A self-declared "wired" claim exists to help pair people with a stable

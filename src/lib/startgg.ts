@@ -1,5 +1,14 @@
 const STARTGG_API = "https://api.start.gg/gql/alpha";
 
+export function normalizeStartggUrl(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (!/^https:\/\/(www\.)?start\.gg\//.test(trimmed)) {
+    throw new Error("That doesn't look like a start.gg link");
+  }
+  return trimmed;
+}
+
 const EVENT_QUERY = `
   query TournamentLadderEvent($slug: String!) {
     event(slug: $slug) {

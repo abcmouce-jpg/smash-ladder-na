@@ -30,6 +30,7 @@ import {
   submitRoomCode,
   updateMaxMatchDistance,
   updateRegion,
+  updateStartggUrl,
   updateWiredConnection,
 } from "./actions";
 
@@ -62,6 +63,12 @@ export default async function LobbyPage() {
         <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
           <RegionForm userId={session.user.id} />
           <WiredConnectionField userId={session.user.id} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <StartggProfileForm userId={session.user.id} />
         </CardContent>
       </Card>
 
@@ -125,6 +132,36 @@ function ActivityLine({ waiting, inMatch }: { waiting: number; inMatch: number }
 }
 
 const WORLDWIDE_VALUE = "worldwide";
+
+async function StartggProfileForm({ userId }: { userId: string }) {
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { startggUrl: true } });
+
+  async function action(formData: FormData) {
+    "use server";
+    await updateStartggUrl(String(formData.get("startggUrl") ?? ""));
+  }
+
+  return (
+    <form action={action} className="flex items-end gap-2">
+      <label className="flex flex-1 flex-col gap-1 text-sm">
+        start.gg profile
+        <span className="text-xs font-normal text-muted-foreground">
+          Self-declared — link your start.gg profile so others can look up your results.
+        </span>
+        <input
+          name="startggUrl"
+          type="url"
+          defaultValue={me?.startggUrl ?? ""}
+          placeholder="https://www.start.gg/user/..."
+          className="h-8 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+        />
+      </label>
+      <Button type="submit" size="sm">
+        Save
+      </Button>
+    </form>
+  );
+}
 
 async function RegionForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({
