@@ -64,11 +64,17 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // BOTH of their individually chosen radii — one side opting into a wider
 // radius doesn't override the other side's narrower one, since a distance
 // preference is about that player's own connection tolerance.
+//
+// Labels are deliberately distance-first rather than named after a
+// geographic unit (e.g. "Continental") — a fixed km radius covers very
+// different amounts of territory depending on where you are (5,000km is
+// most of a large country in NA, but nearly all of Europe), so a label
+// claiming to match a specific unit reads wrong for a lot of players.
 export const MATCH_DISTANCE_PRESETS = [
   { label: "Same region only", km: 0 },
   { label: "Nearby (~2,000 km)", km: 2000 },
-  { label: "Regional (~5,000 km)", km: 5000 },
-  { label: "Continental (~10,000 km)", km: 10000 },
+  { label: "Extended (~5,000 km)", km: 5000 },
+  { label: "Long-range (~10,000 km)", km: 10000 },
   { label: "Worldwide", km: null },
 ] as const;
 
