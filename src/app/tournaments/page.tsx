@@ -1,13 +1,11 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Trophy } from "lucide-react";
 import { auth } from "@/auth";
 import { listTournaments } from "@/lib/tournaments";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdSlot } from "@/components/ad-slot";
-import { createTournamentAction } from "./actions";
+import { CreateTournamentForm } from "@/components/create-tournament-form";
 
 const STATUS_VARIANT = {
   SIGNUPS: "outline",
@@ -65,50 +63,3 @@ export default async function TournamentsPage() {
   );
 }
 
-function CreateTournamentForm() {
-  async function action(formData: FormData) {
-    "use server";
-    const name = String(formData.get("name") ?? "");
-    const description = String(formData.get("description") ?? "");
-    const startggUrl = String(formData.get("startggUrl") ?? "");
-    const id = await createTournamentAction(name, description, startggUrl);
-    redirect(`/tournaments/${id}`);
-  }
-
-  return (
-    <form action={action} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
-        Name
-        <input
-          name="name"
-          required
-          maxLength={100}
-          placeholder="e.g. Friday Night Bracket"
-          className="h-8 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        start.gg link (optional, add before check-in closes)
-        <input
-          name="startggUrl"
-          type="url"
-          placeholder="https://start.gg/tournament/..."
-          className="h-8 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Description (optional)
-        <textarea
-          name="description"
-          rows={2}
-          maxLength={1000}
-          placeholder="Rules, format notes, etc."
-          className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
-        />
-      </label>
-      <Button type="submit" className="self-start">
-        Host a tournament
-      </Button>
-    </form>
-  );
-}
