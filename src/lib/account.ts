@@ -64,12 +64,6 @@ export async function setUsername(userId: string, username: string) {
     throw new Error(`Username must be ${USERNAME_MAX_LENGTH} characters or fewer`);
   }
 
-  const taken = await prisma.user.findFirst({
-    where: { username: { equals: trimmed, mode: "insensitive" }, id: { not: userId } },
-    select: { id: true },
-  });
-  if (taken) throw new Error("That username is already taken");
-
   await prisma.user.update({ where: { id: userId }, data: { username: trimmed } });
 }
 

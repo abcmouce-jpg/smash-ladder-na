@@ -156,7 +156,7 @@ async function UsernameForm({ userId }: { userId: string }) {
         Username
         <span className="text-xs font-normal text-muted-foreground">
           Shown everywhere on the site instead of your Discord name — handy if they don&apos;t
-          match. Must be unique.
+          match.
         </span>
         <input
           name="username"
