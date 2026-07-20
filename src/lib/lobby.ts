@@ -2,6 +2,7 @@ import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { getNearbyRegions } from "@/lib/regions";
 
 const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
 const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // no-show / no-report cutoff
@@ -78,12 +79,12 @@ export async function joinLobbyAndTryPair(userId: string) {
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
   if (waitingEntry || unresolvedMatch) return getActiveLobbyEntry(userId);
 
-  // Matching is same-region by default — both sides have to have picked
-  // the same region, so a region has to be set first — but either side can
-  // opt into crossRegionOk to accept (or offer) any region instead.
+  // Matching is same-or-nearby-region by default — a region has to be set
+  // first so there's something to compare — but either side can opt into
+  // crossRegionOk to accept (or offer) any region instead.
   if (!me.region) {
     throw new Error(
-      "Set your region before joining the queue — you'll only be matched with players in the same region unless you opt into cross-region matching.",
+      "Set your region before joining the queue — you'll only be matched with players in or near the same region unless you opt into cross-region matching.",
     );
   }
 
@@ -99,7 +100,9 @@ export async function joinLobbyAndTryPair(userId: string) {
         expiresAt: { gt: now },
         userId: { not: userId },
         id: { not: newEntry.id },
-        ...(me.crossRegionOk ? {} : { OR: [{ user: { region: me.region } }, { user: { crossRegionOk: true } }] }),
+        ...(me.crossRegionOk
+          ? {}
+          : { OR: [{ user: { region: { in: getNearbyRegions(me.region) } } }, { user: { crossRegionOk: true } }] }),
       },
       orderBy: { joinedAt: "asc" },
     });
@@ -151,7 +154,7 @@ function canMatchRegion(
   a: { region: string | null; crossRegionOk: boolean },
   b: { region: string | null; crossRegionOk: boolean },
 ) {
-  return a.region === b.region || a.crossRegionOk || b.crossRegionOk;
+  return getNearbyRegions(a.region).includes(b.region ?? "") || a.crossRegionOk || b.crossRegionOk;
 }
 
 export async function sweepLobbyPairing(maxPairs = 50) {

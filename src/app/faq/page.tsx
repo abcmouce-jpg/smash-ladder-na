@@ -109,10 +109,10 @@ export default function FaqPage() {
             No — deletion is permanent and there&apos;s no data migration between accounts. Signing
             back in with the same Discord account afterward just starts a fresh profile.
           </QA>
-          <QA q="Why does the site say it's NA East only?">
-            We&apos;re launching small and regional to keep server load and matchmaking quality
-            manageable. Set your region to NA East on the Lobby page to join in — this opens up
-            to the rest of NA as the ladder grows.
+          <QA q="Is matchmaking open worldwide?">
+            Yes — anyone can join. Set your region on the Lobby page for the best connection;
+            matching is same-region by default, and cross-region matching is available if
+            you&apos;d rather queue faster than wait for a same-region opponent.
           </QA>
         </Category>
 

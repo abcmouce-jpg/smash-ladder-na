@@ -141,8 +141,8 @@ async function RegionForm({ userId }: { userId: string }) {
       <label className="flex flex-col gap-1 text-sm">
         Match region
         <span className="text-xs font-normal text-muted-foreground">
-          Required to queue — same-region players are matched by default. Saves as soon as you
-          pick one.
+          Required to queue — same or nearby-region players are matched by default. Saves as
+          soon as you pick one.
         </span>
         <select
           name="region"
