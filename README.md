@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Smash Ladder NA
 
-## Getting Started
+A ranked ladder site for the NA *Super Smash Bros. Ultimate* community. Players sign in with
+Discord, get matched 1v1 through a lobby queue, self-report best-of-3 results, and climb a
+seasonal rating. The site also supports casual free-battle matchmaking, community tournaments
+(bracket hosted on [start.gg](https://www.start.gg), with live entrant/standing data pulled
+in automatically), character leaderboards, and moderation tooling for disputes and conduct
+reports.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Ranked ladder** — lobby-based matchmaking, best-of-3 stage striking, self-reported results
+  with a dispute flow when reports disagree, and Elo-style rating per season.
+- **Free battle** — casual matchmaking outside the ranked ladder.
+- **Tournaments** — community-hosted brackets linked to start.gg; entrant count and final
+  standings are fetched live from the start.gg API once configured.
+- **Character leaderboards** — full *Ultimate* roster (including all DLC).
+- **Discord integration** — sign-in via Discord OAuth, plus optional DM notifications through a
+  Discord bot.
+- **Moderation** — conduct reports with threshold-based suspend/ban actions, and a disputed-game
+  resolution queue for admins/mods.
+- **Region-aware matchmaking**, with an optional launch-region lock for a staged rollout.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tech stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Next.js (App Router) · React · TypeScript · Prisma + PostgreSQL · Auth.js (NextAuth) with
+Discord OAuth · Tailwind CSS + shadcn/ui · Sentry.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Getting started
 
-## Learn More
+1. Install dependencies:
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Copy `.env.example` to `.env` and fill in the values — each variable is documented inline,
+   including which ones are optional and what happens when they're left unset.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Set up the database:
 
-## Deploy on Vercel
+   ```bash
+   npx prisma migrate dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. Run the dev server:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+## Contributing
+
+Bug reports, feature requests, and pull requests are welcome — see
+[CONTRIBUTING.md](./CONTRIBUTING.md) for how to get set up and what to include. Please also
+read the [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+## License
+
+[MIT](./LICENSE)
