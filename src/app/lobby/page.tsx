@@ -164,7 +164,7 @@ async function RegionForm({ userId }: { userId: string }) {
           defaultChecked={me?.crossRegionOk ?? false}
           className="size-4 rounded border-border"
         />
-        Also match across regions (queue faster, may increase latency)
+        Also match with any region, not just nearby ones (queue faster, may increase latency)
       </label>
     </AutoSubmitForm>
   );
