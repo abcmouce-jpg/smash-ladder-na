@@ -41,8 +41,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       await prisma.user.upsert({
         where: { discordId: discordProfile.id },
+        // username is intentionally excluded here — players can rename
+        // themselves on the site (their Discord name often doesn't match
+        // their player tag), and re-syncing from Discord on every sign-in
+        // would silently wipe that out.
         update: {
-          username: discordProfile.global_name ?? discordProfile.username,
           avatarUrl: discordProfile.image_url,
         },
         create: {

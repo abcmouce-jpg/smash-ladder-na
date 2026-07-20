@@ -32,6 +32,7 @@ import {
   updateMaxRatingGap,
   updateRegion,
   updateStartggUrl,
+  updateUsername,
   updateWiredConnection,
 } from "./actions";
 
@@ -61,6 +62,12 @@ export default async function LobbyPage() {
       <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} />
 
       <Card className="mt-8">
+        <CardContent className="pt-4">
+          <UsernameForm userId={session.user.id} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
         <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
           <RegionForm userId={session.user.id} />
           <WiredConnectionField userId={session.user.id} />
@@ -134,6 +141,38 @@ function ActivityLine({ waiting, inMatch }: { waiting: number; inMatch: number }
 
 const WORLDWIDE_VALUE = "worldwide";
 const ANY_RATING_VALUE = "any";
+
+async function UsernameForm({ userId }: { userId: string }) {
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+
+  async function action(formData: FormData) {
+    "use server";
+    await updateUsername(String(formData.get("username") ?? ""));
+  }
+
+  return (
+    <form action={action} className="flex items-end gap-2">
+      <label className="flex flex-1 flex-col gap-1 text-sm">
+        Username
+        <span className="text-xs font-normal text-muted-foreground">
+          Shown everywhere on the site instead of your Discord name — handy if they don&apos;t
+          match. Must be unique.
+        </span>
+        <input
+          name="username"
+          type="text"
+          required
+          maxLength={32}
+          defaultValue={me?.username ?? ""}
+          className="h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+        />
+      </label>
+      <Button type="submit" size="sm">
+        Save
+      </Button>
+    </form>
+  );
+}
 
 async function StartggProfileForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({ where: { id: userId }, select: { startggUrl: true } });

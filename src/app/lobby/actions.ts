@@ -10,6 +10,7 @@ import {
   setMaxRatingGap,
   setUserRegion,
   setUserStartggUrl,
+  setUsername,
   setWiredConnection,
 } from "@/lib/account";
 import {
@@ -175,6 +176,14 @@ export async function updateStartggUrl(url: string) {
   await setUserStartggUrl(userId, url);
   revalidatePath("/lobby");
   revalidatePath(`/players/${userId}`);
+}
+
+export async function updateUsername(username: string) {
+  const userId = await requireUserId();
+  await setUsername(userId, username);
+  revalidatePath("/lobby");
+  revalidatePath(`/players/${userId}`);
+  revalidatePath("/leaderboard");
 }
 
 export type WiredConnectionState = { error: string | null };

@@ -52,6 +52,27 @@ export async function requireActiveUser(userId: string) {
   requireRegionUnlocked(user.region);
 }
 
+const USERNAME_MAX_LENGTH = 32;
+
+// Defaults to the Discord display name at account creation, but is fully
+// self-managed after that (see the signIn callback in auth.ts) — a lot of
+// players' Discord name doesn't match the tag they actually go by.
+export async function setUsername(userId: string, username: string) {
+  const trimmed = username.trim();
+  if (!trimmed) throw new Error("Username is required");
+  if (trimmed.length > USERNAME_MAX_LENGTH) {
+    throw new Error(`Username must be ${USERNAME_MAX_LENGTH} characters or fewer`);
+  }
+
+  const taken = await prisma.user.findFirst({
+    where: { username: { equals: trimmed, mode: "insensitive" }, id: { not: userId } },
+    select: { id: true },
+  });
+  if (taken) throw new Error("That username is already taken");
+
+  await prisma.user.update({ where: { id: userId }, data: { username: trimmed } });
+}
+
 export async function setUserRegion(userId: string, region: string | null) {
   if (region !== null && !(MATCH_REGIONS as readonly string[]).includes(region)) {
     throw new Error("Not a recognized region");
