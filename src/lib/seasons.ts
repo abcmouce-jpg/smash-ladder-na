@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/db";
 
+// Temporary: ending a season resets EVERYONE's rating, and enough people
+// hold ADMIN now (mostly for community/promotion reasons, not moderation)
+// that this narrows who can trigger it, independent of the ADMIN/MOD role
+// check. Revisit once ADMIN grants are reviewed.
+export const SEASON_MANAGER_USER_ID = process.env.SEASON_MANAGER_USER_ID?.trim() || null;
+
 export async function getActiveSeason() {
   return prisma.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
 }
