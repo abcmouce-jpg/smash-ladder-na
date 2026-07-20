@@ -181,9 +181,31 @@
   animation: live-pulse 1.8s ease-in-out infinite;
 }
 
+@keyframes badge-pop {
+  0% {
+    transform: scale(0.6) translateY(4px);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.badge-pop {
+  animation: badge-pop 350ms ease-out backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .confetti-piece {
     display: none;
+  }
+  .badge-pop {
+    animation: none;
   }
   .victory-pop {
     animation: none;

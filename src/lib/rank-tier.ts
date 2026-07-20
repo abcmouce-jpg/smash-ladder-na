@@ -72,3 +72,31 @@ export function didTierUp(ratingBefore: number, ratingAfter: number, gamesPlayed
   if (!before || !after) return false;
   return TIERS.indexOf(after) < TIERS.indexOf(before);
 }
+
+function minRatingFor(tierName: string) {
+  return TIERS.find((t) => t.name === tierName)!.minRating;
+}
+
+export type Achievement = { id: string; label: string; achieved: boolean };
+
+// Derived on the fly from stats that already persist forever (match/rating
+// history, tournament entries) rather than a stored Achievement table — no
+// schema needed, and nothing to backfill for existing players.
+export function computeAchievements(stats: {
+  totalWins: number;
+  peakRating: number | null;
+  seasonsPlayed: number;
+  tournamentsEntered: number;
+}): Achievement[] {
+  const peak = stats.peakRating ?? -Infinity;
+  return [
+    { id: "first-win", label: "First Win", achieved: stats.totalWins >= 1 },
+    { id: "ten-wins", label: "10 Wins", achieved: stats.totalWins >= 10 },
+    { id: "fifty-wins", label: "50 Wins", achieved: stats.totalWins >= 50 },
+    { id: "elite", label: "Reached Elite", achieved: peak >= minRatingFor("Elite") },
+    { id: "master", label: "Reached Master", achieved: peak >= minRatingFor("Master") },
+    { id: "grandmaster", label: "Reached Grandmaster", achieved: peak >= minRatingFor("Grandmaster") },
+    { id: "veteran", label: "Played 3+ Seasons", achieved: stats.seasonsPlayed >= 3 },
+    { id: "competitor", label: "Entered a Tournament", achieved: stats.tournamentsEntered >= 1 },
+  ];
+}

@@ -1,14 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Cable, ExternalLink, MapPin } from "lucide-react";
+import { Award, Cable, ExternalLink, MapPin, Swords } from "lucide-react";
 import { auth } from "@/auth";
 import {
   currentStreak,
+  getCareerStats,
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
+  getTopRivals,
 } from "@/lib/players";
+import { computeAchievements } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
@@ -28,14 +31,17 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints] = await Promise.all([
+  const [history, chartPoints, careerStats, rivals] = await Promise.all([
     getPlayerMatchHistory(id),
     getRatingChartPoints(id),
+    getCareerStats(id),
+    getTopRivals(id),
   ]);
   const wins = history.filter((m) => m.won).length;
   const losses = history.length - wins;
   const winRate = history.length > 0 ? Math.round((wins / history.length) * 100) : null;
   const streak = currentStreak(history);
+  const achievements = computeAchievements(careerStats);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -114,6 +120,74 @@ export default async function PlayerProfilePage({
               </div>
             </div>
             <RatingChart points={chartPoints.map((p) => ({ date: p.date.toISOString(), rating: p.rating }))} />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <p className="text-sm font-medium">Career</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Doesn&apos;t reset between seasons.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-lg font-semibold tabular-nums">
+                {careerStats.totalWins}-{careerStats.totalLosses}
+              </p>
+              <p className="text-xs text-muted-foreground">Lifetime record</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold tabular-nums">{careerStats.peakRating ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">Peak rating</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
+              <p className="text-xs text-muted-foreground">Seasons played</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold tabular-nums">{careerStats.tournamentsEntered}</p>
+              <p className="text-xs text-muted-foreground">Tournaments entered</p>
+            </div>
+          </div>
+
+          <p className="mt-5 text-sm font-medium">Achievements</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {achievements.map((a, i) => (
+              <Badge
+                key={a.id}
+                variant={a.achieved ? "success" : "outline"}
+                className={a.achieved ? "badge-pop gap-1" : "gap-1 opacity-40"}
+                style={a.achieved ? { animationDelay: `${i * 60}ms` } : undefined}
+              >
+                <Award className="size-3" />
+                {a.label}
+              </Badge>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {rivals.length > 0 && (
+        <Card className="mt-4">
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium">Rivals</p>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {rivals.map((r) => (
+                <li key={r.opponentId} className="flex items-center justify-between text-sm">
+                  <Link
+                    href={`/players/${r.opponentId}`}
+                    className="flex items-center gap-1.5 hover:underline"
+                  >
+                    <Swords className="size-3.5 text-muted-foreground" />
+                    {r.username}
+                  </Link>
+                  <span className="tabular-nums text-muted-foreground">
+                    {r.wins}W–{r.losses}L
+                  </span>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

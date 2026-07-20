@@ -75,3 +75,74 @@ export function currentStreak(history: { won: boolean }[]) {
   }
   return leadingResult ? count : -count;
 }
+
+// Deliberately NOT reset by endActiveSeasonAndStartNext — only rating and
+// gamesPlayed reset there. These read from history that survives forever,
+// so a player has something that keeps growing across season resets.
+export async function getCareerStats(userId: string) {
+  const [wins, losses, peakRating, seasons, tournaments] = await Promise.all([
+    prisma.ratingMatch.count({
+      where: { status: MatchStatus.CONFIRMED, reportedWinnerId: userId },
+    }),
+    prisma.ratingMatch.count({
+      where: {
+        status: MatchStatus.CONFIRMED,
+        OR: [{ player1Id: userId }, { player2Id: userId }],
+        NOT: { reportedWinnerId: userId },
+      },
+    }),
+    prisma.ratingHistory.aggregate({ where: { userId }, _max: { ratingAfter: true } }),
+    prisma.ratingMatch.findMany({
+      where: {
+        status: MatchStatus.CONFIRMED,
+        OR: [{ player1Id: userId }, { player2Id: userId }],
+        seasonId: { not: null },
+      },
+      select: { seasonId: true },
+      distinct: ["seasonId"],
+    }),
+    prisma.tournamentEntry.count({ where: { userId } }),
+  ]);
+
+  return {
+    totalWins: wins,
+    totalLosses: losses,
+    peakRating: peakRating._max.ratingAfter,
+    seasonsPlayed: seasons.length,
+    tournamentsEntered: tournaments,
+  };
+}
+
+// Top opponents by games played against them, with the head-to-head record.
+export async function getTopRivals(userId: string, limit = 3) {
+  const matches = await prisma.ratingMatch.findMany({
+    where: { status: MatchStatus.CONFIRMED, OR: [{ player1Id: userId }, { player2Id: userId }] },
+    select: { player1Id: true, player2Id: true, reportedWinnerId: true },
+  });
+
+  const record = new Map<string, { wins: number; losses: number }>();
+  for (const m of matches) {
+    const opponentId = m.player1Id === userId ? m.player2Id : m.player1Id;
+    const entry = record.get(opponentId) ?? { wins: 0, losses: 0 };
+    if (m.reportedWinnerId === userId) entry.wins++;
+    else entry.losses++;
+    record.set(opponentId, entry);
+  }
+
+  const topIds = [...record.entries()]
+    .sort(([, a], [, b]) => b.wins + b.losses - (a.wins + a.losses))
+    .slice(0, limit);
+  if (topIds.length === 0) return [];
+
+  const opponents = await prisma.user.findMany({
+    where: { id: { in: topIds.map(([id]) => id) } },
+    select: { id: true, username: true },
+  });
+  const usernameById = new Map(opponents.map((o) => [o.id, o.username]));
+
+  return topIds.map(([id, rec]) => ({
+    opponentId: id,
+    username: usernameById.get(id) ?? "Unknown",
+    ...rec,
+  }));
+}
