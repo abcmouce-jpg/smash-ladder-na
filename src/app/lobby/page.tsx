@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
-import { MATCH_REGIONS } from "@/lib/regions";
+import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { didTierUp, getRankTier } from "@/lib/rank-tier";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ import {
   sendMatchComment,
   strikeStage,
   submitRoomCode,
-  updateCrossRegionOk,
+  updateMaxMatchDistance,
   updateRegion,
   updateWiredConnection,
 } from "./actions";
@@ -124,16 +124,19 @@ function ActivityLine({ waiting, inMatch }: { waiting: number; inMatch: number }
   );
 }
 
+const WORLDWIDE_VALUE = "worldwide";
+
 async function RegionForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { region: true, crossRegionOk: true },
+    select: { region: true, maxMatchDistanceKm: true },
   });
 
   async function action(formData: FormData) {
     "use server";
     await updateRegion(String(formData.get("region") ?? ""));
-    await updateCrossRegionOk(formData.get("crossRegionOk") === "on");
+    const distance = String(formData.get("maxMatchDistanceKm") ?? "");
+    await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
   }
 
   return (
@@ -157,14 +160,23 @@ async function RegionForm({ userId }: { userId: string }) {
           ))}
         </select>
       </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="crossRegionOk"
-          defaultChecked={me?.crossRegionOk ?? false}
-          className="size-4 rounded border-border"
-        />
-        Also match with any region, not just nearby ones (queue faster, may increase latency)
+      <label className="flex flex-col gap-1 text-sm">
+        Match distance
+        <span className="text-xs font-normal text-muted-foreground">
+          Matching requires BOTH players&apos; distance setting to cover the actual distance
+          between them — widening yours doesn&apos;t override the other side&apos;s.
+        </span>
+        <select
+          name="maxMatchDistanceKm"
+          defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
+          className="h-8 w-48 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+        >
+          {MATCH_DISTANCE_PRESETS.map((preset) => (
+            <option key={preset.label} value={String(preset.km ?? WORLDWIDE_VALUE)}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
       </label>
     </AutoSubmitForm>
   );

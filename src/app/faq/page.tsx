@@ -110,9 +110,10 @@ export default function FaqPage() {
             back in with the same Discord account afterward just starts a fresh profile.
           </QA>
           <QA q="Is matchmaking open worldwide?">
-            Yes — anyone can join. Set your region on the Lobby page for the best connection;
-            matching is same-region by default, and cross-region matching is available if
-            you&apos;d rather queue faster than wait for a same-region opponent.
+            Yes — anyone can join. Set your region and a match distance on the Lobby page; the
+            defaults match you with same-or-nearby-region players, and you can widen that up to
+            Worldwide if you&apos;d rather queue faster. See the Rules page for exactly how the
+            distance setting works.
           </QA>
         </Category>
 

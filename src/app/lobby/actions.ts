@@ -6,7 +6,7 @@ import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/l
 import {
   requireActiveUser,
   requireNotBanned,
-  setCrossRegionOk,
+  setMaxMatchDistance,
   setUserRegion,
   setWiredConnection,
 } from "@/lib/account";
@@ -156,9 +156,9 @@ export async function updateRegion(region: string) {
   revalidatePath("/lobby");
 }
 
-export async function updateCrossRegionOk(crossRegionOk: boolean) {
+export async function updateMaxMatchDistance(maxMatchDistanceKm: number | null) {
   const userId = await requireUserId();
-  await setCrossRegionOk(userId, crossRegionOk);
+  await setMaxMatchDistance(userId, maxMatchDistanceKm);
   revalidatePath("/lobby");
 }
 

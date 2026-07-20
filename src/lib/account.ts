@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
-import { MATCH_REGIONS } from "@/lib/regions";
+import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -57,11 +57,15 @@ export async function setUserRegion(userId: string, region: string | null) {
   await prisma.user.update({ where: { id: userId }, data: { region } });
 }
 
-// Opt-in: removes the region restriction for this player's own searches,
-// and makes them an eligible partner for anyone else's search too — for
-// players who'd rather queue faster than wait for a same-region opponent.
-export async function setCrossRegionOk(userId: string, crossRegionOk: boolean) {
-  await prisma.user.update({ where: { id: userId }, data: { crossRegionOk } });
+// Self-declared match radius, in km — null means worldwide. Widening this
+// only affects this player's own searches; matching still requires the
+// other side's radius to independently cover the same distance too.
+export async function setMaxMatchDistance(userId: string, maxMatchDistanceKm: number | null) {
+  const isValidPreset = MATCH_DISTANCE_PRESETS.some((preset) => preset.km === maxMatchDistanceKm);
+  if (!isValidPreset) {
+    throw new Error("Not a recognized match distance");
+  }
+  await prisma.user.update({ where: { id: userId }, data: { maxMatchDistanceKm } });
 }
 
 // A self-declared "wired" claim exists to help pair people with a stable

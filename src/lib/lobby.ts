@@ -2,7 +2,7 @@ import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
 import { sendDiscordDM } from "@/lib/discord-bot";
-import { getNearbyRegions } from "@/lib/regions";
+import { getRegionsWithinDistance } from "@/lib/regions";
 
 const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
 const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // no-show / no-report cutoff
@@ -73,18 +73,22 @@ export async function joinLobbyAndTryPair(userId: string) {
   const [waitingEntry, unresolvedMatch, me] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { region: true, crossRegionOk: true } }),
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { region: true, maxMatchDistanceKm: true },
+    }),
   ]);
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
   if (waitingEntry || unresolvedMatch) return getActiveLobbyEntry(userId);
 
   // Matching is same-or-nearby-region by default — a region has to be set
-  // first so there's something to compare — but either side can opt into
-  // crossRegionOk to accept (or offer) any region instead.
-  if (!me.region) {
+  // first so there's something to compare — but either side's own match
+  // distance setting can widen (or narrow) how far that reaches.
+  const myRegion = me.region;
+  if (!myRegion) {
     throw new Error(
-      "Set your region before joining the queue — you'll only be matched with players in or near the same region unless you opt into cross-region matching.",
+      "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
     );
   }
 
@@ -93,19 +97,27 @@ export async function joinLobbyAndTryPair(userId: string) {
     data: { userId, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
   });
 
+  const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
+
   const paired = await withTransientRetry(() => prisma.$transaction(async (tx) => {
-    const candidate = await tx.ratingLobbyEntry.findFirst({
+    // Candidates within MY reach — the other half (their reach covering me)
+    // is checked in JS below, since it depends on each candidate's own
+    // region + distance setting rather than a single filterable column.
+    const candidates = await tx.ratingLobbyEntry.findMany({
       where: {
         status: LobbyEntryStatus.WAITING,
         expiresAt: { gt: now },
         userId: { not: userId },
         id: { not: newEntry.id },
-        ...(me.crossRegionOk
-          ? {}
-          : { OR: [{ user: { region: { in: getNearbyRegions(me.region) } } }, { user: { crossRegionOk: true } }] }),
+        user: { region: { in: myReach } },
       },
       orderBy: { joinedAt: "asc" },
+      take: 20,
+      include: { user: { select: { region: true, maxMatchDistanceKm: true } } },
     });
+    const candidate = candidates.find((c) =>
+      getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion),
+    );
     if (!candidate) return null;
 
     // Atomically claim the candidate so two concurrent joins can't pair with the same entry.
@@ -151,25 +163,30 @@ export async function joinLobbyAndTryPair(userId: string) {
 // pairing opportunistically at join time, the cron finalizer sweeps the
 // queue periodically and pairs up whoever's left waiting.
 function canMatchRegion(
-  a: { region: string | null; crossRegionOk: boolean },
-  b: { region: string | null; crossRegionOk: boolean },
+  a: { region: string | null; maxMatchDistanceKm: number | null },
+  b: { region: string | null; maxMatchDistanceKm: number | null },
 ) {
-  return getNearbyRegions(a.region).includes(b.region ?? "") || a.crossRegionOk || b.crossRegionOk;
+  if (!a.region || !b.region) return false;
+  return (
+    getRegionsWithinDistance(a.region, a.maxMatchDistanceKm).includes(b.region) &&
+    getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region)
+  );
 }
 
 export async function sweepLobbyPairing(maxPairs = 50) {
   let paired = 0;
   const now = new Date();
 
-  // Region matching isn't a strict single-bucket split anymore — a
-  // crossRegionOk entry can pair with anyone — so straggler pairing greedily
-  // scans for the oldest eligible partner per entry instead of grouping by
-  // region. The waiting queue is small enough in practice for this to be
-  // cheap; read once up front since membership doesn't change mid-sweep.
+  // Region matching isn't a strict single-bucket split anymore — a wide
+  // enough match distance can pair with anyone — so straggler pairing
+  // greedily scans for the oldest eligible partner per entry instead of
+  // grouping by region. The waiting queue is small enough in practice for
+  // this to be cheap; read once up front since membership doesn't change
+  // mid-sweep.
   const waiting = await prisma.ratingLobbyEntry.findMany({
     where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
     orderBy: { joinedAt: "asc" },
-    include: { user: { select: { region: true, crossRegionOk: true } } },
+    include: { user: { select: { region: true, maxMatchDistanceKm: true } } },
   });
 
   const used = new Set<string>();

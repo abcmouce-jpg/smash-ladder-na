@@ -104,17 +104,14 @@ export default function RulesPage() {
 
         <Section title="Matchmaking">
           <p>
-            Matchmaking is open worldwide. Set a match region before you queue — USA East, USA
-            Central, USA West, Canada East, Canada Central, Canada West, Mexico, Central/South
-            America, Europe, Asia, Oceania, or Other — for the closest connection. Matching is
-            same-or-nearby-region by default (e.g. USA East also matches with Canada East, but
-            not with USA West or Asia) — geographically close regions are grouped for a
-            reasonable connection without requiring an exact match. If you&apos;d rather queue
-            faster than wait for one of those, opt in to cross-region matching on the Lobby page —
-            matches you with anyone regardless of region as soon as either side has opted in.
-            Wired-connection
-            status is self-declared too and shown on profiles, though it isn&apos;t part of
-            matching.
+            Matchmaking is open worldwide. Set a match region on the Lobby page for the closest
+            connection, and a match distance — Same region only, Nearby (~2,000 km), Regional
+            (~5,000 km, the default), Continental (~10,000 km), or Worldwide. Matching requires
+            BOTH players&apos; distance setting to cover the actual distance between their
+            regions — widening yours doesn&apos;t override the other side&apos;s narrower one, so
+            a Worldwide setting still won&apos;t match you with someone who chose Same region
+            only. Wired-connection status is self-declared too and shown on profiles, though it
+            isn&apos;t part of matching.
           </p>
           <p>
             Joining the ranked lobby queues you for up to 10 minutes before the entry expires. You
