@@ -12,7 +12,12 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
       <div className="mx-auto flex max-w-2xl items-start justify-between px-6 py-3 md:items-center">
         <div className="flex min-w-0 flex-wrap items-center gap-6">
-          <Link href="/" prefetch={false} className="shrink-0 text-sm font-semibold tracking-tight">
+          <Link
+            href="/"
+            prefetch={false}
+            className="flex shrink-0 items-center gap-1.5 text-sm font-semibold tracking-tight"
+          >
+            <Image src="/smash-icon.webp" alt="" width={24} height={24} className="size-6" />
             Smash Ladder <span className="text-primary">NA</span>
           </Link>
           {user && (
