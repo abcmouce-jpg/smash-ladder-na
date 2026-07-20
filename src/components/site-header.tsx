@@ -21,7 +21,8 @@ export async function SiteHeader() {
             Smash Ladder <span className="text-primary">NA</span>
           </Link>
           {user && (
-            <nav className="flex min-w-0 basis-full items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 md:basis-auto">
+            <div className="relative min-w-0 basis-full md:basis-auto">
+              <nav className="flex min-w-0 items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
               <Link
                 href="/lobby"
                 prefetch={false}
@@ -102,7 +103,12 @@ export async function SiteHeader() {
                   Seasons
                 </Link>
               )}
-            </nav>
+              </nav>
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent md:hidden"
+              />
+            </div>
           )}
         </div>
 
