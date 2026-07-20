@@ -10,13 +10,13 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-sm font-semibold tracking-tight">
+      <div className="mx-auto flex max-w-2xl items-start justify-between px-6 py-3 md:items-center">
+        <div className="flex min-w-0 flex-wrap items-center gap-6">
+          <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight">
             Smash Ladder <span className="text-primary">NA</span>
           </Link>
           {user && (
-            <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+            <nav className="flex min-w-0 basis-full items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 md:basis-auto">
               <Link
                 href="/lobby"
                 className="flex items-center gap-1.5 hover:text-foreground"
