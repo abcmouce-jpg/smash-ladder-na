@@ -48,11 +48,13 @@ export default async function LeaderboardPage({
           <select
             name="character"
             defaultValue={isValidCharacter ? character : ""}
-            className="h-8 w-48 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+            className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
           >
-            <option value="">All players</option>
+            <option value="" className="bg-background text-foreground">
+              All players
+            </option>
             {SMASH_CHARACTERS.map((c) => (
-              <option key={c} value={c}>
+              <option key={c} value={c} className="bg-background text-foreground">
                 {c}
               </option>
             ))}

@@ -187,11 +187,13 @@ async function RegionForm({ userId }: { userId: string }) {
         <select
           name="region"
           defaultValue={me?.region ?? ""}
-          className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+          className="h-8 w-40 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
         >
-          <option value="">Not set</option>
+          <option value="" className="bg-background text-foreground">
+            Not set
+          </option>
           {MATCH_REGIONS.map((r) => (
-            <option key={r} value={r}>
+            <option key={r} value={r} className="bg-background text-foreground">
               {r}
             </option>
           ))}
@@ -206,10 +208,14 @@ async function RegionForm({ userId }: { userId: string }) {
         <select
           name="maxMatchDistanceKm"
           defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
-          className="h-8 w-48 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+          className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
         >
           {MATCH_DISTANCE_PRESETS.map((preset) => (
-            <option key={preset.label} value={String(preset.km ?? WORLDWIDE_VALUE)}>
+            <option
+              key={preset.label}
+              value={String(preset.km ?? WORLDWIDE_VALUE)}
+              className="bg-background text-foreground"
+            >
               {preset.label}
             </option>
           ))}
@@ -571,11 +577,13 @@ async function ConfirmedSection({
           <select
             name="character"
             defaultValue=""
-            className="h-8 w-48 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+            className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
           >
-            <option value="">Skip</option>
+            <option value="" className="bg-background text-foreground">
+              Skip
+            </option>
             {SMASH_CHARACTERS.map((c) => (
-              <option key={c} value={c}>
+              <option key={c} value={c} className="bg-background text-foreground">
                 {c}
               </option>
             ))}
