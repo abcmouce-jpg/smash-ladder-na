@@ -7,8 +7,9 @@ export const MATCH_REGIONS = [
   "Canada West",
   "Mexico",
   "Central/South America",
-  "Japan",
   "Europe",
+  "Asia",
+  "Oceania",
   "Other",
 ] as const;
 
