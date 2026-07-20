@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ExternalLink, Trophy } from "lucide-react";
 import { auth } from "@/auth";
 import { getTournament } from "@/lib/tournaments";
+import { fetchStartggEventInfo } from "@/lib/startgg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,12 +46,15 @@ export default async function TournamentDetailPage({
       </p>
 
       {tournament.startggUrl ? (
-        <a href={tournament.startggUrl} target="_blank" rel="noopener noreferrer" className="mt-4 block">
-          <Button type="button" className="gap-1.5">
-            View bracket on start.gg
-            <ExternalLink className="size-3.5" />
-          </Button>
-        </a>
+        <>
+          <a href={tournament.startggUrl} target="_blank" rel="noopener noreferrer" className="mt-4 block">
+            <Button type="button" className="gap-1.5">
+              View bracket on start.gg
+              <ExternalLink className="size-3.5" />
+            </Button>
+          </a>
+          <StartggEventInfo startggUrl={tournament.startggUrl} />
+        </>
       ) : (
         isHostOrMod && (
           <Card className="mt-4">
@@ -131,6 +135,33 @@ export default async function TournamentDetailPage({
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+// Enrichment only: falls back to nothing if the token is unset, the URL isn't
+// a single event, or the start.gg API call fails — the bracket link above
+// always renders regardless.
+async function StartggEventInfo({ startggUrl }: { startggUrl: string }) {
+  const info = await fetchStartggEventInfo(startggUrl);
+  if (!info) return null;
+
+  return (
+    <Card className="mt-4">
+      <CardContent className="pt-4">
+        <p className="text-sm font-medium">
+          {info.eventName} · {info.numEntrants ?? "?"} entrants on start.gg
+        </p>
+        {info.isCompleted && info.standings.length > 0 && (
+          <ul className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
+            {info.standings.map((s) => (
+              <li key={s.placement}>
+                #{s.placement} — {s.entrantName}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
