@@ -1,0 +1,16 @@
+name: Finalize cron
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  call-finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/cron/finalize
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://smash-ladder-na.vercel.app/api/cron/finalize
