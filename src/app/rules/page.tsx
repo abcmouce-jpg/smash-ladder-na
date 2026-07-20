@@ -106,12 +106,14 @@ export default function RulesPage() {
           <p>
             Matchmaking is open worldwide. Set a match region on the Lobby page for the closest
             connection, and a match distance — Same region only, Nearby (~2,000 km), Regional
-            (~5,000 km, the default), Continental (~10,000 km), or Worldwide. Matching requires
-            BOTH players&apos; distance setting to cover the actual distance between their
-            regions — widening yours doesn&apos;t override the other side&apos;s narrower one, so
-            a Worldwide setting still won&apos;t match you with someone who chose Same region
-            only. Wired-connection status is self-declared too and shown on profiles, though it
-            isn&apos;t part of matching.
+            (~5,000 km, the default), Continental (~10,000 km), or Worldwide. You can also set a
+            rating gap — Strict (within 50), Close (within 100), Moderate (within 150), Wide
+            (within 300), or Any rating (the default). Both the distance and rating-gap settings
+            require BOTH players&apos; choice to cover the actual difference — widening yours
+            doesn&apos;t override the other side&apos;s narrower one, so a Worldwide/Any rating
+            setting still won&apos;t match you with someone who chose Same region only or a
+            Strict rating gap. Wired-connection status is self-declared too and shown on
+            profiles, though it isn&apos;t part of matching.
           </p>
           <p>
             Joining the ranked lobby queues you for up to 10 minutes before the entry expires. You

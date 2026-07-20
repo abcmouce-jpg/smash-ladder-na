@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
+import { MATCH_RATING_GAP_PRESETS } from "@/lib/rank-tier";
 import { normalizeStartggUrl } from "@/lib/startgg";
 
 // Small-start launch control: while set, only players who've declared this
@@ -67,6 +68,16 @@ export async function setMaxMatchDistance(userId: string, maxMatchDistanceKm: nu
     throw new Error("Not a recognized match distance");
   }
   await prisma.user.update({ where: { id: userId }, data: { maxMatchDistanceKm } });
+}
+
+// Self-declared rating-gap tolerance — null means any rating. Same
+// both-sides-must-cover-it logic as match distance.
+export async function setMaxRatingGap(userId: string, maxRatingGap: number | null) {
+  const isValidPreset = MATCH_RATING_GAP_PRESETS.some((preset) => preset.gap === maxRatingGap);
+  if (!isValidPreset) {
+    throw new Error("Not a recognized rating gap");
+  }
+  await prisma.user.update({ where: { id: userId }, data: { maxRatingGap } });
 }
 
 // Self-declared, unverified — a player could enter someone else's link.

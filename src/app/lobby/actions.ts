@@ -7,6 +7,7 @@ import {
   requireActiveUser,
   requireNotBanned,
   setMaxMatchDistance,
+  setMaxRatingGap,
   setUserRegion,
   setUserStartggUrl,
   setWiredConnection,
@@ -160,6 +161,12 @@ export async function updateRegion(region: string) {
 export async function updateMaxMatchDistance(maxMatchDistanceKm: number | null) {
   const userId = await requireUserId();
   await setMaxMatchDistance(userId, maxMatchDistanceKm);
+  revalidatePath("/lobby");
+}
+
+export async function updateMaxRatingGap(maxRatingGap: number | null) {
+  const userId = await requireUserId();
+  await setMaxRatingGap(userId, maxRatingGap);
   revalidatePath("/lobby");
 }
 

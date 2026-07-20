@@ -4,6 +4,19 @@ export type RankTier = {
   className: string;
 };
 
+// Self-declared rating-gap radius, like MATCH_DISTANCE_PRESETS for region.
+// null means any rating. Matching requires BOTH sides' gap setting to cover
+// the actual |ratingA - ratingB| difference — same reasoning as distance:
+// a player's tolerance for a lopsided match is theirs to set, not something
+// the other side's wider setting should override.
+export const MATCH_RATING_GAP_PRESETS = [
+  { label: "Strict (within 50)", gap: 50 },
+  { label: "Close (within 100)", gap: 100 },
+  { label: "Moderate (within 150)", gap: 150 },
+  { label: "Wide (within 300)", gap: 300 },
+  { label: "Any rating", gap: null },
+] as const;
+
 // Ordered highest to lowest; the first tier whose floor the rating clears
 // wins. Centered on the 1500 starting rating so a fresh, actively-playing
 // account lands around Challenger rather than at the bottom of the ladder.

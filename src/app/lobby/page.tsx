@@ -7,7 +7,7 @@ import { getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
 import { SMASH_CHARACTERS } from "@/lib/characters";
-import { didTierUp, getRankTier } from "@/lib/rank-tier";
+import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -29,6 +29,7 @@ import {
   strikeStage,
   submitRoomCode,
   updateMaxMatchDistance,
+  updateMaxRatingGap,
   updateRegion,
   updateStartggUrl,
   updateWiredConnection,
@@ -132,6 +133,7 @@ function ActivityLine({ waiting, inMatch }: { waiting: number; inMatch: number }
 }
 
 const WORLDWIDE_VALUE = "worldwide";
+const ANY_RATING_VALUE = "any";
 
 async function StartggProfileForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({ where: { id: userId }, select: { startggUrl: true } });
@@ -166,7 +168,7 @@ async function StartggProfileForm({ userId }: { userId: string }) {
 async function RegionForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { region: true, maxMatchDistanceKm: true },
+    select: { region: true, maxMatchDistanceKm: true, maxRatingGap: true },
   });
 
   async function action(formData: FormData) {
@@ -174,6 +176,8 @@ async function RegionForm({ userId }: { userId: string }) {
     await updateRegion(String(formData.get("region") ?? ""));
     const distance = String(formData.get("maxMatchDistanceKm") ?? "");
     await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
+    const ratingGap = String(formData.get("maxRatingGap") ?? "");
+    await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
   }
 
   return (
@@ -214,6 +218,28 @@ async function RegionForm({ userId }: { userId: string }) {
             <option
               key={preset.label}
               value={String(preset.km ?? WORLDWIDE_VALUE)}
+              className="bg-background text-foreground"
+            >
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        Rating gap
+        <span className="text-xs font-normal text-muted-foreground">
+          Matching requires BOTH players&apos; rating-gap setting to cover the actual
+          difference in rating.
+        </span>
+        <select
+          name="maxRatingGap"
+          defaultValue={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
+          className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+        >
+          {MATCH_RATING_GAP_PRESETS.map((preset) => (
+            <option
+              key={preset.label}
+              value={String(preset.gap ?? ANY_RATING_VALUE)}
               className="bg-background text-foreground"
             >
               {preset.label}

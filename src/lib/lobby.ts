@@ -4,6 +4,10 @@ import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches"
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { getRegionsWithinDistance } from "@/lib/regions";
 
+function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null) {
+  return maxGap === null || Math.abs(ratingA - ratingB) <= maxGap;
+}
+
 const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
 const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // no-show / no-report cutoff
 
@@ -75,7 +79,7 @@ export async function joinLobbyAndTryPair(userId: string) {
     getUnresolvedMatchForUser(userId),
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { region: true, maxMatchDistanceKm: true },
+      select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true },
     }),
   ]);
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
@@ -100,23 +104,31 @@ export async function joinLobbyAndTryPair(userId: string) {
   const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
 
   const paired = await withTransientRetry(() => prisma.$transaction(async (tx) => {
-    // Candidates within MY reach — the other half (their reach covering me)
-    // is checked in JS below, since it depends on each candidate's own
-    // region + distance setting rather than a single filterable column.
+    // Candidates within MY reach on both region and rating — the other half
+    // (their own settings covering me back) is checked in JS below, since it
+    // depends on each candidate's own values rather than a single filterable
+    // column.
     const candidates = await tx.ratingLobbyEntry.findMany({
       where: {
         status: LobbyEntryStatus.WAITING,
         expiresAt: { gt: now },
         userId: { not: userId },
         id: { not: newEntry.id },
-        user: { region: { in: myReach } },
+        user: {
+          region: { in: myReach },
+          ...(me.maxRatingGap !== null
+            ? { rating: { gte: me.rating - me.maxRatingGap, lte: me.rating + me.maxRatingGap } }
+            : {}),
+        },
       },
       orderBy: { joinedAt: "asc" },
       take: 20,
-      include: { user: { select: { region: true, maxMatchDistanceKm: true } } },
+      include: { user: { select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true } } },
     });
-    const candidate = candidates.find((c) =>
-      getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion),
+    const candidate = candidates.find(
+      (c) =>
+        getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
+        ratingGapAllows(me.rating, c.user.rating, c.user.maxRatingGap),
     );
     if (!candidate) return null;
 
@@ -162,14 +174,16 @@ export async function joinLobbyAndTryPair(userId: string) {
 // WAITING even though plenty of mutual partners exist. Rather than only
 // pairing opportunistically at join time, the cron finalizer sweeps the
 // queue periodically and pairs up whoever's left waiting.
-function canMatchRegion(
-  a: { region: string | null; maxMatchDistanceKm: number | null },
-  b: { region: string | null; maxMatchDistanceKm: number | null },
+function canMatch(
+  a: { region: string | null; maxMatchDistanceKm: number | null; rating: number; maxRatingGap: number | null },
+  b: { region: string | null; maxMatchDistanceKm: number | null; rating: number; maxRatingGap: number | null },
 ) {
   if (!a.region || !b.region) return false;
   return (
     getRegionsWithinDistance(a.region, a.maxMatchDistanceKm).includes(b.region) &&
-    getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region)
+    getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region) &&
+    ratingGapAllows(a.rating, b.rating, a.maxRatingGap) &&
+    ratingGapAllows(a.rating, b.rating, b.maxRatingGap)
   );
 }
 
@@ -186,7 +200,9 @@ export async function sweepLobbyPairing(maxPairs = 50) {
   const waiting = await prisma.ratingLobbyEntry.findMany({
     where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
     orderBy: { joinedAt: "asc" },
-    include: { user: { select: { region: true, maxMatchDistanceKm: true } } },
+    include: {
+      user: { select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true } },
+    },
   });
 
   const used = new Set<string>();
@@ -196,7 +212,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
 
     for (let j = i + 1; j < waiting.length; j++) {
       const b = waiting[j];
-      if (used.has(b.id) || !canMatchRegion(a.user, b.user)) continue;
+      if (used.has(b.id) || !canMatch(a.user, b.user)) continue;
 
       const madeMatch = await withTransientRetry(() =>
         prisma.$transaction(async (tx) => {

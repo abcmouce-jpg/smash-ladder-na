@@ -123,6 +123,7 @@ model User {
   mainCharacter String? // self-declared; drives the character leaderboard filter
   region        String? // self-declared match region; drives distance-based matchmaking
   maxMatchDistanceKm Int? @default(5000) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance.
+  maxRatingGap  Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
   wiredConnection Boolean @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
   startggUrl    String? // self-declared, unverified — not used for anything automated yet
   role          UserRole   @default(USER)
