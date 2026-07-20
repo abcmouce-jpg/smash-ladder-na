@@ -104,15 +104,15 @@ export default function RulesPage() {
 
         <Section title="Matchmaking">
           <p>
-            &quot;NA&quot; covers the Americas broadly, and matchmaking is open worldwide. Set a match
-            region before you queue — USA East, USA Central, USA West, Canada East, Canada
-            Central, Canada West, Mexico, Central/South America, or Other — for the closest
-            connection. Matching is same-or-nearby-region by default (e.g. USA East also matches
-            with Canada East, but not with USA West) — geographically close regions are grouped
-            for a reasonable connection without requiring an exact match. If you&apos;d rather
-            queue faster than wait for one of those, opt in to cross-region matching on the Lobby
-            page — matches you with anyone regardless of region as soon as either side has opted
-            in. Wired-connection
+            Matchmaking is open worldwide. Set a match region before you queue — USA East, USA
+            Central, USA West, Canada East, Canada Central, Canada West, Mexico, Central/South
+            America, Japan, Europe, or Other — for the closest connection. Matching is
+            same-or-nearby-region by default (e.g. USA East also matches with Canada East, but
+            not with USA West or Japan) — geographically close regions are grouped for a
+            reasonable connection without requiring an exact match. If you&apos;d rather queue
+            faster than wait for one of those, opt in to cross-region matching on the Lobby page —
+            matches you with anyone regardless of region as soon as either side has opted in.
+            Wired-connection
             status is self-declared too and shown on profiles, though it isn&apos;t part of
             matching.
           </p>

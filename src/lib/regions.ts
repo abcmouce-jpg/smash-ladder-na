@@ -1,4 +1,4 @@
-export const NA_REGIONS = [
+export const MATCH_REGIONS = [
   "USA East",
   "USA Central",
   "USA West",
@@ -7,10 +7,12 @@ export const NA_REGIONS = [
   "Canada West",
   "Mexico",
   "Central/South America",
+  "Japan",
+  "Europe",
   "Other",
 ] as const;
 
-export type NaRegion = (typeof NA_REGIONS)[number];
+export type MatchRegion = (typeof MATCH_REGIONS)[number];
 
 // Geographic closeness, not just exact-region equality — pairs here are
 // close enough (similar time zone / short travel distance) that matching

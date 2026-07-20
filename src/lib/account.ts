@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
-import { NA_REGIONS } from "@/lib/regions";
+import { MATCH_REGIONS } from "@/lib/regions";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -51,7 +51,7 @@ export async function requireActiveUser(userId: string) {
 }
 
 export async function setUserRegion(userId: string, region: string | null) {
-  if (region !== null && !(NA_REGIONS as readonly string[]).includes(region)) {
+  if (region !== null && !(MATCH_REGIONS as readonly string[]).includes(region)) {
     throw new Error("Not a recognized region");
   }
   await prisma.user.update({ where: { id: userId }, data: { region } });

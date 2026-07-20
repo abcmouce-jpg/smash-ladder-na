@@ -36,7 +36,7 @@ export async function createPost(userId: string, comment: string) {
   if (!trimmed) throw new Error("Comment is required");
 
   // Region comes from the player's own profile (set on the Lobby page) so
-  // it stays consistent with the structured NA_REGIONS list used for
+  // it stays consistent with the structured MATCH_REGIONS list used for
   // ranked pairing, instead of a separate free-text field going stale.
   const author = await prisma.user.findUniqueOrThrow({
     where: { id: userId },

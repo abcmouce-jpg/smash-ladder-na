@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
-import { NA_REGIONS } from "@/lib/regions";
+import { MATCH_REGIONS } from "@/lib/regions";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { didTierUp, getRankTier } from "@/lib/rank-tier";
 import { Button } from "@/components/ui/button";
@@ -150,7 +150,7 @@ async function RegionForm({ userId }: { userId: string }) {
           className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         >
           <option value="">Not set</option>
-          {NA_REGIONS.map((r) => (
+          {MATCH_REGIONS.map((r) => (
             <option key={r} value={r}>
               {r}
             </option>
