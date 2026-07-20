@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { WiredConnectionForm } from "@/components/wired-connection-form";
+import { StartggUrlForm } from "@/components/startgg-url-form";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { AutoSubmitForm } from "@/components/auto-submit-form";
 import {
@@ -177,30 +178,13 @@ async function UsernameForm({ userId }: { userId: string }) {
 async function StartggProfileForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({ where: { id: userId }, select: { startggUrl: true } });
 
-  async function action(formData: FormData) {
-    "use server";
-    await updateStartggUrl(String(formData.get("startggUrl") ?? ""));
-  }
-
   return (
-    <form action={action} className="flex items-end gap-2">
-      <label className="flex flex-1 flex-col gap-1 text-sm">
-        start.gg profile
-        <span className="text-xs font-normal text-muted-foreground">
-          Self-declared — link your start.gg profile so others can look up your results.
-        </span>
-        <input
-          name="startggUrl"
-          type="url"
-          defaultValue={me?.startggUrl ?? ""}
-          placeholder="https://www.start.gg/user/..."
-          className="h-8 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-        />
-      </label>
-      <Button type="submit" size="sm">
-        Save
-      </Button>
-    </form>
+    <StartggUrlForm
+      action={updateStartggUrl}
+      defaultValue={me?.startggUrl ?? ""}
+      label="start.gg profile"
+      description="Self-declared — link your start.gg profile so others can look up your results."
+    />
   );
 }
 

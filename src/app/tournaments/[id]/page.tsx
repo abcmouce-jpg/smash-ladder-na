@@ -7,6 +7,7 @@ import { fetchStartggEventInfo } from "@/lib/startgg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { StartggUrlForm } from "@/components/startgg-url-form";
 import {
   cancelTournamentAction,
   joinTournamentAction,
@@ -166,26 +167,13 @@ async function StartggEventInfo({ startggUrl }: { startggUrl: string }) {
 }
 
 function StartggForm({ tournamentId }: { tournamentId: string }) {
-  async function action(formData: FormData) {
-    "use server";
-    await setStartggUrlAction(tournamentId, String(formData.get("startggUrl") ?? ""));
-  }
-
   return (
-    <form action={action} className="flex items-end gap-2">
-      <label className="flex flex-1 flex-col gap-1 text-sm">
-        start.gg link
-        <input
-          name="startggUrl"
-          type="url"
-          required
-          placeholder="https://start.gg/tournament/..."
-          className="h-8 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-        />
-      </label>
-      <Button type="submit" size="sm">
-        Save
-      </Button>
-    </form>
+    <StartggUrlForm
+      action={setStartggUrlAction.bind(null, tournamentId)}
+      defaultValue=""
+      label="start.gg link"
+      required
+      placeholder="https://start.gg/tournament/..."
+    />
   );
 }
