@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -317,8 +318,34 @@ async function WiredConnectionField({ userId }: { userId: string }) {
   return <WiredConnectionForm action={updateWiredConnection} defaultChecked={me?.wiredConnection ?? false} />;
 }
 
+// Once a match is over, its full detail (room code, comments, dispute
+// history, opponent card) has nothing left to act on and just sits on the
+// Lobby page as clutter — that's what the player's own match history on
+// their profile is for. Keep the one-time celebration/report moment here
+// (or the brief cancelled/expired note), and point elsewhere for the rest.
 async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
+
+  if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
+    return (
+      <Card className="mt-4">
+        {match.status === "CONFIRMED" ? (
+          <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
+        ) : (
+          <TerminatedSection status={match.status} />
+        )}
+        <CardContent className="border-t border-border pt-4">
+          <Link
+            href={`/players/${userId}`}
+            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            View full match details on your profile →
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const games = await getMatchGames(match.id);
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
@@ -331,9 +358,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">Matched!</p>
-          <Badge variant={match.status === "CONFIRMED" ? "success" : "secondary"}>
-            {match.status.replace("_", " ").toLowerCase()}
-          </Badge>
+          <Badge variant="secondary">{match.status.replace("_", " ").toLowerCase()}</Badge>
         </div>
       </CardHeader>
       <CardContent className="flex items-center gap-3">
@@ -385,14 +410,6 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             You and {opponent.username} reported different results. This match is awaiting review.
           </p>
         </CardContent>
-      )}
-
-      {match.status === "CONFIRMED" && (
-        <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
-      )}
-
-      {(match.status === "CANCELLED" || match.status === "EXPIRED") && (
-        <TerminatedSection status={match.status} />
       )}
 
       <CommentsSection userId={userId} match={match} />
@@ -640,7 +657,7 @@ async function ConfirmedSection({
   }
 
   return (
-    <CardContent className="border-t border-border pt-4">
+    <CardContent className="pt-4">
       {celebration ?? (
         <>
           <p className="text-sm font-medium">Set confirmed — you lost</p>
@@ -662,7 +679,7 @@ async function ConfirmedSection({
 
 function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
   return (
-    <CardContent className="border-t border-border pt-4">
+    <CardContent className="pt-4">
       <p className="text-sm text-muted-foreground">
         {status === "CANCELLED"
           ? "This match was cancelled — no rating impact."
