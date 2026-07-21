@@ -143,7 +143,11 @@ export async function SiteHeader() {
           <form
             action={async () => {
               "use server";
-              await signIn("discord");
+              // Land on Lobby specifically, not wherever the sign-in button
+              // happened to be clicked — that's where the region prompt is,
+              // and a large fraction of sign-ups otherwise never set one
+              // (silently blocking themselves from ever queueing).
+              await signIn("discord", { redirectTo: "/lobby" });
             }}
           >
             <Button type="submit" size="sm">
