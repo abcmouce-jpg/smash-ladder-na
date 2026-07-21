@@ -20,9 +20,8 @@ export async function SiteHeader() {
             <Image src="/smash-icon.webp" alt="" width={24} height={24} className="size-6" />
             Smash Ladder <span className="text-primary">NA</span>
           </Link>
-          {user && (
-            <div className="relative min-w-0 basis-full md:basis-auto">
-              <nav className="flex min-w-0 items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+          <div className="relative min-w-0 basis-full md:basis-auto">
+            <nav className="flex min-w-0 items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
               <Link
                 href="/lobby"
                 prefetch={false}
@@ -63,7 +62,7 @@ export async function SiteHeader() {
                 <Medal className="size-3.5" />
                 Tournaments
               </Link>
-              {(user.role === "MOD" || user.role === "ADMIN") && (
+              {(user?.role === "MOD" || user?.role === "ADMIN") && (
                 <Link
                   href="/admin"
                   prefetch={false}
@@ -73,7 +72,7 @@ export async function SiteHeader() {
                   Admin
                 </Link>
               )}
-              {(user.role === "MOD" || user.role === "ADMIN") && (
+              {(user?.role === "MOD" || user?.role === "ADMIN") && (
                 <Link
                   href="/admin/disputes"
                   prefetch={false}
@@ -83,7 +82,7 @@ export async function SiteHeader() {
                   Disputes
                 </Link>
               )}
-              {(user.role === "MOD" || user.role === "ADMIN") && (
+              {(user?.role === "MOD" || user?.role === "ADMIN") && (
                 <Link
                   href="/admin/reports"
                   prefetch={false}
@@ -93,7 +92,7 @@ export async function SiteHeader() {
                   Reports
                 </Link>
               )}
-              {(user.role === "MOD" || user.role === "ADMIN") && (
+              {(user?.role === "MOD" || user?.role === "ADMIN") && (
                 <Link
                   href="/admin/seasons"
                   prefetch={false}
@@ -108,8 +107,7 @@ export async function SiteHeader() {
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent md:hidden"
               />
-            </div>
-          )}
+          </div>
         </div>
 
         {user ? (
