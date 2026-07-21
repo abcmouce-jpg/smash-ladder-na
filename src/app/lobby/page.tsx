@@ -16,6 +16,7 @@ import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { WiredConnectionForm } from "@/components/wired-connection-form";
 import { StartggUrlForm } from "@/components/startgg-url-form";
 import { VictoryCelebration } from "@/components/victory-celebration";
+import { ReportCharacterForm } from "@/components/report-character-form";
 import { AutoSubmitForm } from "@/components/auto-submit-form";
 import {
   beginFirstGame,
@@ -56,30 +57,48 @@ export default async function LobbyPage() {
   }
 
   const entry = await getActiveLobbyEntry(session.user.id);
+  const isInActiveMatch =
+    entry?.status === "PAIRED" &&
+    entry.match &&
+    entry.match.status !== "CONFIRMED" &&
+    entry.match.status !== "CANCELLED" &&
+    entry.match.status !== "EXPIRED";
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <PageTitle />
       <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} />
 
-      <Card className="mt-8">
-        <CardContent className="pt-4">
-          <UsernameForm userId={session.user.id} />
-        </CardContent>
-      </Card>
+      {isInActiveMatch ? (
+        <Card className="mt-8">
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">
+              Profile and matchmaking settings are locked while a match is in progress.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <Card className="mt-8">
+            <CardContent className="pt-4">
+              <UsernameForm userId={session.user.id} />
+            </CardContent>
+          </Card>
 
-      <Card className="mt-4">
-        <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
-          <RegionForm userId={session.user.id} />
-          <WiredConnectionField userId={session.user.id} />
-        </CardContent>
-      </Card>
+          <Card className="mt-4">
+            <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
+              <RegionForm userId={session.user.id} />
+              <WiredConnectionField userId={session.user.id} />
+            </CardContent>
+          </Card>
 
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <StartggProfileForm userId={session.user.id} />
-        </CardContent>
-      </Card>
+          <Card className="mt-4">
+            <CardContent className="pt-4">
+              <StartggProfileForm userId={session.user.id} />
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {!entry && (
         <Card className="mt-4">
@@ -107,7 +126,22 @@ export default async function LobbyPage() {
       )}
 
       {entry?.status === "PAIRED" && entry.match && (
-        <PairedView userId={session.user.id} match={entry.match} />
+        <>
+          <PairedView userId={session.user.id} match={entry.match} />
+          {(entry.match.status === "CONFIRMED" ||
+            entry.match.status === "CANCELLED" ||
+            entry.match.status === "EXPIRED") && (
+            <Card className="mt-4 border-primary/30">
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium">Ready for another match?</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  This starts a brand new search — it&apos;s not related to the match above.
+                </p>
+                <JoinLobbyForm action={joinLobby} className="mt-3" />
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </main>
   );
@@ -586,12 +620,6 @@ async function ConfirmedSection({
   const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
   const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
 
-  async function reportCharacter(formData: FormData) {
-    "use server";
-    const character = String(formData.get("character") ?? "");
-    if (character) await reportOpponentCharacterAction(match.id, character);
-  }
-
   let celebration: React.ReactNode = null;
   if (won && ratingBefore !== null && ratingAfter !== null) {
     const me = await prisma.user.findUnique({ where: { id: userId }, select: { gamesPlayed: true } });
@@ -620,30 +648,11 @@ async function ConfirmedSection({
         </>
       )}
 
-      <form action={reportCharacter} className="mt-4 flex items-end gap-2">
-        <label className="flex flex-col gap-1 text-sm">
-          What did {opponentName} play? (optional)
-          <select
-            name="character"
-            defaultValue=""
-            className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option value="" className="bg-background text-foreground">
-              Skip
-            </option>
-            {SMASH_CHARACTERS.map((c) => (
-              <option key={c} value={c} className="bg-background text-foreground">
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button type="submit" size="sm" variant="outline">
-          Report
-        </Button>
-      </form>
-
-      <JoinLobbyForm action={joinLobby} className="mt-4" />
+      <ReportCharacterForm
+        action={reportOpponentCharacterAction.bind(null, match.id)}
+        opponentName={opponentName}
+        characters={SMASH_CHARACTERS}
+      />
     </CardContent>
   );
 }
@@ -656,7 +665,6 @@ function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
           ? "This match was cancelled — no rating impact."
           : "Nobody reported a result in time, so this match expired with no rating impact."}
       </p>
-      <JoinLobbyForm action={joinLobby} className="mt-4" />
     </CardContent>
   );
 }
@@ -723,24 +731,32 @@ function RoomCodeForm({
         {setByOpponent && (
           <p className="text-xs text-muted-foreground">Set by your opponent — join with this.</p>
         )}
+        <p className="text-xs text-muted-foreground">
+          Set the in-game room password to <span className="font-medium text-foreground">1122</span>.
+        </p>
       </div>
     );
   }
 
   return (
-    <form action={action} className="flex items-end gap-2">
-      <label className="flex flex-col gap-1 text-sm">
-        Room code
-        <input
-          name="roomCode"
-          defaultValue={initialValue}
-          placeholder="e.g. AB123"
-          className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-        />
-      </label>
-      <Button type="submit" size="sm">
-        Save
-      </Button>
-    </form>
+    <div className="flex flex-col gap-1">
+      <form action={action} className="flex items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm">
+          Room code
+          <input
+            name="roomCode"
+            defaultValue={initialValue}
+            placeholder="e.g. AB123"
+            className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+          />
+        </label>
+        <Button type="submit" size="sm">
+          Save
+        </Button>
+      </form>
+      <p className="text-xs text-muted-foreground">
+        Set the in-game room password to <span className="font-medium text-foreground">1122</span>.
+      </p>
+    </div>
   );
 }
