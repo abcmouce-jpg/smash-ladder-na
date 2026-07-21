@@ -63,11 +63,29 @@ export default async function LobbyPage() {
     entry.match.status !== "CONFIRMED" &&
     entry.match.status !== "CANCELLED" &&
     entry.match.status !== "EXPIRED";
+  const matchJustEnded =
+    entry?.status === "PAIRED" &&
+    entry.match &&
+    (entry.match.status === "CONFIRMED" ||
+      entry.match.status === "CANCELLED" ||
+      entry.match.status === "EXPIRED");
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <PageTitle />
       <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} />
+
+      {matchJustEnded && (
+        <Card className="mt-4 border-primary/30">
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium">Ready for another match?</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This starts a brand new search — it&apos;s not related to the match below.
+            </p>
+            <JoinLobbyForm action={joinLobby} className="mt-3" />
+          </CardContent>
+        </Card>
+      )}
 
       {isInActiveMatch ? (
         <Card className="mt-8">
@@ -126,22 +144,7 @@ export default async function LobbyPage() {
       )}
 
       {entry?.status === "PAIRED" && entry.match && (
-        <>
-          <PairedView userId={session.user.id} match={entry.match} />
-          {(entry.match.status === "CONFIRMED" ||
-            entry.match.status === "CANCELLED" ||
-            entry.match.status === "EXPIRED") && (
-            <Card className="mt-4 border-primary/30">
-              <CardContent className="pt-4">
-                <p className="text-sm font-medium">Ready for another match?</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  This starts a brand new search — it&apos;s not related to the match above.
-                </p>
-                <JoinLobbyForm action={joinLobby} className="mt-3" />
-              </CardContent>
-            </Card>
-          )}
-        </>
+        <PairedView userId={session.user.id} match={entry.match} />
       )}
     </main>
   );
