@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { RegionSetupBanner } from "@/components/region-setup-banner";
@@ -49,6 +50,7 @@ export default function RootLayout({
         <RegionSetupBanner />
         {children}
         <SiteFooter />
+        <Analytics />
       </body>
     </html>
   );
