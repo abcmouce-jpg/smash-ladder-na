@@ -1,8 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarClock, Flag, Gamepad2, Gauge, Medal, Shield, Swords, Trophy, Users } from "lucide-react";
+import { CalendarClock, ChevronDown, Flag, Gamepad2, Gauge, LogOut, Medal, Shield, Swords, Trophy, UserRound, Users } from "lucide-react";
 import { auth, signIn, signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export async function SiteHeader() {
   const session = await auth();
@@ -10,8 +17,8 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-2xl items-start justify-between px-6 py-3 md:items-center">
-        <div className="flex min-w-0 flex-wrap items-center gap-6">
+      <div className="mx-auto max-w-2xl px-6 py-3">
+        <div className="flex items-center justify-between gap-4">
           <Link
             href="/"
             prefetch={false}
@@ -20,9 +27,62 @@ export async function SiteHeader() {
             <Image src="/smash-icon.webp" alt="" width={24} height={24} className="size-6" />
             Smash Ladder <span className="text-primary">NA</span>
           </Link>
-          {user && (
-            <div className="relative min-w-0 basis-full md:basis-auto">
-              <nav className="flex min-w-0 items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:bg-muted data-[state=open]:text-foreground">
+                {user.image && (
+                  <Image
+                    src={user.image}
+                    alt={user.name ?? "avatar"}
+                    width={24}
+                    height={24}
+                    className="shrink-0 rounded-full"
+                  />
+                )}
+                <span className="min-w-0 truncate">{user.name}</span>
+                <ChevronDown className="size-3.5 shrink-0" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem asChild>
+                  <Link href={`/players/${user.id}`} prefetch={false}>
+                    <UserRound className="size-3.5" />
+                    View profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <form
+                  action={async () => {
+                    "use server";
+                    await signOut();
+                  }}
+                >
+                  <DropdownMenuItem asChild>
+                    <button type="submit">
+                      <LogOut className="size-3.5" />
+                      Sign out
+                    </button>
+                  </DropdownMenuItem>
+                </form>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <form
+              action={async () => {
+                "use server";
+                await signIn("discord");
+              }}
+            >
+              <Button type="submit" size="sm">
+                Sign in with Discord
+              </Button>
+            </form>
+          )}
+        </div>
+
+        {user && (
+          <div className="relative mt-3">
+            <nav className="flex items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
               <Link
                 href="/lobby"
                 prefetch={false}
@@ -103,53 +163,12 @@ export async function SiteHeader() {
                   Seasons
                 </Link>
               )}
-              </nav>
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent md:hidden"
-              />
-            </div>
-          )}
-        </div>
-
-        {user ? (
-          <div className="flex items-center gap-3">
-            <Link href={`/players/${user.id}`} prefetch={false} className="flex items-center gap-2">
-              {user.image && (
-                <Image
-                  src={user.image}
-                  alt={user.name ?? "avatar"}
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-              )}
-              <span className="text-sm text-muted-foreground hover:text-foreground hover:underline">
-                {user.name}
-              </span>
-            </Link>
-            <form
-              action={async () => {
-                "use server";
-                await signOut();
-              }}
-            >
-              <Button type="submit" variant="outline" size="sm">
-                Sign out
-              </Button>
-            </form>
+            </nav>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent md:hidden"
+            />
           </div>
-        ) : (
-          <form
-            action={async () => {
-              "use server";
-              await signIn("discord");
-            }}
-          >
-            <Button type="submit" size="sm">
-              Sign in with Discord
-            </Button>
-          </form>
         )}
       </div>
     </header>
