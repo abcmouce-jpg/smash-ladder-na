@@ -23,7 +23,7 @@ export function JoinLobbyForm({
             Searching for an opponent…
           </>
         ) : (
-          "Join Lobby"
+          "Search for New Opponent"
         )}
       </Button>
       {state.error && <p className="mt-2 text-sm text-destructive">{state.error}</p>}
