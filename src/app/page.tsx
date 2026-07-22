@@ -37,12 +37,12 @@ export default async function Home() {
         <form
           action={async () => {
             "use server";
-            await signIn("discord");
+            await signIn();
           }}
           className="mt-8"
         >
           <Button type="submit" size="lg">
-            Sign in with Discord to get started
+            Sign in to get started
           </Button>
         </form>
       )}

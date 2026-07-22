@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import type { DefaultSession } from "next-auth";
 import Discord from "next-auth/providers/discord";
 import type { DiscordProfile } from "next-auth/providers/discord";
+import Credentials from "next-auth/providers/credentials";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required for the module augmentation below to resolve
 import type { JWT } from "next-auth/jwt";
 import { prisma } from "@/lib/db";
@@ -24,12 +25,33 @@ declare module "next-auth/jwt" {
   }
 }
 
+const devCredentials = Credentials({
+  credentials: { username: { label: "Username" } },
+  async authorize(credentials) {
+    const username = (credentials.username as string)?.trim() || "Dev Player";
+    const discordId = `dev-${username.toLowerCase().replace(/\s+/g, "-")}`;
+    const user = await prisma.user.upsert({
+      where: { discordId },
+      update: {},
+      create: { discordId, username },
+    });
+    return { id: user.id, name: user.username };
+  },
+});
+
+const providers =
+  process.env.NODE_ENV === "development" && !process.env.AUTH_DISCORD_ID
+    ? [devCredentials]
+    : [Discord];
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Discord],
+  providers,
   session: { strategy: "jwt" },
   trustHost: true,
   callbacks: {
-    async signIn({ profile }) {
+    async signIn({ profile, credentials }) {
+      if (credentials) return true; // dev credentials — user already created in authorize()
+
       const discordProfile = profile as DiscordProfile | undefined;
       if (!discordProfile?.id) return false;
 
@@ -58,7 +80,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return true;
     },
-    async jwt({ token, profile }) {
+    async jwt({ token, user, profile }) {
+      if (user?.id) {
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+        if (dbUser) {
+          token.userId = dbUser.id;
+          token.role = dbUser.role;
+          return token;
+        }
+      }
       const discordProfile = profile as DiscordProfile | undefined;
       if (discordProfile?.id) {
         const dbUser = await prisma.user.findUnique({

@@ -100,11 +100,11 @@ export async function SiteHeader() {
                 // happened to be clicked — that's where the region prompt is,
                 // and a large fraction of sign-ups otherwise never set one
                 // (silently blocking themselves from ever queueing).
-                await signIn("discord", { redirectTo: "/lobby" });
+                await signIn(undefined, { redirectTo: "/lobby" });
               }}
             >
               <Button type="submit" size="sm">
-                Sign in with Discord
+                Sign in
               </Button>
             </form>
           )}
