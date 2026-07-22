@@ -28,16 +28,22 @@ Discord OAuth · Tailwind CSS + shadcn/ui · Sentry.
 
 ## Getting started
 
+No external accounts needed — Docker handles the database and a built-in dev login replaces
+Discord OAuth.
+
 1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Copy `.env.example` to `.env` and fill in the values — each variable is documented inline,
-   including which ones are optional and what happens when they're left unset.
+2. Start a local Postgres database:
 
-3. Set up the database:
+   ```bash
+   docker compose up -d
+   ```
+
+3. Run migrations:
 
    ```bash
    npx prisma migrate dev
@@ -49,7 +55,11 @@ Discord OAuth · Tailwind CSS + shadcn/ui · Sentry.
    npm run dev
    ```
 
-   Open [http://localhost:3000](http://localhost:3000).
+   Open [http://localhost:3000](http://localhost:3000) — click "Sign in" and enter any username.
+
+The checked-in `.env.development` file has everything pre-configured for this local setup. If
+you want to use a remote database or real Discord OAuth instead, copy `.env.example` to `.env`
+and fill in the values.
 
 ## Contributing
 
