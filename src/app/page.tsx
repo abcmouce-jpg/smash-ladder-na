@@ -84,7 +84,7 @@ export default async function Home() {
               <Link key={p.id} href={`/players/${p.id}`}>
                 <Card className="h-full py-0 transition-colors hover:border-foreground/30">
                   <CardContent className="flex items-center gap-3 py-3">
-                    <span className="text-lg tabular-nums text-muted-foreground">
+                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">
                       {["🥇", "🥈", "🥉"][i]}
                     </span>
                     {p.avatarUrl && (
@@ -93,14 +93,16 @@ export default async function Home() {
                         alt={p.username}
                         width={32}
                         height={32}
-                        className="rounded-full"
+                        className="shrink-0 rounded-full"
                       />
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{p.username}</p>
-                      <p className="text-xs tabular-nums text-muted-foreground">{p.rating} rating</p>
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                        <p className="text-xs tabular-nums text-muted-foreground">{p.rating} rating</p>
+                        <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
+                      </div>
                     </div>
-                    <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
                   </CardContent>
                 </Card>
               </Link>
