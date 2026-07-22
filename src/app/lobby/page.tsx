@@ -49,7 +49,7 @@ export default async function LobbyPage() {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
         <PageTitle />
-        <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} />
+        <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} matched={false} />
         <p className="mt-2 text-sm text-muted-foreground">
           Sign in with Discord (top right) to join the matchmaking lobby.
         </p>
@@ -74,7 +74,7 @@ export default async function LobbyPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <PageTitle />
-      <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} />
+      <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} matched={!!isInActiveMatch} />
 
       {matchJustEnded && (
         <Card className="mt-4 border-primary/30">
@@ -160,7 +160,15 @@ function PageTitle() {
   );
 }
 
-function ActivityLine({ waiting, inMatch }: { waiting: number; inMatch: number }) {
+function ActivityLine({
+  waiting,
+  inMatch,
+  matched,
+}: {
+  waiting: number;
+  inMatch: number;
+  matched: boolean;
+}) {
   return (
     <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
       <Users className="size-3.5" />
@@ -173,7 +181,7 @@ function ActivityLine({ waiting, inMatch }: { waiting: number; inMatch: number }
           </>
         )}
       </span>
-      <LobbyPoller />
+      <LobbyPoller matched={matched} />
     </div>
   );
 }
@@ -357,7 +365,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
     <Card className="mt-4">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Matched!</p>
+          <p className="badge-pop text-base font-semibold text-foreground">🎮 You&apos;ve been matched!</p>
           <Badge variant="secondary">{match.status.replace("_", " ").toLowerCase()}</Badge>
         </div>
       </CardHeader>
@@ -497,14 +505,18 @@ function GameSection({
     const gameNumber = games.length + 1;
     return (
       <CardContent className="border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm font-medium">
           {gameNumber === 1
-            ? "Settle on a stage before you play."
-            : `Game ${gameNumber} — winner of the last game strikes first.`}
+            ? "Ready to pick a stage"
+            : `Game ${gameNumber} — winner of the last game strikes first`}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Click the button below to start stage striking with {opponentName} — this isn&apos;t
+          something to sort out over chat, the site walks you through it turn by turn.
         </p>
         <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
-          <Button type="submit" variant="outline" size="sm">
-            Start Game {gameNumber}
+          <Button type="submit" size="sm">
+            Start Game {gameNumber} stage striking →
           </Button>
         </form>
       </CardContent>

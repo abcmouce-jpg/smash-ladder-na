@@ -30,6 +30,18 @@ export function playVictoryChime() {
   }
 }
 
+export function playMatchFoundChime() {
+  try {
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+    playTone(ctx, 587, now, 0.12);
+    playTone(ctx, 740, now + 0.1, 0.2);
+    setTimeout(() => ctx.close(), 450);
+  } catch {
+    // Autoplay restrictions, unsupported browser, etc. — silently skip.
+  }
+}
+
 export function playTierUpChime() {
   try {
     const ctx = new AudioContext();
