@@ -196,6 +196,7 @@ async function RegionForm({ userId }: { userId: string }) {
           soon as you pick one.
         </span>
         <select
+          key={me?.region ?? ""}
           name="region"
           defaultValue={me?.region ?? ""}
           className="h-8 w-40 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
@@ -217,6 +218,7 @@ async function RegionForm({ userId }: { userId: string }) {
           between them — widening yours doesn&apos;t override the other side&apos;s.
         </span>
         <select
+          key={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
           name="maxMatchDistanceKm"
           defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
           className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
@@ -239,6 +241,7 @@ async function RegionForm({ userId }: { userId: string }) {
           difference in rating.
         </span>
         <select
+          key={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           name="maxRatingGap"
           defaultValue={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
