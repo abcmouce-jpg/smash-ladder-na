@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { WiredConnectionForm } from "@/components/wired-connection-form";
-import { StartggUrlForm } from "@/components/startgg-url-form";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
 import { AutoSubmitForm } from "@/components/auto-submit-form";
@@ -34,8 +33,6 @@ import {
   updateMaxMatchDistance,
   updateMaxRatingGap,
   updateRegion,
-  updateStartggUrl,
-  updateUsername,
   updateWiredConnection,
 } from "./actions";
 
@@ -97,26 +94,12 @@ export default async function LobbyPage() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          <Card className="mt-8">
-            <CardContent className="pt-4">
-              <UsernameForm userId={session.user.id} />
-            </CardContent>
-          </Card>
-
-          <Card className="mt-4">
-            <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
-              <RegionForm userId={session.user.id} />
-              <WiredConnectionField userId={session.user.id} />
-            </CardContent>
-          </Card>
-
-          <Card className="mt-4">
-            <CardContent className="pt-4">
-              <StartggProfileForm userId={session.user.id} />
-            </CardContent>
-          </Card>
-        </>
+        <Card className="mt-8">
+          <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
+            <RegionForm userId={session.user.id} />
+            <WiredConnectionField userId={session.user.id} />
+          </CardContent>
+        </Card>
       )}
 
       {!entry && (
@@ -188,51 +171,6 @@ function ActivityLine({
 
 const WORLDWIDE_VALUE = "worldwide";
 const ANY_RATING_VALUE = "any";
-
-async function UsernameForm({ userId }: { userId: string }) {
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
-
-  async function action(formData: FormData) {
-    "use server";
-    await updateUsername(String(formData.get("username") ?? ""));
-  }
-
-  return (
-    <form action={action} className="flex items-end gap-2">
-      <label className="flex flex-1 flex-col gap-1 text-sm">
-        Username
-        <span className="text-xs font-normal text-muted-foreground">
-          Shown everywhere on the site instead of your Discord name — handy if they don&apos;t
-          match.
-        </span>
-        <input
-          name="username"
-          type="text"
-          required
-          maxLength={32}
-          defaultValue={me?.username ?? ""}
-          className="h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        />
-      </label>
-      <Button type="submit" size="sm">
-        Save
-      </Button>
-    </form>
-  );
-}
-
-async function StartggProfileForm({ userId }: { userId: string }) {
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { startggUrl: true } });
-
-  return (
-    <StartggUrlForm
-      action={updateStartggUrl}
-      defaultValue={me?.startggUrl ?? ""}
-      label="start.gg profile"
-      description="Self-declared — link your start.gg profile so others can look up your results."
-    />
-  );
-}
 
 async function RegionForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({

@@ -9,8 +9,6 @@ import {
   setMaxMatchDistance,
   setMaxRatingGap,
   setUserRegion,
-  setUserStartggUrl,
-  setUsername,
   setWiredConnection,
 } from "@/lib/account";
 import {
@@ -169,34 +167,6 @@ export async function updateMaxRatingGap(maxRatingGap: number | null) {
   const userId = await requireUserId();
   await setMaxRatingGap(userId, maxRatingGap);
   revalidatePath("/lobby");
-}
-
-export type StartggUrlState = { error: string | null };
-
-// (prevState, formData) shape so useActionState can drive it — a plain
-// thrown error (e.g. pasting a non-start.gg link) would otherwise crash to
-// Next's generic error overlay instead of showing an inline message.
-export async function updateStartggUrl(
-  _prevState: StartggUrlState,
-  formData: FormData,
-): Promise<StartggUrlState> {
-  const userId = await requireUserId();
-  try {
-    await setUserStartggUrl(userId, String(formData.get("startggUrl") ?? ""));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
-  }
-  revalidatePath("/lobby");
-  revalidatePath(`/players/${userId}`);
-  return { error: null };
-}
-
-export async function updateUsername(username: string) {
-  const userId = await requireUserId();
-  await setUsername(userId, username);
-  revalidatePath("/lobby");
-  revalidatePath(`/players/${userId}`);
-  revalidatePath("/leaderboard");
 }
 
 export type WiredConnectionState = { error: string | null };

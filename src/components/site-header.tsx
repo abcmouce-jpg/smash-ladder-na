@@ -8,6 +8,7 @@ import {
   Gauge,
   LogOut,
   Medal,
+  Settings,
   Shield,
   Swords,
   Trophy,
@@ -67,6 +68,12 @@ export async function SiteHeader() {
                   <Link href={`/players/${user.id}`} prefetch={false}>
                     <UserRound className="size-3.5" />
                     View profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" prefetch={false}>
+                    <Settings className="size-3.5" />
+                    Settings
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
