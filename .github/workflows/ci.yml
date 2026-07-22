@@ -23,3 +23,5 @@ jobs:
       - run: npm run lint
 
       - run: npx tsc --noEmit
+
+      - run: npm test
