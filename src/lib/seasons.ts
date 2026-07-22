@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 
 // Temporary: ending a season resets EVERYONE's rating, and enough people
 // hold ADMIN now (mostly for community/promotion reasons, not moderation)
@@ -42,7 +43,7 @@ export async function endActiveSeasonAndStartNext(nextName?: string) {
   if (!active) throw new Error("No active season");
 
   const standings = await prisma.user.findMany({
-    where: { gamesPlayed: { gte: 10 } },
+    where: { gamesPlayed: { gte: LEADERBOARD_MIN_GAMES } },
     orderBy: { rating: "desc" },
     select: { id: true, rating: true, gamesPlayed: true },
   });

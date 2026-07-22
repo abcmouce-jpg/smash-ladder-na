@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS, type SmashCharacter } from "@/lib/characters";
+import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 
 function assertValidCharacter(character: string): asserts character is SmashCharacter {
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
@@ -10,7 +11,7 @@ function assertValidCharacter(character: string): asserts character is SmashChar
 export async function getCharacterLeaderboard(character: string) {
   assertValidCharacter(character);
   return prisma.user.findMany({
-    where: { mainCharacter: character, gamesPlayed: { gte: 10 } },
+    where: { mainCharacter: character, gamesPlayed: { gte: LEADERBOARD_MIN_GAMES } },
     orderBy: { rating: "desc" },
     select: { id: true, username: true, rating: true, gamesPlayed: true },
   });

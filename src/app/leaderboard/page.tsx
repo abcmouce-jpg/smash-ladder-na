@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
+import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { ensureActiveSeason } from "@/lib/seasons";
 import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
@@ -23,7 +24,7 @@ export default async function LeaderboardPage({
   const season = await ensureActiveSeason();
   const players = await prisma.user.findMany({
     where: {
-      gamesPlayed: { gte: 10 }, // provisional players excluded, per rating design
+      gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
       ...(isValidCharacter ? { mainCharacter: character } : {}),
     },
     orderBy: { rating: "desc" },
@@ -38,7 +39,7 @@ export default async function LeaderboardPage({
         <Badge variant="outline">{season.name}</Badge>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Ranked players with 10+ games played
+        Ranked players with {LEADERBOARD_MIN_GAMES}+ games played
         {isValidCharacter ? ` who main ${character}` : ""}.
       </p>
 

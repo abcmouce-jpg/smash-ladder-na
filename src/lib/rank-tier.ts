@@ -61,6 +61,13 @@ export function getRankTier(rating: number, gamesPlayed: number): RankTier | nul
   return TIERS.find((t) => rating >= t.minRating) ?? TIERS[TIERS.length - 1];
 }
 
+// Separate from the tier/K-factor threshold above: public leaderboards
+// (site-wide, per-character, season standings) just need enough games to
+// rule out a one-win fluke, not full rating convergence — a lower bar so
+// genuinely strong players show up as visible proof of the ladder's
+// competition instead of sitting hidden for their first 10 games.
+export const LEADERBOARD_MIN_GAMES = 3;
+
 // True only when a match's rating gain crossed into a strictly higher tier
 // — used to surface a special "tier up" moment rather than the regular win
 // celebration. Same gamesPlayed used for both sides on purpose: what
