@@ -51,6 +51,17 @@ Discord OAuth · Tailwind CSS + shadcn/ui · Sentry.
 
    Open [http://localhost:3000](http://localhost:3000).
 
+## Testing
+
+Run the unit tests with:
+
+```bash
+npm test
+```
+
+Use `npm run test:watch` for watch mode during development. Tests live alongside the source
+files they cover (`src/lib/*.test.ts`) and run in CI on every push and pull request.
+
 ## Contributing
 
 Bug reports, feature requests, and pull requests are welcome — see
