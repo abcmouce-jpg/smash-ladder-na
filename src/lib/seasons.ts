@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/db";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 
+// Pre-season launch announcement, shown site-wide until this passes.
+// -04:00 is ET's summer (EDT) offset — update if this ever needs to move
+// past a DST boundary.
+export const PRE_SEASON_STARTS_AT = new Date("2026-07-25T18:00:00-04:00");
+
 // Temporary: ending a season resets EVERYONE's rating, and enough people
 // hold ADMIN now (mostly for community/promotion reasons, not moderation)
 // that this narrows who can trigger it, independent of the ADMIN/MOD role
