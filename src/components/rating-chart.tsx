@@ -4,6 +4,13 @@ import { useState } from "react";
 
 type Point = { date: string; rating: number };
 
+// Fixed locale/timeZone so this renders identically during SSR and on the
+// client — the browser's default locale/timeZone can differ from the
+// server's, which otherwise causes a hydration mismatch here.
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString("en-US", { timeZone: "UTC" });
+}
+
 const WIDTH = 560;
 const HEIGHT = 160;
 const PAD_X = 8;
@@ -101,7 +108,7 @@ export function RatingChart({ points }: { points: Point[] }) {
 
       <div className="flex h-5 items-center justify-center text-xs text-muted-foreground">
         {hovered
-          ? `${new Date(hovered.date).toLocaleDateString()} — ${hovered.rating} rating`
+          ? `${formatDate(hovered.date)} — ${hovered.rating} rating`
           : `${points[0].rating} → ${points[points.length - 1].rating} over last ${points.length} matches`}
       </div>
 
@@ -120,7 +127,7 @@ export function RatingChart({ points }: { points: Point[] }) {
             <tbody>
               {[...points].reverse().map((p) => (
                 <tr key={p.date} className="border-t border-border/60">
-                  <td className="py-1">{new Date(p.date).toLocaleDateString()}</td>
+                  <td className="py-1">{formatDate(p.date)}</td>
                   <td className="py-1 text-right tabular-nums">{p.rating}</td>
                 </tr>
               ))}
