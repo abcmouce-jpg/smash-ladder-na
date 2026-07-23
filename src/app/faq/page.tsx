@@ -85,8 +85,11 @@ export default function FaqPage() {
           <QA q="My account was suspended or banned. Why, and can I appeal?">
             We don&apos;t publish the specific reports behind a status change, for the same
             retaliation-prevention reason above. If you think it&apos;s a mistake, reach out to a mod
-            or admin in the community Discord server — appeals go through them, not through the
-            report system.
+            or admin in the{" "}
+            <a href="https://discord.gg/2mMz4AAGe" className="underline" target="_blank" rel="noreferrer">
+              community Discord server
+            </a>{" "}
+            — appeals go through them, not through the report system.
           </QA>
           <QA q="What's the actual difference between suspended and banned?">
             Suspended (Level 1) still lets you play ranked — that&apos;s the core activity, and
@@ -122,6 +125,25 @@ export default function FaqPage() {
             Standings get snapshotted, then rating and games-played reset for everyone at the
             start of the next season — a clean slate rather than a partial regression, so every
             season starts on equal footing.
+          </QA>
+        </Category>
+
+        <Category title="Community & moderation">
+          <QA q="Is there a Discord server?">
+            Yes —{" "}
+            <a href="https://discord.gg/2mMz4AAGe" className="underline" target="_blank" rel="noreferrer">
+              join here
+            </a>
+            . It&apos;s where to hang out, report site issues, or reach a mod/admin (e.g. for a
+            ban appeal).
+          </QA>
+          <QA q="How is moderation staffed?">
+            Around 5 mods/admins currently, selected on a volunteer basis. If you&apos;re
+            interested in helping out, reach out in the Discord server above.
+          </QA>
+          <QA q="Is this affiliated with Japan's Smash Ladder / Smashmate?">
+            No — this is an independent, separately-run project built for the NA scene. Any
+            naming similarity to existing Japanese matchmaking platforms is coincidental.
           </QA>
         </Category>
       </div>

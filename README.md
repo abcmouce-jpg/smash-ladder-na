@@ -1,11 +1,22 @@
 # Smash Ladder NA
 
+**Live at [smash-ladder-na.vercel.app](https://smash-ladder-na.vercel.app/) · Community: [Discord](https://discord.gg/2mMz4AAGe)**
+
 A ranked ladder site for the NA *Super Smash Bros. Ultimate* community. Players sign in with
 Discord, get matched 1v1 through a lobby queue, self-report best-of-3 results, and climb a
 seasonal rating. The site also supports casual free-battle matchmaking, community tournaments
 (bracket hosted on [start.gg](https://www.start.gg), with live entrant/standing data pulled
 in automatically), character leaderboards, and moderation tooling for disputes and conduct
 reports.
+
+Independent from — and not affiliated with — Japan's Smashmate or other existing Smash
+matchmaking platforms; this is an unrelated, separately-run project built for the NA scene.
+
+## Why this exists
+
+There are existing closed-source matchmaking platforms for Smash in NA. This project's angle is
+being open-source: the community can inspect, contribute to, and shape the platform directly,
+and the moderation policies that govern ranked play are transparent rather than a black box.
 
 ## Features
 
@@ -77,6 +88,12 @@ files they cover (`src/lib/*.test.ts`) and run in CI on every push and pull requ
 Bug reports, feature requests, and pull requests are welcome — see
 [CONTRIBUTING.md](./CONTRIBUTING.md) for how to get set up and what to include. Please also
 read the [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+## Community & moderation
+
+Join the [Discord server](https://discord.gg/2mMz4AAGe) to hang out, report issues, or reach a
+mod/admin (e.g. for a ban appeal). Moderation is currently staffed by around 5 people, selected
+on a volunteer basis — reach out in Discord if you're interested in helping out.
 
 ## License
 
