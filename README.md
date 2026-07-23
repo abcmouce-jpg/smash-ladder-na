@@ -1,6 +1,6 @@
 # Smash Ladder NA
 
-**Live at [smash-ladder-na.vercel.app](https://smash-ladder-na.vercel.app/) · Community: [Discord](https://discord.gg/2mMz4AAGe)**
+**Live at [smash-ladder-na.vercel.app](https://smash-ladder-na.vercel.app/) · Community: [Discord](https://discord.gg/zE8B44vQxf)**
 
 A ranked ladder site for the NA *Super Smash Bros. Ultimate* community. Players sign in with
 Discord, get matched 1v1 through a lobby queue, self-report best-of-3 results, and climb a
@@ -91,7 +91,7 @@ read the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## Community & moderation
 
-Join the [Discord server](https://discord.gg/2mMz4AAGe) to hang out, report issues, or reach a
+Join the [Discord server](https://discord.gg/zE8B44vQxf) to hang out, report issues, or reach a
 mod/admin (e.g. for a ban appeal). Moderation is currently staffed by around 5 people, selected
 on a volunteer basis — reach out in Discord if you're interested in helping out.
 
