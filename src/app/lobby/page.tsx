@@ -14,10 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
-import { WiredConnectionForm } from "@/components/wired-connection-form";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
-import { AutoSubmitForm } from "@/components/auto-submit-form";
+import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
 import {
   beginFirstGame,
   cancelLobby,
@@ -100,9 +99,8 @@ export default async function LobbyPage() {
         </Card>
       ) : (
         <Card className="mt-8">
-          <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
-            <RegionForm userId={session.user.id} />
-            <WiredConnectionField userId={session.user.id} />
+          <CardContent className="pt-4">
+            <MatchmakingForm userId={session.user.id} />
           </CardContent>
         </Card>
       )}
@@ -179,28 +177,46 @@ function ActivityLine({
 const WORLDWIDE_VALUE = "worldwide";
 const ANY_RATING_VALUE = "any";
 
-async function RegionForm({ userId }: { userId: string }) {
+async function MatchmakingForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { region: true, maxMatchDistanceKm: true, maxRatingGap: true },
+    select: {
+      region: true,
+      maxMatchDistanceKm: true,
+      maxRatingGap: true,
+      wiredConnection: true,
+    },
   });
 
-  async function action(formData: FormData) {
+  // Wired can be refused (too many cancels), so it goes last and can't strand the others
+  async function action(
+    _prevState: MatchSettingsState,
+    formData: FormData,
+  ): Promise<MatchSettingsState> {
     "use server";
-    await updateRegion(String(formData.get("region") ?? ""));
-    const distance = String(formData.get("maxMatchDistanceKm") ?? "");
-    await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
-    const ratingGap = String(formData.get("maxRatingGap") ?? "");
-    await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
+    try {
+      await updateRegion(String(formData.get("region") ?? ""));
+      const distance = String(formData.get("maxMatchDistanceKm") ?? "");
+      await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
+      const ratingGap = String(formData.get("maxRatingGap") ?? "");
+      await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
+      await updateWiredConnection(formData.get("wired") === "on");
+    } catch (err) {
+      return {
+        error: err instanceof Error ? err.message : "Something went wrong — try again.",
+        saved: false,
+      };
+    }
+    return { error: null, saved: true };
   }
 
   return (
-    <AutoSubmitForm action={action} className="flex flex-col gap-2">
+    <MatchSettingsForm action={action} className="flex flex-col gap-2">
       <label className="flex flex-col gap-1 text-sm">
         Match region
         <span className="text-xs font-normal text-muted-foreground">
-          Required to queue — same or nearby-region players are matched by default. Saves as
-          soon as you pick one.
+          Required to queue — matching works off the distance between regions, so pick where you
+          actually play from. Other has no location, so it only ever matches other Other players.
         </span>
         <select
           key={me?.region ?? ""}
@@ -264,14 +280,18 @@ async function RegionForm({ userId }: { userId: string }) {
           ))}
         </select>
       </label>
-    </AutoSubmitForm>
+      <label className="mt-1 flex items-center gap-2 text-sm">
+        <input
+          key={String(me?.wiredConnection ?? false)}
+          type="checkbox"
+          name="wired"
+          defaultChecked={me?.wiredConnection ?? false}
+          className="size-4 rounded border-border"
+        />
+        On a wired (LAN) connection
+      </label>
+    </MatchSettingsForm>
   );
-}
-
-async function WiredConnectionField({ userId }: { userId: string }) {
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { wiredConnection: true } });
-
-  return <WiredConnectionForm action={updateWiredConnection} defaultChecked={me?.wiredConnection ?? false} />;
 }
 
 // Once a match is over, its full detail (room code, comments, dispute

@@ -169,21 +169,12 @@ export async function updateMaxRatingGap(maxRatingGap: number | null) {
   revalidatePath("/lobby");
 }
 
-export type WiredConnectionState = { error: string | null };
-
-export async function updateWiredConnection(
-  _prevState: WiredConnectionState,
-  formData: FormData,
-): Promise<WiredConnectionState> {
+// Throws instead of returning an error state, since the matchmaking form surfaces it
+export async function updateWiredConnection(wired: boolean) {
   const userId = await requireUserId();
-  try {
-    await setWiredConnection(userId, formData.get("wired") === "on");
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
-  }
+  await setWiredConnection(userId, wired);
   revalidatePath("/lobby");
   revalidatePath(`/players/${userId}`);
-  return { error: null };
 }
 
 export type ReportCharacterState = { reportedCharacter: string | null; error: string | null };
