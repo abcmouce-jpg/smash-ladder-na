@@ -50,7 +50,7 @@ export async function SiteHeader() {
 
           {user ? (
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:bg-muted data-[state=open]:text-foreground">
+              <DropdownMenuTrigger className="group flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:bg-muted data-[state=open]:text-foreground">
                 {user.image && (
                   <Image
                     src={user.image}
@@ -61,7 +61,7 @@ export async function SiteHeader() {
                   />
                 )}
                 <span className="min-w-0 truncate">{user.name}</span>
-                <ChevronDown className="size-3.5 shrink-0" />
+                <ChevronDown className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem asChild>
