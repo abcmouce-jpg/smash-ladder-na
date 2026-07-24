@@ -5,6 +5,7 @@ import {
   finalizeExpiredMatches,
 } from "@/lib/finalize";
 import { sweepLobbyPairing } from "@/lib/lobby";
+import { launchPreSeasonIfDue } from "@/lib/seasons";
 
 function isAuthorized(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -22,6 +23,8 @@ async function handle(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const preSeasonLaunched = await launchPreSeasonIfDue();
+
   // Pair off anyone still waiting before considering expiry, so a burst of
   // joins that missed each other at request time gets a second chance.
   const sweepPaired = await sweepLobbyPairing();
@@ -30,6 +33,7 @@ async function handle(request: Request) {
   const expiredFreeBattlePosts = await finalizeExpiredFreeBattlePosts();
 
   return NextResponse.json({
+    preSeasonLaunched,
     sweepPaired,
     expiredLobbyEntries,
     expiredNoReport,

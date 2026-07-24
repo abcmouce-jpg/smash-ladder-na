@@ -43,7 +43,7 @@ export async function getSeasonStandings(seasonId: string) {
 // resets rating/gamesPlayed for everyone so the next season starts fresh —
 // a full reset rather than a soft regression toward the mean, to keep the
 // rollover simple and predictable.
-export async function endActiveSeasonAndStartNext(nextName?: string) {
+export async function endActiveSeasonAndStartNext(nextName?: string, now = new Date()) {
   const active = await getActiveSeason();
   if (!active) throw new Error("No active season");
 
@@ -54,7 +54,7 @@ export async function endActiveSeasonAndStartNext(nextName?: string) {
   });
 
   await prisma.$transaction(async (tx) => {
-    await tx.season.update({ where: { id: active.id }, data: { endsAt: new Date() } });
+    await tx.season.update({ where: { id: active.id }, data: { endsAt: now } });
 
     if (standings.length > 0) {
       await tx.seasonStanding.createMany({
@@ -71,6 +71,25 @@ export async function endActiveSeasonAndStartNext(nextName?: string) {
     await tx.user.updateMany({ data: { rating: 1500, gamesPlayed: 0 } });
 
     const seasonCount = await tx.season.count();
-    await tx.season.create({ data: { name: nextName ?? `Season ${seasonCount + 1}` } });
+    await tx.season.create({ data: { name: nextName ?? `Season ${seasonCount + 1}`, startsAt: now } });
   });
+}
+
+// Polled from the cron route on every tick. Whatever season was active
+// beforehand (dev testing, pre-season tinkering) gets closed out and
+// snapshotted like a normal season rollover the moment pre-season
+// officially launches, so ratings/games-played reset to a clean slate for
+// everyone right on schedule — no manual step needed.
+// Idempotent: once the active season's startsAt is at/after
+// PRE_SEASON_STARTS_AT, there's nothing left to launch.
+export async function launchPreSeasonIfDue(now = new Date()) {
+  if (now < PRE_SEASON_STARTS_AT) return false;
+  const active = await getActiveSeason();
+  if (active) {
+    if (active.startsAt >= PRE_SEASON_STARTS_AT) return false;
+    await endActiveSeasonAndStartNext("Season 1", now);
+  } else {
+    await prisma.season.create({ data: { name: "Season 1", startsAt: now } });
+  }
+  return true;
 }
