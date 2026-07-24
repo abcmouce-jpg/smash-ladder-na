@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { RegionSetupBanner } from "@/components/region-setup-banner";
+import { PreSeasonBanner } from "@/components/pre-season-banner";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import "./globals.css";
 
@@ -47,6 +48,7 @@ export default function RootLayout({
           />
         )}
         <SiteHeader />
+        <PreSeasonBanner />
         <RegionSetupBanner />
         {children}
         <SiteFooter />

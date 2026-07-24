@@ -6,6 +6,10 @@ import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 // past a DST boundary.
 export const PRE_SEASON_STARTS_AT = new Date("2026-07-25T18:00:00-04:00");
 
+export function hasPreSeasonStarted() {
+  return Date.now() >= PRE_SEASON_STARTS_AT.getTime();
+}
+
 // Temporary: ending a season resets EVERYONE's rating, and enough people
 // hold ADMIN now (mostly for community/promotion reasons, not moderation)
 // that this narrows who can trigger it, independent of the ADMIN/MOD role
