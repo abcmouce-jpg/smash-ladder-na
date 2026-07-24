@@ -7,7 +7,6 @@ import { SiteFooter } from "@/components/site-footer";
 import { RegionSetupBanner } from "@/components/region-setup-banner";
 import { PreSeasonBanner } from "@/components/pre-season-banner";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
-import { PRE_SEASON_STARTS_AT } from "@/lib/seasons";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -49,7 +48,7 @@ export default function RootLayout({
           />
         )}
         <SiteHeader />
-        <PreSeasonBanner startsAt={PRE_SEASON_STARTS_AT.toISOString()} />
+        <PreSeasonBanner />
         <RegionSetupBanner />
         {children}
         <SiteFooter />

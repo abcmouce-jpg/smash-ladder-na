@@ -74,7 +74,7 @@ and fill in the values.
 
 ## Testing
 
-Run the unit tests with:
+Run the unit tests (pure functions — rank tiers, Elo math, regions, etc., no database) with:
 
 ```bash
 npm test
@@ -82,6 +82,22 @@ npm test
 
 Use `npm run test:watch` for watch mode during development. Tests live alongside the source
 files they cover (`src/lib/*.test.ts`) and run in CI on every push and pull request.
+
+Core flows that touch the database — lobby pairing, Elo confirmation, match finalization, and
+dispute resolution — have integration tests (`src/lib/*.integration.test.ts`) that run against a
+real Postgres database instead of mocking it. Locally, point them at a separate database (so
+they can truncate freely without touching your dev data):
+
+```bash
+createdb -h localhost -p 5432 -U postgres smashladder_test
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/smashladder_test" \
+DIRECT_URL="postgresql://postgres:postgres@localhost:5432/smashladder_test" \
+  npx prisma migrate deploy
+
+npm run test:integration
+```
+
+CI runs these against a disposable Postgres service container — no local setup needed there.
 
 ## Contributing
 
