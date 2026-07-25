@@ -4,6 +4,24 @@ import { listDisputedGames, resolveDisputedGame } from "@/lib/disputes";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
+// A game the set doesn't need a mod for — winnerId is settled at creation,
+// no reports involved. actorAId is the winner for consistency with how the
+// app itself derives it (winner strikes/picks first from game 2 on).
+async function createDecidedGame(matchId: string, gameNumber: number, winnerId: string, loserId: string) {
+  return prisma.matchGame.create({
+    data: {
+      matchId,
+      gameNumber,
+      actorAId: winnerId,
+      actorAStrikes: gameNumber === 1 ? 1 : 2,
+      actorBId: loserId,
+      actorBStrikes: gameNumber === 1 ? 2 : 0,
+      finalStage: "Battlefield",
+      winnerId,
+    },
+  });
+}
+
 async function createDisputedGame(matchId: string, p1: string, p2: string, gameNumber = 1) {
   return prisma.matchGame.create({
     data: {
@@ -56,30 +74,8 @@ describe("disputes", () => {
     });
     // p1 already won games 1-2 outright (BO5 needs 3 wins) — the disputed
     // game 3 is the decider.
-    await prisma.matchGame.create({
-      data: {
-        matchId: match.id,
-        gameNumber: 1,
-        actorAId: p1.id,
-        actorAStrikes: 1,
-        actorBId: p2.id,
-        actorBStrikes: 2,
-        finalStage: "Battlefield",
-        winnerId: p1.id,
-      },
-    });
-    await prisma.matchGame.create({
-      data: {
-        matchId: match.id,
-        gameNumber: 2,
-        actorAId: p1.id,
-        actorAStrikes: 2,
-        actorBId: p2.id,
-        actorBStrikes: 0,
-        finalStage: "Smashville",
-        winnerId: p1.id,
-      },
-    });
+    await createDecidedGame(match.id, 1, p1.id, p2.id);
+    await createDecidedGame(match.id, 2, p1.id, p2.id);
     await createDisputedGame(match.id, p1.id, p2.id, 3);
 
     await resolveDisputedGame(match.id, 3, p1.id);
