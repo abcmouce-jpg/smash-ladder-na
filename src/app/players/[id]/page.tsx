@@ -62,7 +62,6 @@ export default async function PlayerProfilePage({
           </h1>
           <p className="text-sm tabular-nums text-muted-foreground">
             {player.rating} rating · {player.gamesPlayed} games played
-            {player.mainCharacter ? ` · mains ${player.mainCharacter}` : ""}
           </p>
           <div className="mt-1.5 flex items-center gap-1.5">
             <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />

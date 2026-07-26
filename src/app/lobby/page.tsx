@@ -13,6 +13,7 @@ import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tie
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CharacterIcon } from "@/components/character-icon";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
@@ -355,7 +356,11 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           <p className="font-medium">{opponent.username}</p>
           <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
           {topCharacters.length > 0 && (
-            <p className="text-sm text-muted-foreground">Usually plays: {topCharacters.join(", ")}</p>
+            <div className="mt-1 flex items-center gap-1.5">
+              {topCharacters.map((character) => (
+                <CharacterIcon key={character} name={character} size={20} />
+              ))}
+            </div>
           )}
         </div>
         {games.length > 0 && (
