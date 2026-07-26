@@ -151,12 +151,64 @@ rating/games-played line:
   one is mapped (see "Real character icons" below), falling back to the
   original colored-initials badge only for an unmapped name.
 
+## Character Usage card (profile page)
+
+A new collapsible card on the profile page listing every character a
+player has used, ordered by usage, each with a usage percentage, game
+count, and win/loss record — a full breakdown, versus the top-3 summary
+shown elsewhere.
+
+**Data**: `getCharacterUsage(userId): Promise<CharacterUsage[]>` in
+`src/lib/players.ts`, generalizing the same aggregation query
+`getTopCharacters` used (same inclusion rule: `CONFIRMED` matches only,
+non-null `winnerId` only). `getTopCharacters` is refactored to call
+`getCharacterUsage` and just map+slice the names — same external
+behavior, no duplicated query logic. Each entry:
+
+```ts
+interface CharacterUsage {
+  character: string;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number; // 0-100, rounded
+  usagePercent: number; // 0-100, rounded — this character's share of the player's total qualifying games
+}
+```
+
+Ordered by `games` descending, ties broken alphabetically (same
+convention as `getTopCharacters`). The profile page fetches
+`getCharacterUsage` once and derives its existing top-3 icon row from
+the first 3 entries, rather than querying twice.
+
+**UI** (`src/components/character-usage-card.tsx`): a native
+`<details>`/`<summary>` element styled to match the app's `Card`
+component (no client JS needed for the collapse/expand toggle — just
+the `open` HTML attribute and a `ChevronDown` that rotates via Tailwind's
+`group-open:` variant). Defaults to expanded (`open`). The row list sits
+in a `max-h-80 overflow-y-auto` container, so a long roster scrolls
+within the card instead of growing the page indefinitely, independent of
+the collapse state. Renders nothing (`null`) when a player has no
+qualifying character history.
+
+Each row: `CharacterIcon`, the character name, a small usage-percent bar
+(width = `usagePercent`), and win/loss text with a color-coded win-rate
+badge (`success` ≥55%, `warning` 45-54%, `destructive` <45% — small-sample
+percentages like 100% on 1 game are expected and not specially flagged).
+A row's character matching the player's self-declared `mainCharacter`
+gets a small "Main" badge next to its name, connecting this computed
+breakdown back to that self-reported field.
+
 ## Testing
 
 - Unit test `getTopCharacters` covering: no games → `[]`; single character;
   multiple characters ranked by count; tie broken alphabetically; excludes
   games from non-`CONFIRMED` matches; excludes games with null `winnerId`;
   respects `limit`.
+- Unit test `getCharacterUsage` covering: no games → `[]`; per-character
+  games/wins/losses/winRate/usagePercent computed correctly across two
+  characters; ordering by games descending with alphabetical tie-break;
+  same `CONFIRMED`/non-null-`winnerId` exclusions as `getTopCharacters`.
 - Manual check in the lobby UI: pair with an opponent who has confirmed match
   history across multiple characters and confirm the icon row renders with
   the right count and order, that hovering an individual icon shows that
