@@ -185,7 +185,8 @@ the first 3 entries, rather than querying twice.
 `<details>`/`<summary>` element styled to match the app's `Card`
 component (no client JS needed for the collapse/expand toggle — just
 the `open` HTML attribute and a `ChevronDown` that rotates via Tailwind's
-`group-open:` variant). Defaults to expanded (`open`). The row list sits
+`group-open:` variant). Defaults to collapsed (no `open` attribute) so
+it doesn't dominate the page on load. The row list sits
 in a `max-h-80 overflow-y-auto` container, so a long roster scrolls
 within the card instead of growing the page indefinitely, independent of
 the collapse state. Renders nothing (`null`) when a player has no
