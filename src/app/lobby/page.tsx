@@ -4,6 +4,7 @@ import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
+import { getTopCharacters } from "@/lib/players";
 import { characterPickState, getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
@@ -12,6 +13,7 @@ import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tie
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CharacterIcon } from "@/components/character-icon";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
@@ -325,6 +327,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   }
 
   const games = await getMatchGames(match.id);
+  const topCharacters = await getTopCharacters(opponent.id);
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
     if (g.winnerId === userId) wins.me++;
@@ -350,15 +353,18 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           />
         )}
         <div>
-          <p className="font-medium">
-            {opponent.username}
-            {opponent.mainCharacter && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                ({opponent.mainCharacter})
-              </span>
-            )}
-          </p>
+          <p className="font-medium">{opponent.username}</p>
           <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+          {topCharacters.length > 0 && (
+            <div className="group/characters relative mt-1 flex items-center gap-1.5">
+              <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+                Most played characters
+              </span>
+              {topCharacters.map((character) => (
+                <CharacterIcon key={character} name={character} size={20} />
+              ))}
+            </div>
+          )}
         </div>
         {games.length > 0 && (
           <Badge variant="outline" className="ml-auto tabular-nums">

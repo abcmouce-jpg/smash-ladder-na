@@ -1,5 +1,8 @@
-// Copyright-safe stand-in for a character portrait: a colored initial
-// badge, deterministic per character name (no game art involved).
+import Image from "next/image";
+import { characterIconSlug } from "@/lib/character-icons";
+
+// Falls back to a colored initials badge for any name without a mapped
+// icon file (e.g. stale historical data recorded before a roster rename).
 const PALETTE = [
   "bg-red-500",
   "bg-orange-500",
@@ -28,6 +31,20 @@ function initialsFor(name: string) {
 }
 
 export function CharacterIcon({ name, size = 24 }: { name: string; size?: number }) {
+  const slug = characterIconSlug(name);
+  if (slug) {
+    return (
+      <Image
+        src={`/characters/${slug}.png`}
+        alt={name}
+        title={name}
+        width={size}
+        height={size}
+        className="shrink-0 rounded-full"
+      />
+    );
+  }
+
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${colorFor(name)}`}

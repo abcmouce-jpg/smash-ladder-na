@@ -146,3 +146,56 @@ export async function getTopRivals(userId: string, limit = 3) {
     ...rec,
   }));
 }
+
+export interface CharacterUsage {
+  character: string;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number; // 0-100, rounded
+  usagePercent: number; // 0-100, rounded, share of this player's qualifying games
+}
+
+// Per-character breakdown for the profile page's "Character Usage" card.
+// Only counts games from confirmed matches with a recorded winner — same
+// filter tallySetWins in match-games.ts uses to skip disputed/void games.
+// Ordered by games played (usage) descending, ties broken alphabetically.
+export async function getCharacterUsage(userId: string): Promise<CharacterUsage[]> {
+  const games = await prisma.matchGame.findMany({
+    where: {
+      winnerId: { not: null },
+      match: { status: MatchStatus.CONFIRMED },
+      OR: [{ actorAId: userId }, { actorBId: userId }],
+    },
+    select: { actorAId: true, actorACharacter: true, actorBId: true, actorBCharacter: true, winnerId: true },
+  });
+
+  const stats = new Map<string, { games: number; wins: number }>();
+  for (const g of games) {
+    const character = g.actorAId === userId ? g.actorACharacter : g.actorBCharacter;
+    if (!character) continue;
+    const entry = stats.get(character) ?? { games: 0, wins: 0 };
+    entry.games++;
+    if (g.winnerId === userId) entry.wins++;
+    stats.set(character, entry);
+  }
+
+  const totalGames = [...stats.values()].reduce((sum, s) => sum + s.games, 0);
+
+  return [...stats.entries()]
+    .sort(([nameA, a], [nameB, b]) => b.games - a.games || nameA.localeCompare(nameB))
+    .map(([character, { games, wins }]) => ({
+      character,
+      games,
+      wins,
+      losses: games - wins,
+      winRate: Math.round((wins / games) * 100),
+      usagePercent: Math.round((games / totalGames) * 100),
+    }));
+}
+
+// For the lobby's "who am I about to play" scouting line.
+export async function getTopCharacters(userId: string, limit = 3) {
+  const usage = await getCharacterUsage(userId);
+  return usage.slice(0, limit).map((u) => u.character);
+}

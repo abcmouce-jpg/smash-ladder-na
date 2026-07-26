@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import {
   currentStreak,
   getCareerStats,
+  getCharacterUsage,
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/players";
 import { computeAchievements } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
+import { CharacterUsageCard } from "@/components/character-usage-card";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
@@ -33,13 +35,15 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints, careerStats, rivals, blocked] = await Promise.all([
+  const [history, chartPoints, careerStats, rivals, blocked, characterUsage] = await Promise.all([
     getPlayerMatchHistory(id),
     getRatingChartPoints(id),
     getCareerStats(id),
     getTopRivals(id),
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
+    getCharacterUsage(id),
   ]);
+  const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
   const wins = history.filter((m) => m.won).length;
   const losses = history.length - wins;
   const winRate = history.length > 0 ? Math.round((wins / history.length) * 100) : null;
@@ -66,7 +70,19 @@ export default async function PlayerProfilePage({
             </h1>
             <p className="text-sm tabular-nums text-muted-foreground">
               {player.rating} rating · {player.gamesPlayed} games played
-              {player.mainCharacter ? ` · mains ${player.mainCharacter}` : ""}
+              {topCharacters.length > 0 && (
+                <>
+                  {" · "}
+                  <span className="group/characters relative inline-flex items-center gap-1 align-middle">
+                    <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+                      Most played characters
+                    </span>
+                    {topCharacters.map((character) => (
+                      <CharacterIcon key={character} name={character} size={16} />
+                    ))}
+                  </span>
+                </>
+              )}
             </p>
             <div className="mt-1.5 flex items-center gap-1.5">
               <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
@@ -204,6 +220,8 @@ export default async function PlayerProfilePage({
           </CardContent>
         </Card>
       )}
+
+      <CharacterUsageCard usage={characterUsage} mainCharacter={player.mainCharacter} />
 
       <div className="mt-10">
         <div className="flex items-center gap-2">

@@ -4,8 +4,8 @@ import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 import { isWiredClaimUntrustworthy } from "@/lib/account";
 
 export const matchWithPlayers = {
-  player1: { select: { id: true, username: true, avatarUrl: true, rating: true, mainCharacter: true } },
-  player2: { select: { id: true, username: true, avatarUrl: true, rating: true, mainCharacter: true } },
+  player1: { select: { id: true, username: true, avatarUrl: true, rating: true } },
+  player2: { select: { id: true, username: true, avatarUrl: true, rating: true } },
 } as const;
 
 export async function getUnresolvedMatchForUser(userId: string) {
