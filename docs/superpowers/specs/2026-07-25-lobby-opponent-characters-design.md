@@ -103,13 +103,11 @@ opponent and render a row of icons directly under the existing rating line:
 - `const topCharacters = await getTopCharacters(opponent.id);` added near the top
   of `PairedView` (already an `async` server component).
 - If `topCharacters` is empty, the row is omitted entirely — no placeholder icon.
-- No visible character-name text — `CharacterIcon` already renders a native
+- No visible character-name text — `CharacterIcon` renders a native
   `title={name}` tooltip on hover, which is how a character's name is
-  discovered. No new icon assets needed: `CharacterIcon` takes the plain
-  character name string and derives a deterministic colored-initials badge
-  from it (see `src/components/character-icon.tsx`), the same component
-  already used on the leaderboard, characters, and profile pages — so the
-  real-game-art icon sourcing explored earlier in this project is moot.
+  discovered. `CharacterIcon`'s image comes from a real official stock-icon
+  asset when one is mapped (see "Real character icons" below), falling back
+  to the original colored-initials badge only for an unmapped name.
 
 ## Testing
 
@@ -125,17 +123,48 @@ opponent and render a row of icons directly under the existing rating line:
 - Manual check on the profile page: confirm the `"· mains X"` text is gone
   and the existing icon next to the username still shows a tooltip on hover.
 
-## Resolved: character icons (was "future work")
+## Resolved: character icons (was "future work"), then reversed to real art
 
-Implemented as part of this feature rather than deferred, once the icon
-question was revisited. Real official game-art icon sources (PNG/SVG rips
-of in-game assets) were researched earlier in this project and rejected —
-`src/components/character-icon.tsx` already existed as a deliberately
-**copyright-safe** placeholder (a colored, deterministic initials badge,
-no real game art), already used on the leaderboard, characters, and
-players pages, and this feature now uses it too. No new icon assets or a
-name→file mapping table were needed, since `CharacterIcon` only needs the
-plain character name string.
+Two decisions happened in sequence, both explicit and both worth keeping on
+record:
+
+1. **First pass**: icons were implemented using the existing copyright-safe
+   `CharacterIcon` placeholder (colored, deterministic initials badge, no
+   real game art) — already used on the leaderboard, characters, and
+   players pages. No new assets needed at that point.
+2. **Reversed immediately after**, by explicit request: swap in the real
+   official stock-icon art that was researched and set aside earlier in
+   this project (see the git history of this file for that research —
+   source, coverage confirmation, and the licensing note about
+   Nintendo/Bandai-Namco/HAL/Konami/Sega/Capcom/MonolithSoft/Atlus/
+   Microsoft/Mojang copyright). This explicitly revisits and reverses the
+   "not to be reconsidered without revisiting this decision explicitly"
+   note from the first pass.
+
+**What actually shipped:**
+
+- Source: `~/Downloads/Super Smash Bros Ultimate/Stock Icons` (alt costume
+  `00`, the default, per character). 86 files copied into
+  `public/characters/<slug>.png`, where `<slug>` is Nintendo's internal
+  codename (e.g. `gaogaen` = Incineroar), not the display name.
+- New mapping table `CHARACTER_ICON_SLUGS` in `src/lib/character-icons.ts`,
+  typed as `Record<SmashCharacter, string>` so the compiler enforces full
+  roster coverage — every entry in `SMASH_CHARACTERS` must have a mapping,
+  or `tsc` fails. `Pyra/Mythra` (one combined roster entry) maps to one
+  representative icon (`eflame`, Pyra's).
+- `CharacterIcon` (`src/components/character-icon.tsx`) now renders the
+  mapped image via `next/image` when a slug exists, falling back to the
+  original colored-initials rendering for any name without one (e.g. stale
+  historical data that predates a roster rename) — same component name and
+  props (`name`, `size`) as before, so no call site changed.
+- Applied everywhere `CharacterIcon` is used: leaderboard, characters page,
+  profile page, and this feature's lobby row — not lobby-only, so the app
+  has one consistent icon treatment rather than two.
+- Test: `src/lib/character-icons.test.ts` asserts every mapped slug's PNG
+  file actually exists in `public/characters/` — the one thing the
+  `Record<SmashCharacter, string>` type can't guarantee on its own, since
+  it only enforces that every roster entry has *some* string mapped, not
+  that a file backing that string exists on disk.
 
 Context worth keeping around: a teammate previously tried adding
 `CharacterIcon` to this same lobby card (`6a50031`) and reverted it
