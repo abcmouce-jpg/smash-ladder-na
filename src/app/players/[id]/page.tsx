@@ -9,6 +9,7 @@ import {
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
+  getTopCharacters,
   getTopRivals,
 } from "@/lib/players";
 import { computeAchievements } from "@/lib/rank-tier";
@@ -31,11 +32,12 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints, careerStats, rivals] = await Promise.all([
+  const [history, chartPoints, careerStats, rivals, topCharacters] = await Promise.all([
     getPlayerMatchHistory(id),
     getRatingChartPoints(id),
     getCareerStats(id),
     getTopRivals(id),
+    getTopCharacters(id),
   ]);
   const wins = history.filter((m) => m.won).length;
   const losses = history.length - wins;
@@ -62,6 +64,16 @@ export default async function PlayerProfilePage({
           </h1>
           <p className="text-sm tabular-nums text-muted-foreground">
             {player.rating} rating · {player.gamesPlayed} games played
+            {topCharacters.length > 0 && (
+              <>
+                {" · "}
+                <span className="inline-flex items-center gap-1 align-middle">
+                  {topCharacters.map((character) => (
+                    <CharacterIcon key={character} name={character} size={16} />
+                  ))}
+                </span>
+              </>
+            )}
           </p>
           <div className="mt-1.5 flex items-center gap-1.5">
             <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />

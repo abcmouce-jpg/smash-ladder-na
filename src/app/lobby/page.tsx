@@ -357,6 +357,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
           {topCharacters.length > 0 && (
             <div className="mt-1 flex items-center gap-1.5">
+              <span className="text-sm text-muted-foreground">Most played characters:</span>
               {topCharacters.map((character) => (
                 <CharacterIcon key={character} name={character} size={20} />
               ))}
