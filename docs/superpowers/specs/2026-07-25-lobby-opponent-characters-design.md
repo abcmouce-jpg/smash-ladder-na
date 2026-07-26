@@ -17,22 +17,25 @@ history, so players can scout who they're about to face.
 - Only shown while the match is active (the card rendered at `PairedView` lines
   334–361); the post-match confirmed/cancelled/expired view doesn't show rating
   either today, and is out of scope.
-- Icons via `CharacterIcon` (`src/components/character-icon.tsx`), preceded
-  by a fixed label — `"Most played characters:"` — rather than per-character
-  visible names; each character's name is still discoverable via the
-  component's built-in `title` attribute (native hover tooltip). The label
-  deliberately doesn't say "top 3": the row can show fewer than 3 icons
-  (spec: "Result size"), so a number in the label would be wrong whenever
-  an opponent has played fewer distinct characters than the limit.
+- Icons via `CharacterIcon` (`src/components/character-icon.tsx`) — no
+  visible label text at all. The icon row's container carries
+  `title="Most played characters"`, a native hover tooltip for the group;
+  hovering an individual icon instead shows that icon's own `title={name}`
+  (the innermost element's `title` wins), so the group tooltip only
+  surfaces when hovering the row itself rather than a specific icon. This
+  wording (not "top 3") is deliberate: the row can show fewer than 3 icons
+  (spec: "Result size"), so a number would be wrong whenever an opponent
+  has played fewer distinct characters than the limit.
 - **Also added to the profile page** (`src/app/players/[id]/page.tsx`):
-  the same `getTopCharacters` result, rendered as an icon row (no label
-  here, just the icons) on the same line as `"{rating} rating ·
-  {gamesPlayed} games played"`, appended after a matching `" · "`
-  separator. This is in addition to — not a replacement for — the
-  existing self-declared `mainCharacter` icon next to the username; that
-  icon, its placement/size, and the field's self-declared nature are
-  unchanged. The redundant `"· mains X"` text below it was already removed
-  in an earlier pass on this branch, since the icon + tooltip covers it.
+  the same `getTopCharacters` result, rendered as an icon row (same
+  group-tooltip treatment, no visible label) on the same line as
+  `"{rating} rating · {gamesPlayed} games played"`, appended after a
+  matching `" · "` separator. This is in addition to — not a replacement
+  for — the existing self-declared `mainCharacter` icon next to the
+  username; that icon, its placement/size, and the field's self-declared
+  nature are unchanged. The redundant `"· mains X"` text below it was
+  already removed in an earlier pass on this branch, since the icon +
+  tooltip covers it.
 - **Supersedes** a since-landed change on `main` (`f239f2d`, "Show the
   opponent's voted main character (as text) next to their name") that shows
   `opponent.mainCharacter` — the same single self-declared field described
@@ -98,8 +101,7 @@ opponent and render a row of icons directly under the existing rating line:
 <p className="font-medium">{opponent.username}</p>
 <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
 {topCharacters.length > 0 && (
-  <div className="mt-1 flex items-center gap-1.5">
-    <span className="text-sm text-muted-foreground">Most played characters:</span>
+  <div className="mt-1 flex items-center gap-1.5" title="Most played characters">
     {topCharacters.map((character) => (
       <CharacterIcon key={character} name={character} size={20} />
     ))}
@@ -116,7 +118,10 @@ rating/games-played line:
   {topCharacters.length > 0 && (
     <>
       {" · "}
-      <span className="inline-flex items-center gap-1 align-middle">
+      <span
+        className="inline-flex items-center gap-1 align-middle"
+        title="Most played characters"
+      >
         {topCharacters.map((character) => (
           <CharacterIcon key={character} name={character} size={16} />
         ))}
@@ -130,12 +135,11 @@ rating/games-played line:
   `getTopCharacters(id)` (profile) fetched alongside the page's other data.
 - If `topCharacters` is empty, the row/segment is omitted entirely — no
   placeholder icon, no dangling separator.
-- No visible per-character name text in either location — `CharacterIcon`
-  renders a native `title={name}` tooltip on hover, which is how a
-  character's name is discovered. `CharacterIcon`'s image comes from a real
-  official stock-icon asset when one is mapped (see "Real character icons"
-  below), falling back to the original colored-initials badge only for an
-  unmapped name.
+- No visible per-character name text, and no visible group label, in
+  either location — just the two nested `title` tooltips described above.
+  `CharacterIcon`'s image comes from a real official stock-icon asset when
+  one is mapped (see "Real character icons" below), falling back to the
+  original colored-initials badge only for an unmapped name.
 
 ## Testing
 
@@ -145,9 +149,10 @@ rating/games-played line:
   respects `limit`.
 - Manual check in the lobby UI: pair with an opponent who has confirmed match
   history across multiple characters and confirm the icon row renders with
-  the right count and order, that hovering each icon shows the correct
-  character name via the native tooltip, and with a fresh opponent (no
-  history) confirm the row is omitted entirely.
+  the right count and order, that hovering an individual icon shows that
+  character's name, that hovering the row itself (not directly on an icon)
+  shows "Most played characters", and with a fresh opponent (no history)
+  confirm the row is omitted entirely.
 - Manual check on the profile page: confirm the `"· mains X"` text is gone,
   the existing icon next to the username still shows a tooltip on hover,
   and the new most-played-characters icon row appears after "games played"
