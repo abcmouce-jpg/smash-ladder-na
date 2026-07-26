@@ -184,8 +184,6 @@ export default async function PlayerProfilePage({
         </CardContent>
       </Card>
 
-      <CharacterUsageCard usage={characterUsage} mainCharacter={player.mainCharacter} />
-
       {rivals.length > 0 && (
         <Card className="mt-4">
           <CardContent className="pt-4">
@@ -209,6 +207,8 @@ export default async function PlayerProfilePage({
           </CardContent>
         </Card>
       )}
+
+      <CharacterUsageCard usage={characterUsage} mainCharacter={player.mainCharacter} />
 
       <div className="mt-10">
         <div className="flex items-center gap-2">
