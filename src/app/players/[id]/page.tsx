@@ -6,14 +6,15 @@ import { auth } from "@/auth";
 import {
   currentStreak,
   getCareerStats,
+  getCharacterUsage,
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
-  getTopCharacters,
   getTopRivals,
 } from "@/lib/players";
 import { computeAchievements } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
+import { CharacterUsageCard } from "@/components/character-usage-card";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
@@ -32,13 +33,14 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints, careerStats, rivals, topCharacters] = await Promise.all([
+  const [history, chartPoints, careerStats, rivals, characterUsage] = await Promise.all([
     getPlayerMatchHistory(id),
     getRatingChartPoints(id),
     getCareerStats(id),
     getTopRivals(id),
-    getTopCharacters(id),
+    getCharacterUsage(id),
   ]);
+  const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
   const wins = history.filter((m) => m.won).length;
   const losses = history.length - wins;
   const winRate = history.length > 0 ? Math.round((wins / history.length) * 100) : null;
@@ -181,6 +183,8 @@ export default async function PlayerProfilePage({
           </div>
         </CardContent>
       </Card>
+
+      <CharacterUsageCard usage={characterUsage} mainCharacter={player.mainCharacter} />
 
       {rivals.length > 0 && (
         <Card className="mt-4">
