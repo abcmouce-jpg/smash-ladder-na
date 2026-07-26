@@ -4,6 +4,7 @@ import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
+import { getTopCharacters } from "@/lib/players";
 import { characterPickState, getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
@@ -325,6 +326,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   }
 
   const games = await getMatchGames(match.id);
+  const topCharacters = await getTopCharacters(opponent.id);
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
     if (g.winnerId === userId) wins.me++;
@@ -350,15 +352,11 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           />
         )}
         <div>
-          <p className="font-medium">
-            {opponent.username}
-            {opponent.mainCharacter && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                ({opponent.mainCharacter})
-              </span>
-            )}
-          </p>
+          <p className="font-medium">{opponent.username}</p>
           <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+          {topCharacters.length > 0 && (
+            <p className="text-sm text-muted-foreground">Usually plays: {topCharacters.join(", ")}</p>
+          )}
         </div>
         {games.length > 0 && (
           <Badge variant="outline" className="ml-auto tabular-nums">
