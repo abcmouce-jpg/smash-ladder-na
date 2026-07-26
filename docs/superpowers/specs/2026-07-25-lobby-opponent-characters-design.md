@@ -18,17 +18,24 @@ history, so players can scout who they're about to face.
   334–361); the post-match confirmed/cancelled/expired view doesn't show rating
   either today, and is out of scope.
 - Icons via `CharacterIcon` (`src/components/character-icon.tsx`) — no
-  visible label text at all. The icon row's container carries
-  `title="Most played characters"`, a native hover tooltip for the group;
-  hovering an individual icon instead shows that icon's own `title={name}`
-  (the innermost element's `title` wins), so the group tooltip only
-  surfaces when hovering the row itself rather than a specific icon. This
-  wording (not "top 3") is deliberate: the row can show fewer than 3 icons
-  (spec: "Result size"), so a number would be wrong whenever an opponent
-  has played fewer distinct characters than the limit.
+  visible label text at all. A custom hover tooltip reading "Most played
+  characters" sits on the row's container. A plain `title` attribute on
+  the container was tried first and didn't work: native `title` tooltips
+  resolve to the innermost hovered element, and with 20px icons only 6px
+  apart, the icons fill almost the entire hoverable area — so the browser
+  always showed an icon's own `title={name}` instead, leaving the
+  container's tooltip effectively unreachable. The actual implementation
+  uses Tailwind's `group/characters` + `group-hover/characters:opacity-100`
+  on an absolutely-positioned `<span>`, which fires on the container
+  whenever the pointer is over it *or any descendant* — so hovering
+  anywhere on the row shows "Most played characters" reliably, while each
+  icon's own `title={name}` still independently shows that character's
+  name. This wording (not "top 3") is deliberate: the row can show fewer
+  than 3 icons (spec: "Result size"), so a number would be wrong whenever
+  an opponent has played fewer distinct characters than the limit.
 - **Also added to the profile page** (`src/app/players/[id]/page.tsx`):
   the same `getTopCharacters` result, rendered as an icon row (same
-  group-tooltip treatment, no visible label) on the same line as
+  custom group-hover tooltip, no visible label) on the same line as
   `"{rating} rating · {gamesPlayed} games played"`, appended after a
   matching `" · "` separator. This is in addition to — not a replacement
   for — the existing self-declared `mainCharacter` icon next to the
@@ -101,7 +108,10 @@ opponent and render a row of icons directly under the existing rating line:
 <p className="font-medium">{opponent.username}</p>
 <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
 {topCharacters.length > 0 && (
-  <div className="mt-1 flex items-center gap-1.5" title="Most played characters">
+  <div className="group/characters relative mt-1 flex items-center gap-1.5">
+    <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+      Most played characters
+    </span>
     {topCharacters.map((character) => (
       <CharacterIcon key={character} name={character} size={20} />
     ))}
@@ -118,10 +128,10 @@ rating/games-played line:
   {topCharacters.length > 0 && (
     <>
       {" · "}
-      <span
-        className="inline-flex items-center gap-1 align-middle"
-        title="Most played characters"
-      >
+      <span className="group/characters relative inline-flex items-center gap-1 align-middle">
+        <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+          Most played characters
+        </span>
         {topCharacters.map((character) => (
           <CharacterIcon key={character} name={character} size={16} />
         ))}
