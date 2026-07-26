@@ -67,10 +67,10 @@ export default async function PlayerProfilePage({
             {topCharacters.length > 0 && (
               <>
                 {" · "}
-                <span
-                  className="inline-flex items-center gap-1 align-middle"
-                  title="Most played characters"
-                >
+                <span className="group/characters relative inline-flex items-center gap-1 align-middle">
+                  <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+                    Most played characters
+                  </span>
                   {topCharacters.map((character) => (
                     <CharacterIcon key={character} name={character} size={16} />
                   ))}
