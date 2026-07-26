@@ -19,7 +19,7 @@ history, so players can scout who they're about to face.
   either today, and is out of scope.
 - Does not touch the profile page or `mainCharacter`.
 - Text only for now — character icons are a future enhancement, not part of this
-  spec.
+  spec (see "Future work: character icons" below for the decided asset source).
 
 ## Data source and aggregation
 
@@ -99,9 +99,48 @@ opponent and render a line directly under the existing rating line:
   history across multiple characters and confirm the line renders correctly,
   and with a fresh opponent (no history) and confirm the line is omitted.
 
+## Future work: character icons
+
+Not part of this spec, but the asset source is decided so the follow-up work
+isn't blocked later:
+
+- **Source**: `~/Downloads/Super Smash Bros Ultimate/Stock Icons` — official
+  in-game stock icons ripped from the game files (credited in that folder's
+  `Tag.txt` to The Spriters Resource / "Random Talking Bush"; copyright spans
+  Nintendo, Bandai-Namco, HAL, Konami, Sega, Capcom, MonolithSoft, Atlus,
+  Microsoft, Mojang). PNG, 64×64 with alpha, ~7-8KB each. Ignore the sibling
+  `No Gamma Fix` subfolder — same filenames, different color processing
+  (different pixel data) — the top-level folder is the one to use.
+- **Naming**: files are `chara_2_<internal-codename>_<alt 00-07>.png`, where
+  the codename is Nintendo's internal name, not the display name (e.g.
+  `gaogaen` = Incineroar, `jack` = Joker, `brave` = Hero, `buddy` = Banjo &
+  Kazooie, `dolly` = Terry, `master` = Byleth, `tantan` = Min Min, `pickel` =
+  Steve, `edge` = Sephiroth, `eflame`/`elight` = Pyra/Mythra, `demon` =
+  Kazuya, `trail` = Sora). Confirmed full coverage of every entry in
+  `SMASH_CHARACTERS` (`src/lib/characters.ts`), including all Fighter Pass 1
+  and 2 characters — Pyra and Mythra each get their own icon (`eflame` /
+  `elight`), better than falling back to one shared icon. Mii
+  Fighter/Swordfighter/Gunner each have exactly 1 icon (no alt colors — Mii
+  costumes aren't fixed palettes like other fighters).
+- **What ships now vs. later**: only the alt `00` (default costume) PNG per
+  character gets copied into the repo, at `public/characters/<slug>_00.png`
+  (following the existing `public/smash-icon.webp` convention) — roughly 90
+  files, well under 1MB. The remaining 7 alts per character (~630 files, a
+  few MB) are deliberately left out of the repo until the alt-picker work
+  below is actually built, so unused assets don't accumulate in the meantime.
+- **Needed before use**: a static codename → display-name mapping table
+  (covering all ~90 slugs, including the three `ptrainer` sub-pokémon
+  variants) so `getTopCharacters`'s output (`SMASH_CHARACTERS` display names)
+  can resolve to the right file.
+- **Later, separate feature**: let a user pick which of the 8 alt costumes
+  represents their declared main on their profile; the lobby icon (and any
+  other icon usage) would render that chosen alt instead of always `00`.
+  This requires the full 8-alt set to be present, storing a per-user alt
+  choice, and a profile UI to pick it — out of scope for now.
+
 ## Out of scope / explicitly not doing
 
-- Character icons (future work, noted by the user).
+- Character icons beyond the future-work note above.
 - Showing this line for the current user's own side of the card.
 - Adding a games-played count to the lobby card (profile page has it; lobby
   intentionally stays minimal here).
