@@ -67,7 +67,10 @@ export default async function PlayerProfilePage({
             {topCharacters.length > 0 && (
               <>
                 {" · "}
-                <span className="inline-flex items-center gap-1 align-middle">
+                <span
+                  className="inline-flex items-center gap-1 align-middle"
+                  title="Most played characters"
+                >
                   {topCharacters.map((character) => (
                     <CharacterIcon key={character} name={character} size={16} />
                   ))}
