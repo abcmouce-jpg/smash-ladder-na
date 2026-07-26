@@ -17,9 +17,16 @@ history, so players can scout who they're about to face.
 - Only shown while the match is active (the card rendered at `PairedView` lines
   334–361); the post-match confirmed/cancelled/expired view doesn't show rating
   either today, and is out of scope.
-- Does not touch the profile page or `mainCharacter`.
-- Text only for now — character icons are a future enhancement, not part of this
-  spec (see "Future work: character icons" below for the decided direction).
+- Icon-only, via the existing copyright-safe `CharacterIcon` component
+  (`src/components/character-icon.tsx`) — no visible character name text,
+  relying on the component's built-in `title` attribute for a native
+  hover tooltip. This also touches the profile page in one small way: its
+  existing `mainCharacter` icon (`src/app/players/[id]/page.tsx`) already
+  used `CharacterIcon` next to the username, so the redundant `"· mains X"`
+  visible text is removed from the paragraph below it, for consistency
+  with the icon-only-plus-tooltip treatment. The `mainCharacter` field,
+  its self-declared nature, and the icon placement/size next to the
+  username are otherwise unchanged.
 - **Supersedes** a since-landed change on `main` (`f239f2d`, "Show the
   opponent's voted main character (as text) next to their name") that shows
   `opponent.mainCharacter` — the same single self-declared field described
@@ -79,23 +86,30 @@ games (e.g., no confirmed matches yet).
 ## UI
 
 In `PairedView` (`src/app/lobby/page.tsx`), fetch `topCharacters` for the
-opponent and render a line directly under the existing rating line:
+opponent and render a row of icons directly under the existing rating line:
 
 ```tsx
 <p className="font-medium">{opponent.username}</p>
 <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
 {topCharacters.length > 0 && (
-  <p className="text-sm text-muted-foreground">
-    Usually plays: {topCharacters.join(", ")}
-  </p>
+  <div className="mt-1 flex items-center gap-1.5">
+    {topCharacters.map((character) => (
+      <CharacterIcon key={character} name={character} size={20} />
+    ))}
+  </div>
 )}
 ```
 
 - `const topCharacters = await getTopCharacters(opponent.id);` added near the top
   of `PairedView` (already an `async` server component).
-- If `topCharacters` is empty, the line is omitted entirely — no placeholder text.
-- Format is fixed as `"Usually plays: A, B, C"` (comma-separated, most-played
-  first), regardless of whether there's 1, 2, or 3 characters.
+- If `topCharacters` is empty, the row is omitted entirely — no placeholder icon.
+- No visible character-name text — `CharacterIcon` already renders a native
+  `title={name}` tooltip on hover, which is how a character's name is
+  discovered. No new icon assets needed: `CharacterIcon` takes the plain
+  character name string and derives a deterministic colored-initials badge
+  from it (see `src/components/character-icon.tsx`), the same component
+  already used on the leaderboard, characters, and profile pages — so the
+  real-game-art icon sourcing explored earlier in this project is moot.
 
 ## Testing
 
@@ -104,37 +118,38 @@ opponent and render a line directly under the existing rating line:
   games from non-`CONFIRMED` matches; excludes games with null `winnerId`;
   respects `limit`.
 - Manual check in the lobby UI: pair with an opponent who has confirmed match
-  history across multiple characters and confirm the line renders correctly,
-  and with a fresh opponent (no history) and confirm the line is omitted.
+  history across multiple characters and confirm the icon row renders with
+  the right count and order, that hovering each icon shows the correct
+  character name via the native tooltip, and with a fresh opponent (no
+  history) confirm the row is omitted entirely.
+- Manual check on the profile page: confirm the `"· mains X"` text is gone
+  and the existing icon next to the username still shows a tooltip on hover.
 
-## Future work: character icons
+## Resolved: character icons (was "future work")
 
-Not part of this spec. Superseded from an earlier draft of this note: real
-official game-art icon sources (PNG/SVG rips of in-game assets) were
-researched and rejected in favor of the project's existing convention.
+Implemented as part of this feature rather than deferred, once the icon
+question was revisited. Real official game-art icon sources (PNG/SVG rips
+of in-game assets) were researched earlier in this project and rejected —
+`src/components/character-icon.tsx` already existed as a deliberately
+**copyright-safe** placeholder (a colored, deterministic initials badge,
+no real game art), already used on the leaderboard, characters, and
+players pages, and this feature now uses it too. No new icon assets or a
+name→file mapping table were needed, since `CharacterIcon` only needs the
+plain character name string.
 
-- **Direction**: `src/components/character-icon.tsx` already exists — a
-  deliberately **copyright-safe** placeholder (a colored, deterministic
-  initials badge, no real game art) already used on the leaderboard,
-  characters, and players pages. Future icon work for this lobby feature
-  should render `<CharacterIcon name={character} />` for each entry in
-  `topCharacters`, not source new character art. This matches the
-  project's established policy rather than introducing a second, real-art
-  icon convention alongside it.
-- **Context**: a teammate already tried adding `CharacterIcon` to this same
-  lobby card (`6a50031`) and reverted it (`1ba3815`) before landing the
-  plain-text `mainCharacter` version instead (`f239f2d`, superseded above).
-  The revert commit doesn't explain why — worth checking with them before
-  picking this back up, in case there was a concrete problem (layout,
-  performance, visual noise) rather than just a change of direction.
-- Real official game-art icons (the previously-researched PNG stock-icon
-  source) are not part of this project's direction — not needed, and not
-  to be reconsidered without revisiting this decision explicitly.
+Context worth keeping around: a teammate previously tried adding
+`CharacterIcon` to this same lobby card (`6a50031`) and reverted it
+(`1ba3815`) before landing the plain-text `mainCharacter` version instead
+(`f239f2d`, superseded above). The revert commit didn't explain why — this
+implementation wasn't run past that teammate before rebuilding it, so if
+icon-in-the-lobby-card causes a problem again, that revert is the first
+place to look for what it might have been.
 
 ## Out of scope / explicitly not doing
 
-- Character icons beyond the future-work note above.
 - Showing this line for the current user's own side of the card.
 - Adding a games-played count to the lobby card (profile page has it; lobby
   intentionally stays minimal here).
-- Any change to the profile page's existing `mainCharacter` display.
+- Any change to the profile page's `mainCharacter` field itself, its
+  self-declared nature, or its icon's placement/size next to the username —
+  only the redundant "· mains X" text line was removed (see Scope).
