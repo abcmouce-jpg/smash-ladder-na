@@ -146,3 +146,29 @@ export async function getTopRivals(userId: string, limit = 3) {
     ...rec,
   }));
 }
+
+// For the lobby's "who am I about to play" scouting line. Only counts
+// games from confirmed matches with a recorded winner — same filter
+// tallySetWins in match-games.ts uses to skip disputed/void games.
+export async function getTopCharacters(userId: string, limit = 3) {
+  const games = await prisma.matchGame.findMany({
+    where: {
+      winnerId: { not: null },
+      match: { status: MatchStatus.CONFIRMED },
+      OR: [{ actorAId: userId }, { actorBId: userId }],
+    },
+    select: { actorAId: true, actorACharacter: true, actorBId: true, actorBCharacter: true },
+  });
+
+  const counts = new Map<string, number>();
+  for (const g of games) {
+    const character = g.actorAId === userId ? g.actorACharacter : g.actorBCharacter;
+    if (!character) continue;
+    counts.set(character, (counts.get(character) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort(([nameA, a], [nameB, b]) => b - a || nameA.localeCompare(nameB))
+    .slice(0, limit)
+    .map(([character]) => character);
+}
