@@ -22,7 +22,7 @@ import {
   unstrikeLastGameStage,
 } from "@/lib/match-games";
 import { postMatchComment } from "@/lib/match-comments";
-import { cancelMatch } from "@/lib/matches";
+import { cancelMatch, leaveMatch } from "@/lib/matches";
 import { fileConnectionReport, fileMatchReport } from "@/lib/reports";
 import { reportOpponentCharacter } from "@/lib/character-stats";
 import { prisma } from "@/lib/db";
@@ -178,6 +178,12 @@ export async function cancelMatchInProgress(
   }
   revalidatePath("/lobby");
   return { error: null };
+}
+
+export async function leaveMatchAction(matchId: string) {
+  const userId = await requireUserId();
+  await leaveMatch(userId, matchId);
+  revalidatePath("/lobby");
 }
 
 export async function reportConduct(matchId: string, reason: string) {

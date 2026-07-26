@@ -32,6 +32,7 @@ import {
   cancelLobby,
   cancelMatchInProgress,
   joinLobby,
+  leaveMatchAction,
   pickCharacter,
   pickStage,
   reportConduct,
@@ -348,13 +349,16 @@ async function MatchmakingForm({ userId }: { userId: string }) {
   );
 }
 
-// Once a match is over, its full detail (room code, comments, dispute
-// history, opponent card) has nothing left to act on and just sits on the
-// Lobby page as clutter — that's what the player's own match history on
-// their profile is for. Keep the one-time celebration/report moment here
-// (or the brief cancelled/expired note), and point elsewhere for the rest.
+// Once a match is over, its full detail (room code, dispute history,
+// opponent card) has nothing left to act on and just sits on the Lobby
+// page as clutter — that's what the player's own match history on their
+// profile is for. But comments are kept open by default so both players
+// can keep talking; either can end their own view of it via Leave.
 async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
+  const isPlayer1 = match.player1Id === userId;
+  const myLeftAt = isPlayer1 ? match.player1LeftAt : match.player2LeftAt;
+  const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
 
   if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
     return (
@@ -363,6 +367,23 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
         ) : (
           <TerminatedSection status={match.status} />
+        )}
+        {!myLeftAt && (
+          <>
+            <CommentsSection
+              userId={userId}
+              match={match}
+              opponentName={opponent.username}
+              opponentHasLeft={!!opponentLeftAt}
+            />
+            <CardContent className="flex justify-end border-t border-border pt-4">
+              <form action={leaveMatchAction.bind(null, match.id)}>
+                <Button type="submit" variant="outline" size="sm">
+                  Leave
+                </Button>
+              </form>
+            </CardContent>
+          </>
         )}
         <CardContent className="border-t border-border pt-4">
           <Link
@@ -453,7 +474,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         </CardContent>
       )}
 
-      <CommentsSection userId={userId} match={match} />
+      <CommentsSection userId={userId} match={match} opponentName={opponent.username} opponentHasLeft={false} />
 
       <MatchFooterActions match={match} />
     </Card>
@@ -859,7 +880,17 @@ function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
   );
 }
 
-async function CommentsSection({ userId, match }: { userId: string; match: Match }) {
+async function CommentsSection({
+  userId,
+  match,
+  opponentName,
+  opponentHasLeft,
+}: {
+  userId: string;
+  match: Match;
+  opponentName: string;
+  opponentHasLeft: boolean;
+}) {
   const comments = await listMatchComments(userId, match.id);
 
   async function action(formData: FormData) {
@@ -871,6 +902,9 @@ async function CommentsSection({ userId, match }: { userId: string; match: Match
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">Comments</p>
+      {opponentHasLeft && (
+        <p className="mt-1 text-xs text-muted-foreground">{opponentName} has left the chat.</p>
+      )}
       {comments.length === 0 && (
         <p className="mt-2 text-sm text-muted-foreground">No messages yet.</p>
       )}
