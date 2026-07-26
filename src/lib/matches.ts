@@ -71,6 +71,26 @@ export async function cancelMatch(userId: string, matchId: string) {
   }
 }
 
+// Once a set is over, either player may still want to keep chatting —
+// leaving only hides that player's own view of the match; it has no effect
+// on the other player's access. No status check: the Leave button is only
+// ever rendered for terminal matches, so this never gets called early.
+export async function leaveMatch(userId: string, matchId: string) {
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  if (match.player1Id !== userId && match.player2Id !== userId) {
+    throw new Error("Not a participant in this match");
+  }
+
+  const isPlayer1 = match.player1Id === userId;
+  if (isPlayer1 ? match.player1LeftAt : match.player2LeftAt) return;
+
+  await prisma.ratingMatch.update({
+    where: { id: matchId },
+    data: isPlayer1 ? { player1LeftAt: new Date() } : { player2LeftAt: new Date() },
+  });
+}
+
 // Provisional players (few games) swing faster so their rating converges quickly.
 function kFactor(gamesPlayed: number) {
   if (gamesPlayed < 10) return 40;

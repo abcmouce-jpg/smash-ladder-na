@@ -4,6 +4,7 @@ import {
   adminOverrideMatchResult,
   applyEloAndConfirm,
   cancelMatch,
+  leaveMatch,
   requestResultCorrection,
   resolveMatchCorrection,
 } from "@/lib/matches";
@@ -316,5 +317,63 @@ describe("cancelMatch", () => {
     });
 
     await expect(cancelMatch(p2.id, match.id)).rejects.toThrow(/decided or reported/i);
+  });
+});
+
+describe("leaveMatch", () => {
+  async function createConfirmedMatch() {
+    const player1 = await createTestUser();
+    const player2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: player1.id,
+        player2Id: player2.id,
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(),
+        expiresAt: new Date(),
+      },
+    });
+    return { player1, player2, match };
+  }
+
+  it("marks player1's own leftAt and leaves player2's untouched", async () => {
+    const { player1, match } = await createConfirmedMatch();
+
+    await leaveMatch(player1.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.player1LeftAt).not.toBeNull();
+    expect(updated.player2LeftAt).toBeNull();
+  });
+
+  it("marks player2's own leftAt and leaves player1's untouched", async () => {
+    const { player2, match } = await createConfirmedMatch();
+
+    await leaveMatch(player2.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.player2LeftAt).not.toBeNull();
+    expect(updated.player1LeftAt).toBeNull();
+  });
+
+  it("throws for a user who isn't a participant in the match", async () => {
+    const { match } = await createConfirmedMatch();
+    const outsider = await createTestUser();
+
+    await expect(leaveMatch(outsider.id, match.id)).rejects.toThrow(
+      "Not a participant in this match",
+    );
+  });
+
+  it("is idempotent — leaving twice keeps the original timestamp", async () => {
+    const { player1, match } = await createConfirmedMatch();
+
+    await leaveMatch(player1.id, match.id);
+    const afterFirst = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+
+    await leaveMatch(player1.id, match.id);
+    const afterSecond = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+
+    expect(afterSecond.player1LeftAt?.getTime()).toBe(afterFirst.player1LeftAt?.getTime());
   });
 });
