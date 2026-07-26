@@ -19,10 +19,7 @@ export function CharacterUsageCard({
   if (usage.length === 0) return null;
 
   return (
-    <details
-      open
-      className="group mt-4 rounded-xl border border-border bg-card text-card-foreground shadow-sm"
-    >
+    <details className="group mt-4 rounded-xl border border-border bg-card text-card-foreground shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 [&::-webkit-details-marker]:hidden">
         <span className="text-sm font-medium">Character Usage</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
