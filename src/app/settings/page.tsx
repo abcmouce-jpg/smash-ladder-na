@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { Settings } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/auth";
@@ -12,6 +13,7 @@ import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
 import {
   disconnectStartggAction,
+  disconnectTwitchAction,
   updateArenaPassword,
   updateAvoidPracticeOpponentsSetting,
   updateOwnCharacters,
@@ -24,10 +26,12 @@ const ANYTIME_VALUE = "anytime";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ startggConnected?: string; startggError?: string }>;
+  searchParams: Promise<{ startggConnected?: string; startggError?: string; twitchConnected?: string; twitchError?: string }>;
 }) {
   const session = await auth();
-  const { startggConnected, startggError } = await searchParams;
+  const { startggConnected, startggError, twitchConnected, twitchError } = await searchParams;
+  const host = (await headers()).get("host") ?? "";
+  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
 
   if (!session?.user?.id) {
     return (
@@ -48,6 +52,10 @@ export default async function SettingsPage({
         startggUserId: true,
         startggSlug: true,
         startggGamerTag: true,
+        twitchUserId: true,
+        twitchUsername: true,
+        twitchDisplayName: true,
+        twitchProfileImageUrl: true,
         rematchCooldownHours: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
@@ -66,6 +74,26 @@ export default async function SettingsPage({
       <Card className="mt-8">
         <CardContent className="pt-4">
           <UsernameForm defaultValue={me?.username ?? ""} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <TwitchConnectCard
+            connected={
+              me?.twitchUserId && me.twitchUsername
+                ? { username: me.twitchUsername, displayName: me.twitchDisplayName, profileImageUrl: me.twitchProfileImageUrl }
+                : null
+            }
+            justConnected={twitchConnected === "1"}
+            error={twitchError}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <StreamOverlayCard userId={session.user.id} host={host} protocol={protocol} />
         </CardContent>
       </Card>
 
@@ -139,6 +167,85 @@ export default async function SettingsPage({
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function StreamOverlayCard({ userId, host, protocol }: { userId: string; host: string; protocol: string }) {
+  const overlayUrl = `${protocol}://${host}/stream/overlay/${userId}`;
+
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <p className="font-medium">Stream overlay</p>
+      <p className="text-xs text-muted-foreground">
+        Use this URL as an OBS Browser Source to show your rating, recent matches, and current
+        match info on stream.
+      </p>
+      <div className="mt-1 flex items-center gap-2">
+        <code className="rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono break-all max-w-full">
+          {overlayUrl}
+        </code>
+        <a
+          href={overlayUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0"
+        >
+          <Button type="button" size="sm" variant="outline">
+            Open
+          </Button>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function TwitchConnectCard({
+  connected,
+  justConnected,
+  error,
+}: {
+  connected: { username: string; displayName: string | null; profileImageUrl: string | null } | null;
+  justConnected: boolean;
+  error?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <p className="font-medium">Twitch account</p>
+      <p className="text-xs text-muted-foreground">
+        Connect your Twitch account to access a custom stream overlay page. The overlay shows your
+        rating, rank, and recent matches — perfect as an OBS Browser Source for your stream.
+      </p>
+      {connected ? (
+        <>
+          {justConnected && <p className="text-xs text-emerald-600">Connected!</p>}
+          <div className="mt-1 flex items-center gap-2">
+            {connected.profileImageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={connected.profileImageUrl}
+                alt=""
+                className="size-6 rounded-full"
+              />
+            )}
+            <span className="font-medium">
+              {connected.displayName ?? connected.username} ✓
+            </span>
+            <form action={disconnectTwitchAction}>
+              <Button type="submit" size="sm" variant="outline">
+                Disconnect
+              </Button>
+            </form>
+          </div>
+        </>
+      ) : (
+        <a href="/api/twitch/connect" className="mt-1 self-start">
+          <Button type="button" size="sm">
+            Connect with Twitch
+          </Button>
+        </a>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
   );
 }
 

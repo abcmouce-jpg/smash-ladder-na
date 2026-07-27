@@ -6,6 +6,7 @@ import { setAvoidPracticeOpponents, setRematchCooldown, setUsername } from "@/li
 import { setArenaPassword } from "@/lib/arena";
 import { setOwnCharacters } from "@/lib/character-stats";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
+import { disconnectTwitchAccount } from "@/lib/twitch-oauth";
 
 async function requireUserId() {
   const session = await auth();
@@ -84,6 +85,13 @@ export async function updateOwnCharacters(
 export async function disconnectStartggAction() {
   const userId = await requireUserId();
   await disconnectStartggAccount(userId);
+  revalidatePath("/settings");
+  revalidatePath(`/players/${userId}`);
+}
+
+export async function disconnectTwitchAction() {
+  const userId = await requireUserId();
+  await disconnectTwitchAccount(userId);
   revalidatePath("/settings");
   revalidatePath(`/players/${userId}`);
 }

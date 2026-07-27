@@ -10,7 +10,6 @@ const TYPING_DEBOUNCE_MS = 2_000;
 // Common one-liners a player wants to send without typing — pre- and
 // post-set etiquette mostly, the same handful anyone would type anyway.
 const QUICK_MESSAGES = ["Hey!", "glhf!", "gg!", "ggs!"];
-
 export function CommentForm({
   action,
   onTyping,

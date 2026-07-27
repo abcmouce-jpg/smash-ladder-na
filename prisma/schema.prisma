@@ -158,6 +158,11 @@ model User {
   startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
   startggGamerTag      String? // display tag from start.gg's player object, if the account has one
   startggConnectedAt   DateTime?
+  twitchUserId          String?    @unique // set via OAuth in lib/twitch-oauth.ts
+  twitchUsername        String? // Twitch login name (lowercase)
+  twitchDisplayName     String? // Twitch display name
+  twitchProfileImageUrl String? // Twitch profile image URL
+  twitchConnectedAt     DateTime?
   role                 UserRole   @default(USER)
   status               UserStatus @default(ACTIVE)
   createdAt            DateTime   @default(now())
