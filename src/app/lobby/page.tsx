@@ -4,6 +4,7 @@ import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
+import { shouldPollLobby } from "@/lib/lobby-poll";
 import { getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
@@ -83,6 +84,12 @@ export default async function LobbyPage() {
     (entry.match.status === "CONFIRMED" ||
       entry.match.status === "CANCELLED" ||
       entry.match.status === "EXPIRED");
+  const myLeftAt =
+    matchJustEnded && entry?.match
+      ? entry.match.player1Id === session.user.id
+        ? entry.match.player1LeftAt
+        : entry.match.player2LeftAt
+      : null;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -91,7 +98,12 @@ export default async function LobbyPage() {
         waiting={activity.waiting}
         inMatch={activity.inMatch}
         matched={!!isInActiveMatch}
-        poll={!!(isInActiveMatch || entry?.status === "WAITING")}
+        poll={shouldPollLobby({
+          isInActiveMatch: !!isInActiveMatch,
+          isWaiting: entry?.status === "WAITING",
+          matchJustEnded: !!matchJustEnded,
+          hasLeftMatch: !!myLeftAt,
+        })}
       />
 
       {matchJustEnded && (
