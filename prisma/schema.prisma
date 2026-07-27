@@ -244,6 +244,7 @@ model RatingMatch {
   ratingHistory     RatingHistory[]
   lobbyEntry        RatingLobbyEntry?
   comments          MatchComment[]
+  typingStatuses    MatchTypingStatus[]
   games             MatchGame[] // best-of-5: game 1 decides the stage via strike+pick, games 2-5 are counterpicks
   conductReports    ConductReport[]
   connectionReports ConnectionReport[]
@@ -298,6 +299,21 @@ model MatchGame {
 
   @@unique([matchId, gameNumber])
   @@index([matchId])
+}
+
+// Tracks when each player last typed in a match's chat. Updated via server
+// action on keystroke (debounced client-side). The opponent's client polls
+// this to show a "typing…" indicator. Records are cleaned up when the match
+// ends or after a timeout.
+model MatchTypingStatus {
+  id          String      @id @default(cuid())
+  matchId     String
+  match       RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId      String
+  lastTypingAt DateTime    @default(now())
+
+  @@unique([matchId, userId])
+  @@index([matchId, lastTypingAt])
 }
 
 model MatchComment {

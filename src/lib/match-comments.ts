@@ -33,6 +33,31 @@ export async function postMatchComment(userId: string, matchId: string, body: st
   await prisma.matchComment.create({ data: { matchId, authorId: userId, body: trimmed } });
 }
 
+const TYPING_TIMEOUT_MS = 4_000;
+
+export async function isOpponentTyping(matchId: string, userId: string) {
+  // Find the other participant in the match
+  const match = await prisma.ratingMatch.findUnique({
+    where: { id: matchId },
+    select: { player1Id: true, player2Id: true },
+  });
+  if (!match) return false;
+
+  const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+
+  const status = await prisma.matchTypingStatus.findUnique({
+    where: { matchId_userId: { matchId, userId: opponentId } },
+  });
+
+  if (!status) return false;
+  return Date.now() - status.lastTypingAt.getTime() < TYPING_TIMEOUT_MS;
+}
+
+// Clean up typing records for a match
+async function clearTypingStatus(matchId: string) {
+  await prisma.matchTypingStatus.deleteMany({ where: { matchId } });
+}
+
 // Mod-only spectator path — unlike listMatchComments/postMatchComment, this
 // doesn't require the caller to be a participant. Callers (server actions/
 // pages) are responsible for the MOD/ADMIN role check.
