@@ -28,14 +28,6 @@ function requireParticipant(match: { player1Id: string; player2Id: string }, use
 // stalled/AFK opponent mid-session.
 export const STRIKE_TIMEOUT_MS = 60 * 1000;
 
-// Picking a character is a real strategic decision — especially game 1's
-// blind pick, or a post-loss counterpick — not a quick stage veto, so it
-// gets a much longer grace period before we force a random one on someone
-// who's still actively deciding. Reported in production: players were
-// getting auto-locked onto characters they hadn't picked yet because this
-// used to share the 60s stage-strike clock.
-export const CHARACTER_PICK_TIMEOUT_MS = 3 * 60 * 1000;
-
 // How long a match waits for a report before the cron finalizer steps in
 // (see autoConfirmStaleGameReport / finalize.ts). Shortened from 24h after
 // a batch of sets sat all night with a losing player just never reporting
@@ -46,49 +38,22 @@ export const MATCH_TTL_MS = 3 * 60 * 60 * 1000;
 // for a live in-session timer): checked on every read, same idea as
 // liftExpiredSuspension in account.ts. Picks a uniformly random stage from
 // whatever's left rather than favoring either side.
-// Auto-resolving a stale strike/pick used to skip straight to the stage
-// logic, bypassing the hasLockedOwnCharacter gate that strikeGameStage/
-// pickGameStage enforce on the manual path — a player could just stall out
-// every one of their turns and never lock a character, leaving actorA/
-// BCharacter permanently null on a game that still gets won and confirmed.
-// Backfilling a random character here before acting keeps the two in sync
-// no matter which path (manual or timed-out) resolves the turn. Resets
-// turnStartedAt so the player still gets a full STRIKE_TIMEOUT_MS window to
-// actually strike/pick afterward, rather than inheriting zero time left.
-async function autoLockStaleCharacter(
-  game: { id: string; actorAId: string; actorACharacter: string | null; actorBCharacter: string | null },
-  actorId: string,
-) {
-  if (hasLockedOwnCharacter(game, actorId)) return;
-  const character = SMASH_CHARACTERS[Math.floor(Math.random() * SMASH_CHARACTERS.length)];
-  const isActorA = actorId === game.actorAId;
-  await prisma.matchGame.updateMany({
-    where: { id: game.id, ...(isActorA ? { actorACharacter: null } : { actorBCharacter: null }) },
-    data: {
-      ...(isActorA ? { actorACharacter: character } : { actorBCharacter: character }),
-      turnStartedAt: new Date(),
-    },
-  });
-}
-
 async function autoResolveStaleTurn(matchId: string) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId, winnerId: null, finalStage: null },
     orderBy: { gameNumber: "desc" },
   });
   if (!game) return;
+  // The strike/pick clock doesn't apply until both characters are locked in
+  // — striking can't even start before then (see bothCharactersLocked), so
+  // a turnStartedAt that predates both lock-ins (e.g. the game row's own
+  // creation timestamp) should never trigger an auto-resolve here. Stalling
+  // on character selection itself is handled separately, by
+  // autoResolveStaleCharacterPick.
+  if (!bothCharactersLocked(game)) return;
+  if (Date.now() - game.turnStartedAt.getTime() < STRIKE_TIMEOUT_MS) return;
 
-  const elapsed = Date.now() - game.turnStartedAt.getTime();
   const striker = actorForStrike(game);
-  const actingId = striker ?? picker(game);
-
-  if (!hasLockedOwnCharacter(game, actingId)) {
-    if (elapsed >= CHARACTER_PICK_TIMEOUT_MS) await autoLockStaleCharacter(game, actingId);
-    return;
-  }
-
-  if (elapsed < STRIKE_TIMEOUT_MS) return;
-
   if (striker) {
     const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
     if (!stage) return;
@@ -108,8 +73,58 @@ async function autoResolveStaleTurn(matchId: string) {
   await prisma.matchGame.updateMany({ where: { id: game.id, finalStage: null }, data: { finalStage: stage } });
 }
 
+// How long a player has to lock in a character before it costs them the
+// game — same window as STRIKE_TIMEOUT_MS, since this is the same kind of
+// "unstick a live session" problem. Deliberately not a random assignment:
+// picking a character for someone is a much bigger deal than picking a
+// stage for them.
+export const CHARACTER_TIMEOUT_MS = 60 * 1000;
+
+// Lazy, same pattern as autoResolveStaleTurn. Forfeits the current game to
+// whichever side actually locked in a character, once the other side has
+// had CHARACTER_TIMEOUT_MS (measured from the game row's creation — the
+// moment character selection became available) and still hasn't — mirrors
+// autoConfirmStaleGameReport's "accept whoever showed up, penalize the
+// ghost" philosophy rather than fabricating a pick for them. If NEITHER
+// side has locked in, this deliberately does nothing: that's rare enough
+// (both players AFK simultaneously) to just fall through to the existing
+// 24h whole-match no-report expiry instead of inventing a second fallback.
+async function autoResolveStaleCharacterPick(match: { id: string; player1Id: string; player2Id: string }) {
+  const game = await prisma.matchGame.findFirst({
+    where: { matchId: match.id, winnerId: null, finalStage: null },
+    orderBy: { gameNumber: "desc" },
+  });
+  if (!game) return;
+  if (bothCharactersLocked(game)) return;
+  if (Date.now() - game.createdAt.getTime() < CHARACTER_TIMEOUT_MS) return;
+
+  const aLocked = game.actorACharacter !== null;
+  const bLocked = game.actorBCharacter !== null;
+  if (aLocked === bLocked) return; // neither locked in — leave it to the match-level timeout
+
+  const winnerId = aLocked ? game.actorAId : game.actorBId;
+  const ghostId = aLocked ? game.actorBId : game.actorAId;
+
+  await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const claim = await tx.matchGame.updateMany({
+        where: { id: game.id, winnerId: null },
+        data: { winnerId },
+      });
+      if (claim.count === 0) return; // already resolved by a racing request
+      await progressSet(tx, match, game.gameNumber, winnerId, ConfirmationMethod.AUTO_TIMEOUT);
+      await tx.user.update({ where: { id: ghostId }, data: { noShowCount: { increment: 1 } } });
+    }, TX_OPTIONS),
+  );
+}
+
 export async function getMatchGames(matchId: string) {
   await autoResolveStaleTurn(matchId);
+  const match = await prisma.ratingMatch.findUnique({
+    where: { id: matchId },
+    select: { id: true, player1Id: true, player2Id: true },
+  });
+  if (match) await autoResolveStaleCharacterPick(match);
   return prisma.matchGame.findMany({ where: { matchId }, orderBy: { gameNumber: "asc" } });
 }
 
@@ -162,15 +177,13 @@ function picker(game: { actorAId: string; actorBId: string; actorAStrikes: numbe
   return game.actorAStrikes < game.actorBStrikes ? game.actorAId : game.actorBId;
 }
 
-// Without this, a player could strike/pick stages through an entire game
-// without ever locking in a character, leaving actorA/BCharacter null for a
-// game that's already been won and reported — permanently missing character
-// data. Requiring your own lock-in before you act keeps the two in sync.
-export function hasLockedOwnCharacter(
-  game: { actorAId: string; actorACharacter: string | null; actorBCharacter: string | null },
-  userId: string,
-) {
-  return (userId === game.actorAId ? game.actorACharacter : game.actorBCharacter) !== null;
+// Stage selection doesn't start until both sides have locked in a character
+// — not just your own. Without this, striking could start blind (fine for
+// game 1) while the other side still hasn't picked at all, letting the
+// strike-timeout clock tick down against someone who hasn't even reached
+// the character screen yet.
+export function bothCharactersLocked(game: { actorACharacter: string | null; actorBCharacter: string | null }) {
+  return game.actorACharacter !== null && game.actorBCharacter !== null;
 }
 
 // For the UI: whose turn it is right now and whether they're striking or picking.
@@ -248,12 +261,20 @@ export async function pickGameCharacter(
   if (!canPickNow) throw new Error("Wait for your opponent to pick their character first");
 
   const isActorA = userId === game.actorAId;
+  const opponentAlreadyLocked = (isActorA ? game.actorBCharacter : game.actorACharacter) !== null;
+
   await prisma.matchGame.updateMany({
     where: {
       id: game.id,
       ...(isActorA ? { actorACharacter: null } : { actorBCharacter: null }),
     },
-    data: isActorA ? { actorACharacter: character } : { actorBCharacter: character },
+    data: {
+      ...(isActorA ? { actorACharacter: character } : { actorBCharacter: character }),
+      // This pick is the second lock-in — start the stage-strike clock now
+      // rather than from whenever the game row was created, which could've
+      // been arbitrarily long ago if character selection itself took a while.
+      ...(opponentAlreadyLocked ? { turnStartedAt: new Date() } : {}),
+    },
   });
 }
 
@@ -276,7 +297,7 @@ export async function strikeGameStage(
   const actor = actorForStrike(game);
   if (!actor) throw new Error("Striking is done — waiting on a pick");
   if (actor !== userId) throw new Error("Not your turn to strike");
-  if (!hasLockedOwnCharacter(game, userId)) throw new Error("Lock in your character before striking a stage");
+  if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before striking a stage");
   if (!game.stagesRemaining.includes(stage)) throw new Error("Stage already struck or invalid");
 
   // Conditional on struckStages still matching what we read, so a racing
@@ -324,7 +345,7 @@ export async function pickGameStage(
   if (game.finalStage) throw new Error("Stage already decided");
   if (actorForStrike(game) !== null) throw new Error("Striking isn't finished yet");
   if (picker(game) !== userId) throw new Error("Not your turn to pick");
-  if (!hasLockedOwnCharacter(game, userId)) throw new Error("Lock in your character before picking a stage");
+  if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before picking a stage");
   if (!game.stagesRemaining.includes(stage)) throw new Error("Not a valid remaining stage");
 
   await prisma.matchGame.updateMany({

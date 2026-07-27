@@ -7,11 +7,10 @@ import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
-  CHARACTER_PICK_TIMEOUT_MS,
+  bothCharactersLocked,
   characterPickState,
   getMatchGames,
   gameTurnState,
-  hasLockedOwnCharacter,
   secondsUntil,
 } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
@@ -578,8 +577,8 @@ function GameSection({
   }
 
   const myTurn = turn.actorId === userId;
-  const { yourCharacter } = characterPickState(current, userId);
-  const canAct = myTurn && yourCharacter !== null;
+  const bothLocked = bothCharactersLocked(current);
+  const canAct = myTurn && bothLocked;
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
 
@@ -599,12 +598,10 @@ function GameSection({
       ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
       : `${verb} a stage`;
 
-  // Whoever's turn it is gets the longer character-pick grace period until
-  // they've actually locked one in — showing the 60s stage-strike deadline
-  // here too would misleadingly read as "0s left" while they still have
-  // real time to decide their character.
-  const actingTimeoutMs = hasLockedOwnCharacter(current, turn.actorId!) ? STRIKE_TIMEOUT_MS : CHARACTER_PICK_TIMEOUT_MS;
-  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + actingTimeoutMs));
+  // Only shown once both characters are locked in (see the !bothLocked
+  // branch below) — at that point turnStartedAt is purely a stage-strike
+  // clock, so STRIKE_TIMEOUT_MS is the only deadline that applies here.
+  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS));
 
   const lastStrikeIndex = current.struckStages.length - 1;
   const canUndoLastStrike =
@@ -618,10 +615,10 @@ function GameSection({
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
           Game {current.gameNumber} —{" "}
-          {!myTurn
-            ? `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`
-            : yourCharacter === null
-              ? "Lock in your character above before you can continue."
+          {!bothLocked
+            ? "Stage selection will start once both characters are locked in."
+            : !myTurn
+              ? `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`
               : `Your turn — ${turnDescription} (${secondsLeft}s left, or it auto-picks).`}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">

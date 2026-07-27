@@ -52,8 +52,8 @@ const STALE_GAME_ERRORS = new Set([
   "Wait for your opponent to pick their character first",
   "Nothing to undo yet",
   "You can only undo your own most recent strike",
-  "Lock in your character before striking a stage",
-  "Lock in your character before picking a stage",
+  "Both players must lock in their character before striking a stage",
+  "Both players must lock in their character before picking a stage",
 ]);
 
 async function ignoringStaleGameRaces(fn: () => Promise<void>) {

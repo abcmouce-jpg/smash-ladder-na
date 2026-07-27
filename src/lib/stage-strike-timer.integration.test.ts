@@ -5,9 +5,8 @@ import {
   strikeGameStage,
   unstrikeLastGameStage,
   STRIKE_TIMEOUT_MS,
-  CHARACTER_PICK_TIMEOUT_MS,
+  CHARACTER_TIMEOUT_MS,
 } from "@/lib/match-games";
-import { SMASH_CHARACTERS } from "@/lib/characters";
 import { createTestUser } from "@/test/factories";
 
 async function createMatch(p1: string, p2: string) {
@@ -115,9 +114,10 @@ describe("stale turn auto-resolution", () => {
         gameNumber: 1,
         actorAId: p1.id,
         actorAStrikes: 1,
-        actorACharacter: "Mario", // already locked in — isolates the stage-timeout path
+        actorACharacter: "Mario",
         actorBId: p2.id,
         actorBStrikes: 2,
+        actorBCharacter: "Luigi",
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
         turnStartedAt: new Date(Date.now() - STRIKE_TIMEOUT_MS - 1000),
       },
@@ -128,7 +128,7 @@ describe("stale turn auto-resolution", () => {
     expect(games[0].stagesRemaining).toHaveLength(2);
   });
 
-  it("does NOT auto-strike or auto-lock a character just past the stage-strike timeout if no character is locked yet", async () => {
+  it("does not auto-strike while either character is still unlocked, even past the strike timeout", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -138,69 +138,17 @@ describe("stale turn auto-resolution", () => {
         gameNumber: 1,
         actorAId: p1.id,
         actorAStrikes: 1,
+        actorACharacter: "Mario", // only actorA has locked in
         actorBId: p2.id,
         actorBStrikes: 2,
-        stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        turnStartedAt: new Date(Date.now() - STRIKE_TIMEOUT_MS - 1000), // past the 60s stage timer...
-      },
-    });
-
-    // ...but well within the longer character-pick grace period, so nothing
-    // should be forced yet — this is the exact regression that was reported
-    // in production: players getting auto-locked onto characters they
-    // hadn't picked, because this used to share the 60s stage-strike clock.
-    const games = await getMatchGames(match.id);
-    expect(games[0].actorACharacter).toBeNull();
-    expect(games[0].struckStages).toEqual([]);
-  });
-
-  it("backfills a character for the striker only after the longer character-pick grace period elapses", async () => {
-    const p1 = await createTestUser();
-    const p2 = await createTestUser();
-    const match = await createMatch(p1.id, p2.id);
-    await prisma.matchGame.create({
-      data: {
-        matchId: match.id,
-        gameNumber: 1,
-        actorAId: p1.id,
-        actorAStrikes: 1,
-        actorBId: p2.id,
-        actorBStrikes: 2,
-        stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        turnStartedAt: new Date(Date.now() - CHARACTER_PICK_TIMEOUT_MS - 1000),
-      },
-    });
-
-    const games = await getMatchGames(match.id);
-    expect(games[0].actorACharacter).not.toBeNull();
-    expect(SMASH_CHARACTERS).toContain(games[0].actorACharacter);
-    expect(games[0].actorBCharacter).toBeNull(); // not their turn yet — untouched
-    // Stage striking isn't auto-resolved in the same pass — the player gets
-    // a fresh full STRIKE_TIMEOUT_MS window to actually act now that they
-    // have a character, instead of the stage being forced immediately too.
-    expect(games[0].struckStages).toEqual([]);
-  });
-
-  it("doesn't overwrite a character the striker already locked in", async () => {
-    const p1 = await createTestUser();
-    const p2 = await createTestUser();
-    const match = await createMatch(p1.id, p2.id);
-    await prisma.matchGame.create({
-      data: {
-        matchId: match.id,
-        gameNumber: 1,
-        actorAId: p1.id,
-        actorAStrikes: 1,
-        actorBId: p2.id,
-        actorBStrikes: 2,
-        actorACharacter: "Mario",
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
         turnStartedAt: new Date(Date.now() - STRIKE_TIMEOUT_MS - 1000),
       },
     });
 
     const games = await getMatchGames(match.id);
-    expect(games[0].actorACharacter).toBe("Mario");
+    expect(games[0].struckStages).toEqual([]);
+    expect(games[0].stagesRemaining).toHaveLength(3);
   });
 
   it("auto-picks a random final stage once a stale picking turn resolves", async () => {
@@ -213,9 +161,10 @@ describe("stale turn auto-resolution", () => {
         gameNumber: 1,
         actorAId: p1.id,
         actorAStrikes: 1,
+        actorACharacter: "Mario",
         actorBId: p2.id,
         actorBStrikes: 1,
-        actorBCharacter: "Luigi", // already locked in — isolates the stage-timeout path
+        actorBCharacter: "Luigi",
         stagesRemaining: ["Smashville"],
         struckStages: ["Battlefield", "Small Battlefield"],
         turnStartedAt: new Date(Date.now() - STRIKE_TIMEOUT_MS - 1000),
@@ -224,6 +173,8 @@ describe("stale turn auto-resolution", () => {
 
     const games = await getMatchGames(match.id);
     expect(games[0].finalStage).toBe("Smashville");
+    // actorAStrikes === actorBStrikes here, so picker() falls to actorB (the `<` tie-break)
+    expect(games[0].actorBCharacter).not.toBeNull();
   });
 
   it("resets turnStartedAt after a normal strike", async () => {
@@ -236,10 +187,11 @@ describe("stale turn auto-resolution", () => {
         gameNumber: 1,
         actorAId: p1.id,
         actorAStrikes: 1,
+        actorACharacter: "Mario", // strikeGameStage requires both to have locked in first
         actorBId: p2.id,
         actorBStrikes: 2,
+        actorBCharacter: "Luigi",
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        actorACharacter: "Mario",
         turnStartedAt: new Date(Date.now() - 30 * 1000), // old, but not stale yet
       },
     });
@@ -250,5 +202,103 @@ describe("stale turn auto-resolution", () => {
       where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
     });
     expect(Date.now() - updated.turnStartedAt.getTime()).toBeLessThan(5000);
+  });
+});
+
+describe("stale character-pick auto-resolution", () => {
+  it("does nothing before the character-select timeout elapses", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorACharacter: "Mario",
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games[0].winnerId).toBeNull();
+  });
+
+  it("forfeits the game to whichever player locked in, and dings the ghost's noShowCount, once the timeout elapses", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorACharacter: "Mario", // p1 locked in; p2 never did
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
+        createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games[0].winnerId).toBe(p1.id);
+
+    const updatedP2 = await prisma.user.findUniqueOrThrow({ where: { id: p2.id } });
+    expect(updatedP2.noShowCount).toBe(1);
+
+    // The set continues — a fresh game 2 should exist with p1 (the winner) striking first.
+    const game2 = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2?.actorAId).toBe(p1.id);
+  });
+
+  it("does nothing once the character-select timeout has elapsed if neither player locked in", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
+        createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games[0].winnerId).toBeNull();
+  });
+
+  it("does nothing once both characters are already locked in, no matter how old the game row is", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorACharacter: "Mario",
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        actorBCharacter: "Luigi",
+        stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
+        createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games[0].winnerId).toBeNull();
   });
 });
