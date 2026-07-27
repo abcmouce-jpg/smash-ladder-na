@@ -143,6 +143,9 @@ export default async function LeaderboardPage({
                       className="flex items-center gap-2 hover:underline"
                     >
                       {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
+                      {player.secondaryCharacters.map((c) => (
+                        <CharacterIcon key={c} name={c} size={16} className="opacity-60" />
+                      ))}
                       {player.username}
                     </Link>
                   </td>

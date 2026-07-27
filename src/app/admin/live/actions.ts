@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { postMatchCommentAsMod } from "@/lib/match-comments";
 import { adminForceConfirmMatch } from "@/lib/matches";
-import { adminSetGameWinner, adminResetMatchToZero } from "@/lib/disputes";
+import { adminSetGameWinner, adminResetMatchToZero, adminCancelMatch } from "@/lib/disputes";
 
 async function requireModerator() {
   const session = await auth();
@@ -75,6 +75,27 @@ export async function resetMatchAction(
   await requireModerator();
   try {
     await adminResetMatchToZero(matchId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath("/admin/live");
+  return { error: null };
+}
+
+export type CancelMatchState = { error: string | null };
+
+// Unconditional escape hatch — unlike the self-service cancelMatch (which
+// blocks once a game's decided or reported, so a losing player can't dodge
+// out), a mod can cancel regardless of status: an opponent who vanished, a
+// dispute nobody can resolve, bad-faith reporting, etc.
+export async function cancelMatchAction(
+  matchId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: CancelMatchState,
+): Promise<CancelMatchState> {
+  await requireModerator();
+  try {
+    await adminCancelMatch(matchId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }

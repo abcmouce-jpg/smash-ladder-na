@@ -7,6 +7,7 @@ import {
   resolveDisputedGame,
   adminSetGameWinner,
   adminResetMatchToZero,
+  adminCancelMatch,
 } from "@/lib/disputes";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
@@ -374,5 +375,47 @@ describe("adminResetMatchToZero", () => {
     });
 
     await expect(adminResetMatchToZero(match.id)).rejects.toThrow("already closed out");
+  });
+});
+
+describe("adminCancelMatch", () => {
+  it("cancels a match regardless of status", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.DISPUTED, expiresAt: new Date() },
+    });
+
+    await adminCancelMatch(match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.CANCELLED);
+  });
+
+  // Previously a silent no-op (updateMany matching zero rows) — a mod
+  // clicking "Cancel match" on an already-closed match got no feedback at
+  // all, which read as the button being broken.
+  it("throws instead of silently doing nothing for an already-confirmed match", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.CONFIRMED, expiresAt: new Date() },
+    });
+
+    await expect(adminCancelMatch(match.id)).rejects.toThrow("already closed out");
+  });
+
+  it("throws for an already-cancelled match", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.CANCELLED, expiresAt: new Date() },
+    });
+
+    await expect(adminCancelMatch(match.id)).rejects.toThrow("already closed out");
+  });
+
+  it("throws for a match that doesn't exist", async () => {
+    await expect(adminCancelMatch("nonexistent-id")).rejects.toThrow("not found");
   });
 });

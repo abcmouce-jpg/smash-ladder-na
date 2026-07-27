@@ -30,7 +30,15 @@ function initialsFor(name: string) {
   return name.slice(0, 2).toUpperCase();
 }
 
-export function CharacterIcon({ name, size = 24 }: { name: string; size?: number }) {
+export function CharacterIcon({
+  name,
+  size = 24,
+  className = "",
+}: {
+  name: string;
+  size?: number;
+  className?: string;
+}) {
   const slug = characterIconSlug(name);
   if (slug) {
     return (
@@ -40,14 +48,14 @@ export function CharacterIcon({ name, size = 24 }: { name: string; size?: number
         title={name}
         width={size}
         height={size}
-        className="shrink-0 rounded-full"
+        className={`shrink-0 rounded-full ${className}`}
       />
     );
   }
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${colorFor(name)}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${colorFor(name)} ${className}`}
       style={{ width: size, height: size, fontSize: size * 0.4 }}
       title={name}
       aria-hidden="true"

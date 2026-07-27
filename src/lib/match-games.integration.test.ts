@@ -8,6 +8,8 @@ import {
   pickGameCharacter,
   getCurrentGame,
   getMatchGames,
+  reportGameResult,
+  bannedPracticeCharacter,
   CHARACTER_TIMEOUT_MS,
 } from "@/lib/match-games";
 import { GAME_ONE_STAGES } from "@/lib/stages";
@@ -187,5 +189,109 @@ describe("character lock-in gates stage striking", () => {
       where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
     });
     expect(updated?.finalStage).toBe("Final Destination");
+  });
+});
+
+describe("progressSet tolerates an already-existing next game", () => {
+  // Reproduces a real incident: a mod clearing an earlier game's winner via
+  // adminSetGameWinner (e.g. to let a disputed game replay) doesn't delete
+  // whatever later game already got created off the old outcome. Deciding
+  // that earlier game again then used to crash on the [matchId, gameNumber]
+  // unique constraint when trying to recreate the next game — this locked a
+  // player out of ever confirming their own win.
+  it("doesn't crash confirming a game when the next one already exists", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        finalStage: "Battlefield",
+        reportedWinnerId: p1.id,
+        reportedById: p1.id,
+        reportedAt: new Date(),
+      },
+    });
+    // Simulates the orphaned state: game 2 already exists even though game 1
+    // was never actually decided (winnerId still null).
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        stagesRemaining: ["Final Destination"],
+      },
+    });
+
+    await expect(reportGameResult(p2.id, match.id, 1, false)).resolves.not.toThrow();
+
+    const game1 = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game1?.winnerId).toBe(p1.id);
+
+    const game2 = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2).not.toBeNull(); // untouched, not duplicated or errored on
+  });
+});
+
+describe("practice-mode character ban", () => {
+  it("reports no ban for a non-practicing side even with a mainCharacter set", async () => {
+    const p1 = await createTestUser({ mainCharacter: "Fox" });
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, expiresAt: new Date() },
+    });
+
+    expect(await bannedPracticeCharacter(match.id, p1.id)).toBeNull();
+  });
+
+  it("bans the practicing player's own mainCharacter and no one else's", async () => {
+    const p1 = await createTestUser({ mainCharacter: "Fox" });
+    const p2 = await createTestUser({ mainCharacter: "Falco" });
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        expiresAt: new Date(),
+        player1IsPracticing: true,
+      },
+    });
+
+    expect(await bannedPracticeCharacter(match.id, p1.id)).toBe("Fox");
+    expect(await bannedPracticeCharacter(match.id, p2.id)).toBeNull();
+  });
+
+  it("rejects picking the banned character and allows any other", async () => {
+    const p1 = await createTestUser({ mainCharacter: "Fox" });
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        expiresAt: new Date(),
+        player1IsPracticing: true,
+      },
+    });
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    const p1IsActorA = game.actorAId === p1.id;
+
+    await expect(pickGameCharacter(p1.id, match.id, 1, "Fox")).rejects.toThrow(/banned/i);
+    await expect(pickGameCharacter(p1.id, match.id, 1, "Falco")).resolves.not.toThrow();
+
+    const updated = await getCurrentGame(match.id);
+    expect(p1IsActorA ? updated?.actorACharacter : updated?.actorBCharacter).toBe("Falco");
   });
 });

@@ -14,6 +14,7 @@ export async function getPlayerProfile(userId: string) {
       region: true,
       wiredConnection: true,
       mainCharacter: true,
+      secondaryCharacters: true,
       startggSlug: true,
       startggGamerTag: true,
       noShowCount: true,
@@ -126,18 +127,30 @@ export function currentStreak(history: { won: boolean }[]) {
   return leadingResult ? count : -count;
 }
 
+// A match where this player's own side queued isPracticing doesn't count
+// toward their real win/loss record or character usage — same "never
+// touches your main profile" promise the separate practiceRating makes for
+// the rating number itself. Matches the two ways of being in a match
+// (player1 or player2), checking only the querying side's own flag.
+function notPracticingFor(userId: string) {
+  return [
+    { player1Id: userId, player1IsPracticing: false },
+    { player2Id: userId, player2IsPracticing: false },
+  ];
+}
+
 // Deliberately NOT reset by endActiveSeasonAndStartNext — only rating and
 // gamesPlayed reset there. These read from history that survives forever,
 // so a player has something that keeps growing across season resets.
 export async function getCareerStats(userId: string) {
   const [wins, losses, peakRating, seasons, tournaments] = await Promise.all([
     prisma.ratingMatch.count({
-      where: { status: MatchStatus.CONFIRMED, reportedWinnerId: userId },
+      where: { status: MatchStatus.CONFIRMED, reportedWinnerId: userId, OR: notPracticingFor(userId) },
     }),
     prisma.ratingMatch.count({
       where: {
         status: MatchStatus.CONFIRMED,
-        OR: [{ player1Id: userId }, { player2Id: userId }],
+        OR: notPracticingFor(userId),
         NOT: { reportedWinnerId: userId },
       },
     }),
@@ -214,7 +227,7 @@ export async function getCharacterUsage(userId: string): Promise<CharacterUsage[
   const games = await prisma.matchGame.findMany({
     where: {
       winnerId: { not: null },
-      match: { status: MatchStatus.CONFIRMED },
+      match: { status: MatchStatus.CONFIRMED, OR: notPracticingFor(userId) },
       OR: [{ actorAId: userId }, { actorBId: userId }],
     },
     select: { actorAId: true, actorACharacter: true, actorBId: true, actorBCharacter: true, winnerId: true },

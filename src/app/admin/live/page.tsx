@@ -7,11 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ForceConfirmMatchForm } from "@/components/force-confirm-match-form";
 import { EditGameScoreForm } from "@/components/edit-game-score-form";
+import { CancelMatchButton } from "@/components/cancel-match-button";
 import {
   forceConfirmMatchAction,
   postLiveMatchComment,
   setGameWinnerAction,
   resetMatchAction,
+  cancelMatchAction,
 } from "./actions";
 
 export default async function LiveMatchesPage() {
@@ -104,6 +106,10 @@ export default async function LiveMatchesPage() {
                     }))}
                     resetAction={resetMatchAction.bind(null, match.id)}
                   />
+
+                  <div className="mt-3">
+                    <CancelMatchButton action={cancelMatchAction.bind(null, match.id)} />
+                  </div>
 
                   <details className="mt-3 text-xs">
                     <summary className="cursor-pointer text-muted-foreground hover:text-foreground">

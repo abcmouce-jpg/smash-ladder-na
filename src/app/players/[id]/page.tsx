@@ -81,6 +81,9 @@ export default async function PlayerProfilePage({
             <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
               {player.username}
               {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={22} />}
+              {player.secondaryCharacters.map((c) => (
+                <CharacterIcon key={c} name={c} size={18} className="opacity-60" />
+              ))}
             </h1>
             <p className="text-sm tabular-nums text-muted-foreground">
               {player.rating} rating · {player.gamesPlayed} games played

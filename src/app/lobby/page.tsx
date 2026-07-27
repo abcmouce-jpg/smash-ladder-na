@@ -55,6 +55,7 @@ import {
   strikeStage,
   submitRoomCode,
   unstrikeStage,
+  updateAvoidPracticeOpponents,
   updateMaxMatchDistance,
   updateMaxRatingGap,
   updateRegion,
@@ -229,6 +230,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       rematchCooldownHours: true,
       wiredConnection: true,
       requireWiredOpponent: true,
+      avoidPracticeOpponents: true,
     },
   });
 
@@ -247,6 +249,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       const rematchCooldown = String(formData.get("rematchCooldownHours") ?? "");
       await updateRematchCooldown(rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown));
       await updateRequireWiredOpponent(formData.get("requireWiredOpponent") === "on");
+      await updateAvoidPracticeOpponents(formData.get("avoidPracticeOpponents") === "on");
       await updateWiredConnection(formData.get("wired") === "on");
     } catch (err) {
       return {
@@ -369,6 +372,16 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           className="size-4 rounded border-border"
         />
         Only match with wired opponents
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          key={String(me?.avoidPracticeOpponents ?? false)}
+          type="checkbox"
+          name="avoidPracticeOpponents"
+          defaultChecked={me?.avoidPracticeOpponents ?? false}
+          className="size-4 rounded border-border"
+        />
+        Don&apos;t match me with opponents who are practicing
       </label>
     </MatchSettingsForm>
   );
@@ -624,12 +637,17 @@ function GameSection({
   }
 
   const turn = gameTurnState(current);
+  const isPracticing = userId === match.player1Id ? match.player1IsPracticing : match.player2IsPracticing;
+  const bannedCharacter = isPracticing
+    ? (userId === match.player1Id ? match.player1.mainCharacter : match.player2.mainCharacter)
+    : null;
   const characterSection = (
     <CharacterPickSection
       userId={userId}
       matchId={match.id}
       game={current}
       opponentName={opponentName}
+      bannedCharacter={bannedCharacter}
     />
   );
 
@@ -717,6 +735,7 @@ function CharacterPickSection({
   matchId,
   game,
   opponentName,
+  bannedCharacter,
 }: {
   userId: string;
   matchId: string;
@@ -729,6 +748,7 @@ function CharacterPickSection({
     createdAt: Date;
   };
   opponentName: string;
+  bannedCharacter: string | null;
 }) {
   const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(game, userId);
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
@@ -791,8 +811,18 @@ function CharacterPickSection({
           </span>
         )}
       </p>
+      {bannedCharacter && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Practicing this set — {bannedCharacter} is banned for you.
+        </p>
+      )}
       <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
-        <CharacterSelect name="character" defaultValue="" placeholder="Select character" />
+        <CharacterSelect
+          name="character"
+          defaultValue=""
+          placeholder="Select character"
+          excludeCharacter={bannedCharacter}
+        />
         <Button type="submit" size="sm" variant="outline">
           Lock in
         </Button>

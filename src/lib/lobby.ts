@@ -21,6 +21,17 @@ function wiredRequirementAllows(
   return (!a.requireWiredOpponent || b.wiredConnection) && (!b.requireWiredOpponent || a.wiredConnection);
 }
 
+// isPracticing lives on the join (RatingLobbyEntry), not the user, since
+// it's a per-session choice — avoidPracticeOpponents is the user-level
+// setting it's checked against. Symmetric: either side's practice status
+// can be blocked by the other's opt-out.
+function practiceMatchAllowed(
+  a: { isPracticing: boolean; avoidPracticeOpponents: boolean },
+  b: { isPracticing: boolean; avoidPracticeOpponents: boolean },
+) {
+  return (!a.isPracticing || !b.avoidPracticeOpponents) && (!b.isPracticing || !a.avoidPracticeOpponents);
+}
+
 // One query covers every candidate's cooldown check for this join attempt:
 // every match `userId` played within the longest possible cooldown window,
 // collapsed to each opponent's most recent one (results are already newest
@@ -106,7 +117,7 @@ export async function getActiveLobbyEntry(userId: string) {
   return { ...entry, match };
 }
 
-export async function joinLobbyAndTryPair(userId: string) {
+export async function joinLobbyAndTryPair(userId: string, isPracticing = false) {
   const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
@@ -120,6 +131,7 @@ export async function joinLobbyAndTryPair(userId: string) {
         rematchCooldownHours: true,
         wiredConnection: true,
         requireWiredOpponent: true,
+        avoidPracticeOpponents: true,
       },
     }),
     getBlockedEitherWayIds(userId),
@@ -141,7 +153,7 @@ export async function joinLobbyAndTryPair(userId: string) {
 
   const now = new Date();
   const newEntry = await prisma.ratingLobbyEntry.create({
-    data: { userId, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
+    data: { userId, isPracticing, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
   });
 
   const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
@@ -176,6 +188,7 @@ export async function joinLobbyAndTryPair(userId: string) {
             rematchCooldownHours: true,
             wiredConnection: true,
             requireWiredOpponent: true,
+            avoidPracticeOpponents: true,
           },
         },
       },
@@ -185,7 +198,11 @@ export async function joinLobbyAndTryPair(userId: string) {
         getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
         ratingGapAllows(me.rating, c.user.rating, c.user.maxRatingGap) &&
         rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
-        wiredRequirementAllows(me, c.user),
+        wiredRequirementAllows(me, c.user) &&
+        practiceMatchAllowed(
+          { isPracticing, avoidPracticeOpponents: me.avoidPracticeOpponents },
+          { isPracticing: c.isPracticing, avoidPracticeOpponents: c.user.avoidPracticeOpponents },
+        ),
     );
     if (!candidate) return null;
 
@@ -203,6 +220,8 @@ export async function joinLobbyAndTryPair(userId: string) {
         pairingMethod: PairingMethod.AUTO,
         status: MatchStatus.PENDING_REPORT,
         expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
+        player1IsPracticing: candidate.isPracticing,
+        player2IsPracticing: isPracticing,
       },
     });
 
@@ -321,6 +340,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           rematchCooldownHours: true,
           wiredConnection: true,
           requireWiredOpponent: true,
+          avoidPracticeOpponents: true,
         },
       },
     },
@@ -337,7 +357,11 @@ export async function sweepLobbyPairing(maxPairs = 50) {
       if (
         used.has(b.id) ||
         blockedPairs.has(pairKey) ||
-        !canMatch(a.user, b.user, recentMatchPairs.get(pairKey))
+        !canMatch(a.user, b.user, recentMatchPairs.get(pairKey)) ||
+        !practiceMatchAllowed(
+          { isPracticing: a.isPracticing, avoidPracticeOpponents: a.user.avoidPracticeOpponents },
+          { isPracticing: b.isPracticing, avoidPracticeOpponents: b.user.avoidPracticeOpponents },
+        )
       )
         continue;
 
@@ -358,6 +382,8 @@ export async function sweepLobbyPairing(maxPairs = 50) {
               pairingMethod: PairingMethod.AUTO,
               status: MatchStatus.PENDING_REPORT,
               expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
+              player1IsPracticing: a.isPracticing,
+              player2IsPracticing: b.isPracticing,
             },
           });
           // Only one side records matchId/pairedEntryId — see the join-time

@@ -271,6 +271,23 @@ export function characterPickState(
   };
 }
 
+// A player queued with isPracticing bans their own self-declared
+// mainCharacter for the whole match — the point is practicing something
+// else, so their usual pick has to actually be off the table, not just
+// discouraged. Only their own side is restricted; the opponent's roster is
+// untouched regardless of the opponent's own practicing status.
+export async function bannedPracticeCharacter(matchId: string, userId: string) {
+  const match = await prisma.ratingMatch.findUniqueOrThrow({
+    where: { id: matchId },
+    select: { player1Id: true, player1IsPracticing: true, player2IsPracticing: true },
+  });
+  const isPracticing = userId === match.player1Id ? match.player1IsPracticing : match.player2IsPracticing;
+  if (!isPracticing) return null;
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { mainCharacter: true } });
+  return user.mainCharacter;
+}
+
 export async function pickGameCharacter(
   userId: string,
   matchId: string,
@@ -283,6 +300,10 @@ export async function pickGameCharacter(
   }
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
     throw new Error("Not a recognized character");
+  }
+  const banned = await bannedPracticeCharacter(matchId, userId);
+  if (banned && banned === character) {
+    throw new Error(`${character} is banned while practicing — pick a different character`);
   }
 
   const { canPickNow, yourCharacter } = characterPickState(game, userId);
@@ -610,8 +631,16 @@ async function progressSet(
   // resolve the disputed game via resolveDisputedGame.
   if (decidedGameNumber >= MAX_GAMES) return null;
 
-  const loserId = gameWinnerId === match.player1Id ? match.player2Id : match.player1Id;
   const nextGameNumber = decidedGameNumber + 1;
+  // Guards against a real incident: a mod clearing an earlier game's winner
+  // via adminSetGameWinner (e.g. to let a disputed game be replayed) doesn't
+  // touch whatever later game already got created off the old outcome — so
+  // re-deciding that earlier game here would otherwise crash on the
+  // [matchId, gameNumber] unique constraint. If the next game's already
+  // there, just leave it alone rather than erroring out the whole report.
+  if (games.some((g) => g.gameNumber === nextGameNumber)) return null;
+
+  const loserId = gameWinnerId === match.player1Id ? match.player2Id : match.player1Id;
   await tx.matchGame.create({
     data: {
       matchId: match.id,

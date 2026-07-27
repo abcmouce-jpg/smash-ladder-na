@@ -23,6 +23,7 @@ export function CharacterSelect({
   placeholder = "Select character",
   className,
   name,
+  excludeCharacter,
 }: {
   value?: string;
   onChange?: (value: string) => void;
@@ -33,6 +34,9 @@ export function CharacterSelect({
    *  flows into the parent <form>'s FormData (useful with server actions).
    *  In this mode the component manages its own state internally. */
   name?: string;
+  /** Hides this one character from the roster entirely — used to enforce a
+   *  practice-mode ban on the player's own main character. */
+  excludeCharacter?: string | null;
 }) {
   // Internal state for form-integrated mode
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
@@ -45,11 +49,12 @@ export function CharacterSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filtered = query
-    ? (SMASH_CHARACTERS as readonly string[]).filter((c) =>
-        c.toLowerCase().includes(query.toLowerCase()),
-      )
+  const roster = excludeCharacter
+    ? (SMASH_CHARACTERS as readonly string[]).filter((c) => c !== excludeCharacter)
     : SMASH_CHARACTERS;
+  const filtered = query
+    ? roster.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
+    : roster;
 
   const selected = effectiveValue ? (effectiveValue as SmashCharacter) : null;
 
@@ -99,7 +104,7 @@ export function CharacterSelect({
           aria-hidden
         >
           <option value="" />
-          {SMASH_CHARACTERS.map((c) => (
+          {roster.map((c) => (
             <option key={c} value={c} />
           ))}
         </select>

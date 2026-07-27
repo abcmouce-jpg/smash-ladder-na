@@ -140,6 +140,12 @@ export async function setRequireWiredOpponent(userId: string, requireWiredOppone
   await prisma.user.update({ where: { id: userId }, data: { requireWiredOpponent } });
 }
 
+// Same shape — "never pair me with someone currently queuing to practice."
+// See practiceMatchAllowed in lib/lobby.ts for how this is enforced.
+export async function setAvoidPracticeOpponents(userId: string, avoidPracticeOpponents: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { avoidPracticeOpponents } });
+}
+
 export function isWiredClaimUntrustworthy(cancelCount: number, gamesPlayed: number) {
   if (cancelCount < WIRED_TRUST_MIN_CANCELS) return false;
   const ratio = cancelCount / (cancelCount + gamesPlayed);

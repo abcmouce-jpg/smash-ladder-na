@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { setRematchCooldown, setUsername } from "@/lib/account";
+import { setAvoidPracticeOpponents, setRematchCooldown, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
 import { disconnectTwitchAccount } from "@/lib/twitch-oauth";
@@ -24,6 +24,13 @@ export async function updateUsername(username: string) {
 export async function updateRematchCooldownSetting(rematchCooldownHours: number | null) {
   const userId = await requireUserId();
   await setRematchCooldown(userId, rematchCooldownHours);
+  revalidatePath("/settings");
+  revalidatePath("/lobby");
+}
+
+export async function updateAvoidPracticeOpponentsSetting(avoid: boolean) {
+  const userId = await requireUserId();
+  await setAvoidPracticeOpponents(userId, avoid);
   revalidatePath("/settings");
   revalidatePath("/lobby");
 }

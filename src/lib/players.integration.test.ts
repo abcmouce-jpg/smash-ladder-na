@@ -1,16 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { getCharacterUsage, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
+import { getCareerStats, getCharacterUsage, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
-async function createConfirmedMatch(p1: string, p2: string) {
+async function createConfirmedMatch(
+  p1: string,
+  p2: string,
+  options: { reportedWinnerId?: string; player1IsPracticing?: boolean; player2IsPracticing?: boolean } = {},
+) {
   return prisma.ratingMatch.create({
     data: {
       player1Id: p1,
       player2Id: p2,
       status: MatchStatus.CONFIRMED,
       expiresAt: new Date(),
+      reportedWinnerId: options.reportedWinnerId,
+      player1IsPracticing: options.player1IsPracticing ?? false,
+      player2IsPracticing: options.player2IsPracticing ?? false,
     },
   });
 }
@@ -176,6 +183,65 @@ describe("getCharacterUsage", () => {
     await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", null);
 
     expect(await getCharacterUsage(player.id)).toEqual([]);
+  });
+
+  it("excludes games from a match where the player's own side was practicing", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id, { player1IsPracticing: true });
+    await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", player.id);
+
+    expect(await getCharacterUsage(player.id)).toEqual([]);
+  });
+
+  it("still counts a match for the opponent when only the player's side was practicing", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id, { player1IsPracticing: true });
+    await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", opponent.id);
+
+    expect(await getCharacterUsage(opponent.id)).toEqual([
+      { character: "Ken", games: 1, wins: 1, losses: 0, winRate: 100, usagePercent: 100 },
+    ]);
+  });
+});
+
+describe("getCareerStats", () => {
+  it("counts wins and losses from confirmed matches", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(player.id, opponent.id, { reportedWinnerId: player.id });
+    await createConfirmedMatch(opponent.id, player.id, { reportedWinnerId: opponent.id });
+
+    const stats = await getCareerStats(player.id);
+    expect(stats.totalWins).toBe(1);
+    expect(stats.totalLosses).toBe(1);
+  });
+
+  it("excludes a match from the player's own record when their side was practicing", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+
+    const stats = await getCareerStats(player.id);
+    expect(stats.totalWins).toBe(0);
+    expect(stats.totalLosses).toBe(0);
+  });
+
+  it("still counts the match for the non-practicing opponent", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: opponent.id,
+      player1IsPracticing: true,
+    });
+
+    const stats = await getCareerStats(opponent.id);
+    expect(stats.totalWins).toBe(1);
+    expect(stats.totalLosses).toBe(0);
   });
 });
 

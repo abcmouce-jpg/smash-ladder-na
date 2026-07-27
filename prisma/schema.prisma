@@ -141,7 +141,8 @@ model User {
   misconductScore      Int        @default(0) // bumped only when a mod actions a ConductReport, not on filing
   suspendedUntil       DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
   lastKnownIp          String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)
-  mainCharacter        String? // self-declared; drives the character leaderboard filter
+  mainCharacter        String? // peer-reported (not self-declared — see reportOpponentCharacter), first character an opponent ever reported; drives the character leaderboard filter
+  secondaryCharacters  String[]   @default([]) // peer-reported characters seen since, distinct from mainCharacter — same anti-gaming rationale, just accumulated instead of overwritten
   region               String? // self-declared match region; drives distance-based matchmaking
   maxMatchDistanceKm   Int?       @default(5000) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance.
   maxRatingGap         Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
@@ -149,6 +150,9 @@ model User {
   wiredConnection      Boolean    @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
   requireWiredOpponent Boolean    @default(false) // if set, only match with opponents who have wiredConnection on. Checked per-side against the OTHER side's actual wiredConnection fact — not symmetric like distance/rating gap, since this is a claim about the other person, not a shared value.
   arenaPassword        String? // self-declared in-game room password override; null means use the ladder-wide default (see DEFAULT_ARENA_PASSWORD in lib/arena.ts). Lets streamers keep theirs off a publicly-documented value.
+  practiceRating          Int     @default(1500) // separate Elo track for matches joined with isPracticing — never touches `rating`/`gamesPlayed`
+  practiceGamesPlayed     Int     @default(0)
+  avoidPracticeOpponents  Boolean @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
   startggUserId        String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
   startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
   startggGamerTag      String? // display tag from start.gg's player object, if the account has one
@@ -200,6 +204,7 @@ model RatingLobbyEntry {
   joinedAt      DateTime          @default(now())
   expiresAt     DateTime
   cancelledAt   DateTime?
+  isPracticing  Boolean           @default(false) // this join only — carried onto the created match as player{1,2}IsPracticing
 
   @@index([status, expiresAt])
   @@index([userId, joinedAt])
@@ -246,6 +251,8 @@ model RatingMatch {
   correctionSecondReportedById String?
   correctionSecondReportedAt   DateTime?
   correctionDisputed           Boolean             @default(false)
+  player1IsPracticing          Boolean             @default(false) // carried from player1's RatingLobbyEntry.isPracticing at pairing time — applyEloAndConfirm updates practiceRating instead of rating for this side when set
+  player2IsPracticing          Boolean             @default(false) // same, for player2
   createdAt                    DateTime            @default(now())
   expiresAt                    DateTime // no-show / no-report cutoff
   seasonId                     String?
@@ -313,8 +320,9 @@ model MatchGame {
 
 // Tracks when each player last typed in a match's chat. Updated via server
 // action on keystroke (debounced client-side). The opponent's client polls
-// this to show a "typing…" indicator. Records are cleaned up when the match
-// ends or after a timeout.
+// this to show a "typing…" indicator. Rows are never deleted (same as
+// MatchComment) — isOpponentTyping treats anything older than
+// TYPING_TIMEOUT_MS as stale, which is enough for correctness.
 model MatchTypingStatus {
   id          String      @id @default(cuid())
   matchId     String

@@ -16,7 +16,11 @@ export function JoinLobbyForm({
 
   return (
     <form action={formAction} className={className}>
-      <Button type="submit" disabled={isPending}>
+      <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <input type="checkbox" name="isPracticing" className="size-3.5" />
+        Practicing this session (bans your main character, uses a separate practice rating)
+      </label>
+      <Button type="submit" disabled={isPending} className="mt-2">
         {isPending ? (
           <>
             <Loader2 className="size-4 animate-spin" />

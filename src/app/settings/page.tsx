@@ -14,6 +14,7 @@ import {
   disconnectStartggAction,
   disconnectTwitchAction,
   updateArenaPassword,
+  updateAvoidPracticeOpponentsSetting,
   updateRematchCooldownSetting,
   updateUsername,
 } from "./actions";
@@ -55,6 +56,7 @@ export default async function SettingsPage({
         twitchProfileImageUrl: true,
         rematchCooldownHours: true,
         arenaPassword: true,
+        avoidPracticeOpponents: true,
       },
     }),
     listBlockedUsers(session.user.id),
@@ -107,6 +109,12 @@ export default async function SettingsPage({
       <Card className="mt-4">
         <CardContent className="pt-4">
           <RematchCooldownForm defaultValue={me?.rematchCooldownHours ?? null} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <AvoidPracticeOpponentsForm defaultValue={me?.avoidPracticeOpponents ?? false} />
         </CardContent>
       </Card>
 
@@ -303,6 +311,37 @@ function UsernameForm({ defaultValue }: { defaultValue: string }) {
           defaultValue={defaultValue}
           className="h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
         />
+      </label>
+      <Button type="submit" size="sm">
+        Save
+      </Button>
+    </form>
+  );
+}
+
+function AvoidPracticeOpponentsForm({ defaultValue }: { defaultValue: boolean }) {
+  async function action(formData: FormData) {
+    "use server";
+    await updateAvoidPracticeOpponentsSetting(formData.get("avoidPracticeOpponents") === "on");
+  }
+
+  return (
+    <form action={action} className="flex items-end justify-between gap-2">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          key={String(defaultValue)}
+          type="checkbox"
+          name="avoidPracticeOpponents"
+          defaultChecked={defaultValue}
+          className="size-4 rounded border-border"
+        />
+        <span>
+          Don&apos;t match me with opponents who are practicing
+          <span className="block text-xs font-normal text-muted-foreground">
+            A practicing opponent&apos;s main character is banned for them and their result won&apos;t
+            affect their rank — turn this on to skip those matches entirely.
+          </span>
+        </span>
       </label>
       <Button type="submit" size="sm">
         Save

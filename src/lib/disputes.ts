@@ -306,8 +306,10 @@ export async function adminResetMatchToZero(matchId: string) {
 // REPORTED only) since a player shouldn't be able to back out of a match
 // that's already progressed past that.
 export async function adminCancelMatch(matchId: string) {
-  await prisma.ratingMatch.updateMany({
-    where: { id: matchId, status: { notIn: [MatchStatus.CONFIRMED, MatchStatus.CANCELLED] } },
-    data: { status: MatchStatus.CANCELLED },
-  });
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  if (match.status === MatchStatus.CONFIRMED || match.status === MatchStatus.CANCELLED) {
+    throw new Error("This match is already closed out");
+  }
+  await prisma.ratingMatch.update({ where: { id: matchId }, data: { status: MatchStatus.CANCELLED } });
 }

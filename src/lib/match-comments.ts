@@ -53,11 +53,6 @@ export async function isOpponentTyping(matchId: string, userId: string) {
   return Date.now() - status.lastTypingAt.getTime() < TYPING_TIMEOUT_MS;
 }
 
-// Clean up typing records for a match
-async function clearTypingStatus(matchId: string) {
-  await prisma.matchTypingStatus.deleteMany({ where: { matchId } });
-}
-
 // Mod-only spectator path — unlike listMatchComments/postMatchComment, this
 // doesn't require the caller to be a participant. Callers (server actions/
 // pages) are responsible for the MOD/ADMIN role check.

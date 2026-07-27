@@ -124,6 +124,45 @@ describe("joinLobbyAndTryPair", () => {
     const noRegion = await createTestUser({ region: null });
     await expect(joinLobbyAndTryPair(noRegion.id)).rejects.toThrow(/region/i);
   });
+
+  it("carries each side's isPracticing flag onto the created match", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+
+    await joinLobbyAndTryPair(a.id, true); // a is practicing
+    await joinLobbyAndTryPair(b.id, false); // b is not
+
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    const aIsPracticing = match.player1Id === a.id ? match.player1IsPracticing : match.player2IsPracticing;
+    const bIsPracticing = match.player1Id === b.id ? match.player1IsPracticing : match.player2IsPracticing;
+    expect(aIsPracticing).toBe(true);
+    expect(bIsPracticing).toBe(false);
+  });
+
+  it("does not pair a practicing player with someone who opted to avoid them", async () => {
+    const practicing = await createTestUser({ region: "USA East" });
+    const avoider = await createTestUser({ region: "USA East", avoidPracticeOpponents: true });
+
+    await joinLobbyAndTryPair(practicing.id, true);
+    await joinLobbyAndTryPair(avoider.id, false);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: practicing.id }, { player2Id: practicing.id }] },
+    });
+    expect(match).toBeNull();
+  });
+
+  it("pairs a practicing player with someone who hasn't opted to avoid them", async () => {
+    const practicing = await createTestUser({ region: "USA East" });
+    const notAvoiding = await createTestUser({ region: "USA East", avoidPracticeOpponents: false });
+
+    await joinLobbyAndTryPair(practicing.id, true);
+    const second = await joinLobbyAndTryPair(notAvoiding.id, false);
+
+    expect(second?.status).toBe("PAIRED");
+  });
 });
 
 describe("createDirectMatch", () => {

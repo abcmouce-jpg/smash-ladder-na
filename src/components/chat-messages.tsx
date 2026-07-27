@@ -50,11 +50,14 @@ export function ChatMessages({
     }
   }, [comments.length]);
 
-  // Scroll to bottom on initial load
+  // Scroll to bottom on initial load only — the effect above already
+  // handles every later change to comments.length, so re-running this one
+  // on the same dependency would just be a redundant duplicate jump.
   useEffect(() => {
     if (comments.length > 0) {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

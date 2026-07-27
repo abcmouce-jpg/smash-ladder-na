@@ -6,6 +6,7 @@ import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/l
 import {
   requireActiveUser,
   requireNotBanned,
+  setAvoidPracticeOpponents,
   setMaxMatchDistance,
   setMaxRatingGap,
   setRematchCooldown,
@@ -71,9 +72,9 @@ export type JoinLobbyState = { error: string | null };
 // nothing was displaying it: the button's pending state would just clear
 // and the page would fall back to the pre-join view with zero explanation
 // (e.g. hitting the rate limit, or being region-locked out).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- useActionState requires this exact (prevState, formData) shape
-export async function joinLobby(_prevState: JoinLobbyState, _formData: FormData): Promise<JoinLobbyState> {
+export async function joinLobby(_prevState: JoinLobbyState, formData: FormData): Promise<JoinLobbyState> {
   const userId = await requireUserId();
+  const isPracticing = formData.get("isPracticing") === "on";
   try {
     await requireNotBanned(userId); // ranked play stays open at Level-1 (SUSPENDED)
     await enforceRateLimit({
@@ -82,7 +83,7 @@ export async function joinLobby(_prevState: JoinLobbyState, _formData: FormData)
       limit: 5,
       windowLabel: "minute",
     });
-    await joinLobbyAndTryPair(userId);
+    await joinLobbyAndTryPair(userId, isPracticing);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }
@@ -326,6 +327,12 @@ export async function updateWiredConnection(wired: boolean) {
 export async function updateRequireWiredOpponent(requireWired: boolean) {
   const userId = await requireUserId();
   await setRequireWiredOpponent(userId, requireWired);
+  revalidatePath("/lobby");
+}
+
+export async function updateAvoidPracticeOpponents(avoid: boolean) {
+  const userId = await requireUserId();
+  await setAvoidPracticeOpponents(userId, avoid);
   revalidatePath("/lobby");
 }
 
