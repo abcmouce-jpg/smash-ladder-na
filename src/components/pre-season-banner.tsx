@@ -1,5 +1,5 @@
 import { Rocket } from "lucide-react";
-import { hasPreSeasonStarted } from "@/lib/seasons";
+import { hasPreSeasonStarted, PRE_SEASON_DURATION_MONTHS } from "@/lib/seasons";
 
 const LAUNCH_LABEL = "Saturday, July 25 at 6:00 PM ET";
 
@@ -13,7 +13,8 @@ export function PreSeasonBanner() {
       <div className="mx-auto flex max-w-2xl items-center gap-2 px-6 py-2 text-sm">
         <Rocket className="size-3.5 shrink-0 text-primary" />
         <span className="text-muted-foreground">
-          Pre-season hasn&apos;t started yet — launches {LAUNCH_LABEL}
+          Pre-season hasn&apos;t started yet — launches {LAUNCH_LABEL}, running for{" "}
+          {PRE_SEASON_DURATION_MONTHS} months
         </span>
       </div>
     </div>

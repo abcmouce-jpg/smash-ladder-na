@@ -7,6 +7,8 @@ import {
   pickGameStage,
   pickGameCharacter,
   getCurrentGame,
+  getMatchGames,
+  CHARACTER_TIMEOUT_MS,
 } from "@/lib/match-games";
 import { GAME_ONE_STAGES } from "@/lib/stages";
 
@@ -15,6 +17,60 @@ async function createMatch(p1: string, p2: string) {
     data: { player1Id: p1, player2Id: p2, expiresAt: new Date() },
   });
 }
+
+describe("auto-forfeit for a stale character pick", () => {
+  it("does nothing before CHARACTER_TIMEOUT_MS has elapsed since the game was created", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario"); // only one side locks in
+
+    const games = await getMatchGames(match.id);
+    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+  });
+
+  it("forfeits the game to whoever locked in once CHARACTER_TIMEOUT_MS has elapsed", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+    });
+
+    const games = await getMatchGames(match.id);
+    const resolved = games.find((g) => g.gameNumber === 1);
+    expect(resolved?.winnerId).toBe(game.actorAId);
+
+    const opponent = await prisma.user.findUniqueOrThrow({
+      where: { id: game.actorAId === p1.id ? p2.id : p1.id },
+    });
+    expect(opponent.noShowCount).toBe(1);
+  });
+
+  it("does nothing when neither side has locked in yet, even past the timeout", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+  });
+});
 
 describe("character lock-in gates stage striking", () => {
   it("rejects a strike from a player who hasn't locked in a character yet", async () => {

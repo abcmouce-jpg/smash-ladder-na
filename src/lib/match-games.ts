@@ -74,11 +74,15 @@ async function autoResolveStaleTurn(matchId: string) {
 }
 
 // How long a player has to lock in a character before it costs them the
-// game — same window as STRIKE_TIMEOUT_MS, since this is the same kind of
-// "unstick a live session" problem. Deliberately not a random assignment:
-// picking a character for someone is a much bigger deal than picking a
-// stage for them.
-export const CHARACTER_TIMEOUT_MS = 60 * 1000;
+// game. Longer than STRIKE_TIMEOUT_MS on purpose: picking a stage is one
+// click among a handful of options already narrowed down, while picking a
+// character means scrolling a full roster and actually deciding — 60s (the
+// original value) turned out to forfeit people who were still reading the
+// list, with no on-screen warning that a clock was even running (see the
+// "Xs left" text in CharacterPickSection). Deliberately not a random
+// assignment either way: picking a character for someone is a much bigger
+// deal than picking a stage for them.
+export const CHARACTER_TIMEOUT_MS = 3 * 60 * 1000;
 
 // Lazy, same pattern as autoResolveStaleTurn. Forfeits the current game to
 // whichever side actually locked in a character, once the other side has
@@ -105,17 +109,42 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
   const winnerId = aLocked ? game.actorAId : game.actorBId;
   const ghostId = aLocked ? game.actorBId : game.actorAId;
 
-  await withTransientRetry(() =>
+  const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
       const claim = await tx.matchGame.updateMany({
         where: { id: game.id, winnerId: null },
         data: { winnerId },
       });
-      if (claim.count === 0) return; // already resolved by a racing request
+      if (claim.count === 0) return false; // already resolved by a racing request
       await progressSet(tx, match, game.gameNumber, winnerId, ConfirmationMethod.AUTO_TIMEOUT);
       await tx.user.update({ where: { id: ghostId }, data: { noShowCount: { increment: 1 } } });
+      return true;
     }, TX_OPTIONS),
   );
+  if (!claimed) return;
+
+  // Mods get pinged on every one of these, not just when a player happens to
+  // complain — this is exactly the kind of silent, easy-to-miss forfeit that
+  // slipped by unnoticed before (see adminSetGameWinner/adminResetMatchToZero
+  // in disputes.ts for the tools to review or undo it from here).
+  const [winner, ghost, mods] = await Promise.all([
+    prisma.user.findUnique({ where: { id: winnerId }, select: { username: true } }),
+    prisma.user.findUnique({ where: { id: ghostId }, select: { username: true, discordId: true } }),
+    prisma.user.findMany({ where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } }, select: { discordId: true } }),
+  ]);
+  if (!winner || !ghost) return;
+  await Promise.all([
+    sendDiscordDM(
+      ghost.discordId,
+      `⏱️ Game ${game.gameNumber} vs ${winner.username} was forfeited to them — you didn't lock in a character in time. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
+    ),
+    ...mods.map((mod) =>
+      sendDiscordDM(
+        mod.discordId,
+        `⏱️ Character-pick forfeit: ${winner.username} awarded game ${game.gameNumber} over ${ghost.username} (match ${match.id}). Review at /admin/live if this looks unfair.`,
+      ),
+    ),
+  ]);
 }
 
 export async function getMatchGames(matchId: string) {

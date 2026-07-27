@@ -6,6 +6,21 @@ import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 // past a DST boundary.
 export const PRE_SEASON_STARTS_AT = new Date("2026-07-25T18:00:00-04:00");
 
+// The preseason is a fixed 2-month trial run before Season 1 proper — the
+// actual rollover is still triggered manually via the admin Seasons page
+// (see endActiveSeasonAndStartNext), but players should be able to see
+// roughly when to expect that, not just "whenever a mod gets to it."
+export const PRE_SEASON_DURATION_MONTHS = 2;
+export const PRE_SEASON_EXPECTED_END_AT = new Date(
+  Date.UTC(
+    PRE_SEASON_STARTS_AT.getUTCFullYear(),
+    PRE_SEASON_STARTS_AT.getUTCMonth() + PRE_SEASON_DURATION_MONTHS,
+    PRE_SEASON_STARTS_AT.getUTCDate(),
+    PRE_SEASON_STARTS_AT.getUTCHours(),
+    PRE_SEASON_STARTS_AT.getUTCMinutes(),
+  ),
+);
+
 export function hasPreSeasonStarted() {
   return Date.now() >= PRE_SEASON_STARTS_AT.getTime();
 }

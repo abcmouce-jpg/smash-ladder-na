@@ -1,5 +1,6 @@
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { SEASON_PRIZE_POOL_USD, PRIZE_SPLIT_PERCENT } from "@/lib/prizes";
+import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 
 export const metadata = { title: "Rules — Smash Ladder NA" };
 
@@ -33,6 +34,15 @@ export default function RulesPage() {
             {PRIZE_SPLIT_PERCENT[1]}%, 3rd {PRIZE_SPLIT_PERCENT[2]}%, 4th{" "}
             {PRIZE_SPLIT_PERCENT[3]}%, and 5th {PRIZE_SPLIT_PERCENT[4]}%. You need{" "}
             {LEADERBOARD_MIN_GAMES}+ games played to appear on the leaderboard at all.
+          </p>
+          <p>
+            The current preseason is a fixed {PRE_SEASON_DURATION_MONTHS}-month trial run,
+            expected to end around{" "}
+            {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
+              timeZone: "America/New_York",
+              dateStyle: "long",
+            })}
+            . Ending a season resets everyone&apos;s rating for the next one.
           </p>
         </Section>
 

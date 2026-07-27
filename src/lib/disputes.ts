@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { tallySetWins, GAMES_TO_WIN } from "@/lib/match-games";
+import { GAME_ONE_STAGES } from "@/lib/stages";
 import { sendDiscordDM } from "@/lib/discord-bot";
 
 // Same shape as matches.ts's matchWithPlayers, plus report/block counts —
@@ -209,6 +210,93 @@ export async function listLiveMatches() {
       player2: { select: { id: true, username: true } },
       games: { select: { gameNumber: true, winnerId: true, finalStage: true } },
     },
+  });
+}
+
+// Mod-only escape hatch to directly edit a single game's recorded winner on
+// a live (not yet CONFIRMED/CANCELLED) match — unlike resolveDisputedGame,
+// this isn't limited to games that are actually in a disputed state: it can
+// overwrite an already-decided game (fixing a miscounted score) or clear one
+// back to undecided (winnerId: null), e.g. as part of resetting a set. Any
+// stale report/dispute-vote fields on the game are cleared too, since a mod
+// overriding the result makes them moot either way. If the resulting tally
+// now has someone at GAMES_TO_WIN wins, the set is confirmed and Elo applied
+// immediately, same as normal play reaching that point.
+export async function adminSetGameWinner(matchId: string, gameNumber: number, winnerId: string | null) {
+  return withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+      if (!match) throw new Error("Match not found");
+      if (match.status === MatchStatus.CONFIRMED || match.status === MatchStatus.CANCELLED) {
+        throw new Error("This match is already closed out");
+      }
+      if (winnerId !== null && winnerId !== match.player1Id && winnerId !== match.player2Id) {
+        throw new Error("Winner must be one of the two players");
+      }
+      const game = await tx.matchGame.findUnique({ where: { matchId_gameNumber: { matchId, gameNumber } } });
+      if (!game) throw new Error("Game not found");
+
+      await tx.matchGame.update({
+        where: { id: game.id },
+        data: {
+          winnerId,
+          reportedWinnerId: null,
+          reportedById: null,
+          reportedAt: null,
+          secondReportWinnerId: null,
+          secondReportById: null,
+          secondReportAt: null,
+          disputeResolutionWinnerId: null,
+          disputeResolutionById: null,
+          disputeResolutionAt: null,
+        },
+      });
+
+      if (winnerId === null) return;
+
+      const games = await tx.matchGame.findMany({ where: { matchId: match.id } });
+      const wins = tallySetWins(games);
+      const setWinnerId = Object.entries(wins).find(([, count]) => count >= GAMES_TO_WIN)?.[0];
+      if (setWinnerId) {
+        await tx.ratingMatch.update({
+          where: { id: match.id },
+          data: { reportedWinnerId: setWinnerId, reportedById: setWinnerId, reportedAt: new Date() },
+        });
+        await applyEloAndConfirm(tx, match, setWinnerId, ConfirmationMethod.ADMIN_RESOLVED, null);
+      }
+    }, TX_OPTIONS),
+  );
+}
+
+// Mod-only full restart for a set that needs to go back to 0-0 (e.g. an
+// out-of-band agreement to replay) — wipes every MatchGame row and creates a
+// fresh game 1, exactly as if the set had just started. Only available
+// before the match is scored, same guard as adminSetGameWinner; deliberately
+// doesn't try to patch the existing games' character/strike state back to
+// clean, since that state machine isn't meant to run in reverse.
+export async function adminResetMatchToZero(matchId: string) {
+  await prisma.$transaction(async (tx) => {
+    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+    if (!match) throw new Error("Match not found");
+    if (match.status === MatchStatus.CONFIRMED || match.status === MatchStatus.CANCELLED) {
+      throw new Error("This match is already closed out");
+    }
+
+    const actorAId = Math.random() < 0.5 ? match.player1Id : match.player2Id;
+    const actorBId = actorAId === match.player1Id ? match.player2Id : match.player1Id;
+
+    await tx.matchGame.deleteMany({ where: { matchId } });
+    await tx.matchGame.create({
+      data: {
+        matchId,
+        gameNumber: 1,
+        actorAId,
+        actorAStrikes: 1,
+        actorBId,
+        actorBStrikes: 2,
+        stagesRemaining: [...GAME_ONE_STAGES],
+      },
+    });
   });
 }
 

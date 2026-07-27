@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ForceConfirmMatchForm } from "@/components/force-confirm-match-form";
-import { forceConfirmMatchAction, postLiveMatchComment } from "./actions";
+import { EditGameScoreForm } from "@/components/edit-game-score-form";
+import {
+  forceConfirmMatchAction,
+  postLiveMatchComment,
+  setGameWinnerAction,
+  resetMatchAction,
+} from "./actions";
 
 export default async function LiveMatchesPage() {
   const session = await auth();
@@ -81,6 +87,24 @@ export default async function LiveMatchesPage() {
                     actionForPlayer2={forceConfirmMatchAction.bind(null, match.id, match.player2.id)}
                   />
 
+                  <EditGameScoreForm
+                    player1Username={match.player1.username}
+                    player2Username={match.player2.username}
+                    games={match.games.map((g) => ({
+                      gameNumber: g.gameNumber,
+                      winnerUsername:
+                        g.winnerId === match.player1.id
+                          ? match.player1.username
+                          : g.winnerId === match.player2.id
+                            ? match.player2.username
+                            : null,
+                      setPlayer1Action: setGameWinnerAction.bind(null, match.id, g.gameNumber, match.player1.id),
+                      clearAction: setGameWinnerAction.bind(null, match.id, g.gameNumber, null),
+                      setPlayer2Action: setGameWinnerAction.bind(null, match.id, g.gameNumber, match.player2.id),
+                    }))}
+                    resetAction={resetMatchAction.bind(null, match.id)}
+                  />
+
                   <details className="mt-3 text-xs">
                     <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                       Chatroom ({comments[i].length})
@@ -100,6 +124,7 @@ export default async function LiveMatchesPage() {
                           required
                           maxLength={500}
                           placeholder="Message both players as a mod…"
+                          autoComplete="off"
                           className="h-8 w-full rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
                         />
                         <Button type="submit" size="sm" variant="outline">

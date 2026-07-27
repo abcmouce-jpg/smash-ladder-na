@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { listDisputedGames, listLiveMatches, requestDisputeResolution, resolveDisputedGame } from "@/lib/disputes";
+import {
+  listDisputedGames,
+  listLiveMatches,
+  requestDisputeResolution,
+  resolveDisputedGame,
+  adminSetGameWinner,
+  adminResetMatchToZero,
+} from "@/lib/disputes";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
@@ -274,5 +281,98 @@ describe("listLiveMatches", () => {
 
     const results = await listLiveMatches();
     expect(results).toEqual([]);
+  });
+});
+
+describe("adminSetGameWinner", () => {
+  it("overwrites an already-decided game without needing a dispute", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDecidedGame(match.id, 1, p1.id, p2.id);
+
+    await adminSetGameWinner(match.id, 1, p2.id);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.winnerId).toBe(p2.id);
+  });
+
+  it("clears a game back to undecided when passed null", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDecidedGame(match.id, 1, p1.id, p2.id);
+
+    await adminSetGameWinner(match.id, 1, null);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.winnerId).toBeNull();
+  });
+
+  it("confirms the match and applies Elo once the edit reaches the deciding win", async () => {
+    const p1 = await createTestUser({ rating: 1500 });
+    const p2 = await createTestUser({ rating: 1500 });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDecidedGame(match.id, 1, p1.id, p2.id);
+    await createDecidedGame(match.id, 2, p1.id, p2.id);
+    await createDecidedGame(match.id, 3, p1.id, p2.id);
+
+    await adminSetGameWinner(match.id, 3, p1.id);
+
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe(MatchStatus.CONFIRMED);
+    expect(updatedMatch.reportedWinnerId).toBe(p1.id);
+  });
+
+  it("rejects editing a match that's already closed out", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.CONFIRMED, expiresAt: new Date() },
+    });
+    await createDecidedGame(match.id, 1, p1.id, p2.id);
+
+    await expect(adminSetGameWinner(match.id, 1, p2.id)).rejects.toThrow("already closed out");
+  });
+});
+
+describe("adminResetMatchToZero", () => {
+  it("wipes existing games and restarts a fresh, undecided game 1", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDecidedGame(match.id, 1, p1.id, p2.id);
+    await createDecidedGame(match.id, 2, p1.id, p2.id);
+
+    await adminResetMatchToZero(match.id);
+
+    const games = await prisma.matchGame.findMany({ where: { matchId: match.id } });
+    expect(games).toHaveLength(1);
+    expect(games[0].gameNumber).toBe(1);
+    expect(games[0].winnerId).toBeNull();
+    expect([p1.id, p2.id]).toContain(games[0].actorAId);
+    expect([p1.id, p2.id]).toContain(games[0].actorBId);
+  });
+
+  it("rejects resetting a match that's already closed out", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.CONFIRMED, expiresAt: new Date() },
+    });
+
+    await expect(adminResetMatchToZero(match.id)).rejects.toThrow("already closed out");
   });
 });

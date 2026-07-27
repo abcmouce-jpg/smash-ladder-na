@@ -19,6 +19,7 @@ export function CommentForm({
           name="body"
           placeholder="Say something…"
           maxLength={500}
+          autoComplete="off"
           className="h-8 flex-1 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
         <Button type="submit" size="sm" disabled={isPending}>
