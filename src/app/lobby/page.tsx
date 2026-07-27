@@ -7,6 +7,7 @@ import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
+  bothCharactersLocked,
   characterPickState,
   getMatchGames,
   gameTurnState,
@@ -586,8 +587,8 @@ function GameSection({
   }
 
   const myTurn = turn.actorId === userId;
-  const { yourCharacter } = characterPickState(current, userId);
-  const canAct = myTurn && yourCharacter !== null;
+  const bothLocked = bothCharactersLocked(current);
+  const canAct = myTurn && bothLocked;
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
 
@@ -621,10 +622,10 @@ function GameSection({
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
           Game {current.gameNumber} —{" "}
-          {!myTurn
-            ? `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`
-            : yourCharacter === null
-              ? "Lock in your character above before you can continue."
+          {!bothLocked
+            ? "Stage selection will start once both characters are locked in."
+            : !myTurn
+              ? `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`
               : `Your turn — ${turnDescription} (${secondsLeft}s left, or it auto-picks).`}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">

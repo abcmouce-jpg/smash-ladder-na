@@ -30,7 +30,7 @@ describe("character lock-in gates stage striking", () => {
     ).rejects.toThrow(/character/i);
   });
 
-  it("allows a strike once the striking player has locked in a character", async () => {
+  it("still rejects a strike when only the striking player has locked in (opponent hasn't)", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -39,10 +39,47 @@ describe("character lock-in gates stage striking", () => {
     if (!game) throw new Error("expected game 1 to exist");
 
     await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+
+    await expect(
+      strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0]),
+    ).rejects.toThrow(/character/i);
+  });
+
+  it("allows a strike once both players have locked in a character", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    const opponentId = game.actorAId === p1.id ? p2.id : p1.id;
+
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    await pickGameCharacter(opponentId, match.id, 1, "Luigi");
     await strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0]);
 
     const updated = await getCurrentGame(match.id);
     expect(updated?.struckStages).toEqual([GAME_ONE_STAGES[0]]);
+  });
+
+  it("starts the stage-strike clock only once the second player locks in a character", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    const opponentId = game.actorAId === p1.id ? p2.id : p1.id;
+
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    const afterFirstPick = await getCurrentGame(match.id);
+
+    await pickGameCharacter(opponentId, match.id, 1, "Luigi");
+    const afterSecondPick = await getCurrentGame(match.id);
+
+    expect(afterSecondPick!.turnStartedAt.getTime()).toBeGreaterThan(
+      afterFirstPick!.turnStartedAt.getTime(),
+    );
   });
 
   it("rejects the final stage pick from a player who hasn't locked in a character yet", async () => {
@@ -69,7 +106,7 @@ describe("character lock-in gates stage striking", () => {
     ).rejects.toThrow(/character/i);
   });
 
-  it("allows the final stage pick once that player has locked in a character", async () => {
+  it("allows the final stage pick once both players have locked in a character", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
