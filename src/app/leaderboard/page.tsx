@@ -7,6 +7,7 @@ import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { SEASON_PRIZE_POOL_USD, prizeForPlace } from "@/lib/prizes";
 import { CharacterIcon } from "@/components/character-icon";
+import { CharacterFilterSelect } from "@/components/character-filter-select";
 import { RankBadge } from "@/components/rank-badge";
 import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
@@ -84,23 +85,9 @@ export default async function LeaderboardPage({
             className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Character
-          <select
-            name="character"
-            defaultValue={isValidCharacter ? character : ""}
-            className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option value="" className="bg-background text-foreground">
-              All players
-            </option>
-            {SMASH_CHARACTERS.map((c) => (
-              <option key={c} value={c} className="bg-background text-foreground">
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+        <CharacterFilterSelect
+          defaultValue={isValidCharacter ? character : ""}
+        />
         <label className="flex flex-col gap-1 text-sm">
           Region
           <select

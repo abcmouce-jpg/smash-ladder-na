@@ -12,7 +12,6 @@ import {
   Swords,
   Trophy,
   UserRound,
-  Users,
 } from "lucide-react";
 import { auth, signIn, signOut, primaryProviderId } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -118,14 +117,6 @@ export async function SiteHeader() {
             >
               <Swords className="size-3.5" />
               Lobby
-            </Link>
-            <Link
-              href="/free-battle"
-              prefetch={false}
-              className="flex items-center gap-1.5 hover:text-foreground"
-            >
-              <Users className="size-3.5" />
-              Free Battle
             </Link>
             <Link
               href="/leaderboard"

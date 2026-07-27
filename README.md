@@ -60,7 +60,13 @@ Discord OAuth.
    npx prisma migrate dev
    ```
 
-4. Run the dev server:
+4. Generate backend:
+
+  ```bash
+  npx prisma generate
+  ```
+
+5. Run the dev server:
 
    ```bash
    npm run dev

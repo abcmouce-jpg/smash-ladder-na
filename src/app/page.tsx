@@ -111,22 +111,13 @@ export default async function Home() {
         </div>
       )}
 
-      <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link href="/lobby">
           <Card className="h-full transition-colors hover:border-foreground/30">
             <CardHeader>
               <Swords className="size-5 text-muted-foreground" />
               <CardTitle className="text-base">Ranked Lobby</CardTitle>
               <CardDescription>Queue up and get auto-paired for a rated match.</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-        <Link href="/free-battle">
-          <Card className="h-full transition-colors hover:border-foreground/30">
-            <CardHeader>
-              <Users className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">Free Battle</CardTitle>
-              <CardDescription>Post up for casual, unranked friendlies.</CardDescription>
             </CardHeader>
           </Card>
         </Link>
