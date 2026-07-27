@@ -275,6 +275,15 @@ export async function reportConductAction(
   return { error: null, message: "Reported — a mod will review it." };
 }
 
+export async function signalTypingAction(matchId: string) {
+  const userId = await requireUserId();
+  await prisma.matchTypingStatus.upsert({
+    where: { matchId_userId: { matchId, userId } },
+    update: { lastTypingAt: new Date() },
+    create: { matchId, userId, lastTypingAt: new Date() },
+  });
+}
+
 export async function reportConnection(matchId: string) {
   const userId = await requireUserId();
   await requireActiveUser(userId); // suspension blocks filing new reports, same as reportConduct
