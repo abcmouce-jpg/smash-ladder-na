@@ -114,6 +114,17 @@ function picker(game: { actorAId: string; actorBId: string; actorAStrikes: numbe
   return game.actorAStrikes < game.actorBStrikes ? game.actorAId : game.actorBId;
 }
 
+// Without this, a player could strike/pick stages through an entire game
+// without ever locking in a character, leaving actorA/BCharacter null for a
+// game that's already been won and reported — permanently missing character
+// data. Requiring your own lock-in before you act keeps the two in sync.
+function hasLockedOwnCharacter(
+  game: { actorAId: string; actorACharacter: string | null; actorBCharacter: string | null },
+  userId: string,
+) {
+  return (userId === game.actorAId ? game.actorACharacter : game.actorBCharacter) !== null;
+}
+
 // For the UI: whose turn it is right now and whether they're striking or picking.
 export function gameTurnState(game: {
   actorAId: string;
@@ -217,6 +228,7 @@ export async function strikeGameStage(
   const actor = actorForStrike(game);
   if (!actor) throw new Error("Striking is done — waiting on a pick");
   if (actor !== userId) throw new Error("Not your turn to strike");
+  if (!hasLockedOwnCharacter(game, userId)) throw new Error("Lock in your character before striking a stage");
   if (!game.stagesRemaining.includes(stage)) throw new Error("Stage already struck or invalid");
 
   // Conditional on struckStages still matching what we read, so a racing
@@ -264,6 +276,7 @@ export async function pickGameStage(
   if (game.finalStage) throw new Error("Stage already decided");
   if (actorForStrike(game) !== null) throw new Error("Striking isn't finished yet");
   if (picker(game) !== userId) throw new Error("Not your turn to pick");
+  if (!hasLockedOwnCharacter(game, userId)) throw new Error("Lock in your character before picking a stage");
   if (!game.stagesRemaining.includes(stage)) throw new Error("Not a valid remaining stage");
 
   await prisma.matchGame.updateMany({

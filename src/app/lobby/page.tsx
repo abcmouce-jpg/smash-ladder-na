@@ -573,6 +573,8 @@ function GameSection({
   }
 
   const myTurn = turn.actorId === userId;
+  const { yourCharacter } = characterPickState(current, userId);
+  const canAct = myTurn && yourCharacter !== null;
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
 
@@ -606,14 +608,16 @@ function GameSection({
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
           Game {current.gameNumber} —{" "}
-          {myTurn
-            ? `Your turn — ${turnDescription} (${secondsLeft}s left, or it auto-picks).`
-            : `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`}
+          {!myTurn
+            ? `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`
+            : yourCharacter === null
+              ? "Lock in your character above before you can continue."
+              : `Your turn — ${turnDescription} (${secondsLeft}s left, or it auto-picks).`}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {current.stagesRemaining.map((stage) => (
             <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
-              <Button type="submit" size="sm" variant="outline" disabled={!myTurn}>
+              <Button type="submit" size="sm" variant="outline" disabled={!canAct}>
                 {stage}
               </Button>
             </form>
