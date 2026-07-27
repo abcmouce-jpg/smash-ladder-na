@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { joinLobbyAndTryPair } from "@/lib/lobby";
+import { createDirectMatch, getActiveLobbyEntry, joinLobbyAndTryPair } from "@/lib/lobby";
 import { blockUser } from "@/lib/blocks";
+import { PairingMethod } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
 async function createPastMatch(p1: string, p2: string, createdAt: Date) {
@@ -122,5 +123,24 @@ describe("joinLobbyAndTryPair", () => {
   it("requires a region to be set before joining", async () => {
     const noRegion = await createTestUser({ region: null });
     await expect(joinLobbyAndTryPair(noRegion.id)).rejects.toThrow(/region/i);
+  });
+});
+
+describe("createDirectMatch", () => {
+  it("creates a match discoverable via getActiveLobbyEntry for both players", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+
+    const match = await prisma.$transaction((tx) => createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH));
+
+    expect(match.player1Id).toBe(a.id);
+    expect(match.player2Id).toBe(b.id);
+    expect(match.pairingMethod).toBe(PairingMethod.REMATCH);
+    expect(match.status).toBe("PENDING_REPORT");
+
+    const entryA = await getActiveLobbyEntry(a.id);
+    const entryB = await getActiveLobbyEntry(b.id);
+    expect(entryA?.match?.id).toBe(match.id);
+    expect(entryB?.match?.id).toBe(match.id);
   });
 });

@@ -22,7 +22,7 @@ import {
   unstrikeLastGameStage,
 } from "@/lib/match-games";
 import { postMatchComment } from "@/lib/match-comments";
-import { cancelMatch } from "@/lib/matches";
+import { cancelMatch, leaveMatch, requestRematch } from "@/lib/matches";
 import { requestDisputeResolution } from "@/lib/disputes";
 import { fileConnectionReport, fileMatchReport } from "@/lib/reports";
 import { reportOpponentCharacter } from "@/lib/character-stats";
@@ -229,6 +229,18 @@ export async function cancelMatchInProgress(
   }
   revalidatePath("/lobby");
   return { error: null };
+}
+
+export async function leaveMatchAction(matchId: string) {
+  const userId = await requireUserId();
+  await leaveMatch(userId, matchId);
+  revalidatePath("/lobby");
+}
+
+export async function requestRematchAction(matchId: string) {
+  const userId = await requireUserId();
+  await requestRematch(userId, matchId);
+  revalidatePath("/lobby");
 }
 
 export type ReportConductState = { error: string | null; message: string | null };

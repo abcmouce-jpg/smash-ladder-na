@@ -5,11 +5,14 @@ import {
   adminOverrideMatchResult,
   applyEloAndConfirm,
   cancelMatch,
+  leaveMatch,
+  requestRematch,
   requestResultCorrection,
   resolveMatchCorrection,
 } from "@/lib/matches";
+import { blockUser } from "@/lib/blocks";
 import { endActiveSeasonAndStartNext } from "@/lib/seasons";
-import { ConfirmationMethod, MatchStatus } from "@/generated/prisma/enums";
+import { ConfirmationMethod, LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
 async function createConfirmedMatch(winnerId: string, loserId: string) {
@@ -380,5 +383,201 @@ describe("adminForceConfirmMatch", () => {
     });
 
     await expect(adminForceConfirmMatch(match.id, outsider.id)).rejects.toThrow(/one of the two players/i);
+  });
+});
+
+describe("leaveMatch", () => {
+  async function createConfirmedMatch() {
+    const player1 = await createTestUser();
+    const player2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: player1.id,
+        player2Id: player2.id,
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(),
+        expiresAt: new Date(),
+      },
+    });
+    return { player1, player2, match };
+  }
+
+  it("marks player1's own leftAt and leaves player2's untouched", async () => {
+    const { player1, match } = await createConfirmedMatch();
+
+    await leaveMatch(player1.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.player1LeftAt).not.toBeNull();
+    expect(updated.player2LeftAt).toBeNull();
+  });
+
+  it("marks player2's own leftAt and leaves player1's untouched", async () => {
+    const { player2, match } = await createConfirmedMatch();
+
+    await leaveMatch(player2.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.player2LeftAt).not.toBeNull();
+    expect(updated.player1LeftAt).toBeNull();
+  });
+
+  it("throws for a user who isn't a participant in the match", async () => {
+    const { match } = await createConfirmedMatch();
+    const outsider = await createTestUser();
+
+    await expect(leaveMatch(outsider.id, match.id)).rejects.toThrow(
+      "Not a participant in this match",
+    );
+  });
+
+  it("is idempotent — leaving twice keeps the original timestamp", async () => {
+    const { player1, match } = await createConfirmedMatch();
+
+    await leaveMatch(player1.id, match.id);
+    const afterFirst = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+
+    await leaveMatch(player1.id, match.id);
+    const afterSecond = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+
+    expect(afterSecond.player1LeftAt?.getTime()).toBe(afterFirst.player1LeftAt?.getTime());
+  });
+
+  it("clears a previously-set rematch request when leaving", async () => {
+    const { player1, match } = await createConfirmedMatch();
+    await requestRematch(player1.id, match.id);
+
+    await leaveMatch(player1.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.player1RematchRequestedAt).toBeNull();
+  });
+});
+
+describe("requestRematch", () => {
+  async function createConfirmedMatch() {
+    const player1 = await createTestUser();
+    const player2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: player1.id,
+        player2Id: player2.id,
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(),
+        expiresAt: new Date(),
+      },
+    });
+    return { player1, player2, match };
+  }
+
+  it("throws for a user who isn't a participant in the match", async () => {
+    const { match } = await createConfirmedMatch();
+    const outsider = await createTestUser();
+
+    await expect(requestRematch(outsider.id, match.id)).rejects.toThrow(
+      "Not a participant in this match",
+    );
+  });
+
+  it("throws for a match that hasn't finished", async () => {
+    const player1 = await createTestUser();
+    const player2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: player1.id,
+        player2Id: player2.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+
+    await expect(requestRematch(player1.id, match.id)).rejects.toThrow(
+      "This match hasn't finished yet",
+    );
+  });
+
+  it("throws if the caller has already left", async () => {
+    const { player1, match } = await createConfirmedMatch();
+    await leaveMatch(player1.id, match.id);
+
+    await expect(requestRematch(player1.id, match.id)).rejects.toThrow(
+      "You've left this match",
+    );
+  });
+
+  it("only records the first request when the opponent hasn't asked yet", async () => {
+    const { player1, match } = await createConfirmedMatch();
+
+    await requestRematch(player1.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.player1RematchRequestedAt).not.toBeNull();
+    expect(updated.player2RematchRequestedAt).toBeNull();
+
+    const newMatches = await prisma.ratingMatch.count({
+      where: { player1Id: player1.id, id: { not: match.id } },
+    });
+    expect(newMatches).toBe(0);
+  });
+
+  it("is idempotent — requesting twice doesn't error or change the timestamp", async () => {
+    const { player1, match } = await createConfirmedMatch();
+
+    await requestRematch(player1.id, match.id);
+    const afterFirst = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+
+    await requestRematch(player1.id, match.id);
+    const afterSecond = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+
+    expect(afterSecond.player1RematchRequestedAt?.getTime()).toBe(
+      afterFirst.player1RematchRequestedAt?.getTime(),
+    );
+  });
+
+  it("creates a fresh paired match once both players have requested", async () => {
+    const { player1, player2, match } = await createConfirmedMatch();
+
+    await requestRematch(player1.id, match.id);
+    await requestRematch(player2.id, match.id);
+
+    const newMatch = await prisma.ratingMatch.findFirstOrThrow({
+      where: { id: { not: match.id }, player1Id: player1.id, player2Id: player2.id },
+    });
+    expect(newMatch.status).toBe(MatchStatus.PENDING_REPORT);
+    expect(newMatch.pairingMethod).toBe(PairingMethod.REMATCH);
+
+    const entries = await prisma.ratingLobbyEntry.findMany({
+      where: { userId: { in: [player1.id, player2.id] }, status: LobbyEntryStatus.PAIRED },
+    });
+    const newEntries = entries.filter(
+      (e) => e.matchId === newMatch.id || e.pairedEntryId !== null,
+    );
+    expect(newEntries.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("doesn't create a new match if the opponent already left", async () => {
+    const { player1, player2, match } = await createConfirmedMatch();
+    await requestRematch(player1.id, match.id);
+    await leaveMatch(player2.id, match.id);
+
+    // player2 left, so they can no longer request — simulate the mutual
+    // condition failing by having player1's own request just sit unmatched.
+    const newMatches = await prisma.ratingMatch.count({
+      where: { player1Id: player1.id, player2Id: player2.id, id: { not: match.id } },
+    });
+    expect(newMatches).toBe(0);
+  });
+
+  it("doesn't create a new match if the players are blocked either-way", async () => {
+    const { player1, player2, match } = await createConfirmedMatch();
+    await blockUser(player2.id, player1.id);
+
+    await requestRematch(player1.id, match.id);
+    await requestRematch(player2.id, match.id);
+
+    const newMatches = await prisma.ratingMatch.count({
+      where: { player1Id: player1.id, player2Id: player2.id, id: { not: match.id } },
+    });
+    expect(newMatches).toBe(0);
   });
 });
