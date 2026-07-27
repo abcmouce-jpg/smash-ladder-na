@@ -25,6 +25,7 @@ import { AdminMatchOverride, BanIpButton, ModerationStatusForm } from "@/compone
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { isBlockedByMe } from "@/lib/blocks";
+import { startggProfileUrl } from "@/lib/startgg-oauth";
 import { listReportsForUser } from "@/lib/reports";
 import {
   adminOverrideResultAction,
@@ -126,14 +127,14 @@ export default async function PlayerProfilePage({
                 </Badge>
               )}
             </div>
-            {player.startggUrl && (
+            {player.startggSlug && (
               <a
-                href={player.startggUrl}
+                href={startggProfileUrl(player.startggSlug)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
               >
-                View on start.gg
+                {player.startggGamerTag ?? "View on start.gg"} ✓
                 <ExternalLink className="size-3" />
               </a>
             )}

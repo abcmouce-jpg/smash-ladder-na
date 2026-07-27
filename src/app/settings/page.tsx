@@ -4,17 +4,27 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { StartggUrlForm } from "@/components/startgg-url-form";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { listBlockedUsers } from "@/lib/blocks";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
-import { updateArenaPassword, updateRematchCooldownSetting, updateStartggUrl, updateUsername } from "./actions";
+import { startggProfileUrl } from "@/lib/startgg-oauth";
+import {
+  disconnectStartggAction,
+  updateArenaPassword,
+  updateRematchCooldownSetting,
+  updateUsername,
+} from "./actions";
 
 const ANYTIME_VALUE = "anytime";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ startggConnected?: string; startggError?: string }>;
+}) {
   const session = await auth();
+  const { startggConnected, startggError } = await searchParams;
 
   if (!session?.user?.id) {
     return (
@@ -30,7 +40,14 @@ export default async function SettingsPage() {
   const [me, blocked] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { username: true, startggUrl: true, rematchCooldownHours: true, arenaPassword: true },
+      select: {
+        username: true,
+        startggUserId: true,
+        startggSlug: true,
+        startggGamerTag: true,
+        rematchCooldownHours: true,
+        arenaPassword: true,
+      },
     }),
     listBlockedUsers(session.user.id),
   ]);
@@ -47,11 +64,14 @@ export default async function SettingsPage() {
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <StartggUrlForm
-            action={updateStartggUrl}
-            defaultValue={me?.startggUrl ?? ""}
-            label="start.gg profile"
-            description="Self-declared — link your start.gg profile so others can look up your results."
+          <StartggConnectCard
+            connected={
+              me?.startggUserId && me.startggSlug
+                ? { slug: me.startggSlug, gamerTag: me.startggGamerTag }
+                : null
+            }
+            justConnected={startggConnected === "1"}
+            error={startggError}
           />
         </CardContent>
       </Card>
@@ -95,6 +115,53 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function StartggConnectCard({
+  connected,
+  justConnected,
+  error,
+}: {
+  connected: { slug: string; gamerTag: string | null } | null;
+  justConnected: boolean;
+  error?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <p className="font-medium">start.gg profile</p>
+      <p className="text-xs text-muted-foreground">
+        Verified via start.gg sign-in, not a link you type in — so nobody else can claim your
+        results as their own.
+      </p>
+      {connected ? (
+        <>
+          {justConnected && <p className="text-xs text-emerald-600">Connected!</p>}
+          <div className="mt-1 flex items-center gap-2">
+            <a
+              href={startggProfileUrl(connected.slug)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium hover:underline"
+            >
+              {connected.gamerTag ?? connected.slug} ✓
+            </a>
+            <form action={disconnectStartggAction}>
+              <Button type="submit" size="sm" variant="outline">
+                Disconnect
+              </Button>
+            </form>
+          </div>
+        </>
+      ) : (
+        <a href="/api/startgg/connect" className="mt-1 self-start">
+          <Button type="button" size="sm">
+            Connect with start.gg
+          </Button>
+        </a>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
   );
 }
 

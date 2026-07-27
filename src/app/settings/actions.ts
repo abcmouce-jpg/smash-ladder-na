@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { setRematchCooldown, setUserStartggUrl, setUsername } from "@/lib/account";
+import { setRematchCooldown, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
+import { disconnectStartggAccount } from "@/lib/startgg-oauth";
 
 async function requireUserId() {
   const session = await auth();
@@ -46,22 +47,9 @@ export async function updateArenaPassword(
   return { error: null };
 }
 
-export type StartggUrlState = { error: string | null };
-
-// (prevState, formData) shape so useActionState can drive it — a plain
-// thrown error (e.g. pasting a non-start.gg link) would otherwise crash to
-// Next's generic error overlay instead of showing an inline message.
-export async function updateStartggUrl(
-  _prevState: StartggUrlState,
-  formData: FormData,
-): Promise<StartggUrlState> {
+export async function disconnectStartggAction() {
   const userId = await requireUserId();
-  try {
-    await setUserStartggUrl(userId, String(formData.get("startggUrl") ?? ""));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
-  }
+  await disconnectStartggAccount(userId);
   revalidatePath("/settings");
   revalidatePath(`/players/${userId}`);
-  return { error: null };
 }

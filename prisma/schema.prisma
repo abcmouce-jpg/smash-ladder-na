@@ -148,7 +148,10 @@ model User {
   wiredConnection      Boolean    @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
   requireWiredOpponent Boolean    @default(false) // if set, only match with opponents who have wiredConnection on. Checked per-side against the OTHER side's actual wiredConnection fact — not symmetric like distance/rating gap, since this is a claim about the other person, not a shared value.
   arenaPassword        String? // self-declared in-game room password override; null means use the ladder-wide default (see DEFAULT_ARENA_PASSWORD in lib/arena.ts). Lets streamers keep theirs off a publicly-documented value.
-  startggUrl           String? // self-declared, unverified — not used for anything automated yet
+  startggUserId        String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
+  startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
+  startggGamerTag      String? // display tag from start.gg's player object, if the account has one
+  startggConnectedAt   DateTime?
   role                 UserRole   @default(USER)
   status               UserStatus @default(ACTIVE)
   createdAt            DateTime   @default(now())
