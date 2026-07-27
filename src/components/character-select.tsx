@@ -22,7 +22,6 @@ export function CharacterSelect({
   defaultValue,
   placeholder = "Select character",
   className,
-  bare = false,
   name,
 }: {
   value?: string;
@@ -30,7 +29,6 @@ export function CharacterSelect({
   defaultValue?: string;
   placeholder?: string;
   className?: string;
-  bare?: boolean;
   /** When set, renders a hidden native <select> with this name so the value
    *  flows into the parent <form>'s FormData (useful with server actions).
    *  In this mode the component manages its own state internally. */
@@ -92,7 +90,14 @@ export function CharacterSelect({
     <div ref={containerRef} className={`relative ${className ?? ""}`}>
       {/* Hidden native select for form integration */}
       {name && (
-        <select name={name} value={effectiveValue} className="hidden" tabIndex={-1} aria-hidden>
+        <select
+          name={name}
+          value={effectiveValue}
+          onChange={() => {}} // never touched directly — its value only ever changes via select() below; this just quiets React's controlled-without-onChange warning ("readOnly" isn't a valid <select> attribute)
+          className="hidden"
+          tabIndex={-1}
+          aria-hidden
+        >
           <option value="" />
           {SMASH_CHARACTERS.map((c) => (
             <option key={c} value={c} />

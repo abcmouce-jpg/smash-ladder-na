@@ -746,12 +746,7 @@ function CharacterPickSection({
             : "pick your character — you're up first, this locks in before the opponent picks."}
       </p>
       <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
-        <CharacterSelect
-          name="character"
-          defaultValue=""
-          placeholder="Select character"
-          bare
-        />
+        <CharacterSelect name="character" defaultValue="" placeholder="Select character" />
         <Button type="submit" size="sm" variant="outline">
           Lock in
         </Button>
