@@ -8,6 +8,7 @@ import { shouldPollLobby } from "@/lib/lobby-poll";
 import { getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
+  CHARACTER_TIMEOUT_MS,
   bothCharactersLocked,
   characterPickState,
   getMatchGames,
@@ -725,10 +726,15 @@ function CharacterPickSection({
     actorBId: string;
     actorACharacter: string | null;
     actorBCharacter: string | null;
+    createdAt: Date;
   };
   opponentName: string;
 }) {
   const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(game, userId);
+  // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
+  // forfeits the whole game to whoever's opponent never locked in within this
+  // window, measured from the game's creation, so it needs to be visible here.
+  const secondsLeft = secondsUntil(new Date(game.createdAt.getTime() + CHARACTER_TIMEOUT_MS));
 
   if (yourCharacter && opponentCharacter) {
     return (
@@ -747,7 +753,10 @@ function CharacterPickSection({
         <p className="text-sm text-muted-foreground">
           Game {game.gameNumber} — you locked in{" "}
           <span className="font-medium text-foreground">{yourCharacter}</span>. Waiting for{" "}
-          {opponentName} to pick…
+          {opponentName} to pick…{" "}
+          {secondsLeft > 0
+            ? `You win this game by forfeit if they don't in ${secondsLeft}s.`
+            : "They're past the deadline — this should resolve in your favor shortly."}
         </p>
       </CardContent>
     );
@@ -771,7 +780,16 @@ function CharacterPickSection({
           ? "pick your character (blind — hidden until you're both locked in)."
           : opponentCharacter
             ? `${opponentName} locked in ${opponentCharacter}. Your pick:`
-            : "pick your character — you're up first, this locks in before the opponent picks."}
+            : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
+        {secondsLeft > 0 ? (
+          <span className="font-medium text-foreground">
+            Lock in within {secondsLeft}s or you forfeit this game.
+          </span>
+        ) : (
+          <span className="font-medium text-destructive">
+            You&apos;re past the deadline — lock in now before this forfeits.
+          </span>
+        )}
       </p>
       <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
         <select

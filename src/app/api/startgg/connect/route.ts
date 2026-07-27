@@ -14,7 +14,24 @@ export async function GET(request: Request) {
   const state = crypto.randomUUID();
   const redirectUri = new URL("/api/startgg/callback", request.url).toString();
 
-  const response = NextResponse.redirect(buildStartggAuthorizeUrl(redirectUri, state));
+  // buildStartggAuthorizeUrl throws if STARTGG_OAUTH_CLIENT_ID/SECRET aren't
+  // configured on this deployment — without this catch, that crashed the
+  // route handler outright (a blank/broken page) instead of telling the
+  // player anything, same failure mode the callback route already guards
+  // against below.
+  let authorizeUrl: string;
+  try {
+    authorizeUrl = buildStartggAuthorizeUrl(redirectUri, state);
+  } catch (err) {
+    const url = new URL("/settings", request.url);
+    url.searchParams.set(
+      "startggError",
+      err instanceof Error ? err.message : "start.gg connections aren't available right now.",
+    );
+    return NextResponse.redirect(url);
+  }
+
+  const response = NextResponse.redirect(authorizeUrl);
   response.cookies.set(STARTGG_STATE_COOKIE, state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
