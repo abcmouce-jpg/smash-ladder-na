@@ -155,6 +155,7 @@ describe("stale turn auto-resolution", () => {
         actorBId: p2.id,
         actorBStrikes: 2,
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
+        actorACharacter: "Mario",
         turnStartedAt: new Date(Date.now() - 30 * 1000), // old, but not stale yet
       },
     });
