@@ -39,6 +39,7 @@ import {
   reportConnection,
   reportGame,
   reportOpponentCharacterAction,
+  requestRematchAction,
   sendMatchComment,
   strikeStage,
   submitRoomCode,
@@ -376,8 +377,15 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               opponentName={opponent.username}
               opponentHasLeft={!!opponentLeftAt}
             />
-            <CardContent className="flex justify-end border-t border-border pt-4">
-              <form action={leaveMatchAction.bind(null, match.id)}>
+            <CardContent className="flex items-center gap-3 border-t border-border pt-4">
+              <RematchSection
+                matchId={match.id}
+                opponentName={opponent.username}
+                myRequestedAt={isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt}
+                opponentRequestedAt={isPlayer1 ? match.player2RematchRequestedAt : match.player1RematchRequestedAt}
+                opponentLeftAt={opponentLeftAt}
+              />
+              <form action={leaveMatchAction.bind(null, match.id)} className="ml-auto">
                 <Button type="submit" variant="outline" size="sm">
                   Leave
                 </Button>
@@ -865,6 +873,47 @@ async function ConfirmedSection({
         characters={SMASH_CHARACTERS}
       />
     </CardContent>
+  );
+}
+
+// Mutual opt-in: whoever clicks second is the one whose click actually
+// creates the next match (see requestRematch) — from either player's own
+// view, "Request" and "Accept" are the same action, just labeled based on
+// whether the opponent has already asked.
+function RematchSection({
+  matchId,
+  opponentName,
+  myRequestedAt,
+  opponentRequestedAt,
+  opponentLeftAt,
+}: {
+  matchId: string;
+  opponentName: string;
+  myRequestedAt: Date | null;
+  opponentRequestedAt: Date | null;
+  opponentLeftAt: Date | null;
+}) {
+  if (opponentLeftAt) return null;
+
+  if (myRequestedAt) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Waiting for {opponentName} to accept the rematch…
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {opponentRequestedAt && (
+        <p className="text-xs text-muted-foreground">{opponentName} wants a rematch!</p>
+      )}
+      <form action={requestRematchAction.bind(null, matchId)}>
+        <Button type="submit" variant="outline" size="sm">
+          {opponentRequestedAt ? "Accept Rematch" : "Request Rematch"}
+        </Button>
+      </form>
+    </div>
   );
 }
 

@@ -72,6 +72,7 @@ enum LobbyEntryStatus {
 enum PairingMethod {
   MANUAL
   AUTO
+  REMATCH
 }
 
 enum ReportStatus {
@@ -195,30 +196,32 @@ model RatingLobbyEntry {
 }
 
 model RatingMatch {
-  id                   String              @id @default(cuid())
-  player1Id            String
-  player1              User                @relation("Player1Matches", fields: [player1Id], references: [id])
-  player2Id            String
-  player2              User                @relation("Player2Matches", fields: [player2Id], references: [id])
-  pairingMethod        PairingMethod       @default(MANUAL)
-  roomCode             String? // never rendered outside the paired pair's own view
-  roomCodeSetById      String? // whoever entered it owns it; the other side can only read it
-  status               MatchStatus         @default(PENDING_REPORT)
-  reportedWinnerId     String?
-  reportedById         String?
-  reportedAt           DateTime?
-  secondReportWinnerId String?
-  secondReportById     String?
-  secondReportAt       DateTime?
-  confirmedAt          DateTime?
-  confirmationMethod   ConfirmationMethod?
-  disputeReason        String?
-  player1LeftAt        DateTime? // set when player1 clicks "Leave" on a finished match; hides chat from their own view only
-  player2LeftAt        DateTime? // same, for player2
-  player1RatingBefore  Int?
-  player1RatingAfter   Int?
-  player2RatingBefore  Int?
-  player2RatingAfter   Int?
+  id                           String              @id @default(cuid())
+  player1Id                    String
+  player1                      User                @relation("Player1Matches", fields: [player1Id], references: [id])
+  player2Id                    String
+  player2                      User                @relation("Player2Matches", fields: [player2Id], references: [id])
+  pairingMethod                PairingMethod       @default(MANUAL)
+  roomCode                     String? // never rendered outside the paired pair's own view
+  roomCodeSetById              String? // whoever entered it owns it; the other side can only read it
+  status                       MatchStatus         @default(PENDING_REPORT)
+  reportedWinnerId             String?
+  reportedById                 String?
+  reportedAt                   DateTime?
+  secondReportWinnerId         String?
+  secondReportById             String?
+  secondReportAt               DateTime?
+  confirmedAt                  DateTime?
+  confirmationMethod           ConfirmationMethod?
+  disputeReason                String?
+  player1LeftAt                DateTime? // set when player1 clicks "Leave" on a finished match; hides chat from their own view only
+  player2LeftAt                DateTime? // same, for player2
+  player1RematchRequestedAt    DateTime? // set when player1 clicks "Request Rematch"; cleared if they later leave
+  player2RematchRequestedAt    DateTime? // same, for player2
+  player1RatingBefore          Int?
+  player1RatingAfter           Int?
+  player2RatingBefore          Int?
+  player2RatingAfter           Int?
   // Post-confirmation result correction — same matching-reports-auto-apply
   // idea as the original report/secondReport pair above, just usable after
   // CONFIRMED instead of only before it. Only ever eligible while this is
@@ -226,17 +229,17 @@ model RatingMatch {
   // so reversing and reapplying Elo here can never disturb a later match that
   // already used the ratings this one produced. A disagreement between the
   // two sides' corrections sets correctionDisputed for a mod to resolve.
-  correctionWinnerId       String?
-  correctionReportedById   String?
-  correctionReportedAt     DateTime?
-  correctionSecondWinnerId String?
+  correctionWinnerId           String?
+  correctionReportedById       String?
+  correctionReportedAt         DateTime?
+  correctionSecondWinnerId     String?
   correctionSecondReportedById String?
   correctionSecondReportedAt   DateTime?
-  correctionDisputed       Boolean  @default(false)
-  createdAt            DateTime            @default(now())
-  expiresAt            DateTime // no-show / no-report cutoff
-  seasonId             String?
-  season               Season?             @relation(fields: [seasonId], references: [id])
+  correctionDisputed           Boolean  @default(false)
+  createdAt                    DateTime            @default(now())
+  expiresAt                    DateTime // no-show / no-report cutoff
+  seasonId                     String?
+  season                       Season?             @relation(fields: [seasonId], references: [id])
 
   ratingHistory RatingHistory[]
   lobbyEntry    RatingLobbyEntry?
