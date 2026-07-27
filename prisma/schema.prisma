@@ -308,8 +308,9 @@ model MatchGame {
 
 // Tracks when each player last typed in a match's chat. Updated via server
 // action on keystroke (debounced client-side). The opponent's client polls
-// this to show a "typing…" indicator. Records are cleaned up when the match
-// ends or after a timeout.
+// this to show a "typing…" indicator. Rows are never deleted (same as
+// MatchComment) — isOpponentTyping treats anything older than
+// TYPING_TIMEOUT_MS as stale, which is enough for correctness.
 model MatchTypingStatus {
   id          String      @id @default(cuid())
   matchId     String
