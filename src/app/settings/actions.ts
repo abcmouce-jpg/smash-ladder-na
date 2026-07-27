@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { setRematchCooldown, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
+import { disconnectTwitchAccount } from "@/lib/twitch-oauth";
 
 async function requireUserId() {
   const session = await auth();
@@ -50,6 +51,13 @@ export async function updateArenaPassword(
 export async function disconnectStartggAction() {
   const userId = await requireUserId();
   await disconnectStartggAccount(userId);
+  revalidatePath("/settings");
+  revalidatePath(`/players/${userId}`);
+}
+
+export async function disconnectTwitchAction() {
+  const userId = await requireUserId();
+  await disconnectTwitchAccount(userId);
   revalidatePath("/settings");
   revalidatePath(`/players/${userId}`);
 }
