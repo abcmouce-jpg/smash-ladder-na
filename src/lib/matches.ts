@@ -6,8 +6,8 @@ import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 
 export const matchWithPlayers = {
-  player1: { select: { id: true, username: true, avatarUrl: true, rating: true } },
-  player2: { select: { id: true, username: true, avatarUrl: true, rating: true } },
+  player1: { select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true } },
+  player2: { select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true } },
 } as const;
 
 export async function getUnresolvedMatchForUser(userId: string) {

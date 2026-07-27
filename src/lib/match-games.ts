@@ -28,6 +28,14 @@ function requireParticipant(match: { player1Id: string; player2Id: string }, use
 // stalled/AFK opponent mid-session.
 export const STRIKE_TIMEOUT_MS = 60 * 1000;
 
+// Picking a character is a real strategic decision — especially game 1's
+// blind pick, or a post-loss counterpick — not a quick stage veto, so it
+// gets a much longer grace period before we force a random one on someone
+// who's still actively deciding. Reported in production: players were
+// getting auto-locked onto characters they hadn't picked yet because this
+// used to share the 60s stage-strike clock.
+export const CHARACTER_PICK_TIMEOUT_MS = 3 * 60 * 1000;
+
 // Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
 // for a live in-session timer): checked on every read, same idea as
 // liftExpiredSuspension in account.ts. Picks a uniformly random stage from
@@ -38,7 +46,9 @@ export const STRIKE_TIMEOUT_MS = 60 * 1000;
 // every one of their turns and never lock a character, leaving actorA/
 // BCharacter permanently null on a game that still gets won and confirmed.
 // Backfilling a random character here before acting keeps the two in sync
-// no matter which path (manual or timed-out) resolves the turn.
+// no matter which path (manual or timed-out) resolves the turn. Resets
+// turnStartedAt so the player still gets a full STRIKE_TIMEOUT_MS window to
+// actually strike/pick afterward, rather than inheriting zero time left.
 async function autoLockStaleCharacter(
   game: { id: string; actorAId: string; actorACharacter: string | null; actorBCharacter: string | null },
   actorId: string,
@@ -48,7 +58,10 @@ async function autoLockStaleCharacter(
   const isActorA = actorId === game.actorAId;
   await prisma.matchGame.updateMany({
     where: { id: game.id, ...(isActorA ? { actorACharacter: null } : { actorBCharacter: null }) },
-    data: isActorA ? { actorACharacter: character } : { actorBCharacter: character },
+    data: {
+      ...(isActorA ? { actorACharacter: character } : { actorBCharacter: character }),
+      turnStartedAt: new Date(),
+    },
   });
 }
 
@@ -58,11 +71,19 @@ async function autoResolveStaleTurn(matchId: string) {
     orderBy: { gameNumber: "desc" },
   });
   if (!game) return;
-  if (Date.now() - game.turnStartedAt.getTime() < STRIKE_TIMEOUT_MS) return;
 
+  const elapsed = Date.now() - game.turnStartedAt.getTime();
   const striker = actorForStrike(game);
+  const actingId = striker ?? picker(game);
+
+  if (!hasLockedOwnCharacter(game, actingId)) {
+    if (elapsed >= CHARACTER_PICK_TIMEOUT_MS) await autoLockStaleCharacter(game, actingId);
+    return;
+  }
+
+  if (elapsed < STRIKE_TIMEOUT_MS) return;
+
   if (striker) {
-    await autoLockStaleCharacter(game, striker);
     const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
     if (!stage) return;
     await prisma.matchGame.updateMany({
@@ -76,7 +97,6 @@ async function autoResolveStaleTurn(matchId: string) {
     return;
   }
 
-  await autoLockStaleCharacter(game, picker(game));
   const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
   if (!stage) return;
   await prisma.matchGame.updateMany({ where: { id: game.id, finalStage: null }, data: { finalStage: stage } });
@@ -140,7 +160,7 @@ function picker(game: { actorAId: string; actorBId: string; actorAStrikes: numbe
 // without ever locking in a character, leaving actorA/BCharacter null for a
 // game that's already been won and reported — permanently missing character
 // data. Requiring your own lock-in before you act keeps the two in sync.
-function hasLockedOwnCharacter(
+export function hasLockedOwnCharacter(
   game: { actorAId: string; actorACharacter: string | null; actorBCharacter: string | null },
   userId: string,
 ) {

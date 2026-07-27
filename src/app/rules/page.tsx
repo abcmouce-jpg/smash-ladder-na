@@ -58,9 +58,12 @@ export default function RulesPage() {
             silently changed out from under the other player mid-setup.
           </p>
           <p>
-            The in-game room password is always <span className="font-medium text-foreground">1122</span> —
-            set every room to this. Standardizing it means nobody has to communicate a password
-            separately from the room code.
+            The in-game room password defaults to{" "}
+            <span className="font-medium text-foreground">1122</span> for everyone — standardizing
+            it means nobody has to communicate a password separately from the room code. If you
+            stream, you can set your own in Settings so it isn&apos;t the one password guaranteed
+            to be public; your opponent&apos;s lobby card always shows whichever password is
+            actually in effect for the host.
           </p>
         </Section>
 

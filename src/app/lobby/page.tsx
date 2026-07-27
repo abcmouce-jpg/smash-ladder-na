@@ -8,9 +8,11 @@ import { shouldPollLobby } from "@/lib/lobby-poll";
 import { getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
+  CHARACTER_PICK_TIMEOUT_MS,
   characterPickState,
   getMatchGames,
   gameTurnState,
+  hasLockedOwnCharacter,
   secondsUntil,
 } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
@@ -18,6 +20,7 @@ import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
+import { effectiveArenaPassword } from "@/lib/arena";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -470,6 +473,8 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           initialValue={match.roomCode ?? ""}
           readOnly={!!match.roomCodeSetById && match.roomCodeSetById !== userId}
           setByOpponent={match.roomCodeSetById === opponent.id}
+          myArenaPassword={effectiveArenaPassword(match.player1Id === userId ? match.player1 : match.player2)}
+          opponentArenaPassword={effectiveArenaPassword(opponent)}
         />
       </CardContent>
 
@@ -648,7 +653,12 @@ function GameSection({
       ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
       : `${verb} a stage`;
 
-  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS));
+  // Whoever's turn it is gets the longer character-pick grace period until
+  // they've actually locked one in — showing the 60s stage-strike deadline
+  // here too would misleadingly read as "0s left" while they still have
+  // real time to decide their character.
+  const actingTimeoutMs = hasLockedOwnCharacter(current, turn.actorId!) ? STRIKE_TIMEOUT_MS : CHARACTER_PICK_TIMEOUT_MS;
+  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + actingTimeoutMs));
 
   const lastStrikeIndex = current.struckStages.length - 1;
   const canUndoLastStrike =
@@ -996,17 +1006,26 @@ function RoomCodeForm({
   initialValue,
   readOnly,
   setByOpponent,
+  myArenaPassword,
+  opponentArenaPassword,
 }: {
   matchId: string;
   initialValue: string;
   readOnly: boolean;
   setByOpponent: boolean;
+  myArenaPassword: string;
+  opponentArenaPassword: string;
 }) {
   async function action(formData: FormData) {
     "use server";
     const roomCode = String(formData.get("roomCode") ?? "");
     await submitRoomCode(matchId, roomCode);
   }
+
+  // Whoever actually ends up hosting is whoever's code stuck (locked in via
+  // setMatchRoomCode) — before that, either side could still become the
+  // host, so each just sees their own password until it's decided.
+  const hostArenaPassword = setByOpponent ? opponentArenaPassword : myArenaPassword;
 
   if (readOnly) {
     return (
@@ -1017,7 +1036,8 @@ function RoomCodeForm({
           <p className="text-xs text-muted-foreground">Set by your opponent — join with this.</p>
         )}
         <p className="text-xs text-muted-foreground">
-          Set the in-game room password to <span className="font-medium text-foreground">1122</span>.
+          Set the in-game room password to{" "}
+          <span className="font-medium text-foreground">{hostArenaPassword}</span>.
         </p>
       </div>
     );
@@ -1040,7 +1060,8 @@ function RoomCodeForm({
         </Button>
       </form>
       <p className="text-xs text-muted-foreground">
-        Set the in-game room password to <span className="font-medium text-foreground">1122</span>.
+        Set the in-game room password to{" "}
+        <span className="font-medium text-foreground">{hostArenaPassword}</span>.
       </p>
     </div>
   );

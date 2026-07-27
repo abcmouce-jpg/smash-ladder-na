@@ -5,9 +5,11 @@ import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StartggUrlForm } from "@/components/startgg-url-form";
+import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { listBlockedUsers } from "@/lib/blocks";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
-import { updateRematchCooldownSetting, updateStartggUrl, updateUsername } from "./actions";
+import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
+import { updateArenaPassword, updateRematchCooldownSetting, updateStartggUrl, updateUsername } from "./actions";
 
 const ANYTIME_VALUE = "anytime";
 
@@ -28,7 +30,7 @@ export default async function SettingsPage() {
   const [me, blocked] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { username: true, startggUrl: true, rematchCooldownHours: true },
+      select: { username: true, startggUrl: true, rematchCooldownHours: true, arenaPassword: true },
     }),
     listBlockedUsers(session.user.id),
   ]);
@@ -57,6 +59,16 @@ export default async function SettingsPage() {
       <Card className="mt-4">
         <CardContent className="pt-4">
           <RematchCooldownForm defaultValue={me?.rematchCooldownHours ?? null} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <ArenaPasswordForm
+            action={updateArenaPassword}
+            defaultValue={me?.arenaPassword ?? ""}
+            fallback={DEFAULT_ARENA_PASSWORD}
+          />
         </CardContent>
       </Card>
 
