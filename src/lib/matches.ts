@@ -1,7 +1,9 @@
-import { prisma } from "@/lib/db";
+import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
+import { MatchStatus, ConfirmationMethod, PairingMethod } from "@/generated/prisma/enums";
 import { isWiredClaimUntrustworthy } from "@/lib/account";
+import { getBlockedEitherWayIds } from "@/lib/blocks";
+import { createDirectMatch } from "@/lib/lobby";
 
 export const matchWithPlayers = {
   player1: { select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true } },
@@ -69,6 +71,84 @@ export async function cancelMatch(userId: string, matchId: string) {
   if (updatedUser.wiredConnection && isWiredClaimUntrustworthy(updatedUser.cancelCount, updatedUser.gamesPlayed)) {
     await prisma.user.update({ where: { id: userId }, data: { wiredConnection: false } });
   }
+}
+
+// Once a set is over, either player may still want to keep chatting —
+// leaving only hides that player's own view of the match; it has no effect
+// on the other player's access. No status check: the Leave button is only
+// ever rendered for terminal matches, so this never gets called early.
+export async function leaveMatch(userId: string, matchId: string) {
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  if (match.player1Id !== userId && match.player2Id !== userId) {
+    throw new Error("Not a participant in this match");
+  }
+
+  const isPlayer1 = match.player1Id === userId;
+  if (isPlayer1 ? match.player1LeftAt : match.player2LeftAt) return;
+
+  // Leaving also voids any pending rematch request of mine — otherwise the
+  // opponent could still "accept" it later into a match I've already walked
+  // away from.
+  await prisma.ratingMatch.update({
+    where: { id: matchId },
+    data: isPlayer1
+      ? { player1LeftAt: new Date(), player1RematchRequestedAt: null }
+      : { player2LeftAt: new Date(), player2RematchRequestedAt: null },
+  });
+}
+
+// Once a set is over, either player may ask to play the same opponent again.
+// The first ask just records itself; the second (from the other player) —
+// as long as neither has left and they aren't blocked either-way — creates
+// the next match immediately.
+export async function requestRematch(userId: string, matchId: string) {
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  if (match.player1Id !== userId && match.player2Id !== userId) {
+    throw new Error("Not a participant in this match");
+  }
+  if (
+    match.status !== MatchStatus.CONFIRMED &&
+    match.status !== MatchStatus.CANCELLED &&
+    match.status !== MatchStatus.EXPIRED
+  ) {
+    throw new Error("This match hasn't finished yet");
+  }
+
+  const isPlayer1 = match.player1Id === userId;
+  if (isPlayer1 ? match.player1LeftAt : match.player2LeftAt) {
+    throw new Error("You've left this match");
+  }
+  if (isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt) return;
+
+  const opponentId = isPlayer1 ? match.player2Id : match.player1Id;
+
+  await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      await tx.ratingMatch.update({
+        where: { id: matchId },
+        data: isPlayer1
+          ? { player1RematchRequestedAt: new Date() }
+          : { player2RematchRequestedAt: new Date() },
+      });
+
+      // Re-read within the transaction so a since-committed opponent request
+      // (the common case — their click happened earlier, not concurrently)
+      // is picked up even though the initial read above predates it.
+      const fresh = await tx.ratingMatch.findUniqueOrThrow({ where: { id: matchId } });
+      const opponentRequestedAt = isPlayer1
+        ? fresh.player2RematchRequestedAt
+        : fresh.player1RematchRequestedAt;
+      const opponentLeftAt = isPlayer1 ? fresh.player2LeftAt : fresh.player1LeftAt;
+      if (!opponentRequestedAt || opponentLeftAt) return;
+
+      const blockedIds = await getBlockedEitherWayIds(userId);
+      if (blockedIds.includes(opponentId)) return;
+
+      await createDirectMatch(tx, match.player1Id, match.player2Id, PairingMethod.REMATCH);
+    }, TX_OPTIONS),
+  );
 }
 
 // Provisional players (few games) swing faster so their rating converges quickly.

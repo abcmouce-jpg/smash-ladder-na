@@ -72,6 +72,7 @@ enum LobbyEntryStatus {
 enum PairingMethod {
   MANUAL
   AUTO
+  REMATCH
 }
 
 enum ReportStatus {
@@ -218,6 +219,10 @@ model RatingMatch {
   confirmedAt                  DateTime?
   confirmationMethod           ConfirmationMethod?
   disputeReason                String?
+  player1LeftAt                DateTime? // set when player1 clicks "Leave" on a finished match; hides chat from their own view only
+  player2LeftAt                DateTime? // same, for player2
+  player1RematchRequestedAt    DateTime? // set when player1 clicks "Request Rematch"; cleared if they later leave
+  player2RematchRequestedAt    DateTime? // same, for player2
   player1RatingBefore          Int?
   player1RatingAfter           Int?
   player2RatingBefore          Int?

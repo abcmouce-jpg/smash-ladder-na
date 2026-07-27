@@ -1,4 +1,5 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
 import { getRegionsWithinDistance } from "@/lib/regions";
@@ -56,7 +57,7 @@ async function getRecentMatchPairTimestamps() {
   return timestamps;
 }
 
-const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
+export const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
 
 export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
 
@@ -221,6 +222,51 @@ export async function joinLobbyAndTryPair(userId: string) {
   }, TX_OPTIONS));
 
   return paired ? getActiveLobbyEntry(userId) : newEntry;
+}
+
+// Creates a match and its pair of already-PAIRED lobby entries directly,
+// bypassing the WAITING queue entirely — for callers (like a mutual rematch
+// request) where the two players are already decided rather than being
+// matched from a pool. Only one entry (player1's) records matchId/pairedEntryId,
+// same as joinLobbyAndTryPair above — the other side's match is found by
+// player lookup via getActiveLobbyEntry.
+export async function createDirectMatch(
+  tx: Prisma.TransactionClient,
+  player1Id: string,
+  player2Id: string,
+  pairingMethod: PairingMethod,
+) {
+  const now = new Date();
+  const match = await tx.ratingMatch.create({
+    data: {
+      player1Id,
+      player2Id,
+      pairingMethod,
+      status: MatchStatus.PENDING_REPORT,
+      expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
+    },
+  });
+
+  const entry2 = await tx.ratingLobbyEntry.create({
+    data: {
+      userId: player2Id,
+      status: LobbyEntryStatus.PAIRED,
+      pairingMethod,
+      expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
+    },
+  });
+  await tx.ratingLobbyEntry.create({
+    data: {
+      userId: player1Id,
+      status: LobbyEntryStatus.PAIRED,
+      pairingMethod,
+      matchId: match.id,
+      pairedEntryId: entry2.id,
+      expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
+    },
+  });
+
+  return match;
 }
 
 // A burst of near-simultaneous joins can each fail to see one another as a

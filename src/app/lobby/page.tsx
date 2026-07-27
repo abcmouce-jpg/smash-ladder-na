@@ -4,6 +4,7 @@ import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
+import { shouldPollLobby } from "@/lib/lobby-poll";
 import { getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
@@ -37,6 +38,7 @@ import {
   cancelLobby,
   cancelMatchInProgress,
   joinLobby,
+  leaveMatchAction,
   pickCharacter,
   pickStage,
   reportConductAction,
@@ -44,6 +46,7 @@ import {
   reportGame,
   reportOpponentCharacterAction,
   requestDisputeResolutionAction,
+  requestRematchAction,
   sendMatchCommentAction,
   strikeStage,
   submitRoomCode,
@@ -87,6 +90,12 @@ export default async function LobbyPage() {
     (entry.match.status === "CONFIRMED" ||
       entry.match.status === "CANCELLED" ||
       entry.match.status === "EXPIRED");
+  const myLeftAt =
+    matchJustEnded && entry?.match
+      ? entry.match.player1Id === session.user.id
+        ? entry.match.player1LeftAt
+        : entry.match.player2LeftAt
+      : null;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -95,7 +104,12 @@ export default async function LobbyPage() {
         waiting={activity.waiting}
         inMatch={activity.inMatch}
         matched={!!isInActiveMatch}
-        poll={!!(isInActiveMatch || entry?.status === "WAITING")}
+        poll={shouldPollLobby({
+          isInActiveMatch: !!isInActiveMatch,
+          isWaiting: entry?.status === "WAITING",
+          matchJustEnded: !!matchJustEnded,
+          hasLeftMatch: !!myLeftAt,
+        })}
       />
 
       {matchJustEnded && (
@@ -354,13 +368,16 @@ async function MatchmakingForm({ userId }: { userId: string }) {
   );
 }
 
-// Once a match is over, its full detail (room code, comments, dispute
-// history, opponent card) has nothing left to act on and just sits on the
-// Lobby page as clutter — that's what the player's own match history on
-// their profile is for. Keep the one-time celebration/report moment here
-// (or the brief cancelled/expired note), and point elsewhere for the rest.
+// Once a match is over, its full detail (room code, dispute history,
+// opponent card) has nothing left to act on and just sits on the Lobby
+// page as clutter — that's what the player's own match history on their
+// profile is for. But comments are kept open by default so both players
+// can keep talking; either can end their own view of it via Leave.
 async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
+  const isPlayer1 = match.player1Id === userId;
+  const myLeftAt = isPlayer1 ? match.player1LeftAt : match.player2LeftAt;
+  const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
 
   if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
     return (
@@ -369,6 +386,30 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
         ) : (
           <TerminatedSection status={match.status} />
+        )}
+        {!myLeftAt && (
+          <>
+            <CommentsSection
+              userId={userId}
+              match={match}
+              opponentName={opponent.username}
+              opponentHasLeft={!!opponentLeftAt}
+            />
+            <CardContent className="flex items-center gap-3 border-t border-border pt-4">
+              <RematchSection
+                matchId={match.id}
+                opponentName={opponent.username}
+                myRequestedAt={isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt}
+                opponentRequestedAt={isPlayer1 ? match.player2RematchRequestedAt : match.player1RematchRequestedAt}
+                opponentLeftAt={opponentLeftAt}
+              />
+              <form action={leaveMatchAction.bind(null, match.id)} className="ml-auto">
+                <Button type="submit" variant="outline" size="sm">
+                  Leave
+                </Button>
+              </form>
+            </CardContent>
+          </>
         )}
         <CardContent className="border-t border-border pt-4">
           <Link
@@ -467,7 +508,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         </CardContent>
       )}
 
-      <CommentsSection userId={userId} match={match} />
+      <CommentsSection userId={userId} match={match} opponentName={opponent.username} opponentHasLeft={false} />
 
       <MatchFooterActions match={match} />
     </Card>
@@ -841,6 +882,47 @@ async function ConfirmedSection({
   );
 }
 
+// Mutual opt-in: whoever clicks second is the one whose click actually
+// creates the next match (see requestRematch) — from either player's own
+// view, "Request" and "Accept" are the same action, just labeled based on
+// whether the opponent has already asked.
+function RematchSection({
+  matchId,
+  opponentName,
+  myRequestedAt,
+  opponentRequestedAt,
+  opponentLeftAt,
+}: {
+  matchId: string;
+  opponentName: string;
+  myRequestedAt: Date | null;
+  opponentRequestedAt: Date | null;
+  opponentLeftAt: Date | null;
+}) {
+  if (opponentLeftAt) return null;
+
+  if (myRequestedAt) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Waiting for {opponentName} to accept the rematch…
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {opponentRequestedAt && (
+        <p className="text-xs text-muted-foreground">{opponentName} wants a rematch!</p>
+      )}
+      <form action={requestRematchAction.bind(null, matchId)}>
+        <Button type="submit" variant="outline" size="sm">
+          {opponentRequestedAt ? "Accept Rematch" : "Request Rematch"}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
 function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
   return (
     <CardContent className="pt-4">
@@ -853,12 +935,25 @@ function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
   );
 }
 
-async function CommentsSection({ userId, match }: { userId: string; match: Match }) {
+async function CommentsSection({
+  userId,
+  match,
+  opponentName,
+  opponentHasLeft,
+}: {
+  userId: string;
+  match: Match;
+  opponentName: string;
+  opponentHasLeft: boolean;
+}) {
   const comments = await listMatchComments(userId, match.id);
 
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">Comments</p>
+      {opponentHasLeft && (
+        <p className="mt-1 text-xs text-muted-foreground">{opponentName} has left the chat.</p>
+      )}
       {comments.length === 0 && (
         <p className="mt-2 text-sm text-muted-foreground">No messages yet.</p>
       )}
