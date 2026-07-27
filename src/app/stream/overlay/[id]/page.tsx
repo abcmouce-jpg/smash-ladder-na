@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getRankTier, LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import { getPlayerMatchHistory } from "@/lib/players";
+import { getCareerStats, getPlayerMatchHistory } from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { RankBadge } from "@/components/rank-badge";
 import { CharacterIcon } from "@/components/character-icon";
@@ -13,22 +13,6 @@ import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 //
 // URL: /stream/overlay/{id}
 // The {id} is the ladder user's ID (same as /players/{id}).
-
-async function getCareerStats(userId: string) {
-  const [wins, losses] = await Promise.all([
-    prisma.ratingMatch.count({
-      where: { status: MatchStatus.CONFIRMED, reportedWinnerId: userId },
-    }),
-    prisma.ratingMatch.count({
-      where: {
-        status: MatchStatus.CONFIRMED,
-        OR: [{ player1Id: userId }, { player2Id: userId }],
-        NOT: { reportedWinnerId: userId },
-      },
-    }),
-  ]);
-  return { totalWins: wins, totalLosses: losses };
-}
 
 export default async function StreamOverlayPage({
   params,
