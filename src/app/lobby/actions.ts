@@ -47,6 +47,8 @@ const STALE_GAME_ERRORS = new Set([
   "You already reported this game",
   "You already picked your character for this game",
   "Wait for your opponent to pick their character first",
+  "Lock in your character before striking a stage",
+  "Lock in your character before picking a stage",
 ]);
 
 async function ignoringStaleGameRaces(fn: () => Promise<void>) {
