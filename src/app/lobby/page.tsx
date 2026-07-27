@@ -15,7 +15,7 @@ import {
   gameTurnState,
   secondsUntil,
 } from "@/lib/match-games";
-import { listMatchComments } from "@/lib/match-comments";
+import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
@@ -32,6 +32,8 @@ import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
 import { DisputeResolutionForm } from "@/components/dispute-resolution-form";
 import { CommentForm } from "@/components/comment-form";
+import { ChatMessages } from "@/components/chat-messages";
+import { TypingIndicator } from "@/components/typing-indicator";
 import { ReportConductForm } from "@/components/report-conduct-form";
 import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
 import {
@@ -40,6 +42,7 @@ import {
   cancelMatchInProgress,
   joinLobby,
   leaveMatchAction,
+  signalTypingAction,
   pickCharacter,
   pickStage,
   reportConductAction,
@@ -98,8 +101,10 @@ export default async function LobbyPage() {
         : entry.match.player2LeftAt
       : null;
 
+  const showChatPanel = isInActiveMatch || matchJustEnded;
+
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className={`mx-auto px-6 py-16 ${showChatPanel ? "max-w-5xl" : "max-w-2xl"}`}>
       <PageTitle />
       <ActivityLine
         waiting={activity.waiting}
@@ -381,21 +386,23 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
 
   if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
+    const chat = (
+      <CommentsSection
+        userId={userId}
+        match={match}
+        opponentName={opponent.username}
+        opponentHasLeft={!!opponentLeftAt}
+      />
+    );
     return (
-      <Card className="mt-4">
-        {match.status === "CONFIRMED" ? (
-          <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
-        ) : (
-          <TerminatedSection status={match.status} />
-        )}
-        {!myLeftAt && (
-          <>
-            <CommentsSection
-              userId={userId}
-              match={match}
-              opponentName={opponent.username}
-              opponentHasLeft={!!opponentLeftAt}
-            />
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        <Card>
+          {match.status === "CONFIRMED" ? (
+            <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
+          ) : (
+            <TerminatedSection status={match.status} />
+          )}
+          {!myLeftAt && (
             <CardContent className="flex items-center gap-3 border-t border-border pt-4">
               <RematchSection
                 matchId={match.id}
@@ -410,17 +417,18 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                 </Button>
               </form>
             </CardContent>
-          </>
-        )}
-        <CardContent className="border-t border-border pt-4">
-          <Link
-            href={`/players/${userId}`}
-            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-          >
-            View full match details on your profile →
-          </Link>
-        </CardContent>
-      </Card>
+          )}
+          <CardContent className="border-t border-border pt-4">
+            <Link
+              href={`/players/${userId}`}
+              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              View full match details on your profile →
+            </Link>
+          </CardContent>
+        </Card>
+        <div>{chat}</div>
+      </div>
     );
   }
 
@@ -432,87 +440,107 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
     else if (g.winnerId) wins.opponent++;
   }
 
+  const chat = (
+    <CommentsSection
+      userId={userId}
+      match={match}
+      opponentName={opponent.username}
+      opponentHasLeft={!!opponentLeftAt}
+    />
+  );
+
   return (
-    <Card className="mt-4">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <p className="badge-pop text-base font-semibold text-foreground">🎮 You&apos;ve been matched!</p>
-          <Badge variant="secondary">{match.status.replace("_", " ").toLowerCase()}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="flex items-center gap-3">
-        {opponent.avatarUrl && (
-          <Image
-            src={opponent.avatarUrl}
-            alt={opponent.username}
-            width={40}
-            height={40}
-            className="rounded-full"
-          />
-        )}
-        <div>
-          <p className="font-medium">{opponent.username}</p>
-          <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
-          {topCharacters.length > 0 && (
-            <div className="group/characters relative mt-1 flex items-center gap-1.5">
-              <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                Most played characters
-              </span>
-              {topCharacters.map((character) => (
-                <CharacterIcon key={character} name={character} size={20} />
-              ))}
-            </div>
+    <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <p className="badge-pop text-base font-semibold text-foreground">🎮 You&apos;ve been matched!</p>
+            <Badge variant="secondary">{match.status.replace("_", " ").toLowerCase()}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="flex items-center gap-3">
+          {opponent.avatarUrl && (
+            <Image
+              src={opponent.avatarUrl}
+              alt={opponent.username}
+              width={40}
+              height={40}
+              className="rounded-full"
+            />
           )}
-        </div>
-        {games.length > 0 && (
-          <Badge variant="outline" className="ml-auto tabular-nums">
-            {wins.me}–{wins.opponent}
-          </Badge>
-        )}
-      </CardContent>
+          <div>
+            <p className="font-medium">{opponent.username}</p>
+            <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+            {topCharacters.length > 0 && (
+              <div className="group/characters relative mt-1 flex items-center gap-1.5">
+                <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+                  Most played characters
+                </span>
+                {topCharacters.map((character) => (
+                  <CharacterIcon key={character} name={character} size={20} />
+                ))}
+              </div>
+            )}
+          </div>
+          {games.length > 0 && (
+            <Badge variant="outline" className="ml-auto tabular-nums">
+              {wins.me}–{wins.opponent}
+            </Badge>
+          )}
+        </CardContent>
 
-      <CardContent>
-        <RoomCodeForm
-          matchId={match.id}
-          initialValue={match.roomCode ?? ""}
-          readOnly={!!match.roomCodeSetById && match.roomCodeSetById !== userId}
-          setByOpponent={match.roomCodeSetById === opponent.id}
-          myArenaPassword={effectiveArenaPassword(match.player1Id === userId ? match.player1 : match.player2)}
-          opponentArenaPassword={effectiveArenaPassword(opponent)}
-        />
-      </CardContent>
-
-      {games.filter(isDisputedGame).map((g) => (
-        <CardContent key={g.id} className="border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground">
-            ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod review — this
-            doesn&apos;t block the rest of the set.
-          </p>
-          <DisputeResolutionForm
-            action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
-            myId={userId}
-            opponentId={opponent.id}
-            opponentUsername={opponent.username}
+        <CardContent>
+          <RoomCodeForm
+            matchId={match.id}
+            initialValue={match.roomCode ?? ""}
+            readOnly={!!match.roomCodeSetById && match.roomCodeSetById !== userId}
+            setByOpponent={match.roomCodeSetById === opponent.id}
+            myArenaPassword={effectiveArenaPassword(match.player1Id === userId ? match.player1 : match.player2)}
+            opponentArenaPassword={effectiveArenaPassword(opponent)}
           />
         </CardContent>
-      ))}
 
-      {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
-        <GameSection userId={userId} match={match} games={games} opponentName={opponent.username} />
-      )}
+        {games.filter(isDisputedGame).map((g) => (
+          <CardContent key={g.id} className="border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">
+              ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod review — this
+              doesn&apos;t block the rest of the set.
+            </p>
+            <DisputeResolutionForm
+              action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
+              myId={userId}
+              opponentId={opponent.id}
+              opponentUsername={opponent.username}
+            />
+          </CardContent>
+        ))}
 
-      {match.status === "DISPUTED" && (
-        <CardContent className="border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground">
-            You and {opponent.username} reported different results. This match is awaiting review.
-          </p>
-        </CardContent>
-      )}
+        {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
+          <GameSection userId={userId} match={match} games={games} opponentName={opponent.username} />
+        )}
 
-      <CommentsSection userId={userId} match={match} opponentName={opponent.username} opponentHasLeft={false} />
+        {match.status === "DISPUTED" && (
+          <CardContent className="border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">
+              You and {opponent.username} reported different results. This match is awaiting review.
+            </p>
+          </CardContent>
+        )}
 
-      <MatchFooterActions match={match} />
-    </Card>
+        {match.status === "PENDING_REPORT" || match.status === "REPORTED" ? (
+          <MatchFooterActions match={match} />
+        ) : (
+          <CardContent className="border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">
+              This match is awaiting mod review.
+            </p>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Chat card — side panel on desktop, below on mobile */}
+      <div className="lg:order-none">{chat}</div>
+    </div>
   );
 }
 
@@ -949,26 +977,39 @@ async function CommentsSection({
   opponentName: string;
   opponentHasLeft: boolean;
 }) {
-  const comments = await listMatchComments(userId, match.id);
+  const rawComments = await listMatchComments(userId, match.id);
+  const opponentTyping = await isOpponentTyping(match.id, userId);
+
+  // Serialize dates to strings for the client component
+  const comments = rawComments.map((c) => ({
+    id: c.id,
+    author: { username: c.author.username },
+    body: c.body,
+    createdAt: c.createdAt.toISOString(),
+  }));
 
   return (
-    <CardContent className="border-t border-border pt-4">
-      <p className="text-sm text-muted-foreground">Comments</p>
-      {opponentHasLeft && (
-        <p className="mt-1 text-xs text-muted-foreground">{opponentName} has left the chat.</p>
-      )}
-      {comments.length === 0 && (
-        <p className="mt-2 text-sm text-muted-foreground">No messages yet.</p>
-      )}
-      <ul className="mt-2 flex flex-col gap-1.5">
-        {comments.map((c) => (
-          <li key={c.id} className="text-sm">
-            <span className="font-medium">{c.author.username}:</span> {c.body}
-          </li>
-        ))}
-      </ul>
-      <CommentForm action={sendMatchCommentAction.bind(null, match.id)} />
-    </CardContent>
+    <Card className="flex h-full max-lg:max-h-[60vh] lg:max-h-[min(60vh,600px)] flex-col">
+      <CardHeader className="pb-3">
+        <p className="text-sm font-medium text-foreground">💬 Chat</p>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-0 pt-0">
+        {opponentHasLeft && (
+          <p className="mb-2 text-xs text-muted-foreground">{opponentName} has left the chat.</p>
+        )}
+        <ChatMessages
+          comments={comments}
+          empty={<p className="mt-2 text-sm text-muted-foreground">No messages yet.</p>}
+        />
+        {opponentTyping && !opponentHasLeft && (
+          <TypingIndicator opponentName={opponentName} />
+        )}
+        <CommentForm
+          action={sendMatchCommentAction.bind(null, match.id)}
+          onTyping={signalTypingAction.bind(null, match.id)}
+        />
+      </CardContent>
+    </Card>
   );
 }
 

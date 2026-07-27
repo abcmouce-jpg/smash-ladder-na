@@ -9,6 +9,10 @@ import { sendDiscordDM } from "@/lib/discord-bot";
 export const matchWithPlayers = {
   player1: { select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true } },
   player2: { select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true } },
+  player1LeftAt: true,
+  player2LeftAt: true,
+  player1RematchRequestedAt: true,
+  player2RematchRequestedAt: true,
 } as const;
 
 export async function getUnresolvedMatchForUser(userId: string) {
