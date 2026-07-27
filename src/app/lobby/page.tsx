@@ -15,7 +15,6 @@ import {
 } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
-import { SMASH_CHARACTERS } from "@/lib/characters";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
@@ -23,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
+import { CharacterSelect } from "@/components/character-select";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { CancelMatchButton } from "@/components/cancel-match-button";
@@ -705,21 +705,12 @@ function CharacterPickSection({
             : "pick your character — you're up first, this locks in before the opponent picks."}
       </p>
       <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
-        <select
+        <CharacterSelect
           name="character"
           defaultValue=""
-          required
-          className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        >
-          <option value="" disabled className="bg-background text-foreground">
-            Select character
-          </option>
-          {SMASH_CHARACTERS.map((c) => (
-            <option key={c} value={c} className="bg-background text-foreground">
-              {c}
-            </option>
-          ))}
-        </select>
+          placeholder="Select character"
+          bare
+        />
         <Button type="submit" size="sm" variant="outline">
           Lock in
         </Button>
@@ -835,7 +826,6 @@ async function ConfirmedSection({
       <ReportCharacterForm
         action={reportOpponentCharacterAction.bind(null, match.id)}
         opponentName={opponentName}
-        characters={SMASH_CHARACTERS}
       />
     </CardContent>
   );
