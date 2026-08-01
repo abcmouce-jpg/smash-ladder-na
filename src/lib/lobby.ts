@@ -446,6 +446,9 @@ export async function setMatchRoomCode(userId: string, matchId: string, roomCode
   if (match.roomCodeSetById && match.roomCodeSetById !== userId) {
     throw new Error("Only the player who entered the room code can change it");
   }
+  if (!/^[A-Z0-9]{5}$/.test(roomCode)) {
+    throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
+  }
   await prisma.ratingMatch.update({
     where: { id: matchId },
     data: { roomCode, roomCodeSetById: userId },

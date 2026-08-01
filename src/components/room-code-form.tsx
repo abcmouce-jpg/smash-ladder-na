@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useFlashOnChange } from "@/lib/use-flash-on-change";
 import type { RoomCodeState } from "@/app/lobby/actions";
@@ -18,6 +18,7 @@ export function RoomCodeForm({
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, savedValue: null });
   const flashing = useFlashOnChange(state.savedValue);
+  const [roomCode, setRoomCode] = useState(initialValue);
 
   return (
     <div className="flex flex-col gap-1">
@@ -26,8 +27,21 @@ export function RoomCodeForm({
           Room code
           <input
             name="roomCode"
-            defaultValue={initialValue}
+            value={roomCode}
+            onChange={(e) =>
+              setRoomCode(
+                e.target.value
+                  .toUpperCase()
+                  .replace(/[^A-Z0-9]/g, "")
+                  .slice(0, 5),
+              )
+            }
             placeholder="e.g. AB123"
+            maxLength={5}
+            pattern="[A-Z0-9]{5}"
+            required
+            autoCapitalize="characters"
+            spellCheck={false}
             className={`h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none transition-colors duration-500 focus-visible:border-ring ${
               flashing ? "bg-primary/15" : ""
             }`}
