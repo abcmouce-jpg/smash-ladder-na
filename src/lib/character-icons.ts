@@ -4,8 +4,11 @@ import type { SmashCharacter } from "@/lib/characters";
 // Slugs are Nintendo's internal codenames, ripped from the game files — not
 // the display name — hence the explicit table rather than a derived slug.
 // Pyra/Mythra is one combined roster entry (players pick "Pyra/Mythra" as a
-// single value), so it maps to one representative icon (Pyra's).
-export const CHARACTER_ICON_SLUGS: Record<SmashCharacter, string> = {
+// single value), so it maps to one representative icon (Pyra's). Partial
+// rather than a total map over SmashCharacter — "Random" has no real fighter
+// art to rip, so it's deliberately left out and falls through to
+// CharacterIcon's colored-initials badge instead.
+export const CHARACTER_ICON_SLUGS: Partial<Record<SmashCharacter, string>> = {
   Mario: "mario",
   "Donkey Kong": "donkey",
   Link: "link",

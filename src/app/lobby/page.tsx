@@ -1,12 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, Swords, Users } from "lucide-react";
+import { Loader2, MapPin, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getUnresolvedMatchForUser, hasOpponentEngaged } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
-import { currentStreak, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
+import {
+  currentStreak,
+  getPlayerMatchHistory,
+  getTopCharacters,
+} from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
   CHARACTER_TIMEOUT_MS,
@@ -19,10 +23,22 @@ import {
   lastUsedCharacter,
   secondsUntil,
 } from "@/lib/match-games";
-import { stageImagePath, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import {
+  stageImagePath,
+  GAME_ONE_STAGES,
+  COUNTERPICK_STAGES,
+} from "@/lib/stages";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
-import { MATCH_DISTANCE_PRESETS, MATCH_REGION_GROUPS, REGION_REFERENCE_CITY } from "@/lib/regions";
-import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
+import {
+  MATCH_DISTANCE_PRESETS,
+  MATCH_REGION_GROUPS,
+  REGION_REFERENCE_CITY,
+} from "@/lib/regions";
+import {
+  MATCH_RATING_GAP_PRESETS,
+  didTierUp,
+  getRankTier,
+} from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
 import { Button } from "@/components/ui/button";
@@ -45,7 +61,10 @@ import { CommentForm } from "@/components/comment-form";
 import { ChatMessages } from "@/components/chat-messages";
 import { TypingIndicator } from "@/components/typing-indicator";
 import { ReportConductForm } from "@/components/report-conduct-form";
-import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
+import {
+  MatchSettingsForm,
+  type MatchSettingsState,
+} from "@/components/match-settings-form";
 import {
   beginFirstGame,
   cancelLobby,
@@ -78,7 +97,9 @@ import {
   updateZenMode,
 } from "./actions";
 
-type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
+type Match = NonNullable<
+  NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]
+>;
 
 export default async function LobbyPage() {
   const session = await auth();
@@ -130,7 +151,9 @@ export default async function LobbyPage() {
   const showChatPanel = isInActiveMatch || matchJustEnded;
 
   return (
-    <main className={`mx-auto px-6 py-16 ${showChatPanel ? "max-w-5xl" : "max-w-2xl"}`}>
+    <main
+      className={`mx-auto px-6 py-16 ${showChatPanel ? "max-w-5xl" : "max-w-2xl"}`}
+    >
       <PageTitle />
       <ActivityLine
         waiting={activity.waiting}
@@ -150,7 +173,8 @@ export default async function LobbyPage() {
           <CardContent className="pt-4">
             <p className="text-sm font-medium">Ready for another match?</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              This starts a brand new search — it&apos;s not related to the match below.
+              This starts a brand new search — it&apos;s not related to the
+              match below.
             </p>
             <QueueCooldownGate cooldownUntil={queueCooldownUntil}>
               <JoinLobbyForm action={joinLobby} className="mt-3" />
@@ -163,7 +187,8 @@ export default async function LobbyPage() {
         <Card className="mt-8">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">
-              Profile and matchmaking settings are locked while a match is in progress.
+              Profile and matchmaking settings are locked while a match is in
+              progress.
             </p>
           </CardContent>
         </Card>
@@ -178,7 +203,9 @@ export default async function LobbyPage() {
       {!entry && (
         <Card className="mt-4">
           <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
+            <p className="text-sm text-muted-foreground">
+              You&apos;re not in the queue.
+            </p>
             <QueueCooldownGate cooldownUntil={queueCooldownUntil}>
               <JoinLobbyForm action={joinLobby} className="mt-4" />
             </QueueCooldownGate>
@@ -190,7 +217,9 @@ export default async function LobbyPage() {
         <Card className="mt-4">
           <CardContent className="flex items-center gap-3 pt-4">
             <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Waiting for an opponent…</p>
+            <p className="text-sm text-muted-foreground">
+              Waiting for an opponent…
+            </p>
           </CardContent>
           <CardContent className="pt-0">
             <form action={cancelLobby}>
@@ -235,15 +264,21 @@ function ActivityLine({
     <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
       <Users className="size-3.5" />
       <span className="tabular-nums">
-        <span className="font-medium text-foreground">{waiting}</span> waiting to be matched
+        <span className="font-medium text-foreground">{waiting}</span> waiting
+        to be matched
         {inMatch > 0 && (
           <>
             {" "}
-            · <span className="font-medium text-foreground">{inMatch}</span> currently playing
+            · <span className="font-medium text-foreground">
+              {inMatch}
+            </span>{" "}
+            currently playing
           </>
         )}
       </span>
-      {poll && <LobbyPoller matched={matched} keepPollingInBackground={isWaiting} />}
+      {poll && (
+        <LobbyPoller matched={matched} keepPollingInBackground={isWaiting} />
+      )}
     </div>
   );
 }
@@ -276,18 +311,33 @@ async function MatchmakingForm({ userId }: { userId: string }) {
     try {
       await updateRegion(String(formData.get("region") ?? ""));
       const distance = String(formData.get("maxMatchDistanceKm") ?? "");
-      await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
+      await updateMaxMatchDistance(
+        distance === WORLDWIDE_VALUE ? null : Number(distance),
+      );
       const ratingGap = String(formData.get("maxRatingGap") ?? "");
-      await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
-      const rematchCooldown = String(formData.get("rematchCooldownHours") ?? "");
-      await updateRematchCooldown(rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown));
-      await updateRequireWiredOpponent(formData.get("requireWiredOpponent") === "on");
-      await updateAvoidPracticeOpponents(formData.get("avoidPracticeOpponents") === "on");
+      await updateMaxRatingGap(
+        ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap),
+      );
+      const rematchCooldown = String(
+        formData.get("rematchCooldownHours") ?? "",
+      );
+      await updateRematchCooldown(
+        rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown),
+      );
+      await updateRequireWiredOpponent(
+        formData.get("requireWiredOpponent") === "on",
+      );
+      await updateAvoidPracticeOpponents(
+        formData.get("avoidPracticeOpponents") === "on",
+      );
       await updateZenMode(formData.get("zenMode") === "on");
       await updateWiredConnection(formData.get("wired") === "on");
     } catch (err) {
       return {
-        error: err instanceof Error ? err.message : "Something went wrong — try again.",
+        error:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong — try again.",
         saved: false,
       };
     }
@@ -299,9 +349,10 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       <label className="flex flex-col gap-1 text-sm">
         Match region
         <span className="text-xs font-normal text-muted-foreground">
-          Required to queue — matching works off the distance between regions, so pick whichever
-          is physically closest to you, even if it&apos;s not your own country. Other has no
-          location, so it only ever matches other Other players.
+          Required to queue — matching works off the distance between regions,
+          so pick whichever is physically closest to you, even if it&apos;s not
+          your own country. Other has no location, so it only ever matches other
+          Other players.
         </span>
         <select
           key={me?.region ?? ""}
@@ -315,8 +366,14 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           {MATCH_REGION_GROUPS.map((group) => (
             <optgroup key={group.label} label={group.label}>
               {group.regions.map((r) => (
-                <option key={r} value={r} className="bg-background text-foreground">
-                  {REGION_REFERENCE_CITY[r] ? `${r} (${REGION_REFERENCE_CITY[r]})` : r}
+                <option
+                  key={r}
+                  value={r}
+                  className="bg-background text-foreground"
+                >
+                  {REGION_REFERENCE_CITY[r]
+                    ? `${r} (${REGION_REFERENCE_CITY[r]})`
+                    : r}
                 </option>
               ))}
             </optgroup>
@@ -326,8 +383,9 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       <label className="flex flex-col gap-1 text-sm">
         Match distance
         <span className="text-xs font-normal text-muted-foreground">
-          Matching requires BOTH players&apos; distance setting to cover the actual distance
-          between them — widening yours doesn&apos;t override the other side&apos;s.
+          Matching requires BOTH players&apos; distance setting to cover the
+          actual distance between them — widening yours doesn&apos;t override
+          the other side&apos;s.
         </span>
         <select
           key={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
@@ -349,8 +407,8 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       <label className="flex flex-col gap-1 text-sm">
         Rating gap
         <span className="text-xs font-normal text-muted-foreground">
-          Matching requires BOTH players&apos; rating-gap setting to cover the actual
-          difference in rating.
+          Matching requires BOTH players&apos; rating-gap setting to cover the
+          actual difference in rating.
         </span>
         <select
           key={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
@@ -372,7 +430,8 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       <label className="flex flex-col gap-1 text-sm">
         Rematch cooldown
         <span className="text-xs font-normal text-muted-foreground">
-          Matching requires BOTH players&apos; cooldown to have elapsed since you two last played.
+          Matching requires BOTH players&apos; cooldown to have elapsed since
+          you two last played.
         </span>
         <select
           key={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
@@ -445,17 +504,26 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const isPlayer1 = match.player1Id === userId;
   const myLeftAt = isPlayer1 ? match.player1LeftAt : match.player2LeftAt;
   const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { zenMode: true } });
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { zenMode: true, rating: true, region: true },
+  });
   const zenMode = me?.zenMode ?? false;
   const displayName = zenMode ? "Opponent" : opponent.username;
 
-  if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
+  if (
+    match.status === "CONFIRMED" ||
+    match.status === "CANCELLED" ||
+    match.status === "EXPIRED"
+  ) {
     // Opponent may have queued into (and already be playing) a new match since
     // this one ended — a stale rematch request would otherwise just sit there
     // showing "Waiting…" forever, since requestRematch silently no-ops in that
     // case (see the eitherAlreadyPlaying check in lib/matches.ts).
     const opponentUnavailable =
-      !myLeftAt && !opponentLeftAt ? !!(await getUnresolvedMatchForUser(opponent.id)) : false;
+      !myLeftAt && !opponentLeftAt
+        ? !!(await getUnresolvedMatchForUser(opponent.id))
+        : false;
     const chat = (
       <CommentsSection
         userId={userId}
@@ -478,12 +546,23 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               <RematchSection
                 matchId={match.id}
                 opponentName={displayName}
-                myRequestedAt={isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt}
-                opponentRequestedAt={isPlayer1 ? match.player2RematchRequestedAt : match.player1RematchRequestedAt}
+                myRequestedAt={
+                  isPlayer1
+                    ? match.player1RematchRequestedAt
+                    : match.player2RematchRequestedAt
+                }
+                opponentRequestedAt={
+                  isPlayer1
+                    ? match.player2RematchRequestedAt
+                    : match.player1RematchRequestedAt
+                }
                 opponentLeftAt={opponentLeftAt}
                 opponentUnavailable={opponentUnavailable}
               />
-              <form action={leaveMatchAction.bind(null, match.id)} className="ml-auto">
+              <form
+                action={leaveMatchAction.bind(null, match.id)}
+                className="ml-auto"
+              >
                 <Button type="submit" variant="outline" size="sm">
                   Leave
                 </Button>
@@ -507,12 +586,16 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const games = await getMatchGames(match.id);
   const topCharacters = await getTopCharacters(opponent.id);
   const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
-  const opponentStreak = currentStreak(await getPlayerMatchHistory(opponent.id));
+  const opponentStreak = currentStreak(
+    await getPlayerMatchHistory(opponent.id),
+  );
   // Once any game's been decided or reported, cancelMatch is blocked
   // outright (see its gameInProgress check) — surrenderMatch isn't, so the
   // button always means "surrender" from that point on, no need to spend a
   // query re-checking opponent engagement.
-  const gameDecided = games.some((g) => g.winnerId !== null || g.reportedById !== null);
+  const gameDecided = games.some(
+    (g) => g.winnerId !== null || g.reportedById !== null,
+  );
   const opponentEngaged = gameDecided
     ? true
     : await hasOpponentEngaged(match.id, opponent.id, match.roomCodeSetById);
@@ -537,59 +620,90 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <p className="badge-pop text-base font-semibold text-foreground">🎮 You&apos;ve been matched!</p>
-            <Badge variant="secondary">{match.status.replace("_", " ").toLowerCase()}</Badge>
+            <p className="badge-pop text-base font-semibold text-foreground">
+              🎮 You&apos;ve been matched!
+            </p>
+            <Badge variant="secondary">
+              {match.status.replace("_", " ").toLowerCase()}
+            </Badge>
           </div>
         </CardHeader>
-        <CardContent className="flex items-center gap-3">
-          {!zenMode && opponent.avatarUrl && (
-            <Image
-              src={opponent.avatarUrl}
-              alt={opponent.username}
-              width={40}
-              height={40}
-              className="rounded-full"
-            />
-          )}
-          <div className={zenMode ? "flex-1" : ""}>
-            {!zenMode && (
-              <p className="flex items-center gap-1.5 font-medium">
-                {displayName}
-                {opponentStreak !== 0 && (
-                  <Badge variant={opponentStreak > 0 ? "success" : "destructive"} className="tabular-nums">
-                    {Math.abs(opponentStreak)} {opponentStreak > 0 ? "win" : "loss"} streak
-                  </Badge>
-                )}
-              </p>
+        <CardContent className="flex flex-col gap-2">
+          <p className="text-xs text-muted-foreground tabular-nums">
+            You: {me?.rating} rating
+            {me?.region && (
+              <span className="ml-2 inline-flex items-center gap-1">
+                <MapPin className="size-3" />
+                {me.region}
+              </span>
             )}
-            {!zenMode && (
-              <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+          </p>
+          <div className="flex items-center gap-3">
+            {!zenMode && opponent.avatarUrl && (
+              <Image
+                src={opponent.avatarUrl}
+                alt={opponent.username}
+                width={40}
+                height={40}
+                className="rounded-full"
+              />
             )}
-            {!zenMode && topCharacters.length > 0 && (
-              <div className="group/characters relative mt-1 flex items-center gap-1.5">
-                <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                  Most played characters
-                </span>
-                {topCharacters.map((character) => (
-                  <CharacterIcon key={character} name={character} size={20} />
-                ))}
-              </div>
+            <div className={zenMode ? "flex-1" : ""}>
+              {!zenMode && (
+                <p className="flex items-center gap-1.5 font-medium">
+                  {displayName}
+                  {opponentStreak !== 0 && (
+                    <Badge
+                      variant={opponentStreak > 0 ? "success" : "destructive"}
+                      className="tabular-nums"
+                    >
+                      {Math.abs(opponentStreak)}{" "}
+                      {opponentStreak > 0 ? "win" : "loss"} streak
+                    </Badge>
+                  )}
+                </p>
+              )}
+              {(!zenMode || opponent.region) && (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
+                  {!zenMode && <span>{opponent.rating} rating</span>}
+                  {opponent.region && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="size-3" />
+                      {opponent.region}
+                    </span>
+                  )}
+                </p>
+              )}
+              {!zenMode && topCharacters.length > 0 && (
+                <div className="group/characters relative mt-1 flex items-center gap-1.5">
+                  <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+                    Most played characters
+                  </span>
+                  {topCharacters.map((character) => (
+                    <CharacterIcon key={character} name={character} size={20} />
+                  ))}
+                </div>
+              )}
+            </div>
+            {games.length > 0 && (
+              <Badge variant="outline" className="ml-auto tabular-nums">
+                {wins.me}–{wins.opponent}
+              </Badge>
             )}
           </div>
-          {games.length > 0 && (
-            <Badge variant="outline" className="ml-auto tabular-nums">
-              {wins.me}–{wins.opponent}
-            </Badge>
-          )}
         </CardContent>
 
         <CardContent>
           <RoomCodeSection
             matchId={match.id}
             initialValue={match.roomCode ?? ""}
-            readOnly={!!match.roomCodeSetById && match.roomCodeSetById !== userId}
+            readOnly={
+              !!match.roomCodeSetById && match.roomCodeSetById !== userId
+            }
             setByOpponent={match.roomCodeSetById === opponent.id}
-            myArenaPassword={effectiveArenaPassword(match.player1Id === userId ? match.player1 : match.player2)}
+            myArenaPassword={effectiveArenaPassword(
+              match.player1Id === userId ? match.player1 : match.player2,
+            )}
             opponentArenaPassword={effectiveArenaPassword(opponent)}
           />
         </CardContent>
@@ -597,11 +711,15 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         {games.filter(isDisputedGame).map((g) => (
           <CardContent key={g.id} className="border-t border-border pt-4">
             <p className="text-sm text-muted-foreground">
-              ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod review — this
-              doesn&apos;t block the rest of the set.
+              ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod
+              review — this doesn&apos;t block the rest of the set.
             </p>
             <DisputeResolutionForm
-              action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
+              action={requestDisputeResolutionAction.bind(
+                null,
+                match.id,
+                g.gameNumber,
+              )}
               myId={userId}
               opponentId={opponent.id}
               opponentUsername={displayName}
@@ -622,7 +740,8 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         {match.status === "DISPUTED" && (
           <CardContent className="border-t border-border pt-4">
             <p className="text-sm text-muted-foreground">
-              You and {displayName} reported different results. This match is awaiting review.
+              You and {displayName} reported different results. This match is
+              awaiting review.
             </p>
           </CardContent>
         )}
@@ -676,18 +795,31 @@ function MatchFooterActions({
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <CancelOrSurrenderButton
             mode={opponentEngaged ? "surrender" : "cancel"}
-            action={opponentEngaged ? surrenderMatchAction.bind(null, match.id) : cancelMatchInProgress.bind(null, match.id)}
+            action={
+              opponentEngaged
+                ? surrenderMatchAction.bind(null, match.id)
+                : cancelMatchInProgress.bind(null, match.id)
+            }
           />
         )}
       </div>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          Can&apos;t finish this set? Both sides can agree to call it off — no rating impact.
+          Can&apos;t finish this set? Both sides can agree to call it off — no
+          rating impact.
         </p>
         <MutualCancelSection
           matchId={match.id}
-          myRequestedAt={isPlayer1 ? match.player1CancelRequestedAt : match.player2CancelRequestedAt}
-          opponentRequestedAt={isPlayer1 ? match.player2CancelRequestedAt : match.player1CancelRequestedAt}
+          myRequestedAt={
+            isPlayer1
+              ? match.player1CancelRequestedAt
+              : match.player2CancelRequestedAt
+          }
+          opponentRequestedAt={
+            isPlayer1
+              ? match.player2CancelRequestedAt
+              : match.player1CancelRequestedAt
+          }
           opponentName={opponentName}
         />
       </div>
@@ -706,8 +838,16 @@ function MatchFooterActions({
   );
 }
 
-function isDisputedGame(game: { winnerId: string | null; reportedWinnerId: string | null; secondReportWinnerId: string | null }) {
-  return !game.winnerId && !!game.secondReportWinnerId && game.secondReportWinnerId !== game.reportedWinnerId;
+function isDisputedGame(game: {
+  winnerId: string | null;
+  reportedWinnerId: string | null;
+  secondReportWinnerId: string | null;
+}) {
+  return (
+    !game.winnerId &&
+    !!game.secondReportWinnerId &&
+    game.secondReportWinnerId !== game.reportedWinnerId
+  );
 }
 
 function GameSection({
@@ -733,7 +873,8 @@ function GameSection({
       return (
         <CardContent className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            Game {lastGame.gameNumber}&apos;s result is disputed — a mod will resolve it.
+            Game {lastGame.gameNumber}&apos;s result is disputed — a mod will
+            resolve it.
             {lastGame.finalStage && ` Stage was ${lastGame.finalStage}.`}
           </p>
         </CardContent>
@@ -749,8 +890,9 @@ function GameSection({
             : `Game ${gameNumber} — winner of the last game strikes first`}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Click the button below to start stage striking with {opponentName} — this isn&apos;t
-          something to sort out over chat, the site walks you through it turn by turn.
+          Click the button below to start stage striking with {opponentName} —
+          this isn&apos;t something to sort out over chat, the site walks you
+          through it turn by turn.
         </p>
         <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
           <Button type="submit" size="sm">
@@ -762,7 +904,10 @@ function GameSection({
   }
 
   const turn = gameTurnState(current);
-  const isPracticing = userId === match.player1Id ? match.player1IsPracticing : match.player2IsPracticing;
+  const isPracticing =
+    userId === match.player1Id
+      ? match.player1IsPracticing
+      : match.player2IsPracticing;
   // Game 1 has no in-match history yet, so lastUsedCharacter falls through to
   // null and this defaults to the player's most-played character instead;
   // every later game already has a locked-in character from the prior game,
@@ -784,28 +929,36 @@ function GameSection({
       <>
         {characterSection}
         <CardContent className="border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground">Game {current.gameNumber} stage</p>
-          {current.finalStage && (() => {
-            const imgPath = stageImagePath(current.finalStage!);
-            return (
-              <div className="relative mt-2 flex h-32 w-48 items-center justify-center overflow-hidden rounded-md border">
-                {imgPath && (
-                  <Image
-                    src={`/stages/${imgPath}`}
-                    alt={current.finalStage!}
-                    fill
-                    className="object-cover"
-                    sizes="192px"
-                  />
-                )}
-                <span className="relative z-10 rounded bg-background/80 px-2 py-1 text-sm font-medium">
-                  {current.finalStage!}
-                </span>
-              </div>
-            );
-          })()}
+          <p className="text-sm text-muted-foreground">
+            Game {current.gameNumber} stage
+          </p>
+          {current.finalStage &&
+            (() => {
+              const imgPath = stageImagePath(current.finalStage!);
+              return (
+                <div className="relative mt-2 flex h-32 w-48 items-center justify-center overflow-hidden rounded-md border">
+                  {imgPath && (
+                    <Image
+                      src={`/stages/${imgPath}`}
+                      alt={current.finalStage!}
+                      fill
+                      className="object-cover"
+                      sizes="192px"
+                    />
+                  )}
+                  <span className="relative z-10 rounded bg-background/80 px-2 py-1 text-sm font-medium">
+                    {current.finalStage!}
+                  </span>
+                </div>
+              );
+            })()}
         </CardContent>
-        <ReportGameSection userId={userId} match={match} game={current} opponentName={opponentName} />
+        <ReportGameSection
+          userId={userId}
+          match={match}
+          game={current}
+          opponentName={opponentName}
+        />
       </>
     );
   }
@@ -835,22 +988,32 @@ function GameSection({
   // Only shown once both characters are locked in (see the !bothLocked
   // branch below) — at that point turnStartedAt is purely a stage-strike
   // clock, so STRIKE_TIMEOUT_MS is the only deadline that applies here.
-  const deadline = new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS).toISOString();
+  const deadline = new Date(
+    current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS,
+  ).toISOString();
 
   const lastStrikeIndex = current.struckStages.length - 1;
   const canUndoLastStrike =
     turn.phase === "striking" &&
     lastStrikeIndex >= 0 &&
-    (lastStrikeIndex < current.actorAStrikes ? current.actorAId : current.actorBId) === userId;
+    (lastStrikeIndex < current.actorAStrikes
+      ? current.actorAId
+      : current.actorBId) === userId;
 
   const sameBans =
-    turn.phase === "striking" && current.actorAId === userId && current.actorAStrikes === 3 && struckSoFar === 0
+    turn.phase === "striking" &&
+    current.actorAId === userId &&
+    current.actorAStrikes === 3 &&
+    struckSoFar === 0
       ? lastSameBans(games, userId)
       : null;
 
   const runItBackStage =
-    turn.phase === "picking" ? lastPlayedStage(games, current.gameNumber) : null;
-  const canRunItBack = runItBackStage !== null && current.stagesRemaining.includes(runItBackStage);
+    turn.phase === "picking"
+      ? lastPlayedStage(games, current.gameNumber)
+      : null;
+  const canRunItBack =
+    runItBackStage !== null && current.stagesRemaining.includes(runItBackStage);
 
   return (
     <>
@@ -862,11 +1025,13 @@ function GameSection({
             "Stage selection will start once both characters are locked in."
           ) : !myTurn ? (
             <>
-              Waiting for {opponentName} to {verb}… (<Countdown deadline={deadline} />s left)
+              Waiting for {opponentName} to {verb}… (
+              <Countdown deadline={deadline} />s left)
             </>
           ) : (
             <>
-              Your turn — {turnDescription} (<Countdown deadline={deadline} />s left, or it auto-picks).
+              Your turn — {turnDescription} (<Countdown deadline={deadline} />s
+              left, or it auto-picks).
             </>
           )}
         </p>
@@ -883,7 +1048,12 @@ function GameSection({
         {canRunItBack && (
           <div className="mt-3">
             <form action={runItBack.bind(null, match.id, current.gameNumber)}>
-              <Button type="submit" size="sm" variant="default" disabled={!canAct}>
+              <Button
+                type="submit"
+                size="sm"
+                variant="default"
+                disabled={!canAct}
+              >
                 Run it back ({runItBackStage})
               </Button>
             </form>
@@ -891,14 +1061,20 @@ function GameSection({
         )}
         <div className="mt-3 flex flex-wrap gap-2">
           {(() => {
-            const pool: readonly string[] = current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
-            const allStages = [...new Set([...current.struckStages, ...current.stagesRemaining])];
+            const pool: readonly string[] =
+              current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
+            const allStages = [
+              ...new Set([...current.struckStages, ...current.stagesRemaining]),
+            ];
             return allStages.sort((a, b) => pool.indexOf(a) - pool.indexOf(b));
           })().map((stage) => {
             const isStruck = current.struckStages.includes(stage);
             const imgPath = stageImagePath(stage);
             return (
-              <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
+              <form
+                key={stage}
+                action={action.bind(null, match.id, current.gameNumber, stage)}
+              >
                 <Button
                   type="submit"
                   size="sm"
@@ -934,7 +1110,10 @@ function GameSection({
           })}
         </div>
         {canUndoLastStrike && (
-          <form action={unstrikeStage.bind(null, match.id, current.gameNumber)} className="mt-2">
+          <form
+            action={unstrikeStage.bind(null, match.id, current.gameNumber)}
+            className="mt-2"
+          >
             <Button type="submit" size="sm" variant="ghost">
               Undo my last strike
             </Button>
@@ -967,11 +1146,16 @@ function CharacterPickSection({
   defaultCharacter: string | null;
   isPracticing: boolean;
 }) {
-  const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(game, userId);
+  const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(
+    game,
+    userId,
+  );
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
   // forfeits the whole game to whoever's opponent never locked in within this
   // window, measured from the game's creation, so it needs to be visible here.
-  const pickDeadline = new Date(game.createdAt.getTime() + CHARACTER_TIMEOUT_MS);
+  const pickDeadline = new Date(
+    game.createdAt.getTime() + CHARACTER_TIMEOUT_MS,
+  );
   const secondsLeft = secondsUntil(pickDeadline);
   const deadline = pickDeadline.toISOString();
 
@@ -979,8 +1163,12 @@ function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Game {game.gameNumber} characters — you: <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
-          {opponentName}: <span className="font-medium text-foreground">{opponentCharacter}</span>
+          Game {game.gameNumber} characters — you:{" "}
+          <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
+          {opponentName}:{" "}
+          <span className="font-medium text-foreground">
+            {opponentCharacter}
+          </span>
         </p>
       </CardContent>
     );
@@ -991,11 +1179,13 @@ function CharacterPickSection({
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
           Game {game.gameNumber} — you locked in{" "}
-          <span className="font-medium text-foreground">{yourCharacter}</span>. Waiting for{" "}
-          {opponentName} to pick…{" "}
+          <span className="font-medium text-foreground">{yourCharacter}</span>.
+          Waiting for {opponentName} to pick…{" "}
           {secondsLeft > 0 ? (
             <>
-              You win this game by forfeit if they don&apos;t in <Countdown deadline={deadline} />s.
+              You win this game by forfeit if they don&apos;t in{" "}
+              <Countdown deadline={deadline} />
+              s.
             </>
           ) : (
             "They're past the deadline — this should resolve in your favor shortly."
@@ -1009,7 +1199,8 @@ function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Game {game.gameNumber} — waiting for {opponentName} to lock in their character first.
+          Game {game.gameNumber} — waiting for {opponentName} to lock in their
+          character first.
         </p>
       </CardContent>
     );
@@ -1026,7 +1217,8 @@ function CharacterPickSection({
             : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
         {secondsLeft > 0 ? (
           <span className="font-medium text-foreground">
-            Lock in within <Countdown deadline={deadline} />s or you forfeit this game.
+            Lock in within <Countdown deadline={deadline} />s or you forfeit
+            this game.
           </span>
         ) : (
           <span className="font-medium text-destructive">
@@ -1036,11 +1228,14 @@ function CharacterPickSection({
       </p>
       {isPracticing && (
         <p className="mt-2 text-xs text-muted-foreground">
-          You queued this match as Practicing — this set only affects your separate practice
-          rating, not your ladder rating.
+          You queued this match as Practicing — this set only affects your
+          separate practice rating, not your ladder rating.
         </p>
       )}
-      <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
+      <form
+        action={pickCharacter.bind(null, matchId, game.gameNumber)}
+        className="mt-3 flex items-end gap-2"
+      >
         <CharacterSelect
           key={game.gameNumber}
           name="character"
@@ -1095,7 +1290,8 @@ function ReportGameSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s result…
+          Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s
+          result…
         </p>
       </CardContent>
     );
@@ -1105,14 +1301,29 @@ function ReportGameSection({
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">
-        {opponentName} reported that {theyClaimedTheyWon ? "they won" : "you won"} game{" "}
-        {game.gameNumber}. Does that match what happened?
+        {opponentName} reported that{" "}
+        {theyClaimedTheyWon ? "they won" : "you won"} game {game.gameNumber}.
+        Does that match what happened?
       </p>
       <div className="mt-4 flex gap-2">
-        <form action={reportGame.bind(null, match.id, game.gameNumber, !theyClaimedTheyWon)}>
+        <form
+          action={reportGame.bind(
+            null,
+            match.id,
+            game.gameNumber,
+            !theyClaimedTheyWon,
+          )}
+        >
           <Button type="submit">Yes, that&apos;s right</Button>
         </form>
-        <form action={reportGame.bind(null, match.id, game.gameNumber, theyClaimedTheyWon)}>
+        <form
+          action={reportGame.bind(
+            null,
+            match.id,
+            game.gameNumber,
+            theyClaimedTheyWon,
+          )}
+        >
           <Button type="submit" variant="outline">
             No, that&apos;s wrong
           </Button>
@@ -1130,13 +1341,22 @@ async function ConfirmedSection({
   match: Match;
 }) {
   const won = match.reportedWinnerId === userId;
-  const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
-  const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
+  const ratingBefore =
+    match.player1Id === userId
+      ? match.player1RatingBefore
+      : match.player2RatingBefore;
+  const ratingAfter =
+    match.player1Id === userId
+      ? match.player1RatingAfter
+      : match.player2RatingAfter;
   const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
 
   let celebration: React.ReactNode = null;
   if (won && ratingBefore !== null && ratingAfter !== null) {
-    const me = await prisma.user.findUnique({ where: { id: userId }, select: { gamesPlayed: true } });
+    const me = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { gamesPlayed: true },
+    });
     const gamesPlayed = me?.gamesPlayed ?? 10;
     const tierUp = didTierUp(ratingBefore, ratingAfter, gamesPlayed);
     const tier = getRankTier(ratingAfter, gamesPlayed);
@@ -1185,14 +1405,19 @@ function RematchSection({
   opponentUnavailable: boolean;
 }) {
   if (opponentLeftAt) {
-    return <p className="text-xs text-muted-foreground">{opponentName} has left — rematch unavailable.</p>;
+    return (
+      <p className="text-xs text-muted-foreground">
+        {opponentName} has left — rematch unavailable.
+      </p>
+    );
   }
 
   if (myRequestedAt) {
     if (opponentUnavailable) {
       return (
         <p className="text-xs text-muted-foreground">
-          {opponentName} is no longer available — they&apos;ve moved on to another match.
+          {opponentName} is no longer available — they&apos;ve moved on to
+          another match.
         </p>
       );
     }
@@ -1206,7 +1431,8 @@ function RematchSection({
   if (opponentUnavailable) {
     return (
       <p className="text-xs text-muted-foreground">
-        {opponentName} is no longer available — they&apos;ve moved on to another match.
+        {opponentName} is no longer available — they&apos;ve moved on to another
+        match.
       </p>
     );
   }
@@ -1214,7 +1440,9 @@ function RematchSection({
   return (
     <div className="flex items-center gap-2">
       {opponentRequestedAt && (
-        <p className="text-xs text-muted-foreground">{opponentName} wants a rematch!</p>
+        <p className="text-xs text-muted-foreground">
+          {opponentName} wants a rematch!
+        </p>
       )}
       <form action={requestRematchAction.bind(null, matchId)}>
         <Button type="submit" variant="outline" size="sm">
@@ -1237,13 +1465,19 @@ function MutualCancelSection({
   opponentName: string;
 }) {
   if (myRequestedAt) {
-    return <p className="text-xs text-muted-foreground">Waiting for {opponentName} to agree…</p>;
+    return (
+      <p className="text-xs text-muted-foreground">
+        Waiting for {opponentName} to agree…
+      </p>
+    );
   }
 
   return (
     <div className="flex items-center gap-2">
       {opponentRequestedAt && (
-        <p className="text-xs text-muted-foreground">{opponentName} wants to cancel!</p>
+        <p className="text-xs text-muted-foreground">
+          {opponentName} wants to cancel!
+        </p>
       )}
       <form action={requestMutualCancelAction.bind(null, matchId)}>
         <Button type="submit" variant="outline" size="sm">
@@ -1283,13 +1517,15 @@ async function CommentsSection({
   const opponentTyping = await isOpponentTyping(match.id, userId);
 
   // Determine opponent's user id for zen mode — replace their name in chat
-  const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+  const opponentId =
+    match.player1Id === userId ? match.player2Id : match.player1Id;
 
   // Serialize dates to strings for the client component
   const comments = rawComments.map((c) => ({
     id: c.id,
     author: {
-      username: zenMode && c.author.id === opponentId ? "Opponent" : c.author.username,
+      username:
+        zenMode && c.author.id === opponentId ? "Opponent" : c.author.username,
     },
     body: c.body,
     createdAt: c.createdAt.toISOString(),
@@ -1302,11 +1538,17 @@ async function CommentsSection({
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-0 pt-0">
         {opponentHasLeft && (
-          <p className="mb-2 text-xs text-muted-foreground">{opponentName} has left the chat.</p>
+          <p className="mb-2 text-xs text-muted-foreground">
+            {opponentName} has left the chat.
+          </p>
         )}
         <ChatMessages
           comments={comments}
-          empty={<p className="mt-2 text-sm text-muted-foreground">No messages yet.</p>}
+          empty={
+            <p className="mt-2 text-sm text-muted-foreground">
+              No messages yet.
+            </p>
+          }
         />
         {opponentTyping && !opponentHasLeft && (
           <TypingIndicator opponentName={opponentName} />
@@ -1338,21 +1580,30 @@ function RoomCodeSection({
   // Whoever actually ends up hosting is whoever's code stuck (locked in via
   // setMatchRoomCode) — before that, either side could still become the
   // host, so each just sees their own password until it's decided.
-  const hostArenaPassword = setByOpponent ? opponentArenaPassword : myArenaPassword;
+  const hostArenaPassword = setByOpponent
+    ? opponentArenaPassword
+    : myArenaPassword;
 
   if (readOnly) {
     return (
       <div className="flex flex-col gap-1 text-sm">
         Room code
         <p className="font-medium tabular-nums">
-          <FlashOnChange value={initialValue}>{initialValue || "Not set yet"}</FlashOnChange>
+          <FlashOnChange value={initialValue}>
+            {initialValue || "Not set yet"}
+          </FlashOnChange>
         </p>
         {setByOpponent && (
-          <p className="text-xs text-muted-foreground">Set by your opponent — join with this.</p>
+          <p className="text-xs text-muted-foreground">
+            Set by your opponent — join with this.
+          </p>
         )}
         <p className="text-xs text-muted-foreground">
           Set the in-game room password to{" "}
-          <span className="font-medium text-foreground">{hostArenaPassword}</span>.
+          <span className="font-medium text-foreground">
+            {hostArenaPassword}
+          </span>
+          .
         </p>
       </div>
     );
@@ -1360,11 +1611,14 @@ function RoomCodeSection({
 
   return (
     <div className="flex flex-col gap-1">
-      <RoomCodeForm initialValue={initialValue} action={submitRoomCode.bind(null, matchId)} />
+      <RoomCodeForm
+        initialValue={initialValue}
+        action={submitRoomCode.bind(null, matchId)}
+      />
       <p className="text-xs text-muted-foreground">
         Set the in-game room password to{" "}
-        <span className="font-medium text-foreground">{hostArenaPassword}</span> — this is your
-        default, you can{" "}
+        <span className="font-medium text-foreground">{hostArenaPassword}</span>{" "}
+        — this is your default, you can{" "}
         <Link href="/settings" className="underline hover:text-foreground">
           change it in Settings
         </Link>

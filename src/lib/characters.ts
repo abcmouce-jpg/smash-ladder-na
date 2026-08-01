@@ -1,4 +1,9 @@
-// Super Smash Bros. Ultimate's full fighter roster, including all DLC through Fighter Pass 2.
+// Super Smash Bros. Ultimate's full fighter roster, including all DLC through
+// Fighter Pass 2, plus "Random" tacked on at the end — not a real fighter,
+// but a legitimate character-select pick (the "?" icon) that players can
+// report/main just like any other entry. The site has no way to know which
+// actual fighter the game's RNG landed on, so "Random" gets tracked as its
+// own bucket rather than resolved to a real character.
 export const SMASH_CHARACTERS = [
   "Mario",
   "Donkey Kong",
@@ -86,6 +91,7 @@ export const SMASH_CHARACTERS = [
   "Pyra/Mythra",
   "Kazuya",
   "Sora",
+  "Random",
 ] as const;
 
 export type SmashCharacter = (typeof SMASH_CHARACTERS)[number];

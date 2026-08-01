@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { COUNTERPICK_STAGES } from "@/lib/stages";
+import { dayKeyInTimeZone } from "@/lib/timezone";
 import type { Achievement } from "@/lib/rank-tier";
 
 export type AchievementGame = {
@@ -96,9 +97,7 @@ export function hasGrudgeMatch(matches: AchievementMatch[]): boolean {
   return false;
 }
 
-function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+const dayKey = dayKeyInTimeZone;
 
 // The first set played on any day (ever) was a win.
 export function hasBeginnersLuck(matches: AchievementMatch[]): boolean {
