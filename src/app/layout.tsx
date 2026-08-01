@@ -74,6 +74,18 @@ export default async function RootLayout({
             __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`,
           }}
         />
+        {/* Same pattern as theme-init: the server doesn't know the visitor's
+            timezone, so capture it into a cookie before hydration. Day-bucketed
+            achievements (Beginner's Luck) read it back on the next server
+            render; the first-ever page load has no cookie yet and falls back to
+            UTC, the same one-time mismatch LocalTime already accepts. */}
+        <script
+          id="tz-init"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `try{var tz=Intl.DateTimeFormat().resolvedOptions().timeZone;if(tz)document.cookie='tz='+encodeURIComponent(tz)+';path=/;max-age=31536000;samesite=lax'}catch(e){}`,
+          }}
+        />
         <ThemeSync />
         {showAds && ADSENSE_CLIENT_ID && (
           <script

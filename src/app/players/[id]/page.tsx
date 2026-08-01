@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Award, Cable, ExternalLink, MapPin, Swords } from "lucide-react";
 import { auth } from "@/auth";
@@ -65,6 +65,11 @@ export default async function PlayerProfilePage({
   const isModerator = session?.user?.role === "MOD" || session?.user?.role === "ADMIN";
   const player = await getPlayerProfile(id);
   if (!player) notFound();
+  // The visitor's IANA timezone, captured into a cookie by the tz-init
+  // script in layout.tsx. Day-bucketed achievements (Beginner's Luck) use it
+  // to decide which calendar day a set belongs to; first-ever visits have no
+  // cookie yet and fall back to UTC (the previous behavior).
+  const timeZone = (await cookies()).get("tz")?.value ?? "UTC";
 
   const [
     recentHistory,
@@ -94,7 +99,7 @@ export default async function PlayerProfilePage({
     getCharacterUsage(id),
     isCurrentlyInMatch(id),
     player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
-    getMatchHistoryAchievements(id),
+    getMatchHistoryAchievements(id, timeZone),
   ]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];

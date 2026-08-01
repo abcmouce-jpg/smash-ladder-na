@@ -96,15 +96,39 @@ export function hasGrudgeMatch(matches: AchievementMatch[]): boolean {
   return false;
 }
 
-function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+// Calendar day (YYYY-MM-DD) of a timestamp in the given IANA timezone, not
+// UTC — "some day" for the day-bucketed achievements is the day where the
+// player is. formatToParts keeps this locale-independent, and Intl handles
+// DST correctly without manual offset math.
+function dayKey(d: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const part = (type: Intl.DateTimeFormatPart["type"]) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-// The first set played on any day (ever) was a win.
-export function hasBeginnersLuck(matches: AchievementMatch[]): boolean {
+function isIanaTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The first set played on any day (ever) was a win, where a "day" is the
+// user's own calendar day in their timezone, not the UTC date. The timezone
+// arrives from a browser-set cookie (user-controlled), so a bogus value
+// falls back to UTC rather than throwing.
+export function hasBeginnersLuck(matches: AchievementMatch[], timeZone: string): boolean {
+  const tz = isIanaTimeZone(timeZone) ? timeZone : "UTC";
   const seenDays = new Set<string>();
   for (const m of matches) {
-    const key = dayKey(m.confirmedAt);
+    const key = dayKey(m.confirmedAt, tz);
     if (seenDays.has(key)) continue;
     seenDays.add(key);
     if (m.won) return true;
@@ -113,11 +137,14 @@ export function hasBeginnersLuck(matches: AchievementMatch[]): boolean {
 }
 
 // The first set played on some day was a loss, and the very next set played
-// overall (not necessarily the same day) was a win.
-export function hasBounceBack(matches: AchievementMatch[]): boolean {
+// overall (not necessarily the same day) was a win. A "day" is the user's
+// own calendar day in their timezone, not the UTC date — same cookie value
+// and UTC fallback as hasBeginnersLuck.
+export function hasBounceBack(matches: AchievementMatch[], timeZone: string): boolean {
+  const tz = isIanaTimeZone(timeZone) ? timeZone : "UTC";
   const seenDays = new Set<string>();
   for (let i = 0; i < matches.length; i++) {
-    const key = dayKey(matches[i].confirmedAt);
+    const key = dayKey(matches[i].confirmedAt, tz);
     if (seenDays.has(key)) continue;
     seenDays.add(key);
     if (!matches[i].won && matches[i + 1]?.won) return true;
@@ -129,7 +156,7 @@ export function hasBounceBack(matches: AchievementMatch[]): boolean {
 // approach as computeAchievements in rank-tier.ts — these just need a
 // heavier query (every confirmed set and its games) instead of a handful of
 // pre-aggregated counters.
-export async function getMatchHistoryAchievements(userId: string): Promise<Achievement[]> {
+export async function getMatchHistoryAchievements(userId: string, timeZone = "UTC"): Promise<Achievement[]> {
   const rawMatches = await prisma.ratingMatch.findMany({
     where: {
       status: MatchStatus.CONFIRMED,
@@ -211,13 +238,13 @@ export async function getMatchHistoryAchievements(userId: string): Promise<Achie
       id: "beginners-luck",
       label: "Beginner's Luck",
       description: "Win the first set you play on some day.",
-      achieved: hasBeginnersLuck(matches),
+      achieved: hasBeginnersLuck(matches, timeZone),
     },
     {
       id: "bounce-back",
       label: "Bounce Back",
       description: "Lose the first set you play on some day, then win the very next set you play.",
-      achieved: hasBounceBack(matches),
+      achieved: hasBounceBack(matches, timeZone),
     },
   ];
 }

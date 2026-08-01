@@ -167,7 +167,7 @@ describe("hasGrudgeMatch", () => {
 describe("hasBeginnersLuck", () => {
   it("true when the first set of some day was a win", () => {
     const matches = [match({ confirmedAt: new Date("2026-01-01T09:00:00Z"), won: true })];
-    expect(hasBeginnersLuck(matches)).toBe(true);
+    expect(hasBeginnersLuck(matches, "UTC")).toBe(true);
   });
 
   it("false when the first set of every day was a loss", () => {
@@ -175,7 +175,24 @@ describe("hasBeginnersLuck", () => {
       match({ confirmedAt: new Date("2026-01-01T09:00:00Z"), won: false }),
       match({ confirmedAt: new Date("2026-01-01T10:00:00Z"), won: true }),
     ];
-    expect(hasBeginnersLuck(matches)).toBe(false);
+    expect(hasBeginnersLuck(matches, "UTC")).toBe(false);
+  });
+
+  it("buckets days in the given timezone, not UTC", () => {
+    // 02:00 UTC is the previous day in New York (UTC-5 in January): the loss
+    // lands on Dec 31 while the win is the first set of Jan 1 there, even
+    // though UTC puts both on Jan 1.
+    const matches = [
+      match({ confirmedAt: new Date("2026-01-01T02:00:00Z"), won: false }),
+      match({ confirmedAt: new Date("2026-01-01T10:00:00Z"), won: true }),
+    ];
+    expect(hasBeginnersLuck(matches, "UTC")).toBe(false);
+    expect(hasBeginnersLuck(matches, "America/New_York")).toBe(true);
+  });
+
+  it("falls back to UTC for a bogus timezone", () => {
+    const matches = [match({ confirmedAt: new Date("2026-01-01T02:00:00Z"), won: true })];
+    expect(hasBeginnersLuck(matches, "Not/AZone")).toBe(true);
   });
 });
 
@@ -185,7 +202,7 @@ describe("hasBounceBack", () => {
       match({ confirmedAt: new Date("2026-01-01T09:00:00Z"), won: false }),
       match({ confirmedAt: new Date("2026-01-01T10:00:00Z"), won: true }),
     ];
-    expect(hasBounceBack(matches)).toBe(true);
+    expect(hasBounceBack(matches, "UTC")).toBe(true);
   });
 
   it("false when the next set is also a loss", () => {
@@ -193,12 +210,12 @@ describe("hasBounceBack", () => {
       match({ confirmedAt: new Date("2026-01-01T09:00:00Z"), won: false }),
       match({ confirmedAt: new Date("2026-01-01T10:00:00Z"), won: false }),
     ];
-    expect(hasBounceBack(matches)).toBe(false);
+    expect(hasBounceBack(matches, "UTC")).toBe(false);
   });
 
   it("false when there's no set played after the day's first loss", () => {
     const matches = [match({ confirmedAt: new Date("2026-01-01T09:00:00Z"), won: false })];
-    expect(hasBounceBack(matches)).toBe(false);
+    expect(hasBounceBack(matches, "UTC")).toBe(false);
   });
 
   it("the bounce-back set can be on a later day", () => {
@@ -206,6 +223,28 @@ describe("hasBounceBack", () => {
       match({ confirmedAt: new Date("2026-01-01T09:00:00Z"), won: false }),
       match({ confirmedAt: new Date("2026-01-02T09:00:00Z"), won: true }),
     ];
-    expect(hasBounceBack(matches)).toBe(true);
+    expect(hasBounceBack(matches, "UTC")).toBe(true);
+  });
+
+  it("buckets days in the given timezone, not UTC", () => {
+    // In UTC all three sets share Jan 1: the day's first set (a loss) is
+    // followed by another loss, so no bounce. In New York (UTC-5 in
+    // January) the 02:00 loss falls on Dec 31, making the 10:00 loss the
+    // first set of Jan 1 — and the very next set is a win.
+    const matches = [
+      match({ confirmedAt: new Date("2026-01-01T02:00:00Z"), won: false }),
+      match({ confirmedAt: new Date("2026-01-01T10:00:00Z"), won: false }),
+      match({ confirmedAt: new Date("2026-01-01T11:00:00Z"), won: true }),
+    ];
+    expect(hasBounceBack(matches, "UTC")).toBe(false);
+    expect(hasBounceBack(matches, "America/New_York")).toBe(true);
+  });
+
+  it("falls back to UTC for a bogus timezone", () => {
+    const matches = [
+      match({ confirmedAt: new Date("2026-01-01T09:00:00Z"), won: false }),
+      match({ confirmedAt: new Date("2026-01-01T10:00:00Z"), won: true }),
+    ];
+    expect(hasBounceBack(matches, "Not/AZone")).toBe(true);
   });
 });
