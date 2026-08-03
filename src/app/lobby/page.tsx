@@ -629,13 +629,9 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               {!zenMode && (
                 <p className="flex items-center gap-1.5 font-medium">
                   {displayName}
-                  {opponentStreak !== 0 && (
-                    <Badge
-                      variant={opponentStreak > 0 ? "success" : "destructive"}
-                      className="tabular-nums"
-                    >
-                      {Math.abs(opponentStreak)}{" "}
-                      {opponentStreak > 0 ? "win" : "loss"} streak
+                  {opponentStreak > 0 && (
+                    <Badge variant="success" className="tabular-nums">
+                      {opponentStreak} win streak
                     </Badge>
                   )}
                 </p>

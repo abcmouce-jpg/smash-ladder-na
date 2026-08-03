@@ -229,9 +229,9 @@ export default async function PlayerProfilePage({
                     {winRate}% win rate
                   </Badge>
                 )}
-                {streak !== 0 && (
-                  <Badge variant={streak > 0 ? "success" : "destructive"} className="tabular-nums">
-                    {Math.abs(streak)} {streak > 0 ? "win" : "loss"} streak
+                {streak > 0 && (
+                  <Badge variant="success" className="tabular-nums">
+                    {streak} win streak
                   </Badge>
                 )}
               </div>
