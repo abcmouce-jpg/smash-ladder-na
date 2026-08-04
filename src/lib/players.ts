@@ -22,6 +22,7 @@ export async function getPlayerProfile(userId: string) {
       mainCharacter: true,
       secondaryCharacters: true,
       startggSlug: true,
+      startggUserId: true,
       startggGamerTag: true,
       twitchUsername: true,
       noShowCount: true,

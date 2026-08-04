@@ -125,3 +125,10 @@ export async function disconnectStartggAccount(userId: string) {
 export function startggProfileUrl(slug: string) {
   return `https://start.gg/${slug}`;
 }
+
+// start.gg user slugs look like "user/<username>"; supermajor.gg only wants the
+// username, plus the start.gg player id prefixed with "S".
+export function supermajorProfileUrl(slug: string, startggUserId: string) {
+  const username = slug.replace(/^user\//, "");
+  return `https://www.supermajor.gg/ultimate/player/${username}?id=S${startggUserId}`;
+}

@@ -33,7 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Card, CardContent } from "@/components/ui/card";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { isBlockedByMe } from "@/lib/blocks";
-import { startggProfileUrl } from "@/lib/startgg-oauth";
+import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { listReportsForUser } from "@/lib/reports";
 import {
   adminOverrideResultAction,
@@ -199,6 +199,17 @@ export default async function PlayerProfilePage({
                 className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
               >
                 {player.startggGamerTag ?? "View on start.gg"} ✓
+                <ExternalLink className="size-3" />
+              </a>
+            )}
+            {player.startggSlug && player.startggUserId && (
+              <a
+                href={supermajorProfileUrl(player.startggSlug, player.startggUserId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                View on supermajor.gg ✓
                 <ExternalLink className="size-3" />
               </a>
             )}
