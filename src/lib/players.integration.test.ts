@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import {
   getCareerStats,
   getCharacterUsage,
+  getCurrentMatchForUser,
+  getCurrentStreak,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getTopCharacters,
@@ -49,6 +51,7 @@ async function createGame(
   actorBId: string,
   actorBCharacter: string | null,
   winnerId: string | null,
+  stage?: string | null,
 ) {
   return prisma.matchGame.create({
     data: {
@@ -61,6 +64,7 @@ async function createGame(
       actorBStrikes: 2,
       actorBCharacter,
       winnerId,
+      finalStage: stage ?? null,
     },
   });
 }
@@ -86,6 +90,36 @@ describe("isCurrentlyInMatch", () => {
   it("is false for a player with no matches at all", async () => {
     const player = await createTestUser();
     expect(await isCurrentlyInMatch(player.id)).toBe(false);
+  });
+});
+
+describe("getCurrentMatchForUser", () => {
+  it("returns the active match with the opponent and games", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createPendingMatch(p1.id, p2.id);
+    await createGame(match.id, 1, p1.id, "Mario", p2.id, null, null);
+
+    const current = await getCurrentMatchForUser(p1.id);
+    expect(current).not.toBeNull();
+    expect(current!.player2Id).toBe(p2.id);
+    expect(current!.player2.username).toBe(p2.username);
+    expect(current!.games).toHaveLength(1);
+    expect(current!.games[0].actorACharacter).toBe("Mario");
+    expect(current!.games[0].actorBCharacter).toBeNull();
+  });
+
+  it("returns null once the match is confirmed", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    await createConfirmedMatch(p1.id, p2.id, { reportedWinnerId: p1.id });
+
+    expect(await getCurrentMatchForUser(p1.id)).toBeNull();
+  });
+
+  it("returns null for a player with no active match", async () => {
+    const player = await createTestUser();
+    expect(await getCurrentMatchForUser(player.id)).toBeNull();
   });
 });
 
@@ -332,6 +366,74 @@ describe("getCareerStats", () => {
   });
 });
 
+describe("getCurrentStreak", () => {
+  async function createConfirmedMatchAt(
+    p1: string,
+    p2: string,
+    reportedWinnerId: string,
+    confirmedAt: Date,
+  ) {
+    return prisma.ratingMatch.create({
+      data: { player1Id: p1, player2Id: p2, status: MatchStatus.CONFIRMED, expiresAt: new Date(), reportedWinnerId, confirmedAt },
+    });
+  }
+
+  // Regression: the profile page used to feed currentStreak with the same
+  // 20-match history it paginates with, so any streak longer than 20 read
+  // as exactly 20. The DB-backed version must not have that ceiling.
+  it("reports streaks longer than 20 in full", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    // One loss, then 25 wins after it, so the current streak is 25.
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base));
+    for (let i = 1; i <= 25; i++) {
+      await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base + i * 1000));
+    }
+
+    expect(await getCurrentStreak(player.id)).toBe(25);
+  });
+
+  it("counts a leading run of losses as negative", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base));
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base + 1000));
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base + 2000));
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base + 3000));
+
+    expect(await getCurrentStreak(player.id)).toBe(-3);
+  });
+
+  it("skips practice matches instead of counting them or breaking the streak", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base));
+    await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base + 1000));
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+    await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base + 2000));
+
+    expect(await getCurrentStreak(player.id)).toBe(2);
+  });
+
+  it("is 0 for a player with no matches or only practice matches", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    expect(await getCurrentStreak(player.id)).toBe(0);
+
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+    expect(await getCurrentStreak(player.id)).toBe(0);
+  });
+});
+
 describe("getPlayerMatchHistory", () => {
   it("includes the per-game score and the distinct characters played", async () => {
     const player = await createTestUser();
@@ -368,6 +470,38 @@ describe("getPlayerMatchHistory", () => {
     expect(entry.score).toEqual({ wins: 0, losses: 0 });
     expect(entry.characters).toEqual([]);
     expect(entry.opponentCharacters).toEqual([]);
+    expect(entry.games).toEqual([]);
+  });
+
+  it("includes per-game characters, stage, and winner for each game", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", player.id, "Pokémon Stadium 2");
+    await createGame(match.id, 2, player.id, "Terry", opponent.id, "Ken", opponent.id, "Final Destination");
+    await createGame(match.id, 3, player.id, "Cloud", opponent.id, "Ken", player.id);
+
+    const [entry] = await getPlayerMatchHistory(player.id);
+    expect(entry.games).toEqual([
+      { gameNumber: 1, character: "Terry", opponentCharacter: "Ken", stage: "Pokémon Stadium 2", won: true },
+      { gameNumber: 2, character: "Terry", opponentCharacter: "Ken", stage: "Final Destination", won: false },
+      { gameNumber: 3, character: "Cloud", opponentCharacter: "Ken", stage: null, won: true },
+    ]);
+  });
+
+  it("lists undecided games in the per-game details but excludes them from the score", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", player.id, "Small Battlefield");
+    await createGame(match.id, 2, player.id, "Mario", opponent.id, "Kirby", null, "Final Destination");
+
+    const [entry] = await getPlayerMatchHistory(player.id);
+    expect(entry.score).toEqual({ wins: 1, losses: 0 });
+    expect(entry.games).toEqual([
+      { gameNumber: 1, character: "Terry", opponentCharacter: "Ken", stage: "Small Battlefield", won: true },
+      { gameNumber: 2, character: "Mario", opponentCharacter: "Kirby", stage: "Final Destination", won: null },
+    ]);
   });
 
   // Real bug: a practice win showed up in the "Recent matches" record (and

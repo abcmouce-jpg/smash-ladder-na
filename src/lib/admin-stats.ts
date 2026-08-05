@@ -40,15 +40,19 @@ export async function getAdminOverview() {
     // — "disputed" now lives at the game level (winnerId still null, but
     // both a report and a conflicting second report exist). Prisma can't
     // compare two columns in a where clause, so the not-equal check happens
-    // in JS below on this narrowed-down candidate set. Excludes games whose
-    // match already CONFIRMED/CANCELLED via its other games — same "moot"
-    // exclusion listDisputedGames uses, otherwise this count only ever grows
-    // (nothing ever revisits a disputed game once its match is closed out).
+    // in JS below on this narrowed-down candidate set. Only games actually
+    // escalated to mods (disputeRequestedAt set) count — a fresh conflict
+    // the players are still reconciling isn't a mod task yet. Excludes
+    // games whose match already CONFIRMED/CANCELLED via its other games —
+    // same "moot" exclusion listDisputedGames uses, otherwise this count
+    // only ever grows (nothing ever revisits a disputed game once its match
+    // is closed out).
     prisma.matchGame.findMany({
       where: {
         winnerId: null,
         reportedWinnerId: { not: null },
         secondReportWinnerId: { not: null },
+        disputeRequestedAt: { not: null },
         match: { status: { notIn: [MatchStatus.CONFIRMED, MatchStatus.CANCELLED] } },
       },
       select: { reportedWinnerId: true, secondReportWinnerId: true },

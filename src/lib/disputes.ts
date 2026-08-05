@@ -32,13 +32,18 @@ const disputePlayerSelect = {
 // whole match to a blocking DISPUTED status — the set keeps going on the
 // other games while this one waits for a mod. So "disputed" now means
 // "this specific game", not "this match": winnerId is still null, but both
-// a report and a conflicting second report exist.
+// a report and a conflicting second report exist. Conflicting reports alone
+// don't land a game here though — the players get a chance to re-confirm or
+// resolve it themselves first, and only games actually escalated
+// (disputeRequestedAt set, via the lobby's dispute button or both sides
+// re-confirming) show up in the mod queue.
 export async function listDisputedGames() {
   const games = await prisma.matchGame.findMany({
     where: {
       winnerId: null,
       reportedWinnerId: { not: null },
       secondReportWinnerId: { not: null },
+      disputeRequestedAt: { not: null },
       // If the set already confirmed via its other games (or got cancelled),
       // this dispute is moot — resolving it can't change the outcome, so it
       // shouldn't keep cluttering the mod queue.
@@ -78,8 +83,17 @@ async function applyDisputeRuling(
   if (game.winnerId) throw new Error("This game is already decided");
 
   // secondReport* already records the disagreeing second report from
-  // reportGameResult; a ruling shouldn't overwrite that history.
-  await tx.matchGame.update({ where: { id: game.id }, data: { winnerId } });
+  // reportGameResult; a ruling shouldn't overwrite that history. Clears the
+  // contest/escalation markers — the game is settled now.
+  await tx.matchGame.update({
+    where: { id: game.id },
+    data: {
+      winnerId,
+      disputeRequestedAt: null,
+      reporterConfirmedAt: null,
+      secondReporterConfirmedAt: null,
+    },
+  });
 
   const games = await tx.matchGame.findMany({ where: { matchId: match.id } });
   const wins = tallySetWins(games);
@@ -276,6 +290,9 @@ export async function adminSetGameWinner(matchId: string, gameNumber: number, wi
           disputeResolutionWinnerId: null,
           disputeResolutionById: null,
           disputeResolutionAt: null,
+          disputeRequestedAt: null,
+          reporterConfirmedAt: null,
+          secondReporterConfirmedAt: null,
         },
       });
 

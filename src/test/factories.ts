@@ -11,7 +11,7 @@ export async function createTestUser(overrides: Partial<Parameters<typeof prisma
       rating: 1500,
       gamesPlayed: 0,
       region: "USA East",
-      maxMatchDistanceKm: 5000,
+      maxMatchDistanceKm: 2400,
       ...overrides,
     },
   });

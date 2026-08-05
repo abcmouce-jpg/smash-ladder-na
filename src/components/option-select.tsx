@@ -31,6 +31,7 @@ export function OptionSelect({
   className,
   searchable = false,
   searchPlaceholder = "Search…",
+  autoSubmit = false,
 }: {
   name: string;
   defaultValue?: string;
@@ -44,12 +45,25 @@ export function OptionSelect({
    *  label (and group heading, so e.g. "USA" surfaces a whole section). */
   searchable?: boolean;
   searchPlaceholder?: string;
+  /** When true, submits the enclosing form as soon as a selection changes,
+   *  instead of waiting for a separate Submit click. The hidden <select>
+   *  below is controlled entirely by React state (see the onChange no-op
+   *  comment on it), so its value never changes via a real user interaction
+   *  with that element — a plain `<form onChange>` on the ancestor would
+   *  never see a native change event bubble up from it. Submitting
+   *  explicitly here, from a `value` effect instead of inside `select()`
+   *  itself, is what makes this reliable: it fires only after the state
+   *  update has actually re-rendered the hidden select's DOM value, so
+   *  requestSubmit() picks up the new selection rather than racing ahead of
+   *  it. */
+  autoSubmit?: boolean;
 }) {
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const isFirstRender = useRef(true);
 
   const selected = options.find((opt) => opt.value === value);
   const display = selected?.label ?? placeholder ?? clearLabel;
@@ -85,6 +99,20 @@ export function OptionSelect({
     setOpen(false);
     setQuery("");
   }, []);
+
+  // Only fires on a genuine change after mount — not for the initial
+  // defaultValue, and not for remounts via the `key` prop callers use to
+  // re-sync from a new server-side defaultValue (that's a re-mount, so
+  // isFirstRender starts true again there too).
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (autoSubmit) {
+      containerRef.current?.closest("form")?.requestSubmit();
+    }
+  }, [value, autoSubmit]);
 
   return (
     <div ref={containerRef} className={`relative ${className ?? ""}`}>

@@ -151,7 +151,7 @@ model User {
   secondaryCharacters  String[]   @default([]) // same source as mainCharacter — auto-computed until self-declared, then player-controlled
   charactersSelfDeclared Boolean  @default(false) // once true, recomputeCharacterUsage no-ops — players complained the old peer-report mechanism kept landing on the wrong main, so self-declaration (once made) is authoritative
   region               String? // self-declared match region; drives distance-based matchmaking
-  maxMatchDistanceKm   Int?       @default(5000) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance.
+  maxMatchDistanceKm   Int?       @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
   maxRatingGap         Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
   rematchCooldownHours Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
   wiredConnection      Boolean    @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
@@ -305,7 +305,7 @@ model MatchGame {
   stagesRemaining String[]    @default([])
   struckStages    String[]    @default([])
   finalStage      String?
-  turnStartedAt   DateTime    @default(now()) // reset on every strike/pick; a stale turn past STRIKE_TIMEOUT_MS auto-resolves with a random remaining stage
+  turnStartedAt   DateTime    @default(now()) // reset on every strike/pick — and when the final stage is picked, which is also what anchors the report clock; a stale turn past STRIKE_TIMEOUT_MS auto-resolves with a random remaining stage, and a lone hanging report past REPORT_TIMEOUT_MS auto-confirms
 
   reportedWinnerId     String?
   reportedById         String?
@@ -314,6 +314,15 @@ model MatchGame {
   secondReportById     String?
   secondReportAt       DateTime?
   winnerId             String?
+
+  // Contested-report reconciliation: when the two reports disagree, the game
+  // isn't escalated straight to mods — each player is asked to re-confirm
+  // their claim (or dispute it). These record who has re-confirmed; once
+  // both have and still disagree, the game escalates to mod review
+  // (disputeRequestedAt set).
+  reporterConfirmedAt       DateTime?
+  secondReporterConfirmedAt DateTime?
+  disputeRequestedAt        DateTime?
 
   // Self-service re-agreement after a dispute (reportedWinnerId !=
   // secondReportWinnerId) — see requestDisputeResolution. Only one slot

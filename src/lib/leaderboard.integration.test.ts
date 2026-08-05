@@ -50,6 +50,40 @@ describe("getLeaderboardPlayers", () => {
     expect(ids).not.toContain(outside.id);
   });
 
+  it("filters by country", async () => {
+    const usPlayer = await createTestUser({ gamesPlayed: 5, region: "Texas" });
+    const canadaPlayer = await createTestUser({ gamesPlayed: 5, region: "Ontario" });
+    const mexicoPlayer = await createTestUser({ gamesPlayed: 5, region: "Mexico North" });
+    const otherPlayer = await createTestUser({ gamesPlayed: 5, region: "Europe West" });
+
+    const { players: us, totalCount: usCount } = await getLeaderboardPlayers({ country: "United States" });
+    expect(usCount).toBe(1);
+    expect(us[0].id).toBe(usPlayer.id);
+
+    const { players: canada } = await getLeaderboardPlayers({ country: "Canada" });
+    expect(canada.map((p) => p.id)).toEqual([canadaPlayer.id]);
+
+    const { players: mexico } = await getLeaderboardPlayers({ country: "Mexico" });
+    expect(mexico.map((p) => p.id)).toEqual([mexicoPlayer.id]);
+
+    const { players: other } = await getLeaderboardPlayers({ country: "Other" });
+    const otherIds = other.map((p) => p.id);
+    expect(otherIds).toContain(otherPlayer.id);
+    expect(otherIds).not.toEqual(expect.arrayContaining([usPlayer.id, canadaPlayer.id, mexicoPlayer.id]));
+  });
+
+  it("region takes precedence when both region and country are given", async () => {
+    const texas = await createTestUser({ gamesPlayed: 5, region: "Texas" });
+    const ontario = await createTestUser({ gamesPlayed: 5, region: "Ontario" });
+
+    // A mismatched pair (region in a different country than requested)
+    // defers to region — the more specific of the two filters.
+    const { players, totalCount } = await getLeaderboardPlayers({ region: "Texas", country: "Canada" });
+    expect(totalCount).toBe(1);
+    expect(players[0].id).toBe(texas.id);
+    expect(players.map((p) => p.id)).not.toContain(ontario.id);
+  });
+
   it("excludes banned accounts", async () => {
     const target = await createTestUser({ gamesPlayed: 5, username: `NotBanned${Date.now()}` });
     const banned = await createTestUser({ gamesPlayed: 5, status: "BANNED", username: "Deleted User" });
@@ -60,17 +94,44 @@ describe("getLeaderboardPlayers", () => {
     expect(ids).not.toContain(banned.id);
   });
 
-  it("matches a secondary character, not just mainCharacter", async () => {
-    const target = await createTestUser({
+  it("includes a player whose mainCharacter matches", async () => {
+    const player = await createTestUser({ gamesPlayed: 5, mainCharacter: "Fox" });
+
+    const { players } = await getLeaderboardPlayers({ character: "Fox" });
+    expect(players.map((p) => p.id)).toContain(player.id);
+  });
+
+  it("includes a player who has the character as a secondary", async () => {
+    const player = await createTestUser({
       gamesPlayed: 5,
-      mainCharacter: "Inkling",
-      secondaryCharacters: ["Cloud"],
-      username: `Secondary${Date.now()}`,
+      mainCharacter: "Fox",
+      secondaryCharacters: ["Falco"],
     });
 
+    const { players } = await getLeaderboardPlayers({ character: "Falco" });
+    expect(players.map((p) => p.id)).toContain(player.id);
+  });
+
+  it("excludes a player who neither mains nor secondaries the character", async () => {
+    await createTestUser({ gamesPlayed: 5, mainCharacter: "Fox", secondaryCharacters: ["Falco"] });
+
     const { players, totalCount } = await getLeaderboardPlayers({ character: "Cloud" });
-    expect(totalCount).toBe(1);
-    expect(players[0].id).toBe(target.id);
+    expect(totalCount).toBe(0);
+    expect(players).toEqual([]);
+  });
+
+  it("counts echo fighters as the same character", async () => {
+    const daisyMain = await createTestUser({ gamesPlayed: 5, mainCharacter: "Daisy" });
+    const foxSecondary = await createTestUser({
+      gamesPlayed: 5,
+      mainCharacter: "Fox",
+      secondaryCharacters: ["Daisy"],
+    });
+
+    const { players } = await getLeaderboardPlayers({ character: "Peach" });
+    const ids = players.map((p) => p.id);
+    expect(ids).toContain(daisyMain.id);
+    expect(ids).toContain(foxSecondary.id);
   });
 
   it("excludes an ACTIVE account still named 'Deleted User' (Discord self-deletion, not a ban)", async () => {

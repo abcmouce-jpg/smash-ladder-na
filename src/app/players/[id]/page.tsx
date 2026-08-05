@@ -5,28 +5,27 @@ import { notFound } from "next/navigation";
 import { Award, Cable, ExternalLink, MapPin, Swords } from "lucide-react";
 import { auth } from "@/auth";
 import {
-  currentStreak,
   getCareerStats,
   getCharacterUsage,
+  getCurrentStreak,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
   getTopRivals,
-  isCurrentlyInMatch,
+  getCurrentMatchForUser,
 } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
-import { computeAchievements } from "@/lib/rank-tier";
+import { computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
-import { LocalTime } from "@/components/local-time";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BlockUserButton } from "@/components/block-user-button";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
-import { MatchChatLog } from "@/components/match-chat-log";
+import { MatchHistoryEntry } from "@/components/match-history-entry";
 import { AdminMatchOverride, BanIpButton, ModerationStatusForm } from "@/components/moderation-tools";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -75,9 +74,10 @@ export default async function PlayerProfilePage({
     rivals,
     blocked,
     characterUsage,
-    inMatch,
+    currentMatch,
     isLiveOnTwitch,
     matchAchievements,
+    streak,
   ] = await Promise.all([
     // Fixed to the true most-recent matches regardless of which page of
     // history is being viewed — the win-rate/streak badges near the rating
@@ -92,10 +92,12 @@ export default async function PlayerProfilePage({
     getTopRivals(id),
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
     getCharacterUsage(id),
-    isCurrentlyInMatch(id),
+    getCurrentMatchForUser(id),
     player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
     getMatchHistoryAchievements(id),
+    getCurrentStreak(id),
   ]);
+  const inMatch = currentMatch !== null;
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
   const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
@@ -106,10 +108,10 @@ export default async function PlayerProfilePage({
   const realRecentWins = realRecentHistory.filter((m) => m.won).length;
   const winRate =
     realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
-  const streak = currentStreak(recentHistory);
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
   const achievements = [...computeAchievements(careerStats), ...matchAchievements];
+  const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -158,11 +160,10 @@ export default async function PlayerProfilePage({
             )}
             <div className="mt-1.5 flex items-center gap-1.5">
               <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
-              {inMatch && (
-                <Badge variant="success">
-                  <Swords className="size-3" />
-                  In a match
-                </Badge>
+              {nextTier && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {nextTier.pointsNeeded} to {nextTier.nextTier.name}
+                </span>
               )}
               {player.region && (
                 <Badge variant="outline">
@@ -229,6 +230,14 @@ export default async function PlayerProfilePage({
         <TwitchLiveEmbed username={player.twitchUsername} parentHost={parentHost} />
       )}
 
+      {currentMatch && (
+        <CurrentMatchCard
+          userId={id}
+          match={currentMatch}
+          zenMode={isOwnProfile && player.zenMode}
+        />
+      )}
+
       {chartPoints.length >= 2 && (
         <Card className="mt-8">
           <CardContent className="pt-4">
@@ -240,9 +249,9 @@ export default async function PlayerProfilePage({
                     {winRate}% win rate
                   </Badge>
                 )}
-                {streak !== 0 && (
-                  <Badge variant={streak > 0 ? "success" : "destructive"} className="tabular-nums">
-                    {Math.abs(streak)} {streak > 0 ? "win" : "loss"} streak
+                {streak > 0 && (
+                  <Badge variant="success" className="tabular-nums">
+                    {streak} win streak
                   </Badge>
                 )}
               </div>
@@ -350,42 +359,26 @@ export default async function PlayerProfilePage({
         {pageHistory.length > 0 && (
           <Card className="mt-4 divide-y divide-border overflow-hidden py-0">
             {pageHistory.map((match) => (
-              <div key={match.id} className="px-4 py-2.5 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
-                      {match.won ? "W" : "L"}
-                    </Badge>
-                    {match.isPracticing && <Badge variant="outline">Practice</Badge>}
-                    vs{" "}
-                    <Link href={`/players/${match.opponent.id}`} className="hover:underline">
-                      {match.opponent.username}
-                    </Link>
-                    {(match.score.wins > 0 || match.score.losses > 0) && (
-                      <span className="tabular-nums text-muted-foreground">
-                        {match.score.wins}–{match.score.losses}
-                      </span>
-                    )}
-                  </span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
-                    {match.delta}
-                    {match.isPracticing ? ", practice" : ""})
-                  </span>
-                </div>
-                <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    {match.characters.length > 0 ? match.characters.join(", ") : "—"}
-                    {match.opponentCharacters.length > 0 && (
-                      <> vs {match.opponentCharacters.join(", ")}</>
-                    )}
-                  </span>
-                  {match.confirmedAt && <LocalTime iso={match.confirmedAt.toISOString()} />}
-                </div>
-                {isOwnProfile && <MatchChatLog action={getMatchChatLogAction.bind(null, match.id)} />}
-                {isModerator && !isOwnProfile && (
-                  <MatchChatLog action={getMatchChatLogAsModAction.bind(null, match.id)} />
-                )}
+              <MatchHistoryEntry
+                key={match.id}
+                match={{
+                  ...match,
+                  // Dates can't cross the server→client boundary; the
+                  // modal renders it back with LocalTime.
+                  confirmedAt: match.confirmedAt?.toISOString() ?? null,
+                }}
+                viewedPlayerName={player.username}
+                // Own profile reads their own chat log; a mod reviewing
+                // someone else's profile gets the mod spectator path. The
+                // modal is the only place this renders now.
+                chatLogAction={
+                  isOwnProfile
+                    ? getMatchChatLogAction.bind(null, match.id)
+                    : isModerator
+                      ? getMatchChatLogAsModAction.bind(null, match.id)
+                      : undefined
+                }
+              >
                 {isOwnProfile && match.id === mostRecentRealMatchId && (
                   <RequestCorrectionForm
                     action={requestCorrectionAction.bind(null, match.id)}
@@ -403,7 +396,7 @@ export default async function PlayerProfilePage({
                     undoAction={adminUndoMatchAction.bind(null, match.id, id)}
                   />
                 )}
-              </div>
+              </MatchHistoryEntry>
             ))}
           </Card>
         )}
@@ -464,6 +457,111 @@ export default async function PlayerProfilePage({
         </div>
       )}
     </main>
+  );
+}
+
+function isDisputedGame(game: {
+  winnerId: string | null;
+  reportedWinnerId: string | null;
+  secondReportWinnerId: string | null;
+}) {
+  return !game.winnerId && !!game.secondReportWinnerId && game.secondReportWinnerId !== game.reportedWinnerId;
+}
+
+function CurrentMatchCard({
+  userId,
+  match,
+  zenMode,
+}: {
+  userId: string;
+  match: NonNullable<Awaited<ReturnType<typeof getCurrentMatchForUser>>>;
+  zenMode: boolean;
+}) {
+  const isPlayer1 = match.player1Id === userId;
+  const opponent = isPlayer1 ? match.player2 : match.player1;
+  const myName = isPlayer1 ? match.player1.username : match.player2.username;
+  const myRating = isPlayer1 ? match.player1.rating : match.player2.rating;
+
+  const wins = { me: 0, opponent: 0 };
+  for (const game of match.games) {
+    if (game.winnerId === userId) wins.me++;
+    else if (game.winnerId) wins.opponent++;
+  }
+  // A disputed game keeps winnerId null while a mod resolves it, but it
+  // doesn't block the set — progressSet immediately creates the next game —
+  // so it must be skipped here the same way the lobby does, or the card
+  // shows a stale game number.
+  const currentGame = match.games.find((game) => !game.winnerId && !isDisputedGame(game)) ?? null;
+  const lastGame = match.games[match.games.length - 1];
+  const gameNumber = currentGame?.gameNumber ??
+    (lastGame && isDisputedGame(lastGame) ? lastGame.gameNumber : match.games.length + 1);
+  const myCharacter = currentGame
+    ? currentGame.actorAId === userId
+      ? currentGame.actorACharacter
+      : currentGame.actorBCharacter
+    : null;
+  const opponentCharacter = currentGame
+    ? currentGame.actorAId === userId
+      ? currentGame.actorBCharacter
+      : currentGame.actorACharacter
+    : null;
+  // Game 1 is a blind pick — characters stay hidden until both sides have
+  // locked in, same as the in-lobby pick UI.
+  const showCharacters =
+    currentGame !== null &&
+    (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
+
+  return (
+    <Card className="mt-8">
+      <CardContent className="pt-4">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <Swords className="size-4 text-muted-foreground" />
+          Currently in a match
+        </p>
+
+        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {showCharacters && myCharacter ? (
+              <CharacterIcon name={myCharacter} size={32} />
+            ) : (
+              <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{myName}</p>
+              <p className="text-xs text-muted-foreground tabular-nums">{myRating} rating</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <p className="text-lg font-semibold tabular-nums">
+              {wins.me}–{wins.opponent}
+            </p>
+            <p className="text-xs text-muted-foreground">Game {gameNumber} of 5</p>
+          </div>
+
+          <div className="flex min-w-0 items-center justify-end gap-2.5">
+            {!zenMode &&
+              (showCharacters && opponentCharacter ? (
+                <CharacterIcon name={opponentCharacter} size={32} />
+              ) : (
+                <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+              ))}
+            <div className="min-w-0">
+              {zenMode ? (
+                <p className="truncate text-right text-sm font-medium">Opponent</p>
+              ) : (
+                <Link href={`/players/${opponent.id}`} className="block truncate text-right text-sm font-medium hover:underline">
+                  {opponent.username}
+                </Link>
+              )}
+              {!zenMode && (
+                <p className="text-right text-xs text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -3,6 +3,11 @@
 // pool). Same both-sides-must-cover-it logic as match distance/rating gap:
 // matching requires the time since these two last played to clear BOTH
 // sides' chosen cooldown, not just whoever queues second.
+//
+// WARNING: removing or renumbering a value here orphans anyone already
+// storing it — see the equivalent warning on MATCH_DISTANCE_PRESETS in
+// regions.ts. Any future change MUST ship with a migration for existing
+// stored values.
 export const REMATCH_COOLDOWN_PRESETS = [
   { label: "Wait 24 hours", hours: 24 },
   { label: "Wait 12 hours", hours: 12 },

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { Radio, ExternalLink } from "lucide-react";
+import { Radio, ExternalLink, MapPin } from "lucide-react";
 import { getMatchFeed, type MatchFeedEntry } from "@/lib/match-feed";
 import { RankBadge } from "@/components/rank-badge";
 import { CharacterIcon } from "@/components/character-icon";
@@ -121,13 +121,13 @@ function SetRow({ entry }: { entry: MatchFeedEntry }) {
 
   return (
     <Card className={entry.hasLiveStreamer ? "border-red-500/30" : undefined}>
-      <CardContent className="flex items-center gap-3 py-3">
+      <CardContent className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <SetPlayer player={entry.player1} won={winnerId === entry.player1.id} live={entry.player1Live} />
           <span className="shrink-0 text-xs text-muted-foreground">vs</span>
           <SetPlayer player={entry.player2} won={winnerId === entry.player2.id} live={entry.player2Live} />
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-2">
           {entry.games.length > 0 && (
             <span className="text-xs tabular-nums text-muted-foreground">
               {entry.wins.player1}–{entry.wins.player2}
@@ -157,9 +157,23 @@ function SetPlayer({
         <Image src={player.avatarUrl} alt="" width={20} height={20} className="shrink-0 rounded-full" />
       )}
       {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={18} />}
-      <span className={`truncate text-sm ${won ? "font-semibold" : "font-medium"}`}>{player.username}</span>
-      {live && <Radio className="size-3 shrink-0 text-red-500" />}
-      <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} className="hidden shrink-0 sm:inline-flex" />
+      <span className="flex min-w-0 flex-col">
+        <span className="flex items-center gap-1">
+          <span className={`truncate text-sm ${won ? "font-semibold" : "font-medium"}`}>{player.username}</span>
+          {live && <Radio className="size-3 shrink-0 text-red-500" />}
+          <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} className="hidden shrink-0 sm:inline-flex" />
+        </span>
+        <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+          <span className="tabular-nums">{player.rating}</span>
+          {player.region && (
+            <span className="flex min-w-0 items-center gap-0.5">
+              <MapPin className="size-3 shrink-0" />
+              <span className="truncate">{player.region}</span>
+            </span>
+          )}
+        </span>
+        <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} className="mt-0.5 shrink self-start sm:hidden" />
+      </span>
     </Link>
   );
 }

@@ -12,7 +12,9 @@ type Comment = {
 
 // Chat logs for old matches aren't preloaded with the rest of match
 // history (a long career could have hundreds of them) — fetched once, on
-// first expand, via the passed-in server action.
+// first expand, via the passed-in server action. Rendered inside the
+// match-details modal, which scrolls as a whole, so the log itself doesn't
+// cap its own height (a nested scrollbar in a scrolling panel is janky).
 export function MatchChatLog({ action }: { action: () => Promise<Comment[]> }) {
   const [state, setState] = useState<
     { status: "collapsed" } | { status: "loading" } | { status: "error" } | { status: "loaded"; comments: Comment[] }
@@ -41,7 +43,7 @@ export function MatchChatLog({ action }: { action: () => Promise<Comment[]> }) {
   }
 
   return (
-    <div className="mt-1.5 max-h-48 overflow-y-auto rounded-lg border border-border bg-muted/30 p-2">
+    <div className="mt-1.5 rounded-lg border border-border bg-muted/30 p-2">
       {state.status === "loading" && <p className="text-xs text-muted-foreground">Loading…</p>}
       {state.status === "error" && (
         <p className="text-xs text-destructive">Couldn&apos;t load chat log — try again.</p>

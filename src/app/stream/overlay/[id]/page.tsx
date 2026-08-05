@@ -160,11 +160,16 @@ export default async function StreamOverlayPage({
 
       {/* Top-left: Player info panel */}
       {showRatingCard && (
-        <div className="absolute left-10 top-10">
-          <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-10 py-7 shadow-2xl backdrop-blur-sm">
+        <div className="absolute left-8 top-8">
+          <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
               Rating
             </span>
+            <RankBadge
+              rating={user.rating}
+              gamesPlayed={user.gamesPlayed}
+              className="text-md mx-3 px-3 py-1"
+            />
             <div className="mt-1 flex items-baseline gap-4">
               <Trophy className="size-8 text-white drop-shadow-lg" />
               <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">
@@ -173,18 +178,13 @@ export default async function StreamOverlayPage({
             </div>
             <div className="mt-1.5 flex items-center gap-4">
               {rank && (
-                <span className="text-3xl text-white/50">
+                <span className="text-2xl text-white/50">
                   Rank #{rank}/{totalPlayers}
                 </span>
               )}
-              <RankBadge
-                rating={user.rating}
-                gamesPlayed={user.gamesPlayed}
-                className="text-lg px-3 py-1"
-              />
             </div>
 
-            <div className="text-white mt-1.5 flex items-center gap-5 text-2xl">
+            <div className="text-white mt-1.5 flex items-center gap-5 text-xl">
               Today:
               <span className="text-emerald-400 font-semibold">
                 {dailyStats.totalWins}W
@@ -206,7 +206,7 @@ export default async function StreamOverlayPage({
 
       {/* Top-center: Current match — scoreboard style */}
       {currentMatch && (
-        <div className="absolute left-1/2 top-4 -translate-x-1/2 flex flex-col items-center gap-0">
+        <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-0">
           {/* Best of 5 label */}
           <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
             Best of 5
@@ -269,10 +269,10 @@ export default async function StreamOverlayPage({
       {/* Top-right: Recent matches */}
       {showRecentMatches && (
         <div
-          className="absolute right-10"
+          className="absolute right-8"
           style={{ top: "calc(2.5rem + 96px)" }}
         >
-          <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-7 py-5 shadow-2xl backdrop-blur-sm">
+          <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
               Recent matches
             </span>

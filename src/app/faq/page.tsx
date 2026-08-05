@@ -1,3 +1,5 @@
+import { DISCORD_SERVER_URL } from "@/lib/links";
+
 export const metadata = { title: "Q&A — Smash Ladder NA" };
 
 function QA({ q, children }: { q: string; children: React.ReactNode }) {
@@ -98,7 +100,7 @@ export default function FaqPage() {
             We don&apos;t publish the specific reports behind a status change, for the same
             retaliation-prevention reason above. If you think it&apos;s a mistake, reach out to a mod
             or admin in the{" "}
-            <a href="https://discord.gg/zE8B44vQxf" className="underline" target="_blank" rel="noreferrer">
+            <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
               community Discord server
             </a>{" "}
             — appeals go through them, not through the report system.
@@ -143,7 +145,7 @@ export default function FaqPage() {
         <Category title="Community & moderation">
           <QA q="Is there a Discord server?">
             Yes —{" "}
-            <a href="https://discord.gg/zE8B44vQxf" className="underline" target="_blank" rel="noreferrer">
+            <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
               join here
             </a>
             . It&apos;s where to hang out, report site issues, or reach a mod/admin (e.g. for a
@@ -156,6 +158,12 @@ export default function FaqPage() {
           <QA q="Is this affiliated with Japan's Smash Ladder / Smashmate?">
             No — this is an independent, separately-run project built for the NA scene. Any
             naming similarity to existing Japanese matchmaking platforms is coincidental.
+          </QA>
+          <QA q="Do you use AI to help build and run this site?">
+            Yes. A lot of the code, bug fixes, and day-to-day maintenance (deploys, moderation
+            tooling, this FAQ entry included) is done with AI assistance. We&apos;re not hiding
+            that — if you&apos;re curious how something specific was built, ask in the Discord
+            server above.
           </QA>
         </Category>
       </div>

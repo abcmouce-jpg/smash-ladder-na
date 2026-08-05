@@ -74,25 +74,27 @@ export async function finalizeExpiredMatches(now = new Date()) {
     }
   }
 
+  // Claim each expiry individually (guarded on still being PENDING_REPORT)
+  // before notifying, rather than notifying off the pre-write snapshot —
+  // otherwise two overlapping cron runs both see the same match in
+  // stillUnhandled and both DM mods about it. Only the run that actually
+  // wins the status flip gets to alert.
   const stillUnhandled = overdue.filter((m) => !handledIds.has(m.id));
-  await Promise.all(
-    stillUnhandled.map((m) =>
-      alertModsOfAbandonedMatch(
-        `🚫 Expired with no report: ${m.player1.username} vs ${m.player2.username} — closed with no rating impact for either side. Force-confirm from /admin/live if you know who actually won.`,
-      ),
-    ),
-  );
+  let expiredNoReport = 0;
+  for (const m of stillUnhandled) {
+    const claim = await prisma.ratingMatch.updateMany({
+      where: { id: m.id, status: MatchStatus.PENDING_REPORT, expiresAt: { lt: now } },
+      data: { status: MatchStatus.EXPIRED },
+    });
+    if (claim.count === 0) continue;
 
-  const expiredNoReport = await prisma.ratingMatch.updateMany({
-    where: {
-      status: MatchStatus.PENDING_REPORT,
-      expiresAt: { lt: now },
-      id: { in: stillUnhandled.map((m) => m.id) },
-    },
-    data: { status: MatchStatus.EXPIRED },
-  });
+    expiredNoReport++;
+    await alertModsOfAbandonedMatch(
+      `🚫 Expired with no report: ${m.player1.username} vs ${m.player2.username} — closed with no rating impact for either side. Force-confirm from /admin/live if you know who actually won.`,
+    );
+  }
 
-  return { expiredNoReport: expiredNoReport.count, autoConfirmed, closedOutOnLead };
+  return { expiredNoReport, autoConfirmed, closedOutOnLead };
 }
 
 export async function finalizeExpiredFreeBattlePosts(now = new Date()) {

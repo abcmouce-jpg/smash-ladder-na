@@ -18,6 +18,7 @@ const feedPlayerSelect = {
   mainCharacter: true,
   twitchUsername: true,
   twitchDisplayName: true,
+  region: true,
 } as const;
 
 export type MatchFeedEntry = Awaited<ReturnType<typeof getMatchFeed>>[number];

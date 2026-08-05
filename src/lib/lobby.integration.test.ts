@@ -74,6 +74,49 @@ describe("joinLobbyAndTryPair", () => {
     expect(entries.every((e) => e.status === "WAITING")).toBe(true);
   });
 
+  it("caps a provisional player's effective rating gap even with maxRatingGap left at 'any'", async () => {
+    // Both default to maxRatingGap: null ("any rating"), but b is provisional
+    // (gamesPlayed < PROVISIONAL_GAMES_THRESHOLD) — should still be blocked
+    // from a 500-point gap despite neither explicitly restricting it.
+    const a = await createTestUser({ region: "USA East", rating: 1500, gamesPlayed: 50 });
+    const b = await createTestUser({ region: "USA East", rating: 2000, gamesPlayed: 2 });
+
+    await joinLobbyAndTryPair(a.id);
+    await joinLobbyAndTryPair(b.id);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).toBeNull();
+  });
+
+  it("still pairs a provisional player within the provisional rating-gap cap", async () => {
+    const a = await createTestUser({ region: "USA East", rating: 1500, gamesPlayed: 50 });
+    const b = await createTestUser({ region: "USA East", rating: 1700, gamesPlayed: 2 });
+
+    await joinLobbyAndTryPair(a.id);
+    const result = await joinLobbyAndTryPair(b.id);
+
+    expect(result).not.toBeNull();
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).not.toBeNull();
+  });
+
+  it("does not cap two non-provisional players' 'any rating' gap", async () => {
+    const a = await createTestUser({ region: "USA East", rating: 1500, gamesPlayed: 50 });
+    const b = await createTestUser({ region: "USA East", rating: 2000, gamesPlayed: 30 });
+
+    await joinLobbyAndTryPair(a.id);
+    await joinLobbyAndTryPair(b.id);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).not.toBeNull();
+  });
+
   it("does not pair players when either side has blocked the other", async () => {
     const a = await createTestUser({ region: "USA East" });
     const b = await createTestUser({ region: "USA East" });

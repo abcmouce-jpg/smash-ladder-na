@@ -14,6 +14,7 @@ import {
 import {
   STRIKE_TIMEOUT_MS,
   CHARACTER_TIMEOUT_MS,
+  REPORT_TIMEOUT_MS,
   bothCharactersLocked,
   characterPickState,
   getMatchGames,
@@ -78,6 +79,7 @@ import {
   reportConductAction,
   reportConnection,
   reportGame,
+  disputeGame,
   requestDisputeResolutionAction,
   requestMutualCancelAction,
   requestRematchAction,
@@ -629,13 +631,9 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               {!zenMode && (
                 <p className="flex items-center gap-1.5 font-medium">
                   {displayName}
-                  {opponentStreak !== 0 && (
-                    <Badge
-                      variant={opponentStreak > 0 ? "success" : "destructive"}
-                      className="tabular-nums"
-                    >
-                      {Math.abs(opponentStreak)}{" "}
-                      {opponentStreak > 0 ? "win" : "loss"} streak
+                  {opponentStreak > 0 && (
+                    <Badge variant="success" className="tabular-nums">
+                      {opponentStreak} win streak
                     </Badge>
                   )}
                 </p>
@@ -685,24 +683,80 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           />
         </CardContent>
 
-        {games.filter(isDisputedGame).map((g) => (
-          <CardContent key={g.id} className="border-t border-border pt-4">
-            <p className="text-sm text-muted-foreground">
-              ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod
-              review — this doesn&apos;t block the rest of the set.
-            </p>
-            <DisputeResolutionForm
-              action={requestDisputeResolutionAction.bind(
-                null,
-                match.id,
-                g.gameNumber,
-              )}
-              myId={userId}
-              opponentId={opponent.id}
-              opponentUsername={displayName}
-            />
-          </CardContent>
-        ))}
+        {games.filter(isDisputedGame).map((g) =>
+          g.disputeRequestedAt ? (
+            <CardContent key={g.id} className="border-t border-border pt-4">
+              <p className="text-sm text-muted-foreground">
+                ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod
+                review — this doesn&apos;t block the rest of the set.
+              </p>
+              <DisputeResolutionForm
+                action={requestDisputeResolutionAction.bind(
+                  null,
+                  match.id,
+                  g.gameNumber,
+                )}
+                myId={userId}
+                opponentId={opponent.id}
+                opponentUsername={displayName}
+              />
+            </CardContent>
+          ) : (
+            <CardContent key={g.id} className="border-t border-border pt-4">
+              <p className="text-sm text-muted-foreground">
+                ⚠️ You and {displayName} reported different results for game{" "}
+                {g.gameNumber}. Re-report your result to confirm it, or dispute
+                the game for a mod to review.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <ConfirmSubmitButton
+                  action={reportGame.bind(null, match.id, g.gameNumber, true)}
+                  confirmMessage={`Confirm that you won game ${g.gameNumber}?`}
+                  variant="success"
+                >
+                  I Won
+                </ConfirmSubmitButton>
+                <ConfirmSubmitButton
+                  action={reportGame.bind(null, match.id, g.gameNumber, false)}
+                  confirmMessage={`Confirm that you lost game ${g.gameNumber}?`}
+                  variant="destructive"
+                >
+                  I Lost
+                </ConfirmSubmitButton>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {(() => {
+                  const myConfirmed =
+                    g.reportedById === userId
+                      ? g.reporterConfirmedAt
+                      : g.secondReporterConfirmedAt;
+                  const oppConfirmed =
+                    g.reportedById === userId
+                      ? g.secondReporterConfirmedAt
+                      : g.reporterConfirmedAt;
+                  if (myConfirmed && oppConfirmed) {
+                    return "You've both re-confirmed your reports — this game is headed to a mod.";
+                  }
+                  if (myConfirmed) {
+                    return `You've confirmed your report — waiting for ${displayName} to re-confirm or dispute.`;
+                  }
+                  if (oppConfirmed) {
+                    return `${displayName} has re-confirmed their report — confirm yours to finish reconciling.`;
+                  }
+                  return "Reporting the opposite result from before resolves the game in your opponent's favor.";
+                })()}
+              </p>
+              <form
+                action={disputeGame.bind(null, match.id, g.gameNumber)}
+                className="mt-2"
+              >
+                <Button type="submit" variant="outline" size="sm">
+                  Dispute this game
+                </Button>
+              </form>
+            </CardContent>
+          ),
+        )}
 
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <GameSection
@@ -850,8 +904,9 @@ function GameSection({
       return (
         <CardContent className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            Game {lastGame.gameNumber}&apos;s result is disputed — a mod will
-            resolve it.
+            {lastGame.disputeRequestedAt
+              ? `Game ${lastGame.gameNumber}'s result is disputed — a mod will resolve it.`
+              : `Game ${lastGame.gameNumber}'s result is being reconciled — re-confirm your report or dispute it above.`}
             {lastGame.finalStage && ` Stage was ${lastGame.finalStage}.`}
           </p>
         </CardContent>
@@ -1238,74 +1293,78 @@ function ReportGameSection({
   game: Awaited<ReturnType<typeof getMatchGames>>[number];
   opponentName: string;
 }) {
-  if (!game.reportedById) {
-    return (
-      <CardContent className="border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">
-          Report game {game.gameNumber}&apos;s result once you&apos;ve played.
-        </p>
-        <div className="mt-4 flex gap-2">
-          <ConfirmSubmitButton
-            action={reportGame.bind(null, match.id, game.gameNumber, true)}
-            confirmMessage={`Report that you won game ${game.gameNumber}?`}
-          >
-            I Won
-          </ConfirmSubmitButton>
-          <ConfirmSubmitButton
-            action={reportGame.bind(null, match.id, game.gameNumber, false)}
-            confirmMessage={`Report that you lost game ${game.gameNumber}?`}
-            variant="outline"
-          >
-            I Lost
-          </ConfirmSubmitButton>
-        </div>
-      </CardContent>
-    );
-  }
+  // The report clock starts when the game's final stage is picked — the pick
+  // actions reset turnStartedAt — and autoResolveStaleGameReport accepts a
+  // lone hanging report once REPORT_TIMEOUT_MS elapses, so both sides see the
+  // same countdown here.
+  const reportDeadline = new Date(
+    game.turnStartedAt.getTime() + REPORT_TIMEOUT_MS,
+  );
+  const secondsLeft = secondsUntil(reportDeadline);
+  const deadline = reportDeadline.toISOString();
 
+  // Each player reports their own result independently. The buttons never
+  // change based on who reported first — the other side's claim (and the
+  // report clock) is shown as a status line below rather than replacing the
+  // controls.
+  let statusLine: React.ReactNode = null;
   if (game.reportedById === userId) {
-    return (
-      <CardContent className="border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">
-          Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s
-          result…
-        </p>
-      </CardContent>
+    statusLine = (
+      <>
+        Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s
+        result…{" "}
+        {secondsLeft > 0 ? (
+          <>
+            It auto-confirms in <Countdown deadline={deadline} />s.
+          </>
+        ) : (
+          "They're past the deadline — this should resolve in your favor shortly."
+        )}
+      </>
     );
+  } else if (game.reportedById) {
+    statusLine =
+      game.reportedWinnerId === userId
+        ? `${opponentName} reported you won game ${game.gameNumber}.`
+        : `${opponentName} reported they won game ${game.gameNumber}.`;
   }
 
-  const theyClaimedTheyWon = game.reportedWinnerId !== userId;
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">
-        {opponentName} reported that{" "}
-        {theyClaimedTheyWon ? "they won" : "you won"} game {game.gameNumber}.
-        Does that match what happened?
+        Report game {game.gameNumber}&apos;s result once you&apos;ve played.{" "}
+        {secondsLeft > 0 ? (
+          <>
+            You have <Countdown deadline={deadline} />s left to report — if
+            only one of you reports, it auto-confirms when the clock runs out
+            and the silent player is charged a no-show.
+          </>
+        ) : (
+          <>
+            The 15-minute window to report has passed — if only one of you
+            reported, it&apos;ll auto-confirm on the next refresh.
+          </>
+        )}
       </p>
       <div className="mt-4 flex gap-2">
-        <form
-          action={reportGame.bind(
-            null,
-            match.id,
-            game.gameNumber,
-            !theyClaimedTheyWon,
-          )}
+        <ConfirmSubmitButton
+          action={reportGame.bind(null, match.id, game.gameNumber, true)}
+          confirmMessage={`Report that you won game ${game.gameNumber}?`}
+          variant="success"
         >
-          <Button type="submit">Yes, that&apos;s right</Button>
-        </form>
-        <form
-          action={reportGame.bind(
-            null,
-            match.id,
-            game.gameNumber,
-            theyClaimedTheyWon,
-          )}
+          I Won
+        </ConfirmSubmitButton>
+        <ConfirmSubmitButton
+          action={reportGame.bind(null, match.id, game.gameNumber, false)}
+          confirmMessage={`Report that you lost game ${game.gameNumber}?`}
+          variant="destructive"
         >
-          <Button type="submit" variant="outline">
-            No, that&apos;s wrong
-          </Button>
-        </form>
+          I Lost
+        </ConfirmSubmitButton>
       </div>
+      {statusLine && (
+        <p className="mt-4 text-sm text-muted-foreground">{statusLine}</p>
+      )}
     </CardContent>
   );
 }

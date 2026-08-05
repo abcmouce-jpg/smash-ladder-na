@@ -37,10 +37,14 @@ export function CharacterUsageCard({
                   </Badge>
                 )}
               </div>
-              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div className="mt-1 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${u.usagePercent}%` }}
+                  className="h-full bg-emerald-500"
+                  style={{ width: `${(u.usagePercent * u.winRate) / 100}%` }}
+                />
+                <div
+                  className="h-full bg-destructive"
+                  style={{ width: `${(u.usagePercent * (100 - u.winRate)) / 100}%` }}
                 />
               </div>
             </div>

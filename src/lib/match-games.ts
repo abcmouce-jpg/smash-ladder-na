@@ -1,6 +1,6 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { ConfirmationMethod, UserRole } from "@/generated/prisma/enums";
+import { ConfirmationMethod, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { SMASH_CHARACTERS } from "@/lib/characters";
@@ -34,6 +34,15 @@ export const STRIKE_TIMEOUT_MS = 60 * 1000;
 // a batch of sets sat all night with a losing player just never reporting
 // — a shorter window means the honest side isn't stuck till the next day.
 export const MATCH_TTL_MS = 3 * 60 * 60 * 1000;
+
+// How long a player has to report a finished game's result once its stage is
+// decided. Short like STRIKE_TIMEOUT_MS — a live in-session clock, distinct
+// from the 3h match-level no-report fallback above: if one side reported and
+// the other never confirms, autoResolveStaleGameReport accepts the report and
+// charges the silent side a no-show once this elapses. Long enough to actually
+// play the game out (a single Smash set game runs ~5 minutes) with time to
+// spare for reporting afterwards.
+export const REPORT_TIMEOUT_MS = 15 * 60 * 1000;
 
 // Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
 // for a live in-session timer): checked on every read, same idea as
@@ -71,7 +80,12 @@ async function autoResolveStaleTurn(matchId: string) {
 
   const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
   if (!stage) return;
-  await prisma.matchGame.updateMany({ where: { id: game.id, finalStage: null }, data: { finalStage: stage } });
+  // turnStartedAt marks when the current phase began — resetting it here (and
+  // in the pick actions) is what anchors the report clock for the game.
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, finalStage: null },
+    data: { finalStage: stage, turnStartedAt: new Date() },
+  });
 }
 
 // How long a player has to lock in a character before it costs them the
@@ -148,13 +162,98 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
   ]);
 }
 
+// Lazy, same pattern as autoResolveStaleTurn / autoResolveStaleCharacterPick
+// — the finalize cron only runs daily, far too coarse for an in-session
+// deadline. Once a game's stage is decided, both players have REPORT_TIMEOUT_MS
+// to report the result. If exactly one side reported and the other never
+// confirmed, accept the report — mirrors autoConfirmStaleGameReport's "accept
+// whoever showed up, penalize the ghost" philosophy at game granularity and
+// 15-minute scale. If nobody reported, deliberately do nothing: there's no
+// fair way to pick a winner from two silent sides, so that falls through to
+// the match-level TTL (closeOutUnansweredLead / plain expiry) instead.
+// Disputed games (secondReportById set) are a mod's call and are never
+// touched here.
+async function autoResolveStaleGameReport(match: {
+  id: string;
+  player1Id: string;
+  player2Id: string;
+  status: MatchStatus;
+}) {
+  if (
+    match.status !== MatchStatus.PENDING_REPORT &&
+    match.status !== MatchStatus.REPORTED
+  ) {
+    return; // mod-ruled or finished matches shouldn't shift under anyone
+  }
+
+  const game = await prisma.matchGame.findFirst({
+    where: { matchId: match.id, winnerId: null, finalStage: { not: null } },
+    orderBy: { gameNumber: "desc" },
+  });
+  if (!game) return;
+  if (game.secondReportById) return; // disputed — a mod resolves it
+  if (!game.reportedById || !game.reportedWinnerId) return; // nobody reported yet
+  if (Date.now() - game.turnStartedAt.getTime() < REPORT_TIMEOUT_MS) return;
+
+  const reportedWinnerId = game.reportedWinnerId;
+  const nonReporterId =
+    game.reportedById === match.player1Id ? match.player2Id : match.player1Id;
+
+  const confirmed = await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const claim = await tx.matchGame.updateMany({
+        where: { id: game.id, winnerId: null, reportedById: { not: null } },
+        data: { winnerId: reportedWinnerId },
+      });
+      if (claim.count === 0) return false; // already decided by a racing request
+      // If this doesn't decide the whole set, give the match a fresh deadline
+      // so it can continue rather than expiring mid-way (same as the cron
+      // path in autoConfirmStaleGameReport).
+      await tx.ratingMatch.update({
+        where: { id: match.id },
+        data: { expiresAt: new Date(Date.now() + MATCH_TTL_MS) },
+      });
+      await progressSet(tx, match, game.gameNumber, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT);
+      await applyTimeoutCooldown(tx, nonReporterId);
+      return true;
+    }, TX_OPTIONS),
+  );
+  if (!confirmed) return;
+
+  // Ghost gets a DM, mods get pinged — same as the character-pick forfeit;
+  // this is exactly the kind of silent, easy-to-miss resolution that slips by
+  // unnoticed otherwise (see adminSetGameWinner/adminResetMatchToZero in
+  // disputes.ts for the tools to review or undo it).
+  const [winner, ghost, mods] = await Promise.all([
+    prisma.user.findUnique({ where: { id: reportedWinnerId }, select: { username: true } }),
+    prisma.user.findUnique({ where: { id: nonReporterId }, select: { username: true, discordId: true } }),
+    prisma.user.findMany({ where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } }, select: { discordId: true } }),
+  ]);
+  if (!winner || !ghost) return;
+  await Promise.all([
+    sendDiscordDM(
+      ghost.discordId,
+      `⏱️ Game ${game.gameNumber} vs ${winner.username} was auto-confirmed from their report — you didn't confirm the result in time. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
+    ),
+    ...mods.map((mod) =>
+      sendDiscordDM(
+        mod.discordId,
+        `⏱️ Auto-confirmed report: ${winner.username} awarded game ${game.gameNumber} over ${ghost.username} (match ${match.id}) after they didn't confirm in time. Review at /admin/live if this looks unfair.`,
+      ),
+    ),
+  ]);
+}
+
 export async function getMatchGames(matchId: string) {
   await autoResolveStaleTurn(matchId);
   const match = await prisma.ratingMatch.findUnique({
     where: { id: matchId },
-    select: { id: true, player1Id: true, player2Id: true },
+    select: { id: true, player1Id: true, player2Id: true, status: true },
   });
-  if (match) await autoResolveStaleCharacterPick(match);
+  if (match) {
+    await autoResolveStaleCharacterPick(match);
+    await autoResolveStaleGameReport(match);
+  }
   return prisma.matchGame.findMany({ where: { matchId }, orderBy: { gameNumber: "asc" } });
 }
 
@@ -456,9 +555,11 @@ export async function pickGameStage(
   if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before picking a stage");
   if (!game.stagesRemaining.includes(stage)) throw new Error("Not a valid remaining stage");
 
+  // turnStartedAt is the report clock's anchor: whoever picks the final stage
+  // starts the REPORT_TIMEOUT_MS window to report this game's result.
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
-    data: { finalStage: stage },
+    data: { finalStage: stage, turnStartedAt: new Date() },
   });
 }
 
@@ -480,12 +581,18 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
 
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
-    data: { finalStage: stage },
+    data: { finalStage: stage, turnStartedAt: new Date() },
   });
 }
 
 type ReportOutcome =
   | { type: "reported"; opponentId: string; reporterId: string }
+  // Conflicting second report — the game is contested (players reconcile),
+  // NOT yet a mod dispute.
+  | { type: "contested"; player1Id: string; player2Id: string }
+  // A player re-confirmed their claim in a contested game; nothing else
+  // changed, so no notification needed.
+  | { type: "confirmed" }
   | { type: "disputed"; player1Id: string; player2Id: string; setDecidedDespiteDispute: boolean }
   | { type: "game_won"; player1Id: string; player2Id: string; nextGameNumber: number }
   | { type: "set_confirmed"; player1Id: string; player2Id: string };
@@ -512,6 +619,7 @@ export async function reportGameResult(
       const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
       const winnerId = won ? userId : opponentId;
 
+      // First report of the game — nothing to reconcile yet.
       if (!game.reportedById) {
         await tx.matchGame.update({
           where: { id: game.id },
@@ -520,49 +628,102 @@ export async function reportGameResult(
         return { type: "reported", opponentId, reporterId: userId };
       }
 
-      if (game.reportedById === userId) throw new Error("You already reported this game");
+      // Once a game's been escalated, reports no longer apply — it resolves
+      // via dispute resolution (or a mod's ruling) instead.
+      if (game.disputeRequestedAt) throw new Error("This game is already being reviewed by a mod");
 
-      if (game.reportedWinnerId !== winnerId) {
-        // A per-game disagreement used to flip the whole match to DISPUTED,
-        // which blocked every later game until a mod ruled — in a BO3 that
-        // meant one contested game could freeze the entire set. Now the
-        // disputed game itself just stays unresolved (winnerId left null,
-        // so it's excluded from the win tally and queued for mod review via
-        // listDisputedGames/resolveDisputedGame), while the set continues
-        // immediately: the first reporter's claimed winner is used as a
-        // working assumption for the next game's stage-strike order only.
-        // If the mod's ruling differs, that only changes who's credited
-        // this one game — games already played aren't affected, and the
-        // match still can't confirm until the tally actually reaches 2 wins,
-        // so an unresolved dispute can't accidentally hand someone the set.
+      // The first reporter re-clicking while the opponent still hasn't
+      // reported is a duplicate, not a reconciliation.
+      if (game.reportedById === userId && !game.secondReportById) {
+        throw new Error("You already reported this game");
+      }
+
+      const myStoredClaim = game.reportedById === userId ? game.reportedWinnerId : game.secondReportWinnerId;
+
+      // Opponent's first report: agree → the game's decided; disagree → the
+      // game becomes contested (players confirm/dispute among themselves)
+      // rather than a mod dispute.
+      if (!game.secondReportById) {
+        if (game.reportedWinnerId === winnerId) {
+          await tx.matchGame.update({
+            where: { id: game.id },
+            data: {
+              secondReportWinnerId: winnerId,
+              secondReportById: userId,
+              secondReportAt: new Date(),
+              winnerId,
+            },
+          });
+
+          const setWinnerId = await progressSet(tx, match, gameNumber, winnerId);
+          return setWinnerId
+            ? { type: "set_confirmed", player1Id: match.player1Id, player2Id: match.player2Id }
+            : {
+                type: "game_won",
+                player1Id: match.player1Id,
+                player2Id: match.player2Id,
+                nextGameNumber: gameNumber + 1,
+              };
+        }
+
+        // A per-game disagreement used to flip the whole game straight to a
+        // mod queue (listDisputedGames) on the spot. Now the game is just
+        // contested: each player gets asked to re-confirm their claim (or
+        // dispute it), so most disagreements get sorted out between the
+        // players themselves. The first reporter's claimed winner is still
+        // used as a working assumption for the next game's stage-strike
+        // order only, so one contested game doesn't freeze the set; the game
+        // itself stays unresolved (winnerId null) until the players agree or
+        // it's escalated.
         await tx.matchGame.update({
           where: { id: game.id },
           data: { secondReportWinnerId: winnerId, secondReportById: userId, secondReportAt: new Date() },
         });
-        await tx.ratingMatch.update({
-          where: { id: matchId },
-          data: { disputeReason: `Disagreement on game ${gameNumber}'s winner` },
-        });
+        await progressSet(tx, match, gameNumber, game.reportedWinnerId!);
+        return { type: "contested", player1Id: match.player1Id, player2Id: match.player2Id };
+      }
 
-        const tentativeWinnerId = game.reportedWinnerId!;
-        const setWinnerId = await progressSet(tx, match, gameNumber, tentativeWinnerId);
+      // Contested game (both reported, disagreed, not yet escalated): a
+      // re-click matching the player's own stored claim is a confirmation;
+      // the game resolves immediately if a player changes their claim to
+      // match the opponent's.
+      if (winnerId === myStoredClaim) {
+        if (game.reportedById === userId) {
+          await tx.matchGame.update({
+            where: { id: game.id },
+            data: { reporterConfirmedAt: new Date() },
+          });
+        } else {
+          await tx.matchGame.update({
+            where: { id: game.id },
+            data: { secondReporterConfirmedAt: new Date() },
+          });
+        }
+        const otherConfirmed =
+          game.reportedById === userId ? game.secondReporterConfirmedAt : game.reporterConfirmedAt;
+        if (!otherConfirmed) return { type: "confirmed" };
+
+        // Both sides re-confirmed their conflicting claims — now it's a real
+        // dispute for a mod to review.
         return {
           type: "disputed",
-          player1Id: match.player1Id,
-          player2Id: match.player2Id,
-          setDecidedDespiteDispute: !!setWinnerId,
+          ...(await escalateContestedGame(tx, match, game.id, gameNumber)),
         };
       }
 
-      await tx.matchGame.update({
-        where: { id: game.id },
-        data: {
-          secondReportWinnerId: winnerId,
-          secondReportById: userId,
-          secondReportAt: new Date(),
-          winnerId,
-        },
-      });
+      // Changed their claim: it now matches the opponent's, so the game is
+      // decided in that player's favor.
+      if (game.reportedById === userId) {
+        await tx.matchGame.update({
+          where: { id: game.id },
+          data: { reportedWinnerId: winnerId, reportedAt: new Date(), winnerId },
+        });
+      } else {
+        await tx.matchGame.update({
+          where: { id: game.id },
+          data: { secondReportWinnerId: winnerId, secondReportAt: new Date(), winnerId },
+        });
+      }
 
       const setWinnerId = await progressSet(tx, match, gameNumber, winnerId);
       return setWinnerId
@@ -579,14 +740,63 @@ export async function reportGameResult(
   await notifyReportOutcome(outcome, gameNumber);
 }
 
-const MATCH_TTL_HOURS = MATCH_TTL_MS / (60 * 60 * 1000);
+// Marks a contested game as under mod review and stamps the match's
+// disputeReason — shared by both escalation triggers: both sides re-
+// confirming their conflicting claims inside reportGameResult, and the
+// lobby's "Dispute this game" button via escalateGameDispute below.
+async function escalateContestedGame(
+  tx: Prisma.TransactionClient,
+  match: { id: string; player1Id: string; player2Id: string },
+  gameId: string,
+  gameNumber: number,
+) {
+  await tx.matchGame.update({
+    where: { id: gameId },
+    data: { disputeRequestedAt: new Date() },
+  });
+  await tx.ratingMatch.update({
+    where: { id: match.id },
+    data: { disputeReason: `Disagreement on game ${gameNumber}'s winner` },
+  });
+  const games = await tx.matchGame.findMany({ where: { matchId: match.id } });
+  return {
+    player1Id: match.player1Id,
+    player2Id: match.player2Id,
+    setDecidedDespiteDispute: !!getSetWinnerId(tallySetWins(games)),
+  };
+}
+
+// The "Dispute this game" button on a contested game in the lobby — skips
+// the re-confirmation step and escalates straight to mod review.
+export async function escalateGameDispute(userId: string, matchId: string, gameNumber: number) {
+  const result = await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+      if (!match) throw new Error("Match not found");
+      requireParticipant(match, userId);
+      const game = await tx.matchGame.findUnique({
+        where: { matchId_gameNumber: { matchId, gameNumber } },
+      });
+      if (!game) throw new Error("Game not found");
+      if (game.winnerId) throw new Error("This game is already decided");
+      if (!game.secondReportById) throw new Error("This game isn't contested");
+      if (game.disputeRequestedAt) return null; // already under review — no-op
+      return escalateContestedGame(tx, match, game.id, gameNumber);
+    }, TX_OPTIONS),
+  );
+  if (result) {
+    await notifyDisputeEscalated(result.player1Id, result.player2Id, gameNumber, result.setDecidedDespiteDispute);
+  }
+}
 
 // Disputes and a fresh report both get a DM — the report reminder exists
 // so a player who's just genuinely forgotten to open the site gets nudged
 // before the no-report timeout charges them a no-show, rather than the
 // other side being stuck waiting with no idea whether the opponent even
-// saw it. game_won/set_confirmed stay unannounced — nothing time-sensitive
-// there, players already see it in the lobby.
+// saw it. A conflicting second report (contested) DMs both sides with the
+// confirm-or-dispute prompt but NOT the mods — mods only get pinged once
+// the game is actually escalated. game_won/set_confirmed stay unannounced
+// — nothing time-sensitive there, players already see it in the lobby.
 async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
   if (outcome.type === "reported") {
     const [opponent, reporter] = await Promise.all([
@@ -596,20 +806,46 @@ async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
     if (opponent && reporter) {
       await sendDiscordDM(
         opponent.discordId,
-        `⏱️ ${reporter.username} reported game ${gameNumber}'s result. Confirm or dispute it in the Lobby — if you don't respond within ${MATCH_TTL_HOURS} hours it auto-confirms and you're charged a no-show.`,
+        `⏱️ ${reporter.username} reported game ${gameNumber}'s result. Confirm or dispute it in the Lobby — if you don't respond within ${REPORT_TIMEOUT_MS / 60_000} minutes it auto-confirms and you're charged a no-show.`,
       );
     }
     return;
   }
+  if (outcome.type === "contested") {
+    const [p1, p2] = await Promise.all([
+      prisma.user.findUnique({ where: { id: outcome.player1Id }, select: { discordId: true, username: true } }),
+      prisma.user.findUnique({ where: { id: outcome.player2Id }, select: { discordId: true, username: true } }),
+    ]);
+    if (!p1 || !p2) return;
+    await Promise.all([
+      sendDiscordDM(
+        p1.discordId,
+        `⚠️ You and ${p2.username} reported different results for game ${gameNumber}. Open the Lobby and re-confirm your result, or dispute it for a mod to review.`,
+      ),
+      sendDiscordDM(
+        p2.discordId,
+        `⚠️ You and ${p1.username} reported different results for game ${gameNumber}. Open the Lobby and re-confirm your result, or dispute it for a mod to review.`,
+      ),
+    ]);
+    return;
+  }
   if (outcome.type !== "disputed") return;
+  await notifyDisputeEscalated(outcome.player1Id, outcome.player2Id, gameNumber, outcome.setDecidedDespiteDispute);
+}
 
+async function notifyDisputeEscalated(
+  player1Id: string,
+  player2Id: string,
+  gameNumber: number,
+  setDecidedDespiteDispute: boolean,
+) {
   const [p1, p2] = await Promise.all([
-    prisma.user.findUnique({ where: { id: outcome.player1Id }, select: { discordId: true, username: true } }),
-    prisma.user.findUnique({ where: { id: outcome.player2Id }, select: { discordId: true, username: true } }),
+    prisma.user.findUnique({ where: { id: player1Id }, select: { discordId: true, username: true } }),
+    prisma.user.findUnique({ where: { id: player2Id }, select: { discordId: true, username: true } }),
   ]);
   if (!p1 || !p2) return;
 
-  const continuation = outcome.setDecidedDespiteDispute
+  const continuation = setDecidedDespiteDispute
     ? " Your set is already decided by the other games either way, so this won't change the result."
     : " The set continues in the meantime — head to the lobby.";
   const mods = await prisma.user.findMany({
@@ -639,8 +875,12 @@ export async function autoConfirmStaleGameReport(
   match: { id: string; player1Id: string; player2Id: string },
   now: Date,
 ): Promise<{ nonReporterId: string; reporterId: string; gameNumber: number } | null> {
+  // secondReportById: null — a game the opponent already contested (or one
+  // escalated to mods) must never be auto-confirmed off the first reporter's
+  // claim; those are exactly the games that need the players (or a mod) to
+  // settle them.
   const hangingGame = await prisma.matchGame.findFirst({
-    where: { matchId: match.id, winnerId: null, reportedById: { not: null } },
+    where: { matchId: match.id, winnerId: null, reportedById: { not: null }, secondReportById: null },
     orderBy: { gameNumber: "desc" },
   });
   if (!hangingGame?.reportedWinnerId || !hangingGame.reportedById) return null;
@@ -649,20 +889,30 @@ export async function autoConfirmStaleGameReport(
   const nonReporterId =
     hangingGame.reportedById === match.player1Id ? match.player2Id : match.player1Id;
 
-  await withTransientRetry(() =>
+  const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
-      await tx.matchGame.update({
-        where: { id: hangingGame.id },
+      // Atomic claim: the cron finalizer can overlap with itself (a slow run
+      // still in flight when the next scheduled one starts) or run alongside
+      // a lazy autoResolve* triggered by someone loading the lobby. Without
+      // this, two callers racing on the same stale game would both see
+      // winnerId: null, both "win", and both fire progressSet/DM/cooldown —
+      // duplicate rating changes and duplicate mod DMs for one event. The
+      // conditional updateMany makes only the first one actually claim it.
+      const claim = await tx.matchGame.updateMany({
+        where: { id: hangingGame.id, winnerId: null },
         data: { winnerId: reportedWinnerId },
       });
+      if (claim.count === 0) return false;
       await tx.ratingMatch.update({
         where: { id: match.id },
         data: { expiresAt: new Date(now.getTime() + MATCH_TTL_MS) },
       });
       await progressSet(tx, match, hangingGame.gameNumber, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT);
       await applyTimeoutCooldown(tx, nonReporterId, now);
+      return true;
     }, TX_OPTIONS),
   );
+  if (!claimed) return null;
 
   return { nonReporterId, reporterId: hangingGame.reportedById, gameNumber: hangingGame.gameNumber };
 }
@@ -686,20 +936,41 @@ export async function closeOutUnansweredLead(
   const p1Wins = wins[match.player1Id] ?? 0;
   const p2Wins = wins[match.player2Id] ?? 0;
 
+  // If the current game has a conflicting second report (contested, or
+  // escalated to mods), neither side "vanished" — both already reported on
+  // the unresolved game, and awarding the set to whoever's ahead would
+  // quietly override that disagreement. Leave it for the mods instead.
+  const unresolvedContest = await prisma.matchGame.findFirst({
+    where: { matchId: match.id, winnerId: null, secondReportById: { not: null } },
+    select: { id: true },
+  });
+  if (unresolvedContest) return null;
+
   const winnerId = p1Wins > 0 && p2Wins === 0 ? match.player1Id : p2Wins > 0 && p1Wins === 0 ? match.player2Id : null;
   if (!winnerId) return null;
   const loserId = winnerId === match.player1Id ? match.player2Id : match.player1Id;
 
-  await withTransientRetry(() =>
+  const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
-      await tx.ratingMatch.update({
-        where: { id: match.id },
+      // Same overlap risk as autoConfirmStaleGameReport above, plus one more:
+      // if a concurrent autoConfirmStaleGameReport call won the race on this
+      // same match first, it bumps expiresAt into the future (the set isn't
+      // over, just progressing) and returns null to its own caller — which
+      // then falls through to closeOutUnansweredLead here. reportedWinnerId
+      // alone wouldn't catch that (autoConfirm never touches it), so also
+      // require expiresAt to still be <= now: if it's been pushed out, this
+      // match was already handled and there's nothing left to close out.
+      const claim = await tx.ratingMatch.updateMany({
+        where: { id: match.id, reportedWinnerId: null, expiresAt: { lte: now } },
         data: { reportedWinnerId: winnerId, reportedById: winnerId, reportedAt: now },
       });
+      if (claim.count === 0) return false;
       await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.AUTO_TIMEOUT, null);
       await applyTimeoutCooldown(tx, loserId, now);
+      return true;
     }, TX_OPTIONS),
   );
+  if (!claimed) return null;
 
   return { winnerId, loserId };
 }

@@ -4,10 +4,13 @@ import { Activity, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getPublicStats } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
+import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
+import { DISCORD_SERVER_URL } from "@/lib/links";
 
 export default async function Home() {
   const session = await auth();
@@ -25,9 +28,23 @@ export default async function Home() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-20">
-      <Badge variant="outline" className="mb-4 border-primary/30 text-primary">
-        North America
-      </Badge>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="border-primary/30 text-primary">
+          North America
+        </Badge>
+        <a
+          href={DISCORD_SERVER_URL}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            badgeVariants({ variant: "outline" }),
+            "border-transparent bg-[#5865F2] text-white transition-colors hover:bg-[#4752C4]",
+          )}
+        >
+          <DiscordIcon className="size-3.5" />
+          Discord
+        </a>
+      </div>
       <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
         A ranked ladder and matchmaking hub for the North American Smash community.
@@ -130,6 +147,20 @@ export default async function Home() {
             </CardHeader>
           </Card>
         </Link>
+        <a
+          href={DISCORD_SERVER_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="h-full"
+        >
+          <Card className="h-full transition-colors hover:border-foreground/30">
+            <CardHeader>
+              <DiscordIcon className="size-5 text-muted-foreground" />
+              <CardTitle className="text-base">Discord</CardTitle>
+              <CardDescription>Join the community server to hang out and get support.</CardDescription>
+            </CardHeader>
+          </Card>
+        </a>
       </div>
     </main>
   );

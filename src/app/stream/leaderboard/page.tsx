@@ -1,4 +1,5 @@
 import { SMASH_CHARACTERS } from "@/lib/characters";
+import { MATCH_COUNTRIES } from "@/lib/regions";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
@@ -14,15 +15,16 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 // the actual visual design here is a placeholder for the design team to
 // replace; nothing about the markup below should be treated as final.
 //
-// Query params: ?limit=10 (top N, capped at 50) and ?character=Mario
-// (optional filter), matching /leaderboard's semantics.
+// Query params: ?limit=10 (top N, capped at 50), ?character=Mario, and
+// ?country=Canada (optional filters), matching /leaderboard's semantics.
 export default async function StreamLeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ limit?: string; character?: string }>;
+  searchParams: Promise<{ limit?: string; character?: string; country?: string }>;
 }) {
-  const { limit: limitParam, character } = await searchParams;
+  const { limit: limitParam, character, country } = await searchParams;
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
+  const isValidCountry = country && (MATCH_COUNTRIES as readonly string[]).includes(country);
 
   const requestedLimit = Number(limitParam);
   const limit =
@@ -31,7 +33,10 @@ export default async function StreamLeaderboardPage({
       : DEFAULT_LIMIT;
 
   const { players } = await getLeaderboardPlayers(
-    { character: isValidCharacter ? character : null },
+    {
+      character: isValidCharacter ? character : null,
+      country: isValidCountry ? (country as (typeof MATCH_COUNTRIES)[number]) : null,
+    },
     { take: limit },
   );
 

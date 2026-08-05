@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
+import { auth } from "@/auth";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
-import { MATCH_REGIONS, MATCH_REGION_GROUPS } from "@/lib/regions";
+import { MATCH_REGIONS, MATCH_REGION_GROUPS, MATCH_COUNTRIES, expandCountryForSearch, type MatchCountry } from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
@@ -22,27 +23,54 @@ const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group)
   group.regions.map((r) => ({ value: r, label: r, group: group.label })),
 );
 
+const COUNTRY_OPTIONS: OptionSelectOption[] = MATCH_COUNTRIES.map((c) => ({ value: c, label: c }));
+
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ character?: string; page?: string; q?: string; region?: string }>;
+  searchParams: Promise<{ character?: string; page?: string; q?: string; region?: string; country?: string }>;
 }) {
-  const { character, page: pageParam, q, region } = await searchParams;
+  const { character, page: pageParam, q, region, country } = await searchParams;
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
-  const isValidRegion = region && (MATCH_REGIONS as readonly string[]).includes(region);
+  const isValidCountry = country && (MATCH_COUNTRIES as readonly string[]).includes(country);
+  const effectiveCountry = isValidCountry ? (country as MatchCountry) : null;
+  // A region only stays selected if it actually belongs to the chosen
+  // country — otherwise a stale region from before the country was changed
+  // (or narrowed) would keep silently filtering by itself even though the
+  // Region dropdown no longer shows it as an option, the same "invisible
+  // leftover selection" trap the match-distance presets bug hit on 2026-08-05.
+  const countryRegions = effectiveCountry ? new Set(expandCountryForSearch(effectiveCountry)) : null;
+  const isValidRegion =
+    region && (MATCH_REGIONS as readonly string[]).includes(region) && (!countryRegions || countryRegions.has(region));
   const query = (q ?? "").trim().slice(0, 32);
-  const isFiltered = Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion);
+  const isFiltered =
+    Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion) || Boolean(isValidCountry);
 
   const requestedPage = Number(pageParam);
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
-  const season = await ensureActiveSeason();
-  const { players, totalCount } = await getLeaderboardPlayers(
-    { character: isValidCharacter ? character : null, query, region: isValidRegion ? region : null },
-    { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
-  );
+  // Narrowed to the selected country's regions once one is picked, so the
+  // dropdown can't offer a region that'd just get silently ignored.
+  const regionOptions = countryRegions
+    ? REGION_OPTIONS.filter((opt) => countryRegions.has(opt.value))
+    : REGION_OPTIONS;
+
+  const [session, season, { players, totalCount }] = await Promise.all([
+    auth(),
+    ensureActiveSeason(),
+    getLeaderboardPlayers(
+      {
+        character: isValidCharacter ? character : null,
+        query,
+        region: isValidRegion ? region : null,
+        country: effectiveCountry,
+      },
+      { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
+    ),
+  ]);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
+  const viewerId = session?.user?.id ?? null;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
@@ -53,8 +81,11 @@ export default async function LeaderboardPage({
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Ranked players with {LEADERBOARD_MIN_GAMES}+ sets played
-        {isValidCharacter ? ` who main ${echoGroupLabel(character as SmashCharacter)}` : ""}
+        {isValidCharacter
+          ? ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary`
+          : ""}
         {isValidRegion ? ` in ${region}` : ""}
+        {!isValidRegion && isValidCountry ? ` in ${country}` : ""}
         {query ? ` matching "${query}"` : ""}.
       </p>
 
@@ -94,9 +125,25 @@ export default async function LeaderboardPage({
           defaultValue={isValidCharacter ? character : ""}
         />
         <label className="flex flex-col gap-1 text-sm">
-          Region
+          Country
           <OptionSelect
-            key={isValidRegion ? region : ""}
+            key={isValidCountry ? country : ""}
+            name="country"
+            defaultValue={isValidCountry ? country : ""}
+            placeholder="All countries"
+            clearLabel="All countries"
+            className="w-40"
+            options={COUNTRY_OPTIONS}
+            autoSubmit
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Region
+          {/* Narrowed to the chosen country's regions once one is picked
+              (see regionOptions above) — pick a country, hit Filter, and
+              the list here only offers regions that actually belong to it. */}
+          <OptionSelect
+            key={isValidRegion ? region : effectiveCountry ?? ""}
             name="region"
             defaultValue={isValidRegion ? region : ""}
             placeholder="All regions"
@@ -104,7 +151,7 @@ export default async function LeaderboardPage({
             className="w-48"
             searchable
             searchPlaceholder="Search regions…"
-            options={REGION_OPTIONS}
+            options={regionOptions}
           />
         </label>
         <Button type="submit" size="sm" variant="outline" className="h-8">
@@ -120,6 +167,7 @@ export default async function LeaderboardPage({
           character={isValidCharacter ? character : undefined}
           query={query || undefined}
           region={isValidRegion ? region : undefined}
+          country={isValidCountry ? country : undefined}
         />
       )}
 
@@ -142,11 +190,17 @@ export default async function LeaderboardPage({
           <tbody>
             {players.map((player, index) => {
               const rank = rankOffset + index;
+              const isViewer = player.id === viewerId;
+              // Only meaningful within the loaded page — the player directly
+              // above in the same array, not a cross-page lookup (index 0
+              // never gets a gap shown, even on page 2+, since we don't have
+              // the previous page's last row loaded to compare against).
+              const gapToNext = isViewer && index > 0 ? players[index - 1].rating - player.rating : null;
               return (
                 <tr
                   key={player.id}
                   className={`border-b border-border/60 last:border-0 ${
-                    rank < 3 ? "bg-primary/[0.04]" : ""
+                    isViewer ? "bg-primary/10" : rank < 3 ? "bg-primary/[0.04]" : ""
                   }`}
                 >
                   <td className="py-2 pl-4 tabular-nums text-muted-foreground">
@@ -162,6 +216,11 @@ export default async function LeaderboardPage({
                         <CharacterIcon key={c} name={c} size={16} className="opacity-60" />
                       ))}
                       {player.username}
+                      {gapToNext !== null && gapToNext > 0 && (
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {gapToNext} to pass {players[index - 1].username}
+                        </span>
+                      )}
                     </Link>
                   </td>
                   <td className="py-2">
@@ -203,6 +262,7 @@ function PaginationBar({
   character,
   query,
   region,
+  country,
 }: {
   page: number;
   totalPages: number;
@@ -210,6 +270,7 @@ function PaginationBar({
   character?: string;
   query?: string;
   region?: string;
+  country?: string;
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -219,7 +280,7 @@ function PaginationBar({
       {totalPages > 1 && (
         <div className="flex items-center gap-3 text-sm">
           <div className="flex items-center gap-2">
-            <PageLink page={page - 1} character={character} query={query} region={region} disabled={page <= 1}>
+            <PageLink page={page - 1} character={character} query={query} region={region} country={country} disabled={page <= 1}>
               ← Previous
             </PageLink>
             <span className="text-muted-foreground tabular-nums">
@@ -230,6 +291,7 @@ function PaginationBar({
               character={character}
               query={query}
               region={region}
+              country={country}
               disabled={page >= totalPages}
             >
               Next →
@@ -239,6 +301,7 @@ function PaginationBar({
             {character && <input type="hidden" name="character" value={character} />}
             {query && <input type="hidden" name="q" value={query} />}
             {region && <input type="hidden" name="region" value={region} />}
+            {country && <input type="hidden" name="country" value={country} />}
             <label htmlFor="leaderboard-page-jump" className="sr-only">
               Jump to page
             </label>
@@ -266,6 +329,7 @@ function PageLink({
   character,
   query,
   region,
+  country,
   disabled,
   children,
 }: {
@@ -273,6 +337,7 @@ function PageLink({
   character?: string;
   query?: string;
   region?: string;
+  country?: string;
   disabled: boolean;
   children: React.ReactNode;
 }) {
@@ -283,6 +348,7 @@ function PageLink({
   if (character) params.set("character", character);
   if (query) params.set("q", query);
   if (region) params.set("region", region);
+  if (country) params.set("country", country);
   params.set("page", String(page));
   return (
     <Link href={`/leaderboard?${params.toString()}`} className="hover:underline">

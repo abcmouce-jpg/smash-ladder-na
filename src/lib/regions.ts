@@ -112,6 +112,31 @@ export const MATCH_REGION_GROUPS: { label: string; regions: readonly MatchRegion
   { label: "Elsewhere", regions: REST_OF_WORLD },
 ];
 
+// One level coarser than region, for players who think "which country" long
+// before they think "which state" — the leaderboard's country filter reads
+// off this rather than making people pick a specific region just to narrow
+// down that far. "Other" absorbs the rest of MATCH_REGIONS (Caribbean/Central
+// America/South America/Europe/Asia/Oceania/"Other" itself) since none of
+// those get individual-region granularity the way USA/Canada do; it isn't a
+// "country" so much as "not USA, Canada, or Mexico."
+export const MATCH_COUNTRIES = ["United States", "Canada", "Mexico", "Other"] as const;
+export type MatchCountry = (typeof MATCH_COUNTRIES)[number];
+
+const COUNTRY_TO_REGIONS: Record<MatchCountry, readonly string[]> = {
+  "United States": [...USA_BROAD, ...USA_STATES],
+  Canada: [...CANADA_BROAD, ...CANADA_PROVINCES],
+  Mexico: ["Mexico North", "Mexico Central"],
+  Other: REST_OF_WORLD.filter((r) => r !== "Mexico North" && r !== "Mexico Central"),
+};
+
+// Every MATCH_REGIONS value covered by a country — for filtering the
+// leaderboard down to `region: { in: expandCountryForSearch(country) }`.
+// Copied into a plain mutable array since Prisma's `in` filter wants
+// string[], not the readonly array COUNTRY_TO_REGIONS holds.
+export function expandCountryForSearch(country: MatchCountry): string[] {
+  return [...COUNTRY_TO_REGIONS[country]];
+}
+
 // Approximate representative coordinates per region, used only to rank
 // closeness for default matching — not shown to players. "Other" has none
 // (unknown location), so it only ever matches other "Other" players. Where
@@ -263,19 +288,37 @@ function distanceKm(a: [number, number], b: [number, number]) {
 //
 // Displayed in miles since the target audience is NA — the underlying
 // `km` values are what's actually stored and compared against, unchanged.
+//
+// WARNING: setMaxMatchDistance validates against this exact list, so any
+// km value not in it gets rejected outright. Changing these values (adding,
+// removing, or renumbering a step) orphans every user already storing an
+// old value — every settings save then fails validation, on whichever
+// field happens to be checked first, until that data is migrated. This bit
+// us on 2026-08-03's rework (71% of users silently blocked from saving any
+// lobby setting for two days) — see
+// engineering/debug-log/2026-08-05-orphaned-match-distance-presets.md in
+// the company notes. Any future change here MUST ship with a migration
+// that snaps existing stored values to the nearest new preset.
+//
+// Reworked 2026-08-03 after player feedback that "Moderate" (formerly
+// 3,200km) was wide enough to span Canada to Mexico, or the US west coast
+// to the east coast — the mid tiers were too coarse to actually express
+// "I want someone reasonably close." More steps under ~800mi now let
+// players narrow that down; everything that used to be spread across
+// Wide/Long-range/Very long-range (7,200–15,000km) collapses into one
+// coarser top step instead, since that distinction rarely mattered in
+// practice — past a few thousand miles, ping is bad either way.
 export const MATCH_DISTANCE_PRESETS = [
   { label: "Same region only", km: 0 },
-  { label: "Very close (~500 mi)", km: 800 },
-  { label: "Nearby (~1,250 mi)", km: 2000 },
-  { label: "Moderate (~2,000 mi)", km: 3200 },
-  { label: "Extended (~3,100 mi)", km: 5000 },
-  { label: "Wide (~4,500 mi)", km: 7200 },
-  { label: "Long-range (~6,200 mi)", km: 10000 },
-  { label: "Very long-range (~9,300 mi)", km: 15000 },
+  { label: "Very close (~150 mi)", km: 240 },
+  { label: "Close (~400 mi)", km: 640 },
+  { label: "Nearby (~800 mi)", km: 1300 },
+  { label: "Moderate (~1,500 mi)", km: 2400 },
+  { label: "Extended (~3,500 mi)", km: 5600 },
   { label: "Worldwide", km: null },
 ] as const;
 
-export const DEFAULT_MATCH_DISTANCE_KM = 5000;
+export const DEFAULT_MATCH_DISTANCE_KM = 2400;
 
 // Includes the region itself, so callers can treat this as the whole set of
 // regions worth matching against without a separate same-region check.

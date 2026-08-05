@@ -74,13 +74,18 @@ async function fetchCurrentStartggUser(accessToken: string): Promise<StartggIden
   if (!res.ok) throw new Error("Couldn't reach start.gg's API");
 
   const json = (await res.json()) as {
-    data?: { currentUser: { id: string; slug: string; player: { gamerTag: string | null } | null } | null };
+    // start.gg's GraphQL API serializes `currentUser.id` as a JSON number,
+    // not a string, despite it being an opaque ID everywhere else — caught
+    // live via a real OAuth connect attempt: Prisma rejected it outright
+    // since startggUserId is a String column ("Expected String, provided
+    // Int"). Typed here as number and coerced below so this can't recur.
+    data?: { currentUser: { id: number; slug: string; player: { gamerTag: string | null } | null } | null };
     errors?: unknown;
   };
   if (json.errors || !json.data?.currentUser) throw new Error("start.gg didn't return a user");
 
   const { id, slug, player } = json.data.currentUser;
-  return { id, slug, gamerTag: player?.gamerTag ?? null };
+  return { id: String(id), slug, gamerTag: player?.gamerTag ?? null };
 }
 
 // The whole point of OAuth here: the identity comes from start.gg itself,

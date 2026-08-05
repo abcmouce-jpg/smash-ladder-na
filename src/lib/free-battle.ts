@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { PostStatus } from "@/generated/prisma/enums";
-import { sendDiscordDM } from "@/lib/discord-bot";
+import { sendDiscordDM, sendDiscordWebhookMessage } from "@/lib/discord-bot";
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -40,10 +40,10 @@ export async function createPost(userId: string, comment: string) {
   // ranked pairing, instead of a separate free-text field going stale.
   const author = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { region: true },
+    select: { region: true, username: true },
   });
 
-  return prisma.freeBattlePost.create({
+  const post = await prisma.freeBattlePost.create({
     data: {
       authorId: userId,
       comment: trimmed,
@@ -51,6 +51,22 @@ export async function createPost(userId: string, comment: string) {
       expiresAt: new Date(Date.now() + POST_TTL_MS),
     },
   });
+
+  // Growth lever from the player-acquisition research: the friction in Free
+  // Battle isn't the feature, it's that nobody outside the site sees the
+  // post the moment it goes up. Mirroring it into Discord (where the
+  // community already hangs out) turns "browse the site to find a game"
+  // into "see a ping, jump in" — the exact "someone else is playing right
+  // now" signal that drives return visits.
+  const webhookUrl = process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL;
+  if (webhookUrl) {
+    await sendDiscordWebhookMessage(
+      webhookUrl,
+      `🎮 **${author.username}** is looking for a free battle${author.region ? ` (${author.region})` : ""}: "${trimmed}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
+    );
+  }
+
+  return post;
 }
 
 export async function closePost(userId: string, postId: string) {

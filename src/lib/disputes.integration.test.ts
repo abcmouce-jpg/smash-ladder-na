@@ -43,7 +43,7 @@ async function createDecidedGame(matchId: string, gameNumber: number, winnerId: 
   });
 }
 
-async function createDisputedGame(matchId: string, p1: string, p2: string, gameNumber = 1) {
+async function createDisputedGame(matchId: string, p1: string, p2: string, gameNumber = 1, escalated = true) {
   return prisma.matchGame.create({
     data: {
       matchId,
@@ -59,6 +59,9 @@ async function createDisputedGame(matchId: string, p1: string, p2: string, gameN
       secondReportWinnerId: p2,
       secondReportById: p2,
       secondReportAt: new Date(),
+      // Fixtures default to already-escalated (what the mod queue sees);
+      // pass escalated=false to build a still-contested game.
+      ...(escalated ? { disputeRequestedAt: new Date() } : {}),
     },
   });
 }
@@ -80,6 +83,23 @@ describe("disputes", () => {
     const disputed = await listDisputedGames();
     expect(disputed).toHaveLength(1);
     expect(disputed[0].matchId).toBe(match.id);
+  });
+
+  it("does not list a contested game the players haven't escalated yet", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+    await createDisputedGame(match.id, p1.id, p2.id, 1, false);
+
+    const disputed = await listDisputedGames();
+    expect(disputed).toHaveLength(0);
   });
 
   it("resolving the deciding game confirms the match and applies Elo", async () => {

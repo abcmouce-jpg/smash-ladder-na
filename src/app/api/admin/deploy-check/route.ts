@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { CHARACTER_TIMEOUT_MS, STRIKE_TIMEOUT_MS } from "@/lib/match-games";
+import { CHARACTER_TIMEOUT_MS, REPORT_TIMEOUT_MS, STRIKE_TIMEOUT_MS } from "@/lib/match-games";
 
 // Diagnostic-only: lets us confirm what's actually executing in production
 // right now, rather than trusting that a deploy/alias switch took effect —
@@ -24,6 +24,7 @@ export async function GET(request: Request) {
     now: new Date().toISOString(),
     characterTimeoutMs: CHARACTER_TIMEOUT_MS,
     strikeTimeoutMs: STRIKE_TIMEOUT_MS,
+    reportTimeoutMs: REPORT_TIMEOUT_MS,
     vercelDeploymentId: process.env.VERCEL_DEPLOYMENT_ID ?? null,
     vercelUrl: process.env.VERCEL_URL ?? null,
     vercelGitCommitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,

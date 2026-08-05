@@ -20,6 +20,7 @@ import {
   pickGameStage,
   pickSameStage,
   reportGameResult,
+  escalateGameDispute,
   startFirstGame,
   strikeGameStage,
   strikeSameBans,
@@ -51,6 +52,8 @@ const STALE_GAME_ERRORS = new Set([
   "Not a valid remaining stage",
   "This game is already decided",
   "You already reported this game",
+  "This game is already being reviewed by a mod",
+  "This game isn't contested",
   "You already picked your character for this game",
   "Wait for your opponent to pick their character first",
   "Nothing to undo yet",
@@ -173,7 +176,19 @@ export async function pickCharacter(matchId: string, gameNumber: number, formDat
 export async function reportGame(matchId: string, gameNumber: number, won: boolean) {
   const userId = await requireUserId();
   await requireNotBanned(userId); // must still be able to close out ranked matches at Level-1
-  await reportGameResult(userId, matchId, gameNumber, won);
+  // Ignored duplicates/races: re-clicking after already reporting, or the
+  // game moving to contested/escalated/decided between render and click —
+  // the page re-renders the authoritative state either way.
+  await ignoringStaleGameRaces(() => reportGameResult(userId, matchId, gameNumber, won));
+  revalidatePath("/lobby");
+}
+
+// Skips the re-confirmation step on a contested game and escalates it
+// straight to mod review.
+export async function disputeGame(matchId: string, gameNumber: number) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => escalateGameDispute(userId, matchId, gameNumber));
   revalidatePath("/lobby");
 }
 

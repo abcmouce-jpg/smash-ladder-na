@@ -6,9 +6,24 @@ import { getRegionsWithinDistance } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
 import { MATCH_TTL_MS } from "@/lib/match-games";
+import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 
 function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null) {
   return maxGap === null || Math.abs(ratingA - ratingB) <= maxGap;
+}
+
+// A brand-new player's maxRatingGap defaults to null ("any rating") — with
+// no protection, their very first games could be against a Grandmaster.
+// Provisional players (see PROVISIONAL_GAMES_THRESHOLD) get their effective
+// gap clamped to this regardless of their own setting; anyone who explicitly
+// set something tighter keeps that instead.
+export const PROVISIONAL_RATING_GAP_CAP = 300;
+
+function effectiveMaxRatingGap(user: { gamesPlayed: number; maxRatingGap: number | null }) {
+  if (user.gamesPlayed >= PROVISIONAL_GAMES_THRESHOLD) return user.maxRatingGap;
+  return user.maxRatingGap === null
+    ? PROVISIONAL_RATING_GAP_CAP
+    : Math.min(user.maxRatingGap, PROVISIONAL_RATING_GAP_CAP);
 }
 
 // Not symmetric like distance/rating gap — this checks each side's
@@ -128,6 +143,7 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
         maxMatchDistanceKm: true,
         rating: true,
         maxRatingGap: true,
+        gamesPlayed: true,
         rematchCooldownHours: true,
         wiredConnection: true,
         requireWiredOpponent: true,
@@ -168,6 +184,7 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
   });
 
   const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
+  const myEffectiveGap = effectiveMaxRatingGap(me);
 
   const paired = await withTransientRetry(() => prisma.$transaction(async (tx) => {
     // Candidates within MY reach on both region and rating — the other half
@@ -182,8 +199,8 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
         id: { not: newEntry.id },
         user: {
           region: { in: myReach },
-          ...(me.maxRatingGap !== null
-            ? { rating: { gte: me.rating - me.maxRatingGap, lte: me.rating + me.maxRatingGap } }
+          ...(myEffectiveGap !== null
+            ? { rating: { gte: me.rating - myEffectiveGap, lte: me.rating + myEffectiveGap } }
             : {}),
         },
       },
@@ -196,6 +213,7 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
             maxMatchDistanceKm: true,
             rating: true,
             maxRatingGap: true,
+            gamesPlayed: true,
             rematchCooldownHours: true,
             wiredConnection: true,
             requireWiredOpponent: true,
@@ -207,7 +225,7 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
     const candidate = candidates.find(
       (c) =>
         getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
-        ratingGapAllows(me.rating, c.user.rating, c.user.maxRatingGap) &&
+        ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user)) &&
         rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
         wiredRequirementAllows(me, c.user) &&
         practiceMatchAllowed(
@@ -319,6 +337,7 @@ type MatchCandidate = {
   maxMatchDistanceKm: number | null;
   rating: number;
   maxRatingGap: number | null;
+  gamesPlayed: number;
   rematchCooldownHours: number | null;
   wiredConnection: boolean;
   requireWiredOpponent: boolean;
@@ -329,8 +348,8 @@ function canMatch(a: MatchCandidate, b: MatchCandidate, lastMatchAt: Date | unde
   return (
     getRegionsWithinDistance(a.region, a.maxMatchDistanceKm).includes(b.region) &&
     getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region) &&
-    ratingGapAllows(a.rating, b.rating, a.maxRatingGap) &&
-    ratingGapAllows(a.rating, b.rating, b.maxRatingGap) &&
+    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(a)) &&
+    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(b)) &&
     rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours) &&
     wiredRequirementAllows(a, b)
   );
@@ -358,6 +377,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           maxMatchDistanceKm: true,
           rating: true,
           maxRatingGap: true,
+          gamesPlayed: true,
           rematchCooldownHours: true,
           wiredConnection: true,
           requireWiredOpponent: true,

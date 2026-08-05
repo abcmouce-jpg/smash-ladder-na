@@ -21,6 +21,7 @@ export async function getPlayerProfile(userId: string) {
       wiredConnection: true,
       mainCharacter: true,
       secondaryCharacters: true,
+      zenMode: true,
       startggSlug: true,
       startggUserId: true,
       startggGamerTag: true,
@@ -61,6 +62,41 @@ export async function isCurrentlyInMatch(userId: string) {
   return match !== null;
 }
 
+// Full active-match snapshot for the profile page's "currently in a match"
+// card (opponent + games). Deliberately a pure read — no autoResolveStale*
+// side effects like getMatchGames in the lobby — since profile pages get
+// viewed by people who aren't in the session, so they shouldn't advance the
+// match. Same PENDING_REPORT/REPORTED filter as isCurrentlyInMatch.
+export async function getCurrentMatchForUser(userId: string) {
+  return prisma.ratingMatch.findFirst({
+    where: {
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+      status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      player1Id: true,
+      player2Id: true,
+      player1: { select: { id: true, username: true, avatarUrl: true, rating: true } },
+      player2: { select: { id: true, username: true, avatarUrl: true, rating: true } },
+      games: {
+        orderBy: { gameNumber: "asc" },
+        select: {
+          gameNumber: true,
+          actorAId: true,
+          actorBId: true,
+          actorACharacter: true,
+          actorBCharacter: true,
+          winnerId: true,
+          reportedWinnerId: true,
+          secondReportWinnerId: true,
+        },
+      },
+    },
+  });
+}
+
 function matchHistoryWhere(userId: string) {
   return {
     status: MatchStatus.CONFIRMED,
@@ -79,10 +115,41 @@ export async function getPlayerMatchCount(userId: string) {
   return prisma.ratingMatch.count({ where: matchHistoryWhere(userId) });
 }
 
+// One game within a history entry — the per-game detail behind the profile
+// page's match-details modal. Games with no decided winner (disputed or
+// admin-reset) are included with won: null so the modal reflects the full
+// set, but they're ignored by the score/characters summary above.
+export interface MatchHistoryGame {
+  gameNumber: number;
+  /** The querying player's character this game, if one was locked in. */
+  character: string | null;
+  /** The opponent's character this game, if one was locked in. */
+  opponentCharacter: string | null;
+  /** The stage the game was played on, once picked. */
+  stage: string | null;
+  /** Whether the querying player won. null = no decided winner. */
+  won: boolean | null;
+}
+
+export interface MatchHistoryEntryData {
+  id: string;
+  opponent: { id: string; username: string };
+  won: boolean;
+  isPracticing: boolean;
+  ratingBefore: number | null;
+  ratingAfter: number | null;
+  delta: number;
+  confirmedAt: Date | null;
+  score: { wins: number; losses: number };
+  characters: string[];
+  opponentCharacters: string[];
+  games: MatchHistoryGame[];
+}
+
 export async function getPlayerMatchHistory(
   userId: string,
   { limit = 20, skip = 0 }: { limit?: number; skip?: number } = {},
-) {
+): Promise<MatchHistoryEntryData[]> {
   const matches = await prisma.ratingMatch.findMany({
     where: matchHistoryWhere(userId),
     orderBy: { confirmedAt: "desc" },
@@ -94,11 +161,23 @@ export async function getPlayerMatchHistory(
     },
   });
 
-  // Batched rather than per-match, since this list can be up to `limit` long.
+  // Batched rather than per-match, since this list can be up to `limit`
+  // long. Every game is fetched — decided ones drive the score/characters
+  // summary, and the rest still appear (as undecided) in the per-game
+  // details the modal shows.
   const games = await prisma.matchGame.findMany({
-    where: { matchId: { in: matches.map((m) => m.id) }, winnerId: { not: null } },
+    where: { matchId: { in: matches.map((m) => m.id) } },
     orderBy: { gameNumber: "asc" },
-    select: { matchId: true, actorAId: true, actorACharacter: true, actorBId: true, actorBCharacter: true, winnerId: true },
+    select: {
+      matchId: true,
+      gameNumber: true,
+      actorAId: true,
+      actorACharacter: true,
+      actorBId: true,
+      actorBCharacter: true,
+      finalStage: true,
+      winnerId: true,
+    },
   });
   const gamesByMatch = new Map<string, typeof games>();
   for (const g of games) {
@@ -128,15 +207,29 @@ export async function getPlayerMatchHistory(
     let gamesLost = 0;
     const characters: string[] = [];
     const opponentCharacters: string[] = [];
+    const games: MatchHistoryGame[] = [];
     for (const g of matchGames) {
-      if (g.winnerId === userId) gamesWon++;
-      else gamesLost++;
       const character = g.actorAId === userId ? g.actorACharacter : g.actorBCharacter;
-      if (character && !characters.includes(character)) characters.push(character);
       const opponentCharacter = g.actorAId === userId ? g.actorBCharacter : g.actorACharacter;
-      if (opponentCharacter && !opponentCharacters.includes(opponentCharacter)) {
-        opponentCharacters.push(opponentCharacter);
+      // Games with no decided winner (disputed/void) don't count toward the
+      // score or the aggregated character list — same rule the score test
+      // enforces — but they're still listed in the per-game details so a
+      // closed-out set's modal shows the full picture.
+      if (g.winnerId !== null) {
+        if (g.winnerId === userId) gamesWon++;
+        else gamesLost++;
+        if (character && !characters.includes(character)) characters.push(character);
+        if (opponentCharacter && !opponentCharacters.includes(opponentCharacter)) {
+          opponentCharacters.push(opponentCharacter);
+        }
       }
+      games.push({
+        gameNumber: g.gameNumber,
+        character,
+        opponentCharacter,
+        stage: g.finalStage,
+        won: g.winnerId === null ? null : g.winnerId === userId,
+      });
     }
 
     return {
@@ -151,28 +244,16 @@ export async function getPlayerMatchHistory(
       score: { wins: gamesWon, losses: gamesLost },
       characters,
       opponentCharacters,
+      games,
     };
   });
 }
 
-// Collapses same-(UTC calendar day) points into one, keeping the rating
-// from the last match of that day — so a chart point represents "rating
-// after that day's session" rather than every individual game. Points must
-// already be in ascending date order.
-export function condenseByDay<T extends { date: Date; rating: number }>(points: T[]): T[] {
-  const result: T[] = [];
-  for (const point of points) {
-    const last = result[result.length - 1];
-    const sameDay = last && last.date.toISOString().slice(0, 10) === point.date.toISOString().slice(0, 10);
-    if (sameDay) {
-      result[result.length - 1] = point;
-    } else {
-      result.push(point);
-    }
-  }
-  return result;
-}
-
+// Returns the most recent rating snapshots, raw — one per match, ascending.
+// The client condenses these into one point per *viewer-local* calendar day:
+// the server doesn't know the viewer's timezone, and UTC day boundaries can
+// merge matches that fall on different local days (e.g. 10pm and midnight in
+// a timezone behind UTC).
 export async function getRatingChartPoints(userId: string, limit = 50) {
   const rows = await prisma.ratingHistory.findMany({
     where: { userId },
@@ -180,8 +261,7 @@ export async function getRatingChartPoints(userId: string, limit = 50) {
     take: limit,
     select: { ratingAfter: true, createdAt: true },
   });
-  const points = rows.reverse().map((r) => ({ date: r.createdAt, rating: r.ratingAfter }));
-  return condenseByDay(points);
+  return rows.reverse().map((r) => ({ date: r.createdAt, rating: r.ratingAfter }));
 }
 
 // Current streak: how many of the most recent confirmed matches in a row
@@ -198,6 +278,52 @@ export function currentStreak(history: { won: boolean; isPracticing?: boolean }[
     if (m.won !== leadingResult) break;
     count++;
   }
+  return leadingResult ? count : -count;
+}
+
+// Same semantics as currentStreak, but computed in the database so a long
+// run isn't silently truncated by whichever `limit` a caller passed to
+// getPlayerMatchHistory (the profile page's default 20 used to cap the
+// streak badge at 20). Peeks backwards through history in batches until
+// the streak breaks or the player's whole history is exhausted, so an
+// undefeated player reports their true, possibly unbounded streak.
+export async function getCurrentStreak(userId: string) {
+  const BATCH_SIZE = 50;
+  let leadingResult: boolean | null = null;
+  let count = 0;
+  let skip = 0;
+  while (true) {
+    const matches = await prisma.ratingMatch.findMany({
+      where: matchHistoryWhere(userId),
+      orderBy: { confirmedAt: "desc" },
+      take: BATCH_SIZE,
+      skip,
+      select: {
+        player1Id: true,
+        player2Id: true,
+        player1IsPracticing: true,
+        player2IsPracticing: true,
+        reportedWinnerId: true,
+      },
+    });
+    if (matches.length === 0) break;
+    for (const m of matches) {
+      const isPracticing = m.player1Id === userId ? m.player1IsPracticing : m.player2IsPracticing;
+      if (isPracticing) continue;
+      const won = m.reportedWinnerId === userId;
+      if (leadingResult === null) {
+        leadingResult = won;
+        count = 1;
+      } else if (won !== leadingResult) {
+        return leadingResult ? count : -count;
+      } else {
+        count++;
+      }
+    }
+    if (matches.length < BATCH_SIZE) break;
+    skip += BATCH_SIZE;
+  }
+  if (leadingResult === null) return 0;
   return leadingResult ? count : -count;
 }
 

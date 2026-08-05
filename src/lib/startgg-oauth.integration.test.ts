@@ -55,6 +55,39 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
     expect(updated.startggConnectedAt).not.toBeNull();
   });
 
+  // Regression test: start.gg's GraphQL API actually serializes
+  // currentUser.id as a JSON number (confirmed live via a real OAuth
+  // connect — start.gg returned `"id": 1897815`, not `"id": "1897815"`),
+  // which Prisma rejected outright since startggUserId is a String column.
+  // The mock helper above always passes a string id, so this never caught
+  // it — this test talks to fetch directly with a raw number to match what
+  // start.gg's API actually sends.
+  it("handles start.gg returning currentUser.id as a JSON number, not a string", async () => {
+    const user = await createTestUser();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/oauth/access_token")) {
+          return Promise.resolve(new Response(JSON.stringify({ access_token: "test-token" }), { status: 200 }));
+        }
+        if (url.includes("/gql/alpha")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({ data: { currentUser: { id: 1897815, slug: "user/realuser", player: null } } }),
+              { status: 200 },
+            ),
+          );
+        }
+        throw new Error(`Unexpected fetch to ${url}`);
+      }),
+    );
+
+    await connectStartggAccount(user.id, "auth-code", "https://example.com/callback");
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.startggUserId).toBe("1897815");
+  });
+
   it("rejects connecting a start.gg account already linked to someone else", async () => {
     const existingOwner = await createTestUser({ startggUserId: "sgg-shared" });
     const requester = await createTestUser();

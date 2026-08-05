@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { HelpCircle } from "lucide-react";
 import { characterIconSlug } from "@/lib/character-icons";
 
 // Falls back to a colored initials badge for any name without a mapped

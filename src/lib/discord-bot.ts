@@ -49,3 +49,22 @@ export async function sendDiscordDM(discordId: string, content: string) {
     // Notifications are a nice-to-have, not a dependency of the core flow.
   }
 }
+
+// Posts to a public channel via an incoming webhook, not the bot token —
+// webhooks need no bot membership or channel permission, just the URL a
+// server admin generates under Channel Settings → Integrations → Webhooks,
+// which is how a community's own announcements/looking-for-game channel
+// gets these without granting the bot broader access than DMs already need.
+// Silently no-ops when unconfigured, same reasoning as sendDiscordDM: this
+// is a growth nice-to-have, never something the calling flow depends on.
+export async function sendDiscordWebhookMessage(webhookUrl: string, content: string) {
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: content.slice(0, 1900) }),
+    });
+  } catch {
+    // Best-effort, same reasoning as sendDiscordDM.
+  }
+}
