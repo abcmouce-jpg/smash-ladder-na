@@ -32,15 +32,19 @@ export default async function SetsFeedPage() {
   const entries = await getMatchFeed();
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
 
-  const liveEntries = entries.filter((e) => e.hasLiveStreamer);
+  // Only in-progress sets get pinned to the top with a live embed; a stream
+  // on a finished (CONFIRMED/CANCELLED/EXPIRED) set is just historical.
+  const liveEntries = entries.filter(
+    (e) => e.hasLiveStreamer && (e.status === "PENDING_REPORT" || e.status === "REPORTED"),
+  );
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <SetsFeedPoller />
       <h1 className="text-2xl font-semibold tracking-tight">Sets</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Current and recently-finished sets across the ladder. Sets with a live Twitch stream are
-        pinned to the top.
+        Current and recently-finished sets across the ladder. In-progress sets with a live Twitch
+        stream are pinned to the top.
       </p>
 
       {liveEntries.length > 0 && (
