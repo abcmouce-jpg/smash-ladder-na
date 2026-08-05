@@ -60,6 +60,7 @@ export interface StartggIdentity {
   id: string;
   slug: string;
   gamerTag: string | null;
+  playerId: string | null;
 }
 
 async function fetchCurrentStartggUser(accessToken: string): Promise<StartggIdentity> {
@@ -69,23 +70,31 @@ async function fetchCurrentStartggUser(accessToken: string): Promise<StartggIden
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ query: "{ currentUser { id slug player { gamerTag } } }" }),
+    body: JSON.stringify({ query: "{ currentUser { id slug player { id gamerTag } } }" }),
   });
   if (!res.ok) throw new Error("Couldn't reach start.gg's API");
 
   const json = (await res.json()) as {
-    // start.gg's GraphQL API serializes `currentUser.id` as a JSON number,
-    // not a string, despite it being an opaque ID everywhere else — caught
-    // live via a real OAuth connect attempt: Prisma rejected it outright
-    // since startggUserId is a String column ("Expected String, provided
-    // Int"). Typed here as number and coerced below so this can't recur.
-    data?: { currentUser: { id: number; slug: string; player: { gamerTag: string | null } | null } | null };
+    data?: {
+      currentUser: {
+        id: string | number;
+        slug: string;
+        player: { id: string | number | null; gamerTag: string | null } | null;
+      } | null;
+    };
     errors?: unknown;
   };
   if (json.errors || !json.data?.currentUser) throw new Error("start.gg didn't return a user");
 
   const { id, slug, player } = json.data.currentUser;
-  return { id: String(id), slug, gamerTag: player?.gamerTag ?? null };
+  // start.gg serializes these ids as JSON numbers (e.g. 1897815), so coerce
+  // both to strings — the user id for storage, the player id for supermajor.gg.
+  return {
+    id: String(id),
+    slug,
+    gamerTag: player?.gamerTag ?? null,
+    playerId: player?.id != null ? String(player.id) : null,
+  };
 }
 
 // The whole point of OAuth here: the identity comes from start.gg itself,
@@ -104,6 +113,7 @@ export async function connectStartggAccount(userId: string, code: string, redire
       where: { id: userId },
       data: {
         startggUserId: identity.id,
+        startggPlayerId: identity.playerId,
         startggSlug: identity.slug,
         startggGamerTag: identity.gamerTag,
         startggConnectedAt: new Date(),
@@ -123,7 +133,13 @@ export async function connectStartggAccount(userId: string, code: string, redire
 export async function disconnectStartggAccount(userId: string) {
   await prisma.user.update({
     where: { id: userId },
-    data: { startggUserId: null, startggSlug: null, startggGamerTag: null, startggConnectedAt: null },
+    data: {
+      startggUserId: null,
+      startggPlayerId: null,
+      startggSlug: null,
+      startggGamerTag: null,
+      startggConnectedAt: null,
+    },
   });
 }
 
@@ -131,9 +147,9 @@ export function startggProfileUrl(slug: string) {
   return `https://start.gg/${slug}`;
 }
 
-// start.gg user slugs look like "user/<username>"; supermajor.gg only wants the
-// username, plus the start.gg player id prefixed with "S".
-export function supermajorProfileUrl(slug: string, startggUserId: string) {
-  const username = slug.replace(/^user\//, "");
-  return `https://www.supermajor.gg/ultimate/player/${username}?id=S${startggUserId}`;
+// supermajor.gg profiles are keyed by the start.gg PLAYER id
+// (currentUser.player.id — not the user id) prefixed with "S"; the username
+// path segment is ignored, so it's hardcoded to a placeholder.
+export function supermajorProfileUrl(playerId: string) {
+  return `https://www.supermajor.gg/ultimate/player/_?id=S${playerId}`;
 }

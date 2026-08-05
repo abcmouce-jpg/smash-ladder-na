@@ -162,6 +162,7 @@ model User {
   avoidPracticeOpponents  Boolean @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
   zenMode                Boolean @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
   startggUserId        String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
+  startggPlayerId      String? // start.gg's player id (currentUser.player.id) — distinct from the user id above; supermajor.gg profile links (?id=S...) key off this one
   startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
   startggGamerTag      String? // display tag from start.gg's player object, if the account has one
   startggConnectedAt   DateTime?

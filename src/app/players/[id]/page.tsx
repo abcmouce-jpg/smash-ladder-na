@@ -26,9 +26,17 @@ import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BlockUserButton } from "@/components/block-user-button";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
 import { MatchHistoryEntry } from "@/components/match-history-entry";
-import { AdminMatchOverride, BanIpButton, ModerationStatusForm } from "@/components/moderation-tools";
+import {
+  AdminMatchOverride,
+  BanIpButton,
+  ModerationStatusForm,
+} from "@/components/moderation-tools";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { isBlockedByMe } from "@/lib/blocks";
@@ -58,10 +66,12 @@ export default async function PlayerProfilePage({
   const { id } = await params;
   const { page: pageParam } = await searchParams;
   const requestedPage = Number(pageParam);
-  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const page =
+    Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const session = await auth();
   const isOwnProfile = session?.user?.id === id;
-  const isModerator = session?.user?.role === "MOD" || session?.user?.role === "ADMIN";
+  const isModerator =
+    session?.user?.role === "MOD" || session?.user?.role === "ADMIN";
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
@@ -85,20 +95,28 @@ export default async function PlayerProfilePage({
     // below attach to, all need this to stay put on page 2+, not silently
     // reflect whatever's on the current page.
     getPlayerMatchHistory(id),
-    getPlayerMatchHistory(id, { limit: MATCH_HISTORY_PAGE_SIZE, skip: (page - 1) * MATCH_HISTORY_PAGE_SIZE }),
+    getPlayerMatchHistory(id, {
+      limit: MATCH_HISTORY_PAGE_SIZE,
+      skip: (page - 1) * MATCH_HISTORY_PAGE_SIZE,
+    }),
     getPlayerMatchCount(id),
     getRatingChartPoints(id),
     getCareerStats(id),
     getTopRivals(id),
-    session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
+    session?.user?.id && !isOwnProfile
+      ? isBlockedByMe(session.user.id, id)
+      : Promise.resolve(false),
     getCharacterUsage(id),
     getCurrentMatchForUser(id),
-    player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
+    player.twitchUsername
+      ? isTwitchLive(player.twitchUsername)
+      : Promise.resolve(false),
     getMatchHistoryAchievements(id),
     getCurrentStreak(id),
   ]);
   const inMatch = currentMatch !== null;
-  const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
+  const parentHost =
+    (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
   const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
   // Practice matches still show up in the list below (clearly labeled) but
@@ -107,10 +125,19 @@ export default async function PlayerProfilePage({
   const realRecentHistory = recentHistory.filter((m) => !m.isPracticing);
   const realRecentWins = realRecentHistory.filter((m) => m.won).length;
   const winRate =
-    realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
-  const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
-  const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
-  const achievements = [...computeAchievements(careerStats), ...matchAchievements];
+    realRecentHistory.length > 0
+      ? Math.round((realRecentWins / realRecentHistory.length) * 100)
+      : null;
+  const mostRecentRealMatchId =
+    recentHistory.find((m) => !m.isPracticing)?.id ?? null;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE),
+  );
+  const achievements = [
+    ...computeAchievements(careerStats),
+    ...matchAchievements,
+  ];
   const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
 
   return (
@@ -129,14 +156,24 @@ export default async function PlayerProfilePage({
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
               {player.username}
-              {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={22} />}
+              {player.mainCharacter && (
+                <CharacterIcon name={player.mainCharacter} size={22} />
+              )}
               {player.secondaryCharacters.map((c) => (
-                <CharacterIcon key={c} name={c} size={18} className="opacity-60" />
+                <CharacterIcon
+                  key={c}
+                  name={c}
+                  size={18}
+                  className="opacity-60"
+                />
               ))}
             </h1>
-            {player.discordUsername && player.discordUsername !== player.username && (
-              <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
-            )}
+            {player.discordUsername &&
+              player.discordUsername !== player.username && (
+                <p className="text-xs text-muted-foreground">
+                  Discord: {player.discordUsername}
+                </p>
+              )}
             <p className="text-sm tabular-nums text-muted-foreground">
               {player.rating} rating · {player.gamesPlayed} sets played
               {topCharacters.length > 0 && (
@@ -147,7 +184,11 @@ export default async function PlayerProfilePage({
                       Most played characters
                     </span>
                     {topCharacters.map((character) => (
-                      <CharacterIcon key={character} name={character} size={16} />
+                      <CharacterIcon
+                        key={character}
+                        name={character}
+                        size={16}
+                      />
                     ))}
                   </span>
                 </>
@@ -155,11 +196,15 @@ export default async function PlayerProfilePage({
             </p>
             {player.practiceGamesPlayed > 0 && (
               <p className="text-xs tabular-nums text-muted-foreground">
-                {player.practiceRating} practice rating · {player.practiceGamesPlayed} practice sets
+                {player.practiceRating} practice rating ·{" "}
+                {player.practiceGamesPlayed} practice sets
               </p>
             )}
             <div className="mt-1.5 flex items-center gap-1.5">
-              <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+              <RankBadge
+                rating={player.rating}
+                gamesPlayed={player.gamesPlayed}
+              />
               {nextTier && (
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {nextTier.pointsNeeded} to {nextTier.nextTier.name}
@@ -178,11 +223,15 @@ export default async function PlayerProfilePage({
                 </Badge>
               )}
               {player.noShowCount > 0 && (
-                <Badge variant="warning">{player.noShowCount} no-show{player.noShowCount === 1 ? "" : "s"}</Badge>
+                <Badge variant="warning">
+                  {player.noShowCount} no-show
+                  {player.noShowCount === 1 ? "" : "s"}
+                </Badge>
               )}
               {isModerator && player.cancelCount > 0 && (
                 <Badge variant="warning">
-                  {player.cancelCount} cancel{player.cancelCount === 1 ? "" : "s"}
+                  {player.cancelCount} cancel
+                  {player.cancelCount === 1 ? "" : "s"}
                 </Badge>
               )}
               {isModerator && player._count.connectionReportsReceived > 0 && (
@@ -192,42 +241,74 @@ export default async function PlayerProfilePage({
                 </Badge>
               )}
             </div>
+
             {player.startggSlug && (
-              <a
-                href={startggProfileUrl(player.startggSlug)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-              >
-                {player.startggGamerTag ?? "View on start.gg"} ✓
-                <ExternalLink className="size-3" />
-              </a>
-            )}
-            {player.startggSlug && player.startggUserId && (
-              <a
-                href={supermajorProfileUrl(player.startggSlug, player.startggUserId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-              >
-                View on supermajor.gg ✓
-                <ExternalLink className="size-3" />
-              </a>
+              <div className="flex mt-1.5 gap-4">
+                <a
+                  href={startggProfileUrl(player.startggSlug)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 40 40"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M1.25 20h7.5A1.25 1.25 0 0 0 10 18.75v-7.5A1.25 1.25 0 0 1 11.25 10h27.5A1.25 1.25 0 0 0 40 8.75V1.25A1.25 1.25 0 0 0 38.75 0H10A10 10 0 0 0 0 10v8.75A1.25 1.25 0 0 0 1.25 20Z"
+                      fill="#3f80ff"
+                    ></path>
+                    <path
+                      d="M38.75 20h-7.5A1.25 1.25 0 0 0 30 21.25v7.5A1.25 1.25 0 0 1 28.75 30H1.25A1.25 1.25 0 0 0 0 31.25v7.5A1.25 1.25 0 0 0 1.25 40H30A10 10 0 0 0 40 30V21.25A1.25 1.25 0 0 0 38.75 20Z"
+                      fill="#ff2768"
+                    ></path>
+                  </svg>
+                  start.gg
+                  <ExternalLink className="size-3" />
+                </a>
+                {player.startggPlayerId && (
+                  <a
+                    href={supermajorProfileUrl(player.startggPlayerId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    <Image
+                      src="/supermajor-icon.png"
+                      alt="Supermajor"
+                      width="24"
+                      height="24"
+                      className="size-4"
+                    />
+                    supermajor.gg
+                    <ExternalLink className="size-3" />
+                  </a>
+                )}
+              </div>
             )}
           </div>
         </div>
 
-        {session?.user?.id && !isOwnProfile && (
-          blocked ? (
+        {session?.user?.id &&
+          !isOwnProfile &&
+          (blocked ? (
             <Badge variant="outline">Blocked</Badge>
           ) : (
-            <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} />
-          )
-        )}
+            <BlockUserButton
+              action={blockUserAction.bind(null, id)}
+              username={player.username}
+            />
+          ))}
       </div>
 
       {inMatch && isLiveOnTwitch && player.twitchUsername && (
-        <TwitchLiveEmbed username={player.twitchUsername} parentHost={parentHost} />
+        <TwitchLiveEmbed
+          username={player.twitchUsername}
+          parentHost={parentHost}
+        />
       )}
 
       {currentMatch && (
@@ -256,7 +337,12 @@ export default async function PlayerProfilePage({
                 )}
               </div>
             </div>
-            <RatingChart points={chartPoints.map((p) => ({ date: p.date.toISOString(), rating: p.rating }))} />
+            <RatingChart
+              points={chartPoints.map((p) => ({
+                date: p.date.toISOString(),
+                rating: p.rating,
+              }))}
+            />
           </CardContent>
         </Card>
       )}
@@ -275,20 +361,30 @@ export default async function PlayerProfilePage({
               <p className="text-xs text-muted-foreground">Lifetime record</p>
             </div>
             <div>
-              <p className="text-lg font-semibold tabular-nums">{careerStats.peakRating ?? "—"}</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {careerStats.peakRating ?? "—"}
+              </p>
               <p className="text-xs text-muted-foreground">Peak rating</p>
             </div>
             <div>
-              <p className="text-lg font-semibold tabular-nums">{careerStats.bestWinStreak}</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {careerStats.bestWinStreak}
+              </p>
               <p className="text-xs text-muted-foreground">Best win streak</p>
             </div>
             <div>
-              <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {careerStats.seasonsPlayed}
+              </p>
               <p className="text-xs text-muted-foreground">Seasons played</p>
             </div>
             <div>
-              <p className="text-lg font-semibold tabular-nums">{careerStats.tournamentsEntered}</p>
-              <p className="text-xs text-muted-foreground">Tournaments entered</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {careerStats.tournamentsEntered}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Tournaments entered
+              </p>
             </div>
           </div>
 
@@ -299,8 +395,14 @@ export default async function PlayerProfilePage({
                 <TooltipTrigger asChild>
                   <Badge
                     variant={a.achieved ? "success" : "outline"}
-                    className={a.achieved ? "badge-pop gap-1 cursor-help" : "gap-1 cursor-help opacity-40"}
-                    style={a.achieved ? { animationDelay: `${i * 60}ms` } : undefined}
+                    className={
+                      a.achieved
+                        ? "badge-pop gap-1 cursor-help"
+                        : "gap-1 cursor-help opacity-40"
+                    }
+                    style={
+                      a.achieved ? { animationDelay: `${i * 60}ms` } : undefined
+                    }
                   >
                     <Award className="size-3" />
                     {a.label}
@@ -319,7 +421,10 @@ export default async function PlayerProfilePage({
             <p className="text-sm font-medium">Rivals</p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {rivals.map((r) => (
-                <li key={r.opponentId} className="flex items-center justify-between text-sm">
+                <li
+                  key={r.opponentId}
+                  className="flex items-center justify-between text-sm"
+                >
                   <Link
                     href={`/players/${r.opponentId}`}
                     className="flex items-center gap-1.5 hover:underline"
@@ -337,23 +442,37 @@ export default async function PlayerProfilePage({
         </Card>
       )}
 
-      <CharacterUsageCard usage={characterUsage} mainCharacter={player.mainCharacter} />
+      <CharacterUsageCard
+        usage={characterUsage}
+        mainCharacter={player.mainCharacter}
+      />
 
       <div className="mt-10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-medium text-muted-foreground">Match history</h2>
+            <h2 className="text-sm font-medium text-muted-foreground">
+              Match history
+            </h2>
             {totalMatchCount > 0 && (
               <Badge variant="outline">
-                {totalMatchCount} confirmed match{totalMatchCount === 1 ? "" : "es"}
+                {totalMatchCount} confirmed match
+                {totalMatchCount === 1 ? "" : "es"}
               </Badge>
             )}
           </div>
-          {totalPages > 1 && <MatchHistoryPaginationControls playerId={id} page={page} totalPages={totalPages} />}
+          {totalPages > 1 && (
+            <MatchHistoryPaginationControls
+              playerId={id}
+              page={page}
+              totalPages={totalPages}
+            />
+          )}
         </div>
 
         {pageHistory.length === 0 && (
-          <p className="mt-4 text-sm text-muted-foreground">No confirmed matches yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            No confirmed matches yet.
+          </p>
         )}
 
         {pageHistory.length > 0 && (
@@ -387,15 +506,27 @@ export default async function PlayerProfilePage({
                     opponentUsername={match.opponent.username}
                   />
                 )}
-                {isModerator && !isOwnProfile && match.id === mostRecentRealMatchId && (
-                  <AdminMatchOverride
-                    player1Username={player.username}
-                    player2Username={match.opponent.username}
-                    actionForPlayer1={adminOverrideResultAction.bind(null, match.id, id, id)}
-                    actionForPlayer2={adminOverrideResultAction.bind(null, match.id, id, match.opponent.id)}
-                    undoAction={adminUndoMatchAction.bind(null, match.id, id)}
-                  />
-                )}
+                {isModerator &&
+                  !isOwnProfile &&
+                  match.id === mostRecentRealMatchId && (
+                    <AdminMatchOverride
+                      player1Username={player.username}
+                      player2Username={match.opponent.username}
+                      actionForPlayer1={adminOverrideResultAction.bind(
+                        null,
+                        match.id,
+                        id,
+                        id,
+                      )}
+                      actionForPlayer2={adminOverrideResultAction.bind(
+                        null,
+                        match.id,
+                        id,
+                        match.opponent.id,
+                      )}
+                      undoAction={adminUndoMatchAction.bind(null, match.id, id)}
+                    />
+                  )}
               </MatchHistoryEntry>
             ))}
           </Card>
@@ -405,22 +536,32 @@ export default async function PlayerProfilePage({
       {isModerator && !isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
           <p className="text-sm font-medium">
-            Report history <Badge variant="outline">{reportHistory.length}</Badge>
+            Report history{" "}
+            <Badge variant="outline">{reportHistory.length}</Badge>
           </p>
           {reportHistory.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No reports filed against this player.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              No reports filed against this player.
+            </p>
           ) : (
             <ul className="mt-2 flex flex-col gap-2">
               {reportHistory.map((r) => (
                 <li key={r.id} className="text-sm">
                   <div className="flex items-center gap-1.5">
                     <Badge
-                      variant={r.status === "ACTIONED" ? "destructive" : r.status === "DISMISSED" ? "outline" : "warning"}
+                      variant={
+                        r.status === "ACTIONED"
+                          ? "destructive"
+                          : r.status === "DISMISSED"
+                            ? "outline"
+                            : "warning"
+                      }
                     >
                       {r.status.toLowerCase()}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      by {r.reporter.username} · {r.createdAt.toISOString().slice(0, 10)}
+                      by {r.reporter.username} ·{" "}
+                      {r.createdAt.toISOString().slice(0, 10)}
                     </span>
                   </div>
                   <p className="mt-0.5 text-muted-foreground">{r.reason}</p>
@@ -430,7 +571,10 @@ export default async function PlayerProfilePage({
           )}
 
           <div className="mt-6">
-            <ModerationStatusForm action={moderateUserAction.bind(null, id)} currentStatus={player.status} />
+            <ModerationStatusForm
+              action={moderateUserAction.bind(null, id)}
+              currentStatus={player.status}
+            />
           </div>
 
           {player.lastKnownIp && (
@@ -448,8 +592,8 @@ export default async function PlayerProfilePage({
         <div className="mt-12 border-t border-border pt-6">
           <h2 className="text-sm font-medium text-destructive">Danger zone</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Deletes your username, avatar, and email. Match history stays, anonymized, so other
-            players&apos; win/loss records stay accurate.
+            Deletes your username, avatar, and email. Match history stays,
+            anonymized, so other players&apos; win/loss records stay accurate.
           </p>
           <div className="mt-3">
             <DeleteAccountButton action={deleteAccountAction} />
@@ -465,7 +609,11 @@ function isDisputedGame(game: {
   reportedWinnerId: string | null;
   secondReportWinnerId: string | null;
 }) {
-  return !game.winnerId && !!game.secondReportWinnerId && game.secondReportWinnerId !== game.reportedWinnerId;
+  return (
+    !game.winnerId &&
+    !!game.secondReportWinnerId &&
+    game.secondReportWinnerId !== game.reportedWinnerId
+  );
 }
 
 function CurrentMatchCard({
@@ -491,10 +639,14 @@ function CurrentMatchCard({
   // doesn't block the set — progressSet immediately creates the next game —
   // so it must be skipped here the same way the lobby does, or the card
   // shows a stale game number.
-  const currentGame = match.games.find((game) => !game.winnerId && !isDisputedGame(game)) ?? null;
+  const currentGame =
+    match.games.find((game) => !game.winnerId && !isDisputedGame(game)) ?? null;
   const lastGame = match.games[match.games.length - 1];
-  const gameNumber = currentGame?.gameNumber ??
-    (lastGame && isDisputedGame(lastGame) ? lastGame.gameNumber : match.games.length + 1);
+  const gameNumber =
+    currentGame?.gameNumber ??
+    (lastGame && isDisputedGame(lastGame)
+      ? lastGame.gameNumber
+      : match.games.length + 1);
   const myCharacter = currentGame
     ? currentGame.actorAId === userId
       ? currentGame.actorACharacter
@@ -509,7 +661,8 @@ function CurrentMatchCard({
   // locked in, same as the in-lobby pick UI.
   const showCharacters =
     currentGame !== null &&
-    (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
+    (currentGame.gameNumber !== 1 ||
+      (myCharacter !== null && opponentCharacter !== null));
 
   return (
     <Card className="mt-8">
@@ -524,11 +677,16 @@ function CurrentMatchCard({
             {showCharacters && myCharacter ? (
               <CharacterIcon name={myCharacter} size={32} />
             ) : (
-              <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+              <span
+                aria-hidden
+                className="size-8 shrink-0 rounded-full border border-dashed border-border"
+              />
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{myName}</p>
-              <p className="text-xs text-muted-foreground tabular-nums">{myRating} rating</p>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {myRating} rating
+              </p>
             </div>
           </div>
 
@@ -536,7 +694,9 @@ function CurrentMatchCard({
             <p className="text-lg font-semibold tabular-nums">
               {wins.me}–{wins.opponent}
             </p>
-            <p className="text-xs text-muted-foreground">Game {gameNumber} of 5</p>
+            <p className="text-xs text-muted-foreground">
+              Game {gameNumber} of 5
+            </p>
           </div>
 
           <div className="flex min-w-0 items-center justify-end gap-2.5">
@@ -544,18 +704,28 @@ function CurrentMatchCard({
               (showCharacters && opponentCharacter ? (
                 <CharacterIcon name={opponentCharacter} size={32} />
               ) : (
-                <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+                <span
+                  aria-hidden
+                  className="size-8 shrink-0 rounded-full border border-dashed border-border"
+                />
               ))}
             <div className="min-w-0">
               {zenMode ? (
-                <p className="truncate text-right text-sm font-medium">Opponent</p>
+                <p className="truncate text-right text-sm font-medium">
+                  Opponent
+                </p>
               ) : (
-                <Link href={`/players/${opponent.id}`} className="block truncate text-right text-sm font-medium hover:underline">
+                <Link
+                  href={`/players/${opponent.id}`}
+                  className="block truncate text-right text-sm font-medium hover:underline"
+                >
                   {opponent.username}
                 </Link>
               )}
               {!zenMode && (
-                <p className="text-right text-xs text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+                <p className="text-right text-xs text-muted-foreground tabular-nums">
+                  {opponent.rating} rating
+                </p>
               )}
             </div>
           </div>
@@ -576,13 +746,21 @@ function MatchHistoryPaginationControls({
 }) {
   return (
     <div className="flex items-center gap-2 text-sm">
-      <MatchHistoryPageLink playerId={playerId} page={page - 1} disabled={page <= 1}>
+      <MatchHistoryPageLink
+        playerId={playerId}
+        page={page - 1}
+        disabled={page <= 1}
+      >
         ← Previous
       </MatchHistoryPageLink>
       <span className="text-muted-foreground tabular-nums">
         Page {page} of {totalPages}
       </span>
-      <MatchHistoryPageLink playerId={playerId} page={page + 1} disabled={page >= totalPages}>
+      <MatchHistoryPageLink
+        playerId={playerId}
+        page={page + 1}
+        disabled={page >= totalPages}
+      >
         Next →
       </MatchHistoryPageLink>
     </div>
@@ -604,7 +782,10 @@ function MatchHistoryPageLink({
     return <span className="text-muted-foreground/40">{children}</span>;
   }
   return (
-    <Link href={`/players/${playerId}?page=${page}`} className="hover:underline">
+    <Link
+      href={`/players/${playerId}?page=${page}`}
+      className="hover:underline"
+    >
       {children}
     </Link>
   );

@@ -8,9 +8,9 @@ describe("startggProfileUrl", () => {
 });
 
 describe("supermajorProfileUrl", () => {
-  it("builds a supermajor.gg profile URL from a slug and id", () => {
-    expect(supermajorProfileUrl("user/abc123", "123456")).toBe(
-      "https://www.supermajor.gg/ultimate/player/abc123?id=S123456",
+  it("builds a supermajor.gg profile URL from a player id", () => {
+    expect(supermajorProfileUrl("987654")).toBe(
+      "https://www.supermajor.gg/ultimate/player/_?id=S987654",
     );
   });
 });

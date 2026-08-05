@@ -3,7 +3,12 @@ import { prisma } from "@/lib/db";
 import { connectStartggAccount, disconnectStartggAccount } from "@/lib/startgg-oauth";
 import { createTestUser } from "@/test/factories";
 
-function mockStartggResponses(identity: { id: string; slug: string; gamerTag: string | null }) {
+function mockStartggResponses(identity: {
+  id: string;
+  slug: string;
+  gamerTag: string | null;
+  playerId?: string | null;
+}) {
   return vi.fn().mockImplementation((url: string) => {
     if (url.includes("/oauth/access_token")) {
       return Promise.resolve(new Response(JSON.stringify({ access_token: "test-token" }), { status: 200 }));
@@ -16,7 +21,9 @@ function mockStartggResponses(identity: { id: string; slug: string; gamerTag: st
               currentUser: {
                 id: identity.id,
                 slug: identity.slug,
-                player: identity.gamerTag ? { gamerTag: identity.gamerTag } : null,
+                player: identity.gamerTag
+                  ? { id: identity.playerId ?? null, gamerTag: identity.gamerTag }
+                  : null,
               },
             },
           }),
@@ -43,13 +50,14 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
     const user = await createTestUser();
     vi.stubGlobal(
       "fetch",
-      mockStartggResponses({ id: "sgg-1", slug: "user/abc123", gamerTag: "PlayerTag" }),
+      mockStartggResponses({ id: "sgg-1", slug: "user/abc123", gamerTag: "PlayerTag", playerId: "sgg-p1" }),
     );
 
     await connectStartggAccount(user.id, "auth-code", "https://example.com/callback");
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(updated.startggUserId).toBe("sgg-1");
+    expect(updated.startggPlayerId).toBe("sgg-p1");
     expect(updated.startggSlug).toBe("user/abc123");
     expect(updated.startggGamerTag).toBe("PlayerTag");
     expect(updated.startggConnectedAt).not.toBeNull();
@@ -73,7 +81,9 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
         if (url.includes("/gql/alpha")) {
           return Promise.resolve(
             new Response(
-              JSON.stringify({ data: { currentUser: { id: 1897815, slug: "user/realuser", player: null } } }),
+              JSON.stringify({
+                data: { currentUser: { id: 1897815, slug: "user/realuser", player: { id: 987654, gamerTag: "RealUser" } } },
+              }),
               { status: 200 },
             ),
           );
@@ -86,6 +96,7 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(updated.startggUserId).toBe("1897815");
+    expect(updated.startggPlayerId).toBe("987654");
   });
 
   it("rejects connecting a start.gg account already linked to someone else", async () => {
@@ -133,6 +144,7 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
   it("clears a connected account", async () => {
     const user = await createTestUser({
       startggUserId: "sgg-1",
+      startggPlayerId: "sgg-p1",
       startggSlug: "user/abc123",
       startggGamerTag: "PlayerTag",
       startggConnectedAt: new Date(),
@@ -142,6 +154,7 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(updated.startggUserId).toBeNull();
+    expect(updated.startggPlayerId).toBeNull();
     expect(updated.startggSlug).toBeNull();
     expect(updated.startggGamerTag).toBeNull();
     expect(updated.startggConnectedAt).toBeNull();
