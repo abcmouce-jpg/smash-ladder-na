@@ -63,6 +63,12 @@ export function computeTierChange(
   };
 }
 
+// Bottom of RANK_TIERS — reaching it is just the provisional-reveal case
+// (nowhere lower to have come from), not an achievement, so it's excluded
+// from the rank-up announcement below on purpose: "just reached Challenger"
+// reads as an insult, not a celebration.
+const LOWEST_TIER = RANK_TIERS[RANK_TIERS.length - 1].name;
+
 // Best-effort, fire-and-forget (see callers — always invoked via
 // next/server's after(), never awaited inline with the match-confirm flow
 // it's triggered by). Keeps the player's Discord tier role in sync, and —
@@ -87,7 +93,7 @@ export async function applyTierChange(change: TierChangeInfo) {
   const oldIndex = change.oldTier ? RANK_TIERS.findIndex((t) => t.name === change.oldTier) : -1;
   const newIndex = change.newTier ? RANK_TIERS.findIndex((t) => t.name === change.newTier) : -1;
   const wentUp = newIndex !== -1 && (oldIndex === -1 || newIndex < oldIndex);
-  if (!wentUp || !change.newTier) return;
+  if (!wentUp || !change.newTier || change.newTier === LOWEST_TIER) return;
 
   const webhookUrl = process.env.DISCORD_TIER_UP_WEBHOOK_URL;
   if (!webhookUrl) return;
