@@ -11,7 +11,7 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 const ICON_URI = `data:image/png;base64,${readFileSync(
-  join(process.cwd(), "public", "smash_ladder_icon.png"),
+  join(process.cwd(), "public", "smash_ladder_icon_white.png"),
 ).toString("base64")}`;
 
 // Matches the root opengraph-image.tsx palette so a player's rank card
