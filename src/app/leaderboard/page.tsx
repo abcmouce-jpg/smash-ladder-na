@@ -85,7 +85,7 @@ export default async function LeaderboardPage({
   const viewerId = session?.user?.id ?? null;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Trophy className="size-5 text-muted-foreground" />

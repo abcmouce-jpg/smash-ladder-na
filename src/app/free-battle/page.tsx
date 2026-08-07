@@ -15,7 +15,7 @@ export default async function FreeBattlePage() {
 
   if (!session?.user?.id) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle />
         <p className="mt-2 text-sm text-muted-foreground">
           {lang === "es"
@@ -33,7 +33,7 @@ export default async function FreeBattlePage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <PageTitle />
       <p className="mt-1 text-sm text-muted-foreground">
         {lang === "es" ? (

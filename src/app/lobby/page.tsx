@@ -112,7 +112,7 @@ export default async function LobbyPage() {
 
   if (!session?.user?.id) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <ActivityLine
           waiting={activity.waiting}
@@ -157,12 +157,14 @@ export default async function LobbyPage() {
         : entry.match.player2LeftAt
       : null;
 
-  const showChatPanel = isInActiveMatch || matchJustEnded;
+  // The match + chat panel renders during a live match or after one ends, and
+  // stays open until the player dismisses it by clicking Leave — that panel
+  // needs the wide 5xl container for its side-by-side chat column, while the
+  // rest of the site uses the standard 3xl.
+  const showMatchPanel = !myLeftAt && (isInActiveMatch || matchJustEnded);
 
   return (
-    <main
-      className={`mx-auto px-6 py-16 ${showChatPanel ? "max-w-5xl" : "max-w-2xl"}`}
-    >
+    <main className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}>
       <PageTitle lang={lang} />
       <ActivityLine
         waiting={activity.waiting}
@@ -259,7 +261,7 @@ export default async function LobbyPage() {
         </Card>
       )}
 
-      {entry?.status === "PAIRED" && entry.match && (
+      {showMatchPanel && entry?.match && (
         <PairedView userId={session.user.id} match={entry.match} lang={lang} />
       )}
     </main>

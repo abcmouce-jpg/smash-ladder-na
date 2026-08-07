@@ -36,7 +36,7 @@ export default async function Home() {
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-20">
+    <main className="mx-auto w-full max-w-3xl px-6 py-20">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="border-primary/30 text-primary">
           {lang === "es" ? "Norteamérica" : "North America"}

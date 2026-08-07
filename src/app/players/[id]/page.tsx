@@ -159,7 +159,7 @@ export default async function PlayerProfilePage({
   const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           {player.avatarUrl && (
