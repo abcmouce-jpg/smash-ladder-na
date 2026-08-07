@@ -30,6 +30,8 @@ import {
   COUNTERPICK_STAGES,
 } from "@/lib/stages";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
+import { referralLink } from "@/lib/referrals";
+import { CopyButton } from "@/components/copy-button";
 import {
   MATCH_DISTANCE_PRESETS,
   MATCH_REGION_GROUPS,
@@ -241,6 +243,21 @@ export default async function LobbyPage() {
               </Button>
             </form>
           </CardContent>
+          {activity.waiting <= 1 && (
+            <CardContent className="border-t border-border pt-3">
+              <p className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? "Nadie más está en cola ahora mismo — invita a un amigo para emparejarte más rápido."
+                  : "Nobody else is queued right now — invite a friend to get matched faster."}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
+                  {referralLink(session.user.id)}
+                </code>
+                <CopyButton text={referralLink(session.user.id)} />
+              </div>
+            </CardContent>
+          )}
         </Card>
       )}
 
