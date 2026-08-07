@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import NextAuth from "next-auth";
 import type { DefaultSession } from "next-auth";
 import Discord from "next-auth/providers/discord";
@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import type { UserRole } from "@/generated/prisma/enums";
 import { extractClientIp, isIpBanned } from "@/lib/ip-bans";
+import { resolveReferrerId } from "@/lib/referrals";
 
 declare module "next-auth" {
   interface Session {
@@ -73,6 +74,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       });
       if (existing?.status === UserStatus.BANNED) return false;
 
+      // Only resolved for a genuinely new account (existing is null) —
+      // referredById is set once, at creation, and never touched again, so
+      // there's no point looking this up for a returning sign-in.
+      const referredById = existing ? null : await resolveReferrerId((await cookies()).get("ref")?.value);
+
       const discordUsername = discordProfile.global_name ?? discordProfile.username;
       await prisma.user.upsert({
         where: { discordId: discordProfile.id },
@@ -97,6 +103,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: discordProfile.email ?? undefined,
           lastKnownIp: ip ?? undefined,
           lastSignInAt: new Date(),
+          referredById,
         },
       });
 

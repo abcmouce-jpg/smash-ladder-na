@@ -22,6 +22,19 @@ export function proxy(request: NextRequest) {
     response.cookies.set("lang", "es", { maxAge: 60 * 60 * 24 * 365, path: "/", sameSite: "lax" });
   }
 
+  // Referral attribution — a shared invite link is `/?ref=<userId>`. Stored
+  // as a cookie (not applied immediately) since the visitor usually isn't
+  // signed in yet; auth.ts's signIn callback reads it back at account
+  // creation. 30-day window, last-click-wins on a repeat visit via a
+  // different link — same reasoning as most referral programs' attribution
+  // window. Not validated here (could be any string, or garbage) — that
+  // happens in lib/referrals.ts's resolveReferrerId, against the DB, at the
+  // one point it actually matters.
+  const ref = request.nextUrl.searchParams.get("ref");
+  if (ref) {
+    response.cookies.set("ref", ref, { maxAge: 60 * 60 * 24 * 30, path: "/", sameSite: "lax" });
+  }
+
   return response;
 }
 
