@@ -480,10 +480,10 @@ export async function applyEloAndConfirm(
   // computeTierChange itself is pure/cheap — fine to call before the
   // transaction has committed, only the Discord side needs to wait.
   if (!matchRow.player1IsPracticing) {
-    deferTierChange(computeTierChange(p1.id, p1.discordId, p1.username, p1Rating, p1After, p1Games));
+    deferTierChange(computeTierChange(p1.id, p1.discordId, p1.username, match.id, p1Rating, p1After, p1Games));
   }
   if (!matchRow.player2IsPracticing) {
-    deferTierChange(computeTierChange(p2.id, p2.discordId, p2.username, p2Rating, p2After, p2Games));
+    deferTierChange(computeTierChange(p2.id, p2.discordId, p2.username, match.id, p2Rating, p2After, p2Games));
   }
 }
 

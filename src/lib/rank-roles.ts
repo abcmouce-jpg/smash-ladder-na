@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { prisma } from "@/lib/db";
 import { RANK_TIERS, getRankTier } from "@/lib/rank-tier";
 import { syncDiscordGuildMemberRole, sendDiscordWebhookEmbed } from "@/lib/discord-bot";
 
@@ -36,6 +37,7 @@ export interface TierChangeInfo {
   userId: string;
   discordId: string;
   username: string;
+  matchId: string;
   oldTier: string | null;
   newTier: string | null;
 }
@@ -50,6 +52,7 @@ export function computeTierChange(
   userId: string,
   discordId: string,
   username: string,
+  matchId: string,
   ratingBefore: number,
   ratingAfter: number,
   gamesBefore: number,
@@ -58,9 +61,31 @@ export function computeTierChange(
     userId,
     discordId,
     username,
+    matchId,
     oldTier: getRankTier(ratingBefore, gamesBefore)?.name ?? null,
     newTier: getRankTier(ratingAfter, gamesBefore + 1)?.name ?? null,
   };
+}
+
+// Whether this player has ever, on some OTHER match, already had a rating
+// that would clear tierName's floor — i.e. whether the tier-up this match
+// just produced is actually a new personal peak, or just a climb back up
+// after an earlier dip. RatingHistory rows are permanent (never deleted or
+// overwritten), so "peak rating from every match except this one" is a
+// reliable answer regardless of how much the rating has bounced around
+// since. Excludes this match's own row by id, not by rating comparison —
+// a >= check against the row we're currently evaluating would be
+// trivially true and defeat the purpose.
+async function hasPreviouslyReachedTier(userId: string, matchId: string, tierName: string): Promise<boolean> {
+  const tier = RANK_TIERS.find((t) => t.name === tierName);
+  if (!tier) return false;
+
+  const peak = await prisma.ratingHistory.aggregate({
+    where: { userId, matchId: { not: matchId } },
+    _max: { ratingAfter: true },
+  });
+  const peakRating = peak._max.ratingAfter;
+  return peakRating != null && peakRating >= tier.minRating;
 }
 
 // Bottom of RANK_TIERS — reaching it is just the provisional-reveal case
@@ -94,6 +119,11 @@ export async function applyTierChange(change: TierChangeInfo) {
   const newIndex = change.newTier ? RANK_TIERS.findIndex((t) => t.name === change.newTier) : -1;
   const wentUp = newIndex !== -1 && (oldIndex === -1 || newIndex < oldIndex);
   if (!wentUp || !change.newTier || change.newTier === LOWEST_TIER) return;
+
+  // Climbing back up to a tier already hit before (after a dip, a losing
+  // streak, whatever) isn't a new achievement — only a genuine first-time
+  // reach gets the announcement.
+  if (await hasPreviouslyReachedTier(change.userId, change.matchId, change.newTier)) return;
 
   const webhookUrl = process.env.DISCORD_TIER_UP_WEBHOOK_URL;
   if (!webhookUrl) return;
