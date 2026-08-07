@@ -385,15 +385,16 @@ export async function applyEloAndConfirm(
   confirmationMethod: ConfirmationMethod,
   secondReport: { winnerId: string; reporterId: string } | null,
 ) {
-  const [p1, p2, season, matchRow] = await Promise.all([
-    tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
-    tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
-    tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } }),
-    tx.ratingMatch.findUniqueOrThrow({
-      where: { id: match.id },
-      select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true },
-    }),
-  ]);
+  // Sequential, not Promise.all: tx pins these to a single reserved
+  // connection, so concurrent queries on it just queue behind each other
+  // anyway — and pg deprecated overlapping query() calls on one client.
+  const p1 = await tx.user.findUniqueOrThrow({ where: { id: match.player1Id } });
+  const p2 = await tx.user.findUniqueOrThrow({ where: { id: match.player2Id } });
+  const season = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  const matchRow = await tx.ratingMatch.findUniqueOrThrow({
+    where: { id: match.id },
+    select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true },
+  });
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
   const seasonId = season?.id ?? (await tx.season.create({ data: { name: "Season 1" } })).id;
@@ -504,10 +505,8 @@ export async function applyCorrection(
   },
   winnerId: string,
 ) {
-  const [p1, p2] = await Promise.all([
-    tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
-    tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
-  ]);
+  const p1 = await tx.user.findUniqueOrThrow({ where: { id: match.player1Id } });
+  const p2 = await tx.user.findUniqueOrThrow({ where: { id: match.player2Id } });
   // gamesPlayed already carries this match's own +1 from the original
   // confirmation — subtract it back out to match the kFactor tier the
   // original calculation used.
@@ -568,22 +567,20 @@ export async function isMostRecentConfirmedMatch(
   match: { id: string; player1Id: string; player2Id: string; confirmedAt: Date | null; seasonId: string | null },
 ) {
   if (!match.confirmedAt) return false;
-  const [newer, activeSeason] = await Promise.all([
-    tx.ratingMatch.findFirst({
-      where: {
-        id: { not: match.id },
-        status: MatchStatus.CONFIRMED,
-        confirmedAt: { gt: match.confirmedAt },
-        OR: [
-          { player1Id: match.player1Id },
-          { player2Id: match.player1Id },
-          { player1Id: match.player2Id },
-          { player2Id: match.player2Id },
-        ],
-      },
-    }),
-    tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } }),
-  ]);
+  const newer = await tx.ratingMatch.findFirst({
+    where: {
+      id: { not: match.id },
+      status: MatchStatus.CONFIRMED,
+      confirmedAt: { gt: match.confirmedAt },
+      OR: [
+        { player1Id: match.player1Id },
+        { player2Id: match.player1Id },
+        { player1Id: match.player2Id },
+        { player2Id: match.player2Id },
+      ],
+    },
+  });
+  const activeSeason = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
   return newer === null && match.seasonId !== null && match.seasonId === activeSeason?.id;
 }
 
