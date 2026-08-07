@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { getTopRecruiters } from "@/lib/referrals";
 
 export const metadata: Metadata = {
   alternates: { languages: { "es-MX": "/es" } },
@@ -22,7 +23,7 @@ export default async function Home() {
   const session = await auth();
   const user = session?.user;
 
-  const [me, stats, lang] = await Promise.all([
+  const [me, stats, lang, topRecruiters] = await Promise.all([
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
@@ -31,6 +32,7 @@ export default async function Home() {
       : null,
     getPublicStats(),
     getLang(),
+    getTopRecruiters(3),
   ]);
 
   return (
@@ -142,6 +144,41 @@ export default async function Home() {
                         </p>
                         <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {topRecruiters.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {lang === "es" ? "Los que más invitan" : "Top recruiters"}
+          </h2>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {topRecruiters.map((r) => (
+              <Link key={r.id} href={`/players/${r.id}`}>
+                <Card className="h-full py-0 transition-colors hover:border-foreground/30">
+                  <CardContent className="flex items-center gap-3 py-3">
+                    {r.avatarUrl && (
+                      <Image
+                        src={r.avatarUrl}
+                        alt={r.username}
+                        width={32}
+                        height={32}
+                        className="shrink-0 rounded-full"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{r.username}</p>
+                      <p className="text-xs tabular-nums text-muted-foreground">
+                        {lang === "es"
+                          ? `${r.count} ${r.count === 1 ? "jugador invitado" : "jugadores invitados"}`
+                          : `${r.count} ${r.count === 1 ? "player" : "players"} invited`}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
