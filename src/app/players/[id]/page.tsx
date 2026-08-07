@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { Award, Cable, ExternalLink, MapPin, Swords } from "lucide-react";
+import { Award, Cable, ExternalLink, MapPin, Share2, Swords } from "lucide-react";
 import { auth } from "@/auth";
 import {
   getCareerStats,
@@ -281,13 +281,24 @@ export default async function PlayerProfilePage({
           </div>
         </div>
 
-        {session?.user?.id && !isOwnProfile && (
-          blocked ? (
-            <Badge variant="outline">{lang === "es" ? "Bloqueado" : "Blocked"}</Badge>
-          ) : (
-            <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} lang={lang} />
-          )
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <a
+            href={`/players/${id}/opengraph-image`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            <Share2 className="size-3.5" />
+            {lang === "es" ? "Compartir tarjeta" : "Share rank card"}
+          </a>
+          {session?.user?.id &&
+            !isOwnProfile &&
+            (blocked ? (
+              <Badge variant="outline">{lang === "es" ? "Bloqueado" : "Blocked"}</Badge>
+            ) : (
+              <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} lang={lang} />
+            ))}
+        </div>
       </div>
 
       {inMatch && isLiveOnTwitch && player.twitchUsername && (
