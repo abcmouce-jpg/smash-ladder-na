@@ -505,7 +505,6 @@ export async function applyCorrection(
   },
   winnerId: string,
 ) {
-  // Sequential, not Promise.all — see the note in applyEloAndConfirm above.
   const p1 = await tx.user.findUniqueOrThrow({ where: { id: match.player1Id } });
   const p2 = await tx.user.findUniqueOrThrow({ where: { id: match.player2Id } });
   // gamesPlayed already carries this match's own +1 from the original
@@ -568,7 +567,6 @@ export async function isMostRecentConfirmedMatch(
   match: { id: string; player1Id: string; player2Id: string; confirmedAt: Date | null; seasonId: string | null },
 ) {
   if (!match.confirmedAt) return false;
-  // Sequential, not Promise.all — see the note in applyEloAndConfirm above.
   const newer = await tx.ratingMatch.findFirst({
     where: {
       id: { not: match.id },
