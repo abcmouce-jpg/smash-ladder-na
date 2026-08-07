@@ -27,7 +27,7 @@ export default async function TournamentsPage() {
   const [tournaments, lang] = await Promise.all([listTournaments(), getLang()]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">

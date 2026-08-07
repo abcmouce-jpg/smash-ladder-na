@@ -34,7 +34,7 @@ export default async function SettingsPage({
 
   if (!session?.user?.id) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
           {lang === "es"
@@ -66,7 +66,7 @@ export default async function SettingsPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <PageTitle lang={lang} />
 
       <Card className="mt-8">

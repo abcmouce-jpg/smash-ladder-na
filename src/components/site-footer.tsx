@@ -8,7 +8,7 @@ export async function SiteFooter() {
 
   return (
     <footer className="mt-auto border-t border-border">
-      <div className="mx-auto flex max-w-2xl flex-col gap-3 px-6 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:py-4">
+      <div className="mx-auto flex max-w-3xl flex-col gap-3 px-6 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:py-4">
         <p>
           {lang === "es"
             ? "Smash Ladder NA — un proyecto comunitario independiente, hecho por fans. No afiliado a Nintendo."
