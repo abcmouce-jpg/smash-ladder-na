@@ -44,10 +44,12 @@ describe("recomputeCharacterUsage", () => {
     const player = await createTestUser({ mainCharacter: "Fox", secondaryCharacters: [] });
     const opponent = await createTestUser();
     const match = await createConfirmedMatch(player.id, opponent.id);
+    // 2 Fox + 3 Falco = 5 total — Fox at 40% clears the 30% secondary floor.
     await createGame(match.id, 1, player.id, "Fox", opponent.id, "Marth", player.id);
-    await createGame(match.id, 2, player.id, "Falco", opponent.id, "Marth", player.id);
+    await createGame(match.id, 2, player.id, "Fox", opponent.id, "Marth", player.id);
     await createGame(match.id, 3, player.id, "Falco", opponent.id, "Marth", player.id);
-    await createGame(match.id, 4, player.id, "Falco", opponent.id, "Marth", opponent.id);
+    await createGame(match.id, 4, player.id, "Falco", opponent.id, "Marth", player.id);
+    await createGame(match.id, 5, player.id, "Falco", opponent.id, "Marth", opponent.id);
 
     await prisma.$transaction((tx) => recomputeCharacterUsage(player.id, tx));
 
@@ -66,14 +68,15 @@ describe("recomputeCharacterUsage", () => {
     expect(updated.secondaryCharacters).toEqual([]);
   });
 
-  it("excludes a secondary at exactly the usage threshold (must exceed, not just reach, 10%)", async () => {
+  it("excludes a secondary that falls short of the usage threshold", async () => {
     const player = await createTestUser();
     const opponent = await createTestUser();
     const match = await createConfirmedMatch(player.id, opponent.id);
-    // 9 Fox games + 1 Falco game = 10 total — Falco lands at exactly 10%.
-    for (let i = 1; i <= 9; i++) {
+    // 8 Fox games + 2 Falco games = 10 total — Falco lands at 20%, short of 30%.
+    for (let i = 1; i <= 8; i++) {
       await createGame(match.id, i, player.id, "Fox", opponent.id, "Marth", player.id);
     }
+    await createGame(match.id, 9, player.id, "Falco", opponent.id, "Marth", player.id);
     await createGame(match.id, 10, player.id, "Falco", opponent.id, "Marth", player.id);
 
     await prisma.$transaction((tx) => recomputeCharacterUsage(player.id, tx));
@@ -83,14 +86,15 @@ describe("recomputeCharacterUsage", () => {
     expect(updated.secondaryCharacters).toEqual([]);
   });
 
-  it("includes a secondary once it clears the usage threshold", async () => {
+  it("includes a secondary at exactly the usage threshold — 30% or more qualifies", async () => {
     const player = await createTestUser();
     const opponent = await createTestUser();
     const match = await createConfirmedMatch(player.id, opponent.id);
-    // 8 Fox games + 2 Falco games = 10 total — Falco lands at 20%.
-    for (let i = 1; i <= 8; i++) {
+    // 7 Fox games + 3 Falco games = 10 total — Falco lands at exactly 30%.
+    for (let i = 1; i <= 7; i++) {
       await createGame(match.id, i, player.id, "Fox", opponent.id, "Marth", player.id);
     }
+    await createGame(match.id, 8, player.id, "Falco", opponent.id, "Marth", player.id);
     await createGame(match.id, 9, player.id, "Falco", opponent.id, "Marth", player.id);
     await createGame(match.id, 10, player.id, "Falco", opponent.id, "Marth", player.id);
 

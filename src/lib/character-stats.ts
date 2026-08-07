@@ -27,12 +27,13 @@ export async function getCharacterLeaderboard(character: string) {
 // everyone."
 const MAX_SECONDARY_CHARACTERS = 5;
 
-// A character only counts as an auto-derived secondary once it's a
-// meaningful share of this player's actual games — otherwise a single
-// off-character pick earns a permanent (if minor) spot on that character's
-// leaderboard entry, which reads as "this person mains/co-mains it" to
-// anyone filtering by character.
-const SECONDARY_CHARACTER_MIN_USAGE_PERCENT = 10;
+// A character only counts as an auto-derived secondary once it's a real
+// fraction of this player's actual games — otherwise a couple of
+// off-character picks (well under a third of their sets) would earn a
+// permanent spot on that character's leaderboard entry, which reads as
+// "this person mains/co-mains it" to anyone filtering by character. Matches
+// the icon-display floor in character-usage-display.ts.
+const SECONDARY_CHARACTER_MIN_USAGE_PERCENT = 30;
 
 // Keeps mainCharacter/secondaryCharacters in sync with what a player
 // actually plays, derived fresh from real game data every time — replaced
@@ -45,7 +46,7 @@ export async function recomputeCharacterUsage(userId: string, tx: Prisma.Transac
   const mainCharacter = usage[0]?.character ?? null;
   const secondaryCharacters = usage
     .slice(1)
-    .filter((u) => u.usagePercent > SECONDARY_CHARACTER_MIN_USAGE_PERCENT)
+    .filter((u) => u.usagePercent >= SECONDARY_CHARACTER_MIN_USAGE_PERCENT)
     .slice(0, MAX_SECONDARY_CHARACTERS)
     .map((u) => u.character);
 

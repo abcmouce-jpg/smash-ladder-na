@@ -34,7 +34,7 @@ export async function getLeaderboardPlayers(
       ...(filters.query ? { contains: filters.query, mode: "insensitive" as const } : {}),
     },
     // A character's leaderboard shows its mains and anyone with it as a
-    // secondary. Auto-derived secondaries already require >10% of a
+    // secondary. Auto-derived secondaries already require >=30% of a
     // player's games to exist at all (see recomputeCharacterUsage), so this
     // never grants a spot off a one-off pick. Echo fighters (Lucina/Marth,
     // Daisy/Peach, etc.) count as the same character here — filtering by
