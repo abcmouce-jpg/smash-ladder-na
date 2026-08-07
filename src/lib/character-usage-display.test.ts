@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupCharacterUsageForDisplay } from "./character-usage-display";
+import { formatUsagePercent, groupCharacterUsageForDisplay } from "./character-usage-display";
 import type { CharacterUsage } from "./players";
 
 function usage(character: string, usagePercent: number): CharacterUsage {
@@ -69,5 +69,17 @@ describe("groupCharacterUsageForDisplay", () => {
     const result = groupCharacterUsageForDisplay(input);
     expect(result.secondary.map((u) => u.character)).toEqual(["Falco", "Marth", "Roy"]);
     expect(result.overflow.map((u) => u.character)).toEqual(["Peach", "Cloud"]);
+  });
+});
+
+describe("formatUsagePercent", () => {
+  it("shows <1% instead of 0% for a character that rounded down to zero", () => {
+    expect(formatUsagePercent(0)).toBe("<1%");
+  });
+
+  it("shows the plain percentage otherwise", () => {
+    expect(formatUsagePercent(1)).toBe("1%");
+    expect(formatUsagePercent(50)).toBe("50%");
+    expect(formatUsagePercent(100)).toBe("100%");
   });
 });
