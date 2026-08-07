@@ -11,6 +11,7 @@ import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 
 // Used as `include`, which already returns every scalar column (leftAt,
 // rematchRequestedAt, etc.) by default — no need to list them here, and
@@ -470,6 +471,20 @@ export async function applyEloAndConfirm(
   // is a correct no-op on a practice-only confirm).
   await recomputeCharacterUsage(p1.id, tx);
   await recomputeCharacterUsage(p2.id, tx);
+
+  // Discord tier-role sync + rank-up announcement — real network calls, so
+  // deferred via after() to run once this transaction has actually
+  // committed, never awaited inline here. Practicing sides are skipped:
+  // practiceRating/practiceGamesPlayed never move the tier shown anywhere
+  // (see the practice-rating comment above), so there's nothing to sync.
+  // computeTierChange itself is pure/cheap — fine to call before the
+  // transaction has committed, only the Discord side needs to wait.
+  if (!matchRow.player1IsPracticing) {
+    deferTierChange(computeTierChange(p1.id, p1.discordId, p1.username, p1Rating, p1After, p1Games));
+  }
+  if (!matchRow.player2IsPracticing) {
+    deferTierChange(computeTierChange(p2.id, p2.discordId, p2.username, p2Rating, p2After, p2Games));
+  }
 }
 
 // Only reachable while `match` is still each player's most recent CONFIRMED
