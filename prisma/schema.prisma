@@ -519,3 +519,21 @@ model FreeBattlePost {
   @@index([status, createdAt])
   @@index([authorId])
 }
+
+// Populated by the Ko-fi webhook (src/app/api/webhooks/kofi/route.ts) — one
+// row per donation/subscription-payment event Ko-fi sends us. Displayed on
+// /supporters. kofiTransactionId dedupes Ko-fi's documented at-least-once
+// delivery (they retry on any non-200 response).
+model KofiDonation {
+  id                String   @id @default(cuid())
+  kofiTransactionId String   @unique
+  fromName          String
+  message           String?
+  amount            Decimal  @db.Decimal(10, 2)
+  currency          String
+  isPublic          Boolean // Ko-fi lets the donor opt out of appearing on public supporter pages
+  isSubscription    Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([isPublic, createdAt])
+}

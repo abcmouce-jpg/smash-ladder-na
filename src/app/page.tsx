@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Activity, Swords, Trophy, Users } from "lucide-react";
+import { Activity, Coffee, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getPublicStats } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
@@ -192,6 +192,19 @@ export default async function Home() {
             </CardHeader>
           </Card>
         </a>
+        <Link href="/supporters" className="h-full">
+          <Card className="h-full transition-colors hover:border-foreground/30">
+            <CardHeader>
+              <Coffee className="size-5 text-muted-foreground" />
+              <CardTitle className="text-base">{lang === "es" ? "Colaboradores" : "Supporters"}</CardTitle>
+              <CardDescription>
+                {lang === "es"
+                  ? "Ayuda a cubrir el hosting — totalmente opcional."
+                  : "Help cover hosting costs — entirely optional."}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
       </div>
     </main>
   );

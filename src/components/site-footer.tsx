@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Coffee } from "lucide-react";
-import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
+import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 
 export async function SiteFooter() {
@@ -38,15 +38,14 @@ export async function SiteFooter() {
           >
             Discord
           </a>
-          <a
-            href={KOFI_URL}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href="/supporters"
+            prefetch={false}
             className="flex items-center gap-1 hover:text-foreground hover:underline"
           >
             <Coffee className="size-3.5" />
             {lang === "es" ? "Apóyanos" : "Support us"}
-          </a>
+          </Link>
         </nav>
       </div>
     </footer>
