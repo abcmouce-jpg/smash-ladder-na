@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
 import { setAudioPingOnMatch, setAvoidPracticeOpponents, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
+import { sendTestPushToUser } from "@/lib/push-server";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
 import { disconnectTwitchAccount } from "@/lib/twitch-oauth";
 
@@ -47,6 +50,44 @@ export async function updateAudioPingOnMatchSetting(enabled: boolean) {
   await setAudioPingOnMatch(userId, enabled);
   revalidatePath("/settings");
   revalidatePath("/lobby");
+}
+
+export type PushSubscriptionKeys = { endpoint: string; p256dh: string; auth: string };
+
+export async function savePushSubscriptionAction(sub: PushSubscriptionKeys) {
+  const userId = await requireUserId();
+  const { endpoint, p256dh, auth } = sub ?? {};
+  if (!endpoint || !p256dh || !auth) {
+    return { success: false, error: "Missing subscription details." };
+  }
+  if (!/^https?:\/\//.test(endpoint)) {
+    return { success: false, error: "Invalid subscription endpoint." };
+  }
+  const userAgent = (await headers()).get("user-agent") ?? null;
+  await prisma.pushSubscription.upsert({
+    where: { endpoint },
+    create: { userId, endpoint, p256dh, auth, userAgent },
+    // Re-keyed on every save: the subscription row follows whichever account
+    // is signed in on this browser (device handed to someone else, etc.), and
+    // p256dh/auth can rotate even for a stable endpoint.
+    update: { userId, p256dh, auth, userAgent },
+  });
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+export async function removePushSubscriptionAction(endpoint: string) {
+  const userId = await requireUserId();
+  if (endpoint) {
+    await prisma.pushSubscription.deleteMany({ where: { endpoint, userId } });
+  }
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+export async function sendTestPushAction() {
+  const userId = await requireUserId();
+  return sendTestPushToUser(userId);
 }
 
 export type ArenaPasswordState = { error: string | null };
