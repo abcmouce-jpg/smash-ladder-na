@@ -8,6 +8,7 @@ import {
   Flag,
   Gamepad2,
   Gauge,
+  Languages,
   LogOut,
   Radio,
   Search,
@@ -62,16 +63,6 @@ export async function SiteHeader() {
               />
               Smash Ladder <span className="text-primary">NA</span>
             </Link>
-            <form
-              action={setLangAction.bind(null, lang === "es" ? "en" : "es")}
-            >
-              <button
-                type="submit"
-                className="cursor-pointer text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                {lang === "es" ? "English" : "Español"}
-              </button>
-            </form>
           </div>
 
           <div className="flex shrink-0 items-center gap-4">
@@ -123,6 +114,17 @@ export async function SiteHeader() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <ThemeToggle />
+                  <form
+                    action={setLangAction.bind(null, lang === "es" ? "en" : "es")}
+                  >
+                    <button
+                      type="submit"
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none hover:bg-muted hover:text-foreground"
+                    >
+                      <Languages className="size-3.5" />
+                      {lang === "es" ? "English" : "Español"}
+                    </button>
+                  </form>
                   <DropdownMenuSeparator />
                   <form
                     action={async () => {
