@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, MapPin, Swords, Users } from "lucide-react";
+import { Check, Loader2, MapPin, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
@@ -556,6 +556,7 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
 async function PairedView({ userId, match, lang }: { userId: string; match: Match; lang: Lang }) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
   const isPlayer1 = match.player1Id === userId;
+  const alreadyReportedConnection = match.connectionReports.length > 0;
   const myLeftAt = isPlayer1 ? match.player1LeftAt : match.player2LeftAt;
   const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
   const me = await prisma.user.findUnique({
@@ -889,6 +890,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
             opponentName={displayName}
             opponentEngaged={opponentEngaged}
             gameDecided={gameDecided}
+            alreadyReportedConnection={alreadyReportedConnection}
             lang={lang}
           />
         ) : (
@@ -912,6 +914,7 @@ function MatchFooterActions({
   opponentName,
   opponentEngaged,
   gameDecided,
+  alreadyReportedConnection,
   lang,
 }: {
   match: Match;
@@ -919,6 +922,7 @@ function MatchFooterActions({
   opponentName: string;
   opponentEngaged: boolean;
   gameDecided: boolean;
+  alreadyReportedConnection: boolean;
   lang: Lang;
 }) {
   return (
@@ -978,11 +982,18 @@ function MatchFooterActions({
             ? "¿Lag, muchos rollbacks, o desconexión durante esta partida?"
             : "Laggy, rollback-heavy, or disconnected during this match?"}
         </p>
-        <form action={reportConnection.bind(null, match.id)}>
-          <Button type="submit" size="sm" variant="outline">
-            {lang === "es" ? "Reportar conexión" : "Connection Report"}
+        {alreadyReportedConnection ? (
+          <Button size="sm" variant="outline" disabled className="gap-1.5">
+            <Check className="h-3.5 w-3.5" />
+            {lang === "es" ? "Conexión reportada" : "Connection reported"}
           </Button>
-        </form>
+        ) : (
+          <form action={reportConnection.bind(null, match.id)}>
+            <Button type="submit" size="sm" variant="outline">
+              {lang === "es" ? "Reportar conexión" : "Connection Report"}
+            </Button>
+          </form>
+        )}
       </div>
     </CardContent>
   );
