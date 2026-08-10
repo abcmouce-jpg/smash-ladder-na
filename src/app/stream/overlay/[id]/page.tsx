@@ -212,9 +212,14 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
-      {/* Top-center: Current match — scoreboard style */}
+      {/* Top-center: Current match — scoreboard style
+          (inset-x-0 + items-center instead of left-1/2 -translate-x-1/2:
+          Tailwind v4's -translate-x-1/2 compiles to the native `translate`
+          CSS property, which older OBS Browser Source builds (pre-Chromium
+          104) ignore — the scoreboard would sit pinned at left: 50% and
+          look shoved right.) */}
       {currentMatch && (
-        <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-0">
+        <div className="absolute inset-x-0 top-2 flex flex-col items-center gap-0">
           {/* Best of 5 label */}
           <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
             {lang === "es" ? "Mejor de 5" : "Best of 5"}
@@ -321,8 +326,10 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
-      {/* Bottom-center: Branding */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+      {/* Bottom-center: Branding (same centering approach as the
+          scoreboard above — flexbox, not transform, so old OBS builds
+          keep it centered) */}
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-1">
         <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-2 py-2 shadow-2xl backdrop-blur-sm">
           <Image
             src="/smash_ladder_icon_white.png"
