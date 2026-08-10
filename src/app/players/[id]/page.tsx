@@ -13,6 +13,7 @@ import {
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
+  getSeasonStats,
   getTopRivals,
   getCurrentMatchForUser,
 } from "@/lib/players";
@@ -115,6 +116,7 @@ export default async function PlayerProfilePage({
     totalMatchCount,
     chartPoints,
     careerStats,
+    seasonStats,
     rivals,
     blocked,
     characterUsage,
@@ -134,6 +136,7 @@ export default async function PlayerProfilePage({
     getPlayerMatchCount(id),
     getRatingChartPoints(id),
     getCareerStats(id),
+    getSeasonStats(id),
     getTopRivals(id),
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
     getCharacterUsage(id),
@@ -337,13 +340,49 @@ export default async function PlayerProfilePage({
         </Card>
       )}
 
+      {seasonStats && (
+        <Card className="mt-4">
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium">
+              {lang === "es" ? "Temporada actual" : "Current season"}
+              {seasonStats.seasonName && ` · ${seasonStats.seasonName}`}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {lang === "es" ? "Se reinicia al terminar la temporada." : "Resets when the season ends."}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-lg font-semibold tabular-nums">
+                  {seasonStats.totalWins}-{seasonStats.totalLosses}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Récord de temporada" : "Season record"}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.peakRating ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Clasificación máxima de temporada" : "Season peak rating"}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.bestWinStreak}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Mejor racha de temporada" : "Season best win streak"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="mt-4">
         <CardContent className="pt-4">
           <p className="text-sm font-medium">{lang === "es" ? "Carrera" : "Career"}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {lang === "es" ? "No se reinicia entre temporadas." : "Doesn't reset between seasons."}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <p className="text-lg font-semibold tabular-nums">
                 {careerStats.totalWins}-{careerStats.totalLosses}
@@ -368,12 +407,6 @@ export default async function PlayerProfilePage({
               <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
               <p className="text-xs text-muted-foreground">
                 {lang === "es" ? "Temporadas jugadas" : "Seasons played"}
-              </p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold tabular-nums">{careerStats.tournamentsEntered}</p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Torneos disputados" : "Tournaments entered"}
               </p>
             </div>
           </div>

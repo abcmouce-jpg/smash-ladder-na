@@ -8,6 +8,7 @@ import {
   getHeadToHead,
   getPlayerMatchCount,
   getPlayerMatchHistory,
+  getSeasonStats,
   getTopCharacters,
   getTopRivals,
   isCurrentlyInMatch,
@@ -364,6 +365,144 @@ describe("getCareerStats", () => {
     const stats = await getCareerStats(player.id);
     // Only the two non-practice wins should count toward the streak.
     expect(stats.bestWinStreak).toBe(2);
+  });
+});
+
+describe("getSeasonStats", () => {
+  async function createSeason(name: string, endsAt: Date | null) {
+    return prisma.season.create({ data: { name, endsAt } });
+  }
+
+  async function createConfirmedMatchInSeason(
+    p1: string,
+    p2: string,
+    seasonId: string,
+    reportedWinnerId: string,
+    confirmedAt: Date,
+    options: { player1IsPracticing?: boolean } = {},
+  ) {
+    return prisma.ratingMatch.create({
+      data: {
+        player1Id: p1,
+        player2Id: p2,
+        seasonId,
+        status: MatchStatus.CONFIRMED,
+        expiresAt: new Date(),
+        reportedWinnerId,
+        confirmedAt,
+        player1IsPracticing: options.player1IsPracticing ?? false,
+      },
+    });
+  }
+
+  it("counts wins and losses from the active season's confirmed matches only", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const active = await createSeason("Season 1", null);
+    const past = await createSeason("Season 0", new Date());
+
+    await createConfirmedMatchInSeason(player.id, opponent.id, active.id, player.id, new Date());
+    await createConfirmedMatchInSeason(opponent.id, player.id, active.id, opponent.id, new Date());
+    // A match from an ended season must not count toward the current season.
+    await createConfirmedMatchInSeason(player.id, opponent.id, past.id, player.id, new Date());
+
+    const stats = await getSeasonStats(player.id);
+    expect(stats?.seasonName).toBe("Season 1");
+    expect(stats?.totalWins).toBe(1);
+    expect(stats?.totalLosses).toBe(1);
+  });
+
+  it("peaks at the highest rating reached within the active season", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const active = await createSeason("Season 1", null);
+    const past = await createSeason("Season 0", new Date());
+
+    const activeMatch = await createConfirmedMatchInSeason(
+      player.id,
+      opponent.id,
+      active.id,
+      player.id,
+      new Date(),
+    );
+    const pastMatch = await createConfirmedMatchInSeason(
+      player.id,
+      opponent.id,
+      past.id,
+      player.id,
+      new Date(),
+    );
+    await prisma.ratingHistory.create({
+      data: { userId: player.id, matchId: activeMatch.id, ratingBefore: 1500, ratingAfter: 1530, delta: 30 },
+    });
+    await prisma.ratingHistory.create({
+      data: { userId: player.id, matchId: activeMatch.id, ratingBefore: 1530, ratingAfter: 1510, delta: -20 },
+    });
+    // Higher rating reached in an ended season must not count.
+    await prisma.ratingHistory.create({
+      data: { userId: player.id, matchId: pastMatch.id, ratingBefore: 1500, ratingAfter: 1600, delta: 100 },
+    });
+
+    const stats = await getSeasonStats(player.id);
+    expect(stats?.peakRating).toBe(1530);
+  });
+
+  it("is null for peak rating when the player has no matches this season", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const active = await createSeason("Season 1", null);
+    await createConfirmedMatchInSeason(player.id, opponent.id, active.id, opponent.id, new Date());
+
+    const stats = await getSeasonStats(player.id);
+    expect(stats?.peakRating).toBeNull();
+  });
+
+  it("finds the longest win streak within the season, not across season boundaries", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const active = await createSeason("Season 1", null);
+    const past = await createSeason("Season 0", new Date());
+    const base = Date.now();
+
+    // Season 0 ends with a win right before the rollover...
+    await createConfirmedMatchInSeason(player.id, opponent.id, past.id, player.id, new Date(base));
+    // ...which must not extend a streak that starts in Season 1.
+    const results = [true, true, true, false, true, true];
+    for (let i = 0; i < results.length; i++) {
+      await createConfirmedMatchInSeason(
+        player.id,
+        opponent.id,
+        active.id,
+        results[i] ? player.id : opponent.id,
+        new Date(base + (i + 1) * 1000),
+      );
+    }
+
+    const stats = await getSeasonStats(player.id);
+    expect(stats?.bestWinStreak).toBe(3);
+  });
+
+  it("excludes practice matches from the record and streak", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const active = await createSeason("Season 1", null);
+    const base = Date.now();
+
+    await createConfirmedMatchInSeason(player.id, opponent.id, active.id, player.id, new Date(base));
+    await createConfirmedMatchInSeason(player.id, opponent.id, active.id, player.id, new Date(base + 1000), {
+      player1IsPracticing: true,
+    });
+    await createConfirmedMatchInSeason(opponent.id, player.id, active.id, opponent.id, new Date(base + 2000));
+
+    const stats = await getSeasonStats(player.id);
+    expect(stats?.totalWins).toBe(1);
+    expect(stats?.totalLosses).toBe(1);
+    expect(stats?.bestWinStreak).toBe(1);
+  });
+
+  it("returns null when no season is active", async () => {
+    const player = await createTestUser();
+    expect(await getSeasonStats(player.id)).toBeNull();
   });
 });
 
