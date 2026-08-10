@@ -5,6 +5,8 @@ import {
   adminOverrideMatchResult,
   applyEloAndConfirm,
   cancelMatch,
+  getLatestMatchForUser,
+  getUnresolvedMatchForUser,
   hasOpponentEngaged,
   leaveMatch,
   requestMutualCancel,
@@ -15,6 +17,7 @@ import {
 } from "@/lib/matches";
 import { reportGameResult } from "@/lib/match-games";
 import { blockUser } from "@/lib/blocks";
+import { fileConnectionReport } from "@/lib/reports";
 import { endActiveSeasonAndStartNext } from "@/lib/seasons";
 import { CANCEL_SUSPEND_MIN_CANCELS } from "@/lib/account";
 import { ConfirmationMethod, LobbyEntryStatus, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
@@ -42,6 +45,35 @@ async function createConfirmedMatch(winnerId: string, loserId: string) {
   );
   return prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
 }
+
+describe("getUnresolvedMatchForUser / getLatestMatchForUser connectionReports", () => {
+  it("includes the current user's own connection report but not the opponent's", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: a.id, player2Id: b.id, status: "PENDING_REPORT", expiresAt: new Date() },
+    });
+
+    await fileConnectionReport(a.id, match.id);
+
+    const forReporter = await getUnresolvedMatchForUser(a.id);
+    expect(forReporter?.connectionReports).toHaveLength(1);
+
+    const forOpponent = await getUnresolvedMatchForUser(b.id);
+    expect(forOpponent?.connectionReports).toHaveLength(0);
+  });
+
+  it("returns an empty connectionReports array when nobody has reported", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+    await prisma.ratingMatch.create({
+      data: { player1Id: a.id, player2Id: b.id, status: "CONFIRMED", expiresAt: new Date() },
+    });
+
+    const result = await getLatestMatchForUser(a.id);
+    expect(result?.connectionReports).toHaveLength(0);
+  });
+});
 
 describe("applyEloAndConfirm", () => {
   it("confirms the match, updates both ratings, and records history", async () => {
