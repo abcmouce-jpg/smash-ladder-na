@@ -1,9 +1,13 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { MapPin, Trophy } from "lucide-react";
+import { Flame, MapPin, Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import { getDailyStats, getPlayerMatchHistory } from "@/lib/players";
+import {
+  getCurrentStreak,
+  getDailyStats,
+  getPlayerMatchHistory,
+} from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { RankBadge } from "@/components/rank-badge";
 import { CharacterIcon } from "@/components/character-icon";
@@ -70,7 +74,7 @@ export default async function StreamOverlayPage({
         })) + 1
       : null;
 
-  const [recentMatchesRaw, currentMatch, dailyStats] = await Promise.all([
+  const [recentMatchesRaw, currentMatch, dailyStats, streak] = await Promise.all([
     getPlayerMatchHistory(user.id, { limit: 5 }),
     prisma.ratingMatch.findFirst({
       where: {
@@ -88,6 +92,7 @@ export default async function StreamOverlayPage({
       },
     }),
     getDailyStats(user.id),
+    getCurrentStreak(user.id),
   ]);
   // Practice matches now show up in getPlayerMatchHistory (labeled, on the
   // profile page) but there's no room for that label in this compact
@@ -281,9 +286,17 @@ export default async function StreamOverlayPage({
           style={{ top: "calc(2.5rem + 96px)" }}
         >
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
-            <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {lang === "es" ? "Partidas recientes" : "Recent matches"}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
+                {lang === "es" ? "Partidas recientes" : "Recent matches"}
+              </span>
+              {streak > 0 && (
+                <span className="flex items-center gap-1 text-base font-semibold tabular-nums text-orange-400">
+                  <Flame className="size-4 fill-orange-400" />
+                  {streak}
+                </span>
+              )}
+            </div>
             <div className="mt-3 flex flex-col gap-2">
               {recentMatches.length === 0 ? (
                 <span className="text-lg text-white/40">
@@ -296,17 +309,17 @@ export default async function StreamOverlayPage({
                     className="flex items-center gap-4 text-xl"
                   >
                     <span
-                      className={`w-6 text-center text-base font-bold ${
+                      className={`w-6 shrink-0 text-center text-base font-bold ${
                         match.won ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
                       {match.won ? (lang === "es" ? "V" : "W") : (lang === "es" ? "D" : "L")}
                     </span>
-                    <span className="text-white/80">
+                    <span className="min-w-0 max-w-48 truncate text-white/80">
                       {match.opponent.username}
                     </span>
                     <span
-                      className={`ml-auto tabular-nums text-base font-semibold ${
+                      className={`ml-auto shrink-0 tabular-nums text-base font-semibold ${
                         match.delta >= 0 ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
