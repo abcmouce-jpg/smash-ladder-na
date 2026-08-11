@@ -127,6 +127,13 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/*
+  Sonner toast description text color is set to muted-foreground to ensure it is readable in both light and dark modes.
+*/
+[data-sonner-toast] [data-description] {
+  color: var(--muted-foreground) !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

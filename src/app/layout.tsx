@@ -9,6 +9,7 @@ import { RegionSetupBanner } from "@/components/region-setup-banner";
 import { PreSeasonBanner } from "@/components/pre-season-banner";
 import { ThemeSync } from "@/components/theme-sync";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -110,6 +111,7 @@ export default async function RootLayout({
         {children}
         {!isStreamOverlay && <SiteFooter />}
         {!isStreamOverlay && <Analytics />}
+        {!isStreamOverlay && <Toaster />}
       </body>
     </html>
   );
