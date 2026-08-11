@@ -18,7 +18,7 @@ export default async function RulesPage() {
   const lang = await getLang();
   if (lang === "es") return <RulesPageEs />;
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Rules</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Covers ranked play. Free battle and start.gg tournaments are separate — see the notes at
@@ -248,7 +248,7 @@ function RulesPageEs() {
   });
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Reglas</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Cubre el juego rankeado. Free battle y los torneos de start.gg son aparte — ver las notas

@@ -45,7 +45,7 @@ export default async function SetsFeedPage() {
   const liveEntries = entries.filter((e) => e.hasLiveStreamer);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <SetsFeedPoller />
       <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Partidas" : "Sets"}</h1>
       <p className="mt-1 text-sm text-muted-foreground">

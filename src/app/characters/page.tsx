@@ -84,7 +84,7 @@ export default async function CharactersPage({
   // No sort param keeps the roster order SMASH_CHARACTERS already provides.
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Swords className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">
