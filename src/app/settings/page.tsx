@@ -431,8 +431,8 @@ function AudioPingOnMatchForm({ defaultValue, lang }: { defaultValue: boolean; l
           {lang === "es" ? "Sonido al ser emparejado" : "Audio ping when matched"}
           <span className="block text-xs font-normal text-muted-foreground">
             {lang === "es"
-              ? "Reproduce un tono corto en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
-              : "Plays a short chime on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
+              ? "Reproduce un anuncio de voz en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
+              : "Plays an announcer voice clip on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
           </span>
         </span>
       </label>
