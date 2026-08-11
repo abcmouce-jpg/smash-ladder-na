@@ -462,11 +462,6 @@ function AudioPingOnMatchForm({
       <div className="flex items-center justify-between gap-2 pl-6">
         <span className="text-sm">
           {lang === "es" ? "Sonido" : "Sound"}
-          <span className="block text-xs font-normal text-muted-foreground">
-            {lang === "es"
-              ? "El tono original, o el anuncio de voz."
-              : "The original chime, or the announcer voice clip."}
-          </span>
         </span>
         <MatchFoundSoundPicker key={defaultSound} defaultValue={defaultSound} lang={lang} />
       </div>
