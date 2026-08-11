@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { playMatchFoundSound } from "@/lib/sound";
+import { playMatchFoundSound, type MatchFoundSound } from "@/lib/sound";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -11,6 +11,7 @@ export function LobbyPoller({
   matched,
   keepPollingInBackground = false,
   audioPingOnMatch = true,
+  matchFoundSound = "CHIME",
 }: {
   matched: boolean;
   // While still waiting in queue, a background/minimized tab needs to keep
@@ -26,6 +27,9 @@ export function LobbyPoller({
   // Settings toggle (default on, matching the chime's original always-on
   // behavior before this existed) — see setAudioPingOnMatch.
   audioPingOnMatch?: boolean;
+  matchFoundSound?: MatchFoundSound;
+  // Which sound the ping plays when on — see User.matchFoundSound. Defaults
+  // to the original chime (CHIME).
 }) {
   const router = useRouter();
   const wasMatched = useRef(matched);
@@ -57,21 +61,21 @@ export function LobbyPoller({
       toast.success("Opponent found!", { description: "Get ready — your match is starting." });
       if (audioPingOnMatch) {
         if (document.visibilityState === "hidden") missedChimeWhileHidden.current = true;
-        else playMatchFoundSound();
+        else playMatchFoundSound(matchFoundSound);
       }
     }
     wasMatched.current = matched;
-  }, [matched, audioPingOnMatch]);
+  }, [matched, audioPingOnMatch, matchFoundSound]);
 
   useEffect(() => {
     function onVisibilityChange() {
       if (document.visibilityState !== "visible" || !missedChimeWhileHidden.current) return;
       missedChimeWhileHidden.current = false;
-      if (audioPingOnMatch) playMatchFoundSound();
+      if (audioPingOnMatch) playMatchFoundSound(matchFoundSound);
     }
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [audioPingOnMatch]);
+  }, [audioPingOnMatch, matchFoundSound]);
 
   return null;
 }

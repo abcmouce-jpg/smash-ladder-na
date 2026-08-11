@@ -55,6 +55,7 @@ import { RoomCodeForm } from "@/components/room-code-form";
 import { FlashOnChange } from "@/components/flash-on-change";
 import { Countdown } from "@/components/countdown";
 import { LobbyPoller } from "@/components/lobby-poller";
+import { type MatchFoundSound } from "@/lib/sound";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
 import { CancelOrSurrenderButton } from "@/components/cancel-or-surrender-button";
@@ -134,10 +135,11 @@ export default async function LobbyPage() {
   const entry = await getActiveLobbyEntry(session.user.id);
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { queueCooldownUntil: true, audioPingOnMatch: true },
+    select: { queueCooldownUntil: true, audioPingOnMatch: true, matchFoundSound: true },
   });
   const queueCooldownUntil = me?.queueCooldownUntil?.toISOString() ?? null;
   const audioPingOnMatch = me?.audioPingOnMatch ?? true;
+  const matchFoundSound = me?.matchFoundSound ?? "CHIME";
   const isInActiveMatch =
     entry?.status === "PAIRED" &&
     entry.match &&
@@ -178,6 +180,7 @@ export default async function LobbyPage() {
           hasLeftMatch: !!myLeftAt,
         })}
         audioPingOnMatch={audioPingOnMatch}
+        matchFoundSound={matchFoundSound}
         lang={lang}
       />
 
@@ -284,6 +287,7 @@ function ActivityLine({
   isWaiting,
   poll,
   audioPingOnMatch = true,
+  matchFoundSound = "CHIME",
   lang,
 }: {
   waiting: number;
@@ -292,6 +296,7 @@ function ActivityLine({
   isWaiting: boolean;
   poll: boolean;
   audioPingOnMatch?: boolean;
+  matchFoundSound?: MatchFoundSound;
   lang: Lang;
 }) {
   return (
@@ -325,6 +330,7 @@ function ActivityLine({
           matched={matched}
           keepPollingInBackground={isWaiting}
           audioPingOnMatch={audioPingOnMatch}
+          matchFoundSound={matchFoundSound}
         />
       )}
     </div>

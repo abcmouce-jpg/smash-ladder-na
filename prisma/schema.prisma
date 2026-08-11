@@ -113,6 +113,11 @@ enum PostStatus {
   EXPIRED
 }
 
+enum MatchFoundSound {
+  CHIME // the original synthesized two-note chime (playMatchFoundChime in lib/sound.ts)
+  ANNOUNCER // the Smash announcer voice clips (the match-found sound as of PR #94)
+}
+
 // One-directional: A blocking B doesn't imply B blocked A. Matchmaking treats
 // a block as mutual either way (neither side should get paired with someone
 // who blocked them, whether or not they know about it), but only the blocker
@@ -161,7 +166,8 @@ model User {
   practiceGamesPlayed     Int     @default(0)
   avoidPracticeOpponents  Boolean @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
   zenMode                Boolean @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
-  audioPingOnMatch        Boolean @default(true) // self-declared; LobbyPoller's playMatchFoundChime (lib/sound.ts) only fires while this is on. Defaults true — matches the chime's original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
+  audioPingOnMatch        Boolean @default(true) // self-declared master switch; LobbyPoller's playMatchFoundSound (lib/sound.ts) only fires while this is on. Defaults true — matches the original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
+  matchFoundSound         MatchFoundSound @default(CHIME) // which sound the ping above plays: the original synthesized chime or the announcer voice clips. Defaults CHIME — the original match-found sound before PR #94 replaced it with announcer clips.
   startggUserId        String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
   startggPlayerId      String? // start.gg's player id (currentUser.player.id) — distinct from the user id above; supermajor.gg profile links (?id=S...) key off this one
   startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
