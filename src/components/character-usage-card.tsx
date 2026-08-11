@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
 import { Badge } from "@/components/ui/badge";
+import { formatUsagePercent } from "@/lib/character-usage-display";
 import type { CharacterUsage } from "@/lib/players";
 
 function winRateVariant(winRate: number): "success" | "warning" | "destructive" {
@@ -55,8 +56,8 @@ export function CharacterUsageCard({
             <div className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
               <div>
                 {lang === "es"
-                  ? `${u.usagePercent}% · ${u.games} ${u.games === 1 ? "partida" : "partidas"}`
-                  : `${u.usagePercent}% · ${u.games} game${u.games === 1 ? "" : "s"}`}
+                  ? `${formatUsagePercent(u.usagePercent)} · ${u.games} ${u.games === 1 ? "partida" : "partidas"}`
+                  : `${formatUsagePercent(u.usagePercent)} · ${u.games} game${u.games === 1 ? "" : "s"}`}
               </div>
               <div className="mt-0.5 flex items-center justify-end gap-1">
                 <span>

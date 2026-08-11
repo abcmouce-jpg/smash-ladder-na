@@ -1,7 +1,7 @@
 import { MoreHorizontal } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { groupCharacterUsageForDisplay } from "@/lib/character-usage-display";
+import { formatUsagePercent, groupCharacterUsageForDisplay } from "@/lib/character-usage-display";
 import type { CharacterUsage } from "@/lib/players";
 
 // Compact character-usage summary for contexts where every icon is real
@@ -35,7 +35,7 @@ export function CharacterUsageIcons({ usage }: { usage: CharacterUsage[] }) {
                 <li key={u.character} className="flex items-center gap-1.5">
                   <CharacterIcon name={u.character} size={14} />
                   <span>
-                    {u.character} · {u.usagePercent}%
+                    {u.character} · {formatUsagePercent(u.usagePercent)}
                   </span>
                 </li>
               ))}
