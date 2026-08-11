@@ -68,3 +68,58 @@ export async function sendDiscordWebhookMessage(webhookUrl: string, content: str
     // Best-effort, same reasoning as sendDiscordDM.
   }
 }
+
+// Same as sendDiscordWebhookMessage but with a rich embed (used for tier-up
+// announcements, which attach the player's rank card image) — a plain
+// content string can't render an image inline the way an embed can.
+export async function sendDiscordWebhookEmbed(
+  webhookUrl: string,
+  content: string,
+  embed: { title: string; url?: string; color: number; imageUrl: string },
+) {
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: content.slice(0, 1900),
+        embeds: [
+          {
+            title: embed.title,
+            url: embed.url,
+            color: embed.color,
+            image: { url: embed.imageUrl },
+          },
+        ],
+      }),
+    });
+  } catch {
+    // Best-effort, same reasoning as sendDiscordDM.
+  }
+}
+
+// Idempotent: safe to call even if the member already has exactly this
+// role, or no role at all to remove. Both requests are fired regardless of
+// whether either one 404s (e.g. the member left the server, or never had
+// the old role) — best-effort, same reasoning as sendDiscordDM.
+export async function syncDiscordGuildMemberRole(
+  guildId: string,
+  discordId: string,
+  addRoleId: string | null,
+  removeRoleId: string | null,
+) {
+  try {
+    if (removeRoleId && removeRoleId !== addRoleId) {
+      await discordRequest(`/guilds/${guildId}/members/${discordId}/roles/${removeRoleId}`, {
+        method: "DELETE",
+      });
+    }
+    if (addRoleId) {
+      await discordRequest(`/guilds/${guildId}/members/${discordId}/roles/${addRoleId}`, {
+        method: "PUT",
+      });
+    }
+  } catch {
+    // Best-effort, same reasoning as sendDiscordDM.
+  }
+}

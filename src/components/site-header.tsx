@@ -4,9 +4,11 @@ import {
   AlertTriangle,
   CalendarClock,
   ChevronDown,
+  Coffee,
   Flag,
   Gamepad2,
   Gauge,
+  Languages,
   LogOut,
   Radio,
   Search,
@@ -19,6 +21,8 @@ import {
 import { auth, signIn, signOut, primaryProviderId } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DiscordIcon } from "@/components/discord-icon";
+import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang, setLangAction } from "@/lib/i18n";
 import {
   DropdownMenu,
@@ -35,7 +39,7 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-      <div className="mx-auto max-w-2xl px-6 py-3">
+      <div className="mx-auto max-w-3xl px-6 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <Link
@@ -59,78 +63,101 @@ export async function SiteHeader() {
               />
               Smash Ladder <span className="text-primary">NA</span>
             </Link>
-            <form action={setLangAction.bind(null, lang === "es" ? "en" : "es")}>
-              <button
-                type="submit"
-                className="cursor-pointer text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                {lang === "es" ? "English" : "Español"}
-              </button>
-            </form>
           </div>
 
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="group flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:bg-muted data-[state=open]:text-foreground">
-                {user.image && (
-                  <Image
-                    src={user.image}
-                    alt={user.name ?? "avatar"}
-                    width={24}
-                    height={24}
-                    className="shrink-0 rounded-full"
-                  />
-                )}
-                <span className="min-w-0 truncate">{user.name}</span>
-                <ChevronDown className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem asChild>
-                  <Link href={`/players/${user.id}`} prefetch={false}>
-                    <UserRound className="size-3.5" />
-                    {lang === "es" ? "Ver perfil" : "View profile"}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" prefetch={false}>
-                    <Settings className="size-3.5" />
-                    {lang === "es" ? "Ajustes" : "Settings"}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <ThemeToggle />
-                <DropdownMenuSeparator />
-                <form
-                  action={async () => {
-                    "use server";
-                    await signOut();
-                  }}
-                >
-                  <DropdownMenuItem asChild>
-                    <button type="submit">
-                      <LogOut className="size-3.5" />
-                      {lang === "es" ? "Cerrar sesión" : "Sign out"}
-                    </button>
-                  </DropdownMenuItem>
-                </form>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <form
-              action={async () => {
-                "use server";
-                // Land on Lobby specifically, not wherever the sign-in button
-                // happened to be clicked — that's where the region prompt is,
-                // and a large fraction of sign-ups otherwise never set one
-                // (silently blocking themselves from ever queueing).
-                await signIn(primaryProviderId, { redirectTo: "/lobby" });
-              }}
+          <div className="flex shrink-0 items-center gap-4">
+            <a
+              href={DISCORD_SERVER_URL}
+              target="_blank"
+              rel="noreferrer"
+              title="Discord"
+              className="text-muted-foreground hover:text-foreground"
             >
-              <Button type="submit" size="sm">
-                {lang === "es" ? "Iniciar sesión" : "Sign in"}
-              </Button>
-            </form>
-          )}
+              <DiscordIcon className="size-4" />
+            </a>
+            <Link
+              href="/supporters"
+              prefetch={false}
+              title={lang === "es" ? "Apóyanos" : "Support us"}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Coffee className="size-4" />
+            </Link>
+
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="group flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:bg-muted data-[state=open]:text-foreground">
+                  {user.image && (
+                    <Image
+                      src={user.image}
+                      alt={user.name ?? "avatar"}
+                      width={24}
+                      height={24}
+                      className="shrink-0 rounded-full"
+                    />
+                  )}
+                  <span className="min-w-0 truncate">{user.name}</span>
+                  <ChevronDown className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/players/${user.id}`} prefetch={false}>
+                      <UserRound className="size-3.5" />
+                      {lang === "es" ? "Ver perfil" : "View profile"}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" prefetch={false}>
+                      <Settings className="size-3.5" />
+                      {lang === "es" ? "Ajustes" : "Settings"}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <ThemeToggle />
+                  <form
+                    action={setLangAction.bind(null, lang === "es" ? "en" : "es")}
+                  >
+                    <button
+                      type="submit"
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none hover:bg-muted hover:text-foreground"
+                    >
+                      <Languages className="size-3.5" />
+                      {lang === "es" ? "English" : "Español"}
+                    </button>
+                  </form>
+                  <DropdownMenuSeparator />
+                  <form
+                    action={async () => {
+                      "use server";
+                      await signOut();
+                    }}
+                  >
+                    <DropdownMenuItem asChild>
+                      <button type="submit">
+                        <LogOut className="size-3.5" />
+                        {lang === "es" ? "Cerrar sesión" : "Sign out"}
+                      </button>
+                    </DropdownMenuItem>
+                  </form>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <form
+                action={async () => {
+                  "use server";
+                  // Land on Lobby specifically, not wherever the sign-in button
+                  // happened to be clicked — that's where the region prompt is,
+                  // and a large fraction of sign-ups otherwise never set one
+                  // (silently blocking themselves from ever queueing).
+                  await signIn(primaryProviderId, { redirectTo: "/lobby" });
+                }}
+              >
+                <Button type="submit" size="sm">
+                  {lang === "es" ? "Iniciar sesión" : "Sign in"}
+                </Button>
+              </form>
+            )}
+          </div>
         </div>
 
         <div className="relative mt-3">

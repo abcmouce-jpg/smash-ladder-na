@@ -1,18 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Activity, Swords, Trophy, Users } from "lucide-react";
+import { Activity, Coffee, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
-import { getPublicStats } from "@/lib/public-stats";
+import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
+import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { getTopRecruiters } from "@/lib/referrals";
 
 export const metadata: Metadata = {
   alternates: { languages: { "es-MX": "/es" } },
@@ -22,7 +24,7 @@ export default async function Home() {
   const session = await auth();
   const user = session?.user;
 
-  const [me, stats, lang] = await Promise.all([
+  const [me, stats, lang, topRecruiters, matchTimestamps] = await Promise.all([
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
@@ -31,10 +33,12 @@ export default async function Home() {
       : null,
     getPublicStats(),
     getLang(),
+    getTopRecruiters(3),
+    getMatchesPerDay(30),
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-20">
+    <main className="mx-auto w-full max-w-3xl px-6 py-20">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="border-primary/30 text-primary">
           {lang === "es" ? "Norteamérica" : "North America"}
@@ -151,6 +155,52 @@ export default async function Home() {
         </div>
       )}
 
+      <div className="mt-10">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {lang === "es" ? "Partidas por día" : "Matches per day"}
+        </h2>
+        <Card className="mt-3">
+          <CardContent className="pt-4">
+            <MatchesPerDayChart timestamps={matchTimestamps} lang={lang} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {topRecruiters.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {lang === "es" ? "Los que más invitan" : "Top recruiters"}
+          </h2>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {topRecruiters.map((r) => (
+              <Link key={r.id} href={`/players/${r.id}`}>
+                <Card className="h-full py-0 transition-colors hover:border-foreground/30">
+                  <CardContent className="flex items-center gap-3 py-3">
+                    {r.avatarUrl && (
+                      <Image
+                        src={r.avatarUrl}
+                        alt={r.username}
+                        width={32}
+                        height={32}
+                        className="shrink-0 rounded-full"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{r.username}</p>
+                      <p className="text-xs tabular-nums text-muted-foreground">
+                        {lang === "es"
+                          ? `${r.count} ${r.count === 1 ? "jugador invitado" : "jugadores invitados"}`
+                          : `${r.count} ${r.count === 1 ? "player" : "players"} invited`}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link href="/lobby">
           <Card className="h-full transition-colors hover:border-foreground/30">
@@ -192,6 +242,19 @@ export default async function Home() {
             </CardHeader>
           </Card>
         </a>
+        <Link href="/supporters" className="h-full">
+          <Card className="h-full transition-colors hover:border-foreground/30">
+            <CardHeader>
+              <Coffee className="size-5 text-muted-foreground" />
+              <CardTitle className="text-base">{lang === "es" ? "Colaboradores" : "Supporters"}</CardTitle>
+              <CardDescription>
+                {lang === "es"
+                  ? "Ayuda a cubrir el hosting — totalmente opcional."
+                  : "Help cover hosting costs — entirely optional."}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
       </div>
     </main>
   );

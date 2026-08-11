@@ -11,6 +11,7 @@ import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 
 // Used as `include`, which already returns every scalar column (leftAt,
 // rematchRequestedAt, etc.) by default — no need to list them here, and
@@ -31,7 +32,10 @@ export async function getUnresolvedMatchForUser(userId: string) {
       status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
     },
     orderBy: { createdAt: "desc" },
-    include: matchWithPlayers,
+    include: {
+      ...matchWithPlayers,
+      connectionReports: { where: { reporterId: userId }, select: { id: true } },
+    },
   });
 }
 
@@ -39,7 +43,10 @@ export async function getLatestMatchForUser(userId: string) {
   return prisma.ratingMatch.findFirst({
     where: { OR: [{ player1Id: userId }, { player2Id: userId }] },
     orderBy: { createdAt: "desc" },
-    include: matchWithPlayers,
+    include: {
+      ...matchWithPlayers,
+      connectionReports: { where: { reporterId: userId }, select: { id: true } },
+    },
   });
 }
 
@@ -384,15 +391,16 @@ export async function applyEloAndConfirm(
   confirmationMethod: ConfirmationMethod,
   secondReport: { winnerId: string; reporterId: string } | null,
 ) {
-  const [p1, p2, season, matchRow] = await Promise.all([
-    tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
-    tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
-    tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } }),
-    tx.ratingMatch.findUniqueOrThrow({
-      where: { id: match.id },
-      select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true },
-    }),
-  ]);
+  // Sequential, not Promise.all: tx pins these to a single reserved
+  // connection, so concurrent queries on it just queue behind each other
+  // anyway — and pg deprecated overlapping query() calls on one client.
+  const p1 = await tx.user.findUniqueOrThrow({ where: { id: match.player1Id } });
+  const p2 = await tx.user.findUniqueOrThrow({ where: { id: match.player2Id } });
+  const season = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  const matchRow = await tx.ratingMatch.findUniqueOrThrow({
+    where: { id: match.id },
+    select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true },
+  });
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
   const seasonId = season?.id ?? (await tx.season.create({ data: { name: "Season 1" } })).id;
@@ -470,6 +478,20 @@ export async function applyEloAndConfirm(
   // is a correct no-op on a practice-only confirm).
   await recomputeCharacterUsage(p1.id, tx);
   await recomputeCharacterUsage(p2.id, tx);
+
+  // Discord tier-role sync + rank-up announcement — real network calls, so
+  // deferred via after() to run once this transaction has actually
+  // committed, never awaited inline here. Practicing sides are skipped:
+  // practiceRating/practiceGamesPlayed never move the tier shown anywhere
+  // (see the practice-rating comment above), so there's nothing to sync.
+  // computeTierChange itself is pure/cheap — fine to call before the
+  // transaction has committed, only the Discord side needs to wait.
+  if (!matchRow.player1IsPracticing) {
+    deferTierChange(computeTierChange(p1.id, p1.discordId, p1.username, match.id, p1Rating, p1After, p1Games));
+  }
+  if (!matchRow.player2IsPracticing) {
+    deferTierChange(computeTierChange(p2.id, p2.discordId, p2.username, match.id, p2Rating, p2After, p2Games));
+  }
 }
 
 // Only reachable while `match` is still each player's most recent CONFIRMED
@@ -489,10 +511,8 @@ export async function applyCorrection(
   },
   winnerId: string,
 ) {
-  const [p1, p2] = await Promise.all([
-    tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
-    tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
-  ]);
+  const p1 = await tx.user.findUniqueOrThrow({ where: { id: match.player1Id } });
+  const p2 = await tx.user.findUniqueOrThrow({ where: { id: match.player2Id } });
   // gamesPlayed already carries this match's own +1 from the original
   // confirmation — subtract it back out to match the kFactor tier the
   // original calculation used.
@@ -553,22 +573,20 @@ export async function isMostRecentConfirmedMatch(
   match: { id: string; player1Id: string; player2Id: string; confirmedAt: Date | null; seasonId: string | null },
 ) {
   if (!match.confirmedAt) return false;
-  const [newer, activeSeason] = await Promise.all([
-    tx.ratingMatch.findFirst({
-      where: {
-        id: { not: match.id },
-        status: MatchStatus.CONFIRMED,
-        confirmedAt: { gt: match.confirmedAt },
-        OR: [
-          { player1Id: match.player1Id },
-          { player2Id: match.player1Id },
-          { player1Id: match.player2Id },
-          { player2Id: match.player2Id },
-        ],
-      },
-    }),
-    tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } }),
-  ]);
+  const newer = await tx.ratingMatch.findFirst({
+    where: {
+      id: { not: match.id },
+      status: MatchStatus.CONFIRMED,
+      confirmedAt: { gt: match.confirmedAt },
+      OR: [
+        { player1Id: match.player1Id },
+        { player2Id: match.player1Id },
+        { player1Id: match.player2Id },
+        { player2Id: match.player2Id },
+      ],
+    },
+  });
+  const activeSeason = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
   return newer === null && match.seasonId !== null && match.seasonId === activeSeason?.id;
 }
 

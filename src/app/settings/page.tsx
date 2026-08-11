@@ -5,9 +5,12 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { OverlayUrlToggle } from "@/components/overlay-url-toggle";
+import { CopyButton } from "@/components/copy-button";
+import { PushNotificationsForm } from "@/components/push-notifications-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { UsernameForm } from "@/components/username-form";
+import { referralLink, getReferralCount } from "@/lib/referrals";
 import { listBlockedUsers } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
@@ -34,7 +37,7 @@ export default async function SettingsPage({
 
   if (!session?.user?.id) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
           {lang === "es"
@@ -45,7 +48,7 @@ export default async function SettingsPage({
     );
   }
 
-  const [me, blocked] = await Promise.all([
+  const [me, blocked, referralCount] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -60,13 +63,15 @@ export default async function SettingsPage({
         arenaPassword: true,
         avoidPracticeOpponents: true,
         audioPingOnMatch: true,
+        _count: { select: { pushSubscriptions: true } },
       },
     }),
     listBlockedUsers(session.user.id),
+    getReferralCount(session.user.id),
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <PageTitle lang={lang} />
 
       <Card className="mt-8">
@@ -87,6 +92,12 @@ export default async function SettingsPage({
             error={twitchError}
             lang={lang}
           />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <InviteLinkCard userId={session.user.id} referralCount={referralCount} lang={lang} />
         </CardContent>
       </Card>
 
@@ -120,6 +131,15 @@ export default async function SettingsPage({
       <Card className="mt-4">
         <CardContent className="pt-4">
           <AudioPingOnMatchForm defaultValue={me?.audioPingOnMatch ?? true} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <PushNotificationsForm
+            defaultEnabled={(me?._count.pushSubscriptions ?? 0) > 0}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 
@@ -166,6 +186,40 @@ export default async function SettingsPage({
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function InviteLinkCard({
+  userId,
+  referralCount,
+  lang,
+}: {
+  userId: string;
+  referralCount: number;
+  lang: Lang;
+}) {
+  const link = referralLink(userId);
+
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <p className="font-medium">{lang === "es" ? "Invita a un amigo" : "Invite a friend"}</p>
+      <p className="text-xs text-muted-foreground">
+        {lang === "es"
+          ? "Comparte este enlace — cuando alguien se registre a través de él, contará como tu invitación."
+          : "Share this link — anyone who signs up through it counts as your invite."}
+      </p>
+      <div className="mt-3 flex items-center gap-2">
+        <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
+          {link}
+        </code>
+        <CopyButton text={link} />
+      </div>
+      <p className="mt-2 text-xs tabular-nums text-muted-foreground">
+        {lang === "es"
+          ? `${referralCount} ${referralCount === 1 ? "persona invitada ha" : "personas invitadas han"} empezado a jugar.`
+          : `${referralCount} ${referralCount === 1 ? "person you invited has" : "people you invited have"} started playing.`}
+      </p>
+    </div>
   );
 }
 

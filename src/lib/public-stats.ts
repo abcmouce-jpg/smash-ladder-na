@@ -36,3 +36,24 @@ export async function getPublicStats() {
 
   return { totalPlayers, matchesToday, topPlayers, playingNow };
 }
+
+// Raw confirmedAt timestamps for the home page's matches-per-day chart —
+// bucketing into "per day" happens in MatchesPerDayChart, not here, because
+// day boundaries depend on the visitor's timezone and only the browser knows
+// that. The extra day of margin keeps the 30 viewer-local days the chart
+// renders complete for any timezone: the earliest instant of the 30th local
+// day back can sit up to ~24h before "now minus 30 UTC days" (e.g. a UTC+14
+// visitor at local midnight), so a plain 30-day cutoff would silently drop
+// matches from the oldest displayed day. The client discards anything outside
+// its window.
+export async function getMatchesPerDay(days = 30) {
+  const since = new Date(Date.now() - (days + 1) * 24 * 60 * 60 * 1000);
+  const matches = await prisma.ratingMatch.findMany({
+    where: { status: MatchStatus.CONFIRMED, confirmedAt: { gte: since } },
+    select: { confirmedAt: true },
+    orderBy: { confirmedAt: "asc" },
+  });
+  return matches
+    .filter((m): m is { confirmedAt: Date } => m.confirmedAt !== null)
+    .map((m) => m.confirmedAt.toISOString());
+}

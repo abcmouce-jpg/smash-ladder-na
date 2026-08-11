@@ -7,7 +7,7 @@ export default async function TermsPage() {
 
   if (lang === "es") {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Términos de servicio</h1>
         <p className="mt-1 text-sm text-muted-foreground">Última actualización: 2026-07-19.</p>
 
@@ -120,7 +120,7 @@ export default async function TermsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Terms of Service</h1>
       <p className="mt-1 text-sm text-muted-foreground">Last updated 2026-07-19.</p>
 

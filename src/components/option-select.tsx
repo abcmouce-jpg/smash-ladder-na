@@ -116,20 +116,8 @@ export function OptionSelect({
 
   return (
     <div ref={containerRef} className={`relative ${className ?? ""}`}>
-      {/* Hidden native select for form integration */}
-      <select
-        name={name}
-        value={value}
-        onChange={() => {}} // value only ever changes via select() below; this just quiets React's controlled-without-onChange warning
-        className="hidden"
-        tabIndex={-1}
-        aria-hidden
-      >
-        <option value="" />
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value} />
-        ))}
-      </select>
+      {/* Hidden field for form integration */}
+      <input type="hidden" name={name} value={value} />
 
       <button
         type="button"

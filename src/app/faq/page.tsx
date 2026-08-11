@@ -27,7 +27,7 @@ export default async function FaqPage() {
   const lang = await getLang();
   if (lang === "es") return <FaqPageEs />;
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Q&amp;A</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         See also the <a href="/rules" className="underline">Rules page</a> for the actual match
@@ -176,7 +176,7 @@ export default async function FaqPage() {
 
 function FaqPageEs() {
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Preguntas</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Consulta también la{" "}

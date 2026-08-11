@@ -18,8 +18,23 @@ let sharedCtx: AudioContext | null = null;
 
 function getContext(): AudioContext | null {
   try {
-    if (!sharedCtx) sharedCtx = new AudioContext();
-    if (sharedCtx.state === "suspended") void sharedCtx.resume();
+    if (!sharedCtx) {
+      // Older iOS Safari (<14.5) only exposes the prefixed constructor —
+      // without it, mobile silently gets no chime at all.
+      const Ctor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return null;
+      sharedCtx = new Ctor();
+    }
+    if (sharedCtx.state === "suspended") {
+      // resume() outside a user gesture rejects on iOS (and can reject on
+      // Android after the tab was backgrounded) — the rejection must never
+      // surface as an unhandled promise error. The attempt itself is still
+      // worth making: on desktop and Android Chrome it often succeeds, which
+      // is how a previously-unlocked context keeps working across refreshes.
+      sharedCtx.resume().catch(() => {});
+    }
     return sharedCtx;
   } catch {
     return null;
@@ -52,6 +67,14 @@ if (typeof window !== "undefined") {
   ["pointerdown", "keydown", "touchstart"].forEach((event) =>
     window.addEventListener(event, unlock, { once: true, passive: true }),
   );
+  // Browsers suspend audio output for hidden tabs; on return the context can
+  // still be suspended. Retry the resume when the tab becomes visible again
+  // (same gesture-less attempt as above — it's a best-effort recovery, and
+  // where the platform allows it, this is exactly when a missed match-found
+  // chime gets replayed by LobbyPoller).
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") getContext();
+  });
 }
 
 function playTone(

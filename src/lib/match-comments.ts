@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { translateText } from "@/lib/translate";
+import type { Lang } from "@/lib/i18n";
 
 export async function listMatchComments(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({
@@ -23,14 +24,11 @@ export async function listMatchComments(userId: string, matchId: string) {
     prisma.user.findUnique({ where: { id: userId }, select: { preferredLanguage: true } }),
   ]);
 
-  // Only Spanish-preferring viewers get auto-translation for now — the site
-  // defaults to English, so translating every English message to English for
-  // the common case would just burn AI Gateway budget on no-op calls.
-  if (viewer?.preferredLanguage !== "es") {
-    return comments.map((c) => ({ ...c, translatedBody: null as string | null }));
-  }
+  // preferredLanguage is nullable — null means "never explicitly set", which
+  // getLang() treats as English everywhere else, so match that default here.
+  const viewerLang: Lang = viewer?.preferredLanguage === "es" ? "es" : "en";
 
-  return Promise.all(comments.map((c) => attachTranslation(c, userId, "es")));
+  return Promise.all(comments.map((c) => attachTranslation(c, userId, viewerLang)));
 }
 
 type CommentWithAuthor = Awaited<ReturnType<typeof prisma.matchComment.findMany>>[number] & {
@@ -38,19 +36,28 @@ type CommentWithAuthor = Awaited<ReturnType<typeof prisma.matchComment.findMany>
   translations: { lang: string; body: string }[];
 };
 
-async function attachTranslation(comment: CommentWithAuthor, viewerId: string, targetLang: "es") {
+async function attachTranslation(comment: CommentWithAuthor, viewerId: string, viewerLang: Lang) {
   // Skip your own messages — you know what you wrote.
   if (comment.authorId === viewerId) return { ...comment, translatedBody: null as string | null };
 
-  const cached = comment.translations.find((t) => t.lang === targetLang);
+  // Deliberately not gated on the author's own preferredLanguage setting —
+  // that's just their site UI preference, not what language they actually
+  // typed this message in (two Spanish-speaking players can easily both
+  // have their site language left on the English default while chatting in
+  // Spanish). translateText's prompt already returns the text unchanged
+  // when it's already in viewerLang, and the UI only shows a "translated"
+  // indicator when the result actually differs from the original — so
+  // always attempting translation here is what makes both directions work,
+  // at the cost of one extra no-op API call for same-language pairs.
+  const cached = comment.translations.find((t) => t.lang === viewerLang);
   if (cached) return { ...comment, translatedBody: cached.body };
 
   try {
-    const translated = await translateText(comment.body, targetLang);
+    const translated = await translateText(comment.body, viewerLang);
     // Best-effort cache write — a duplicate from a concurrent request just
     // hits the unique constraint, which is fine to ignore.
     await prisma.matchCommentTranslation
-      .create({ data: { commentId: comment.id, lang: targetLang, body: translated } })
+      .create({ data: { commentId: comment.id, lang: viewerLang, body: translated } })
       .catch(() => {});
     return { ...comment, translatedBody: translated };
   } catch {

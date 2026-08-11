@@ -1,9 +1,13 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { MapPin, Trophy } from "lucide-react";
+import { Flame, MapPin, Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import { getDailyStats, getPlayerMatchHistory } from "@/lib/players";
+import {
+  getCurrentStreak,
+  getDailyStats,
+  getPlayerMatchHistory,
+} from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { RankBadge } from "@/components/rank-badge";
 import { CharacterIcon } from "@/components/character-icon";
@@ -70,7 +74,7 @@ export default async function StreamOverlayPage({
         })) + 1
       : null;
 
-  const [recentMatchesRaw, currentMatch, dailyStats] = await Promise.all([
+  const [recentMatchesRaw, currentMatch, dailyStats, streak] = await Promise.all([
     getPlayerMatchHistory(user.id, { limit: 5 }),
     prisma.ratingMatch.findFirst({
       where: {
@@ -88,6 +92,7 @@ export default async function StreamOverlayPage({
       },
     }),
     getDailyStats(user.id),
+    getCurrentStreak(user.id),
   ]);
   // Practice matches now show up in getPlayerMatchHistory (labeled, on the
   // profile page) but there's no room for that label in this compact
@@ -212,9 +217,14 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
-      {/* Top-center: Current match — scoreboard style */}
+      {/* Top-center: Current match — scoreboard style
+          (inset-x-0 + items-center instead of left-1/2 -translate-x-1/2:
+          Tailwind v4's -translate-x-1/2 compiles to the native `translate`
+          CSS property, which older OBS Browser Source builds (pre-Chromium
+          104) ignore — the scoreboard would sit pinned at left: 50% and
+          look shoved right.) */}
       {currentMatch && (
-        <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-0">
+        <div className="absolute inset-x-0 top-2 flex flex-col items-center gap-0">
           {/* Best of 5 label */}
           <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
             {lang === "es" ? "Mejor de 5" : "Best of 5"}
@@ -281,9 +291,17 @@ export default async function StreamOverlayPage({
           style={{ top: "calc(2.5rem + 96px)" }}
         >
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
-            <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {lang === "es" ? "Partidas recientes" : "Recent matches"}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
+                {lang === "es" ? "Partidas recientes" : "Recent matches"}
+              </span>
+              {streak > 0 && (
+                <span className="flex items-center gap-1 text-base font-semibold tabular-nums text-orange-400">
+                  <Flame className="size-4 fill-orange-400" />
+                  {streak}
+                </span>
+              )}
+            </div>
             <div className="mt-3 flex flex-col gap-2">
               {recentMatches.length === 0 ? (
                 <span className="text-lg text-white/40">
@@ -296,17 +314,17 @@ export default async function StreamOverlayPage({
                     className="flex items-center gap-4 text-xl"
                   >
                     <span
-                      className={`w-6 text-center text-base font-bold ${
+                      className={`w-6 shrink-0 text-center text-base font-bold ${
                         match.won ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
                       {match.won ? (lang === "es" ? "V" : "W") : (lang === "es" ? "D" : "L")}
                     </span>
-                    <span className="text-white/80">
+                    <span className="min-w-0 max-w-48 truncate text-white/80">
                       {match.opponent.username}
                     </span>
                     <span
-                      className={`ml-auto tabular-nums text-base font-semibold ${
+                      className={`ml-auto shrink-0 tabular-nums text-base font-semibold ${
                         match.delta >= 0 ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
@@ -321,8 +339,10 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
-      {/* Bottom-center: Branding */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+      {/* Bottom-center: Branding (same centering approach as the
+          scoreboard above — flexbox, not transform, so old OBS builds
+          keep it centered) */}
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-1">
         <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-2 py-2 shadow-2xl backdrop-blur-sm">
           <Image
             src="/smash_ladder_icon_white.png"

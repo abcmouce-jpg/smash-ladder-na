@@ -175,6 +175,8 @@ model User {
   role                 UserRole   @default(USER)
   isSupporter          Boolean    @default(false) // manually flagged by an admin (see admin/players) — hides AdSense ads for this account. No payment processing wired up yet; this is a bare flag.
   status               UserStatus @default(ACTIVE)
+  referredById         String? // set once, at account creation only (see auth.ts's signIn callback) — who this player's ?ref= link/cookie pointed at when they first signed up. Never touched again afterward.
+  referredBy           User?      @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 
@@ -195,10 +197,13 @@ model User {
   blocksReceived            Block[]            @relation("BlocksReceived")
   connectionReportsFiled    ConnectionReport[] @relation("ConnectionReportsFiled")
   connectionReportsReceived ConnectionReport[] @relation("ConnectionReportsReceived")
+  referrals                 User[]             @relation("Referrals")
+  pushSubscriptions         PushSubscription[]
 
   @@index([rating])
   @@index([mainCharacter])
   @@index([region])
+  @@index([referredById])
 }
 
 model RatingLobbyEntry {
@@ -518,4 +523,41 @@ model FreeBattlePost {
 
   @@index([status, createdAt])
   @@index([authorId])
+}
+
+// Populated by the Ko-fi webhook (src/app/api/webhooks/kofi/route.ts) — one
+// row per donation/subscription-payment event Ko-fi sends us. Displayed on
+// /supporters. kofiTransactionId dedupes Ko-fi's documented at-least-once
+// delivery (they retry on any non-200 response).
+// One browser's web-push subscription (see src/lib/push-server.ts and
+// public/sw.js) — presence of a row for this browser is what the Settings
+// "push notifications when matched" toggle is ON for, so enabling/disabling
+// subscribes/unsubscribes and creates/deletes rows rather than flipping a
+// boolean. endpoint is globally unique because it's the push service's own
+// per-browser handle, which is also what we use to look a row up for removal.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique // the push service's per-browser endpoint (e.g. fcm.googleapis.com, web.push.apple.com)
+  p256dh    String // P-256 public key, base64url — used to encrypt the payload
+  auth      String // auth secret, base64url — used to encrypt the payload
+  userAgent String? // what browser registered it, for debugging stale subscriptions
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model KofiDonation {
+  id                String   @id @default(cuid())
+  kofiTransactionId String   @unique
+  fromName          String
+  message           String?
+  amount            Decimal  @db.Decimal(10, 2)
+  currency          String
+  isPublic          Boolean // Ko-fi lets the donor opt out of appearing on public supporter pages
+  isSubscription    Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([isPublic, createdAt])
 }

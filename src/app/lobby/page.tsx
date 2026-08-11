@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, MapPin, Swords, Users } from "lucide-react";
+import { Check, Loader2, MapPin, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
@@ -30,6 +30,8 @@ import {
   COUNTERPICK_STAGES,
 } from "@/lib/stages";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
+import { referralLink } from "@/lib/referrals";
+import { CopyButton } from "@/components/copy-button";
 import {
   MATCH_DISTANCE_PRESETS,
   MATCH_REGION_GROUPS,
@@ -110,7 +112,7 @@ export default async function LobbyPage() {
 
   if (!session?.user?.id) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <ActivityLine
           waiting={activity.waiting}
@@ -155,12 +157,14 @@ export default async function LobbyPage() {
         : entry.match.player2LeftAt
       : null;
 
-  const showChatPanel = isInActiveMatch || matchJustEnded;
+  // The match + chat panel renders during a live match or after one ends, and
+  // stays open until the player dismisses it by clicking Leave — that panel
+  // needs the wide 5xl container for its side-by-side chat column, while the
+  // rest of the site uses the standard 3xl.
+  const showMatchPanel = !myLeftAt && (isInActiveMatch || matchJustEnded);
 
   return (
-    <main
-      className={`mx-auto px-6 py-16 ${showChatPanel ? "max-w-5xl" : "max-w-2xl"}`}
-    >
+    <main className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}>
       <PageTitle lang={lang} />
       <ActivityLine
         waiting={activity.waiting}
@@ -241,10 +245,23 @@ export default async function LobbyPage() {
               </Button>
             </form>
           </CardContent>
+          <CardContent className="border-t border-border pt-3">
+            <p className="text-xs text-muted-foreground">
+              {lang === "es"
+                ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
+                : "Wait feeling long? Invite a friend to get matched faster."}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
+                {referralLink(session.user.id)}
+              </code>
+              <CopyButton text={referralLink(session.user.id)} />
+            </div>
+          </CardContent>
         </Card>
       )}
 
-      {entry?.status === "PAIRED" && entry.match && (
+      {showMatchPanel && entry?.match && (
         <PairedView userId={session.user.id} match={entry.match} lang={lang} />
       )}
     </main>
@@ -541,6 +558,7 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
 async function PairedView({ userId, match, lang }: { userId: string; match: Match; lang: Lang }) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
   const isPlayer1 = match.player1Id === userId;
+  const alreadyReportedConnection = match.connectionReports.length > 0;
   const myLeftAt = isPlayer1 ? match.player1LeftAt : match.player2LeftAt;
   const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
   const me = await prisma.user.findUnique({
@@ -874,6 +892,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
             opponentName={displayName}
             opponentEngaged={opponentEngaged}
             gameDecided={gameDecided}
+            alreadyReportedConnection={alreadyReportedConnection}
             lang={lang}
           />
         ) : (
@@ -897,6 +916,7 @@ function MatchFooterActions({
   opponentName,
   opponentEngaged,
   gameDecided,
+  alreadyReportedConnection,
   lang,
 }: {
   match: Match;
@@ -904,6 +924,7 @@ function MatchFooterActions({
   opponentName: string;
   opponentEngaged: boolean;
   gameDecided: boolean;
+  alreadyReportedConnection: boolean;
   lang: Lang;
 }) {
   return (
@@ -963,11 +984,18 @@ function MatchFooterActions({
             ? "¿Lag, muchos rollbacks, o desconexión durante esta partida?"
             : "Laggy, rollback-heavy, or disconnected during this match?"}
         </p>
-        <form action={reportConnection.bind(null, match.id)}>
-          <Button type="submit" size="sm" variant="outline">
-            {lang === "es" ? "Reportar conexión" : "Connection Report"}
+        {alreadyReportedConnection ? (
+          <Button size="sm" variant="outline" disabled className="gap-1.5">
+            <Check className="h-3.5 w-3.5" />
+            {lang === "es" ? "Conexión reportada" : "Connection reported"}
           </Button>
-        </form>
+        ) : (
+          <form action={reportConnection.bind(null, match.id)}>
+            <Button type="submit" size="sm" variant="outline">
+              {lang === "es" ? "Reportar conexión" : "Connection Report"}
+            </Button>
+          </form>
+        )}
       </div>
     </CardContent>
   );

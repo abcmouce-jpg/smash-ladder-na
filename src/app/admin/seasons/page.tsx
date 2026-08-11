@@ -13,7 +13,7 @@ export default async function SeasonsAdminPage() {
 
   if (!session?.user?.id || (role !== "MOD" && role !== "ADMIN")) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Seasons</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           You don&apos;t have access to this page.
@@ -25,7 +25,7 @@ export default async function SeasonsAdminPage() {
   const [active, past] = await Promise.all([ensureActiveSeason(), listPastSeasons()]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <CalendarClock className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">Seasons</h1>

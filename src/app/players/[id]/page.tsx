@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { Award, Cable, ExternalLink, MapPin, Swords } from "lucide-react";
+import { Award, Cable, ExternalLink, MapPin, Share2, Swords } from "lucide-react";
 import { auth } from "@/auth";
 import {
   getCareerStats,
@@ -13,6 +13,7 @@ import {
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
+  getSeasonStats,
   getTopRivals,
   getCurrentMatchForUser,
 } from "@/lib/players";
@@ -115,6 +116,7 @@ export default async function PlayerProfilePage({
     totalMatchCount,
     chartPoints,
     careerStats,
+    seasonStats,
     rivals,
     blocked,
     characterUsage,
@@ -134,6 +136,7 @@ export default async function PlayerProfilePage({
     getPlayerMatchCount(id),
     getRatingChartPoints(id),
     getCareerStats(id),
+    getSeasonStats(id),
     getTopRivals(id),
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
     getCharacterUsage(id),
@@ -159,7 +162,7 @@ export default async function PlayerProfilePage({
   const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           {player.avatarUrl && (
@@ -281,13 +284,24 @@ export default async function PlayerProfilePage({
           </div>
         </div>
 
-        {session?.user?.id && !isOwnProfile && (
-          blocked ? (
-            <Badge variant="outline">{lang === "es" ? "Bloqueado" : "Blocked"}</Badge>
-          ) : (
-            <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} lang={lang} />
-          )
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <a
+            href={`/players/${id}/opengraph-image`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            <Share2 className="size-3.5" />
+            {lang === "es" ? "Compartir tarjeta" : "Share rank card"}
+          </a>
+          {session?.user?.id &&
+            !isOwnProfile &&
+            (blocked ? (
+              <Badge variant="outline">{lang === "es" ? "Bloqueado" : "Blocked"}</Badge>
+            ) : (
+              <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} lang={lang} />
+            ))}
+        </div>
       </div>
 
       {inMatch && isLiveOnTwitch && player.twitchUsername && (
@@ -326,13 +340,49 @@ export default async function PlayerProfilePage({
         </Card>
       )}
 
+      {seasonStats && (
+        <Card className="mt-4">
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium">
+              {lang === "es" ? "Temporada actual" : "Current season"}
+              {seasonStats.seasonName && ` · ${seasonStats.seasonName}`}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {lang === "es" ? "Se reinicia al terminar la temporada." : "Resets when the season ends."}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-lg font-semibold tabular-nums">
+                  {seasonStats.totalWins}-{seasonStats.totalLosses}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Récord de temporada" : "Season record"}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.peakRating ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Clasificación máxima de temporada" : "Season peak rating"}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.bestWinStreak}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Mejor racha de temporada" : "Season best win streak"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="mt-4">
         <CardContent className="pt-4">
           <p className="text-sm font-medium">{lang === "es" ? "Carrera" : "Career"}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {lang === "es" ? "No se reinicia entre temporadas." : "Doesn't reset between seasons."}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <p className="text-lg font-semibold tabular-nums">
                 {careerStats.totalWins}-{careerStats.totalLosses}
@@ -357,12 +407,6 @@ export default async function PlayerProfilePage({
               <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
               <p className="text-xs text-muted-foreground">
                 {lang === "es" ? "Temporadas jugadas" : "Seasons played"}
-              </p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold tabular-nums">{careerStats.tournamentsEntered}</p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Torneos disputados" : "Tournaments entered"}
               </p>
             </div>
           </div>
