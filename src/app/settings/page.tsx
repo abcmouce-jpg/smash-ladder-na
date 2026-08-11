@@ -10,7 +10,7 @@ import { PushNotificationsForm } from "@/components/push-notifications-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { UsernameForm } from "@/components/username-form";
-import { OptionSelect } from "@/components/option-select";
+import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
 import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
 import { listBlockedUsers } from "@/lib/blocks";
@@ -459,8 +459,8 @@ function AudioPingOnMatchForm({
           {lang === "es" ? "Guardar" : "Save"}
         </Button>
       </div>
-      <label className="flex items-center justify-between gap-2 pl-6 text-sm">
-        <span>
+      <div className="flex items-center justify-between gap-2 pl-6">
+        <span className="text-sm">
           {lang === "es" ? "Sonido" : "Sound"}
           <span className="block text-xs font-normal text-muted-foreground">
             {lang === "es"
@@ -468,20 +468,8 @@ function AudioPingOnMatchForm({
               : "The original chime, or the announcer voice clip."}
           </span>
         </span>
-        <OptionSelect
-          key={defaultSound}
-          name="matchFoundSound"
-          defaultValue={defaultSound}
-          className="w-48"
-          options={[
-            { value: "CHIME", label: lang === "es" ? "Tono original" : "Original chime" },
-            {
-              value: "ANNOUNCER",
-              label: lang === "es" ? "Anuncio de voz" : "Announcer voice clip",
-            },
-          ]}
-        />
-      </label>
+        <MatchFoundSoundPicker key={defaultSound} defaultValue={defaultSound} lang={lang} />
+      </div>
     </form>
   );
 }
