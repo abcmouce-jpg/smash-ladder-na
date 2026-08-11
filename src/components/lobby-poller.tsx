@@ -28,6 +28,11 @@ export function LobbyPoller({
 }) {
   const router = useRouter();
   const wasMatched = useRef(matched);
+  // Browsers mute audio for hidden tabs (and mobile browsers can suspend it
+  // entirely), so the one-shot match-found chime can fire and get dropped
+  // while the player is tabbed away. Remember it and replay on return — a
+  // chime you never heard is worse than one that plays twice.
+  const missedChimeWhileHidden = useRef(false);
 
   useEffect(() => {
     // Skip the refresh while the tab is backgrounded — an idle tab left
@@ -47,9 +52,24 @@ export function LobbyPoller({
   }, [router, keepPollingInBackground]);
 
   useEffect(() => {
-    if (matched && !wasMatched.current && audioPingOnMatch) playMatchFoundChime();
+    if (matched && !wasMatched.current) {
+      if (audioPingOnMatch) {
+        if (document.visibilityState === "hidden") missedChimeWhileHidden.current = true;
+        else playMatchFoundChime();
+      }
+    }
     wasMatched.current = matched;
   }, [matched, audioPingOnMatch]);
+
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState !== "visible" || !missedChimeWhileHidden.current) return;
+      missedChimeWhileHidden.current = false;
+      if (audioPingOnMatch) playMatchFoundChime();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [audioPingOnMatch]);
 
   return null;
 }

@@ -7,6 +7,7 @@ import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/l
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
 import { MATCH_TTL_MS } from "@/lib/match-games";
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
+import { notifyMatchFoundToUsers } from "@/lib/push-server";
 
 function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null) {
   return maxGap === null || Math.abs(ratingA - ratingB) <= maxGap;
@@ -269,7 +270,12 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
     return match;
   }, TX_OPTIONS));
 
-  return paired ? getActiveLobbyEntry(userId) : newEntry;
+  // Notify outside the transaction — a push failure must never roll back (or
+  // delay) the pairing itself. Best-effort internally (see push-server).
+  if (!paired) return newEntry;
+  const entry = await getActiveLobbyEntry(userId);
+  await notifyMatchFoundToUsers(paired.player1Id, paired.player2Id);
+  return entry;
 }
 
 // Creates a match and its pair of already-PAIRED lobby entries directly,
@@ -440,6 +446,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
         used.add(a.id);
         used.add(b.id);
         paired++;
+        await notifyMatchFoundToUsers(madeMatch.player1Id, madeMatch.player2Id);
       }
       break;
     }

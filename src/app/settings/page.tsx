@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { OverlayUrlToggle } from "@/components/overlay-url-toggle";
 import { CopyButton } from "@/components/copy-button";
+import { PushNotificationsForm } from "@/components/push-notifications-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { UsernameForm } from "@/components/username-form";
@@ -62,6 +63,7 @@ export default async function SettingsPage({
         arenaPassword: true,
         avoidPracticeOpponents: true,
         audioPingOnMatch: true,
+        _count: { select: { pushSubscriptions: true } },
       },
     }),
     listBlockedUsers(session.user.id),
@@ -129,6 +131,15 @@ export default async function SettingsPage({
       <Card className="mt-4">
         <CardContent className="pt-4">
           <AudioPingOnMatchForm defaultValue={me?.audioPingOnMatch ?? true} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <PushNotificationsForm
+            defaultEnabled={(me?._count.pushSubscriptions ?? 0) > 0}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 

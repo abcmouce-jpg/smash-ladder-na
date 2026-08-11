@@ -262,4 +262,8 @@ export async function deleteMyAccount(userId: string) {
       wiredConnection: false,
     },
   });
+  // The row is kept (anonymized), so the subscription rows' onDelete: Cascade
+  // never fires — drop them explicitly so the ghost account can't keep
+  // receiving match-found pushes nobody asked for.
+  await prisma.pushSubscription.deleteMany({ where: { userId } });
 }
