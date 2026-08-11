@@ -32,7 +32,10 @@ export async function getUnresolvedMatchForUser(userId: string) {
       status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
     },
     orderBy: { createdAt: "desc" },
-    include: matchWithPlayers,
+    include: {
+      ...matchWithPlayers,
+      connectionReports: { where: { reporterId: userId }, select: { id: true } },
+    },
   });
 }
 
@@ -40,7 +43,10 @@ export async function getLatestMatchForUser(userId: string) {
   return prisma.ratingMatch.findFirst({
     where: { OR: [{ player1Id: userId }, { player2Id: userId }] },
     orderBy: { createdAt: "desc" },
-    include: matchWithPlayers,
+    include: {
+      ...matchWithPlayers,
+      connectionReports: { where: { reporterId: userId }, select: { id: true } },
+    },
   });
 }
 
