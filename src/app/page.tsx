@@ -3,11 +3,12 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Activity, Coffee, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
-import { getPublicStats } from "@/lib/public-stats";
+import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
+import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
@@ -23,7 +24,7 @@ export default async function Home() {
   const session = await auth();
   const user = session?.user;
 
-  const [me, stats, lang, topRecruiters] = await Promise.all([
+  const [me, stats, lang, topRecruiters, matchTimestamps] = await Promise.all([
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
@@ -33,6 +34,7 @@ export default async function Home() {
     getPublicStats(),
     getLang(),
     getTopRecruiters(3),
+    getMatchesPerDay(30),
   ]);
 
   return (
@@ -152,6 +154,17 @@ export default async function Home() {
           </div>
         </div>
       )}
+
+      <div className="mt-10">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {lang === "es" ? "Partidas por día" : "Matches per day"}
+        </h2>
+        <Card className="mt-3">
+          <CardContent className="pt-4">
+            <MatchesPerDayChart timestamps={matchTimestamps} lang={lang} />
+          </CardContent>
+        </Card>
+      </div>
 
       {topRecruiters.length > 0 && (
         <div className="mt-10">
