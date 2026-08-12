@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { eloDelta, expectedScore, kFactor, MAX_RATING_DELTA } from "@/lib/matches";
+import { eloDelta, expectedScore, getRoomHostId, kFactor, MAX_RATING_DELTA } from "@/lib/matches";
 
 describe("Elo helpers", () => {
   describe("kFactor", () => {
@@ -83,5 +83,26 @@ describe("Elo helpers", () => {
       expect(raw).toBeLessThan(MAX_RATING_DELTA);
       expect(eloDelta(30, 1, e)).toBeCloseTo(raw);
     });
+  });
+});
+
+describe("getRoomHostId", () => {
+  it("always returns one of the two players", () => {
+    const host = getRoomHostId("match1", "player1", "player2");
+    expect(["player1", "player2"]).toContain(host);
+  });
+
+  it("is stable across repeated calls for the same match", () => {
+    const first = getRoomHostId("clabc123", "p1", "p2");
+    const second = getRoomHostId("clabc123", "p1", "p2");
+    expect(second).toBe(first);
+  });
+
+  it("picks different hosts for at least one pair across many match ids", () => {
+    const hosts = new Set<string>();
+    for (let i = 0; i < 50; i++) {
+      hosts.add(getRoomHostId(`match-${i}`, "p1", "p2"));
+    }
+    expect(hosts.size).toBe(2);
   });
 });

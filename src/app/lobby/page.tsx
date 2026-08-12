@@ -4,7 +4,7 @@ import { Check, Loader2, MapPin, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
-import { getUnresolvedMatchForUser, hasOpponentEngaged } from "@/lib/matches";
+import { getRoomHostId, getUnresolvedMatchForUser, hasOpponentEngaged } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
 import {
   currentStreak,
@@ -755,10 +755,8 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
           <RoomCodeSection
             matchId={match.id}
             initialValue={match.roomCode ?? ""}
-            readOnly={
-              !!match.roomCodeSetById && match.roomCodeSetById !== userId
-            }
-            setByOpponent={match.roomCodeSetById === opponent.id}
+            isHost={getRoomHostId(match.id, match.player1Id, match.player2Id) === userId}
+            opponentName={displayName}
             myArenaPassword={effectiveArenaPassword(
               match.player1Id === userId ? match.player1 : match.player2,
             )}
@@ -1881,37 +1879,38 @@ async function CommentsSection({
 function RoomCodeSection({
   matchId,
   initialValue,
-  readOnly,
-  setByOpponent,
+  isHost,
+  opponentName,
   myArenaPassword,
   opponentArenaPassword,
   lang,
 }: {
   matchId: string;
   initialValue: string;
-  readOnly: boolean;
-  setByOpponent: boolean;
+  isHost: boolean;
+  opponentName: string;
   myArenaPassword: string;
   opponentArenaPassword: string;
   lang: Lang;
 }) {
-  // Whoever actually ends up hosting is whoever's code stuck (locked in via
-  // setMatchRoomCode) — before that, either side could still become the
-  // host, so each just sees their own password until it's decided.
-  const hostArenaPassword = setByOpponent
-    ? opponentArenaPassword
-    : myArenaPassword;
+  // Hosting is assigned up front (see getRoomHostId), not decided by who
+  // sets a code first — so which password matters is already known,
+  // independent of whether the host has actually submitted one yet.
+  const hostArenaPassword = isHost ? myArenaPassword : opponentArenaPassword;
 
-  if (readOnly) {
+  if (!isHost) {
     return (
       <div className="flex flex-col gap-1 text-sm">
         {lang === "es" ? "Código de sala" : "Room code"}
         <p className="font-medium tabular-nums">
           <FlashOnChange value={initialValue}>
-            {initialValue || (lang === "es" ? "Aún sin definir" : "Not set yet")}
+            {initialValue ||
+              (lang === "es"
+                ? `${opponentName} está creando la sala…`
+                : `${opponentName} is creating the room…`)}
           </FlashOnChange>
         </p>
-        {setByOpponent && (
+        {initialValue && (
           <p className="text-xs text-muted-foreground">
             {lang === "es" ? "Definido por tu rival — únete con este." : "Set by your opponent — join with this."}
           </p>
@@ -1935,6 +1934,9 @@ function RoomCodeSection({
 
   return (
     <div className="flex flex-col gap-1">
+      <p className="text-xs font-medium text-foreground">
+        {lang === "es" ? "Te toca crear la sala." : "You're creating the room."}
+      </p>
       <RoomCodeForm
         initialValue={initialValue}
         action={submitRoomCode.bind(null, matchId)}

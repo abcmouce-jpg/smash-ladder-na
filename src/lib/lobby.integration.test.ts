@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { createDirectMatch, getActiveLobbyEntry, joinLobbyAndTryPair } from "@/lib/lobby";
+import { createDirectMatch, getActiveLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/lobby";
+import { getRoomHostId } from "@/lib/matches";
 import { blockUser } from "@/lib/blocks";
 import { PairingMethod } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
@@ -268,5 +269,30 @@ describe("createDirectMatch", () => {
 
     expect(match.player1IsPracticing).toBe(true);
     expect(match.player2IsPracticing).toBe(false);
+  });
+});
+
+describe("setMatchRoomCode", () => {
+  it("lets the assigned host set the room code", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+    const match = await prisma.$transaction((tx) => createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH));
+    const hostId = getRoomHostId(match.id, match.player1Id, match.player2Id);
+
+    await setMatchRoomCode(hostId, match.id, "AB123");
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.roomCode).toBe("AB123");
+    expect(updated.roomCodeSetById).toBe(hostId);
+  });
+
+  it("rejects the non-host trying to set the room code", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+    const match = await prisma.$transaction((tx) => createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH));
+    const hostId = getRoomHostId(match.id, match.player1Id, match.player2Id);
+    const nonHostId = hostId === a.id ? b.id : a.id;
+
+    await expect(setMatchRoomCode(nonHostId, match.id, "AB123")).rejects.toThrow(/assigned host/i);
   });
 });

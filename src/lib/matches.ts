@@ -50,6 +50,19 @@ export async function getLatestMatchForUser(userId: string) {
   });
 }
 
+// Deterministically picks which player creates the in-game room, without
+// persisting anything — the same matchId always hashes to the same player,
+// so every read (page load, poll, admin view) agrees without a stored
+// column. matchId is an unpredictable cuid, so this is effectively a random
+// per-match coin flip, just recomputed instead of remembered.
+export function getRoomHostId(matchId: string, player1Id: string, player2Id: string): string {
+  let hash = 0;
+  for (let i = 0; i < matchId.length; i++) {
+    hash = (hash * 31 + matchId.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % 2 === 0 ? player1Id : player2Id;
+}
+
 // Distinguishes a genuinely-empty match (opponent hasn't shown up at all —
 // the legitimate AFK escape hatch cancelMatch exists for) from one where the
 // opponent has clearly engaged, in which case backing out should cost the

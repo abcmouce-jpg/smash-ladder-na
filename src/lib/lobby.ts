@@ -1,7 +1,7 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
-import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
+import { getLatestMatchForUser, getRoomHostId, getUnresolvedMatchForUser } from "@/lib/matches";
 import { getRegionsWithinDistance } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
@@ -467,11 +467,10 @@ export async function setMatchRoomCode(userId: string, matchId: string, roomCode
   if (match.player1Id !== userId && match.player2Id !== userId) {
     throw new Error("Not a participant in this match");
   }
-  // Only the person who actually hosts the in-game arena has a code to
-  // enter; the other side just reads it, so only the original setter (or
-  // whoever gets there first) can update it — no accidental overwrites.
-  if (match.roomCodeSetById && match.roomCodeSetById !== userId) {
-    throw new Error("Only the player who entered the room code can change it");
+  // Room hosting is assigned, not first-come — only the derived host has a
+  // code to enter, the other side just reads it. See getRoomHostId.
+  if (getRoomHostId(match.id, match.player1Id, match.player2Id) !== userId) {
+    throw new Error("Only the assigned host can set the room code");
   }
   if (!/^[A-Z0-9]{5}$/.test(roomCode)) {
     throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
