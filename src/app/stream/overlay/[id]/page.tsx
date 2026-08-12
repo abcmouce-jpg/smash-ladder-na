@@ -118,6 +118,13 @@ export default async function StreamOverlayPage({
   // actorAId/actorBId are per-game and do NOT always match player1Id/player2Id
   // (counterpick games rotate who is actorA).
   const isUserPlayer1 = currentMatch?.player1.id === user.id;
+  // getCurrentStreak returns a signed count (positive = win streak), and the
+  // scoreboard only shows the orange flame for active win streaks.
+  const opponentStreak = currentMatch
+    ? await getCurrentStreak(
+        isUserPlayer1 ? currentMatch.player2.id : currentMatch.player1.id,
+      )
+    : null;
   const currentGame = currentMatchGames.at(-1);
   // Game 1 is a blind pick — neither side's character is shown on the
   // overlay until both players have locked one in. Games 2-5 are
@@ -240,8 +247,18 @@ export default async function StreamOverlayPage({
                     ? currentMatch.player1.username
                     : currentMatch.player2.username}
                 </span>
-                <span className="text-base text-white/50 tabular-nums">
-                  {user.rating}
+                <span className="flex items-center gap-1.5">
+                  {streak > 0 && (
+                    <span className="flex items-center gap-0.5 text-orange-400">
+                      <Flame className="size-4 fill-orange-400" />
+                      <span className="text-base font-semibold tabular-nums">
+                        {streak}
+                      </span>
+                    </span>
+                  )}
+                  <span className="text-base text-white/50 tabular-nums">
+                    {user.rating}
+                  </span>
                 </span>
               </div>
               <div className="flex shrink-0">
@@ -275,8 +292,18 @@ export default async function StreamOverlayPage({
                 <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
                   {opponentUsername}
                 </span>
-                <span className="text-base text-white/50 tabular-nums">
-                  {opponentRating}
+                <span className="flex items-center gap-1.5">
+                  <span className="text-base text-white/50 tabular-nums">
+                    {opponentRating}
+                  </span>
+                  {opponentStreak !== null && opponentStreak > 0 && (
+                    <span className="flex items-center gap-0.5 text-orange-400">
+                      <Flame className="size-4 fill-orange-400" />
+                      <span className="text-base font-semibold tabular-nums">
+                        {opponentStreak}
+                      </span>
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
@@ -291,17 +318,9 @@ export default async function StreamOverlayPage({
           style={{ top: "calc(2.5rem + 96px)" }}
         >
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-                {lang === "es" ? "Partidas recientes" : "Recent matches"}
-              </span>
-              {streak > 0 && (
-                <span className="flex items-center gap-1 text-base font-semibold tabular-nums text-orange-400">
-                  <Flame className="size-4 fill-orange-400" />
-                  {streak}
-                </span>
-              )}
-            </div>
+            <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
+              {lang === "es" ? "Partidas recientes" : "Recent matches"}
+            </span>
             <div className="mt-3 flex flex-col gap-2">
               {recentMatches.length === 0 ? (
                 <span className="text-lg text-white/40">
