@@ -86,6 +86,24 @@ async function getRecentMatchPairTimestamps() {
 
 export const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
 
+export const ROOM_CODE_PATTERN = /^[A-Z0-9]{5}$/;
+
+// If exactly one side of a pairing already had a room set up before
+// queueing, they become host and their code is written straight to the
+// match — no "waiting for host" step needed. Both or neither set defers to
+// the usual (hash-based) host assignment, so returns null for the caller to
+// leave roomCode/roomCodeSetById unset.
+function resolvePrefilledRoom(
+  aId: string,
+  aCode: string | null,
+  bId: string,
+  bCode: string | null,
+): { roomCode: string; roomCodeSetById: string } | null {
+  if (aCode && !bCode) return { roomCode: aCode, roomCodeSetById: aId };
+  if (bCode && !aCode) return { roomCode: bCode, roomCodeSetById: bId };
+  return null;
+}
+
 export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
 
 // For the lobby page's live "who's around right now" readout. Waiting is a
@@ -133,7 +151,11 @@ export async function getActiveLobbyEntry(userId: string) {
   return { ...entry, match };
 }
 
-export async function joinLobbyAndTryPair(userId: string, isPracticing = false) {
+export async function joinLobbyAndTryPair(
+  userId: string,
+  isPracticing = false,
+  existingRoomCode: string | null = null,
+) {
   const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
@@ -159,6 +181,10 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
   if (waitingEntry || unresolvedMatch) return getActiveLobbyEntry(userId);
 
+  if (existingRoomCode && !ROOM_CODE_PATTERN.test(existingRoomCode)) {
+    throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
+  }
+
   const now = new Date();
 
   // Escalating penalty for getting auto-forfeited via AFK timeout (see
@@ -181,7 +207,7 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
     );
   }
   const newEntry = await prisma.ratingLobbyEntry.create({
-    data: { userId, isPracticing, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
+    data: { userId, isPracticing, existingRoomCode, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
   });
 
   const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
@@ -252,6 +278,7 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
         expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
         player1IsPracticing: candidate.isPracticing,
         player2IsPracticing: isPracticing,
+        ...resolvePrefilledRoom(candidate.userId, candidate.existingRoomCode, userId, existingRoomCode),
       },
     });
 
@@ -431,6 +458,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
               expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
               player1IsPracticing: a.isPracticing,
               player2IsPracticing: b.isPracticing,
+              ...resolvePrefilledRoom(a.userId, a.existingRoomCode, b.userId, b.existingRoomCode),
             },
           });
           // Only one side records matchId/pairedEntryId — see the join-time
@@ -469,7 +497,7 @@ export async function setMatchRoomCode(userId: string, matchId: string, roomCode
   }
   // Room hosting is assigned, not first-come — only the derived host has a
   // code to enter, the other side just reads it. See getRoomHostId.
-  if (getRoomHostId(match.id, match.player1Id, match.player2Id) !== userId) {
+  if (getRoomHostId(match) !== userId) {
     throw new Error("Only the assigned host can set the room code");
   }
   if (!/^[A-Z0-9]{5}$/.test(roomCode)) {

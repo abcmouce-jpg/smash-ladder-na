@@ -88,21 +88,34 @@ describe("Elo helpers", () => {
 
 describe("getRoomHostId", () => {
   it("always returns one of the two players", () => {
-    const host = getRoomHostId("match1", "player1", "player2");
+    const host = getRoomHostId({ id: "match1", player1Id: "player1", player2Id: "player2", roomCodeSetById: null });
     expect(["player1", "player2"]).toContain(host);
   });
 
   it("is stable across repeated calls for the same match", () => {
-    const first = getRoomHostId("clabc123", "p1", "p2");
-    const second = getRoomHostId("clabc123", "p1", "p2");
-    expect(second).toBe(first);
+    const match = { id: "clabc123", player1Id: "p1", player2Id: "p2", roomCodeSetById: null };
+    expect(getRoomHostId(match)).toBe(getRoomHostId(match));
   });
 
   it("picks different hosts for at least one pair across many match ids", () => {
     const hosts = new Set<string>();
     for (let i = 0; i < 50; i++) {
-      hosts.add(getRoomHostId(`match-${i}`, "p1", "p2"));
+      hosts.add(
+        getRoomHostId({ id: `match-${i}`, player1Id: "p1", player2Id: "p2", roomCodeSetById: null }),
+      );
     }
     expect(hosts.size).toBe(2);
+  });
+
+  it("returns roomCodeSetById directly when already set, regardless of the hash", () => {
+    // match1/player1/player2 hashes to "player1" per the first test above —
+    // an explicit roomCodeSetById of "player2" must still win.
+    const host = getRoomHostId({
+      id: "match1",
+      player1Id: "player1",
+      player2Id: "player2",
+      roomCodeSetById: "player2",
+    });
+    expect(host).toBe("player2");
   });
 });

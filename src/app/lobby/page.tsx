@@ -755,7 +755,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
           <RoomCodeSection
             matchId={match.id}
             initialValue={match.roomCode ?? ""}
-            isHost={getRoomHostId(match.id, match.player1Id, match.player2Id) === userId}
+            isHost={getRoomHostId(match) === userId}
             opponentName={displayName}
             myArenaPassword={effectiveArenaPassword(
               match.player1Id === userId ? match.player1 : match.player2,

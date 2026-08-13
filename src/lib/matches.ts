@@ -50,17 +50,27 @@ export async function getLatestMatchForUser(userId: string) {
   });
 }
 
-// Deterministically picks which player creates the in-game room, without
-// persisting anything — the same matchId always hashes to the same player,
-// so every read (page load, poll, admin view) agrees without a stored
-// column. matchId is an unpredictable cuid, so this is effectively a random
-// per-match coin flip, just recomputed instead of remembered.
-export function getRoomHostId(matchId: string, player1Id: string, player2Id: string): string {
+// Decides which player creates the in-game room. roomCodeSetById wins when
+// present — set at creation time when exactly one side of a pairing already
+// had a room ready (see joinLobbyAndTryPair/sweepLobbyPairing) — since that
+// player is host regardless of what the fallback below would've picked.
+// Otherwise falls back to a hash of the match id, without persisting
+// anything: the same id always hashes to the same player, so every read
+// (page load, poll, admin view) agrees without a stored column. matchId is
+// an unpredictable cuid, so this is effectively a random per-match coin
+// flip, just recomputed instead of remembered.
+export function getRoomHostId(match: {
+  id: string;
+  player1Id: string;
+  player2Id: string;
+  roomCodeSetById: string | null;
+}): string {
+  if (match.roomCodeSetById) return match.roomCodeSetById;
   let hash = 0;
-  for (let i = 0; i < matchId.length; i++) {
-    hash = (hash * 31 + matchId.charCodeAt(i)) | 0;
+  for (let i = 0; i < match.id.length; i++) {
+    hash = (hash * 31 + match.id.charCodeAt(i)) | 0;
   }
-  return Math.abs(hash) % 2 === 0 ? player1Id : player2Id;
+  return Math.abs(hash) % 2 === 0 ? match.player1Id : match.player2Id;
 }
 
 // Distinguishes a genuinely-empty match (opponent hasn't shown up at all —

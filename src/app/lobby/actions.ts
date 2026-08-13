@@ -82,6 +82,7 @@ export type JoinLobbyState = { error: string | null };
 export async function joinLobby(_prevState: JoinLobbyState, formData: FormData): Promise<JoinLobbyState> {
   const userId = await requireUserId();
   const isPracticing = formData.get("isPracticing") === "on";
+  const existingRoomCode = String(formData.get("existingRoomCode") ?? "").trim() || null;
   try {
     await requireNotBanned(userId); // ranked play stays open at Level-1 (SUSPENDED)
     await enforceRateLimit({
@@ -90,7 +91,7 @@ export async function joinLobby(_prevState: JoinLobbyState, formData: FormData):
       limit: 5,
       windowLabel: "minute",
     });
-    await joinLobbyAndTryPair(userId, isPracticing);
+    await joinLobbyAndTryPair(userId, isPracticing, existingRoomCode);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }
