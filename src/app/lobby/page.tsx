@@ -692,7 +692,13 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <p className="text-xs text-muted-foreground tabular-nums">
-            {lang === "es" ? `Tú: ${me?.rating} de clasificación` : `You: ${me?.rating} rating`}
+            <span>
+              {lang === "es" ? "Tú:" : "You:"}
+              {!zenMode &&
+                (lang === "es"
+                  ? ` ${me?.rating} de clasificación`
+                  : ` ${me?.rating} rating`)}
+            </span>
             {me?.region && (
               <span className="ml-2 inline-flex items-center gap-1">
                 <MapPin className="size-3" />
@@ -711,16 +717,14 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
               />
             )}
             <div className={zenMode ? "flex-1" : ""}>
-              {!zenMode && (
-                <p className="flex items-center gap-1.5 font-medium">
-                  {displayName}
-                  {opponentStreak > 0 && (
-                    <Badge variant="success" className="tabular-nums">
-                      {lang === "es" ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
-                    </Badge>
-                  )}
-                </p>
+            <p className="flex items-center gap-1.5 font-medium">
+              {displayName}
+              {!zenMode && opponentStreak > 0 && (
+                <Badge variant="success" className="tabular-nums">
+                  {lang === "es" ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
+                </Badge>
               )}
+            </p>
               {(!zenMode || opponent.region) && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
                   {!zenMode && <span>{lang === "es" ? `${opponent.rating} de clasificación` : `${opponent.rating} rating`}</span>}
