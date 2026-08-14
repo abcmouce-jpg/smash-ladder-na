@@ -54,6 +54,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RoomCodeForm } from "@/components/room-code-form";
 import { FlashOnChange } from "@/components/flash-on-change";
 import { Countdown } from "@/components/countdown";
+import { QueueTimer } from "@/components/queue-timer";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
@@ -181,26 +182,71 @@ export default async function LobbyPage() {
         lang={lang}
       />
 
-      {matchJustEnded && (
-        <Card className="mt-4 border-primary/30">
-          <CardContent className="pt-4">
-            <p className="text-sm font-medium">
-              {lang === "es" ? "¿Listo para otra partida?" : "Ready for another match?"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {lang === "es"
-                ? "Esto empieza una búsqueda totalmente nueva — no tiene relación con la partida de abajo."
-                : "This starts a brand new search — it's not related to the match below."}
-            </p>
-            <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
-              <JoinLobbyForm action={joinLobby} className="mt-3" lang={lang} />
-            </QueueCooldownGate>
-          </CardContent>
-        </Card>
+
+
+            {matchJustEnded && (
+              <Card className="mt-4 border-primary/30">
+                <CardContent className="pt-4">
+                  <p className="text-sm font-medium">
+                    {lang === "es" ? "¿Listo para otra partida?" : "Ready for another match?"}
+                  </p>
+                  <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
+                    <JoinLobbyForm action={joinLobby} className="mt-3" lang={lang} />
+                  </QueueCooldownGate>
+                </CardContent>
+              </Card>
+            )}
+
+            {!entry && (
+              <Card className="mt-4">
+                <CardContent className="pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    {lang === "es" ? "No estás en la cola." : "You're not in the queue."}
+                  </p>
+                  <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
+                    <JoinLobbyForm action={joinLobby} className="mt-4" lang={lang} />
+                  </QueueCooldownGate>
+                </CardContent>
+              </Card>
       )}
 
+            {entry?.status === "WAITING" && (
+              <Card className="mt-4">
+                <CardContent className="flex items-center gap-3 pt-4">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    {lang === "es" ? "Esperando a un rival…" : "Waiting for an opponent…"}
+                  </p>
+                  <span className="ml-auto text-sm tabular-nums text-muted-foreground">
+                    {lang === "es" ? "Tiempo en cola:" : "In queue:"}{" "}
+                    <QueueTimer joinedAt={entry.joinedAt.toISOString()} />
+                  </span>
+                </CardContent>
+                <CardContent className="pt-0">
+                  <form action={cancelLobby}>
+                    <Button type="submit" variant="outline">
+                      {lang === "es" ? "Cancelar" : "Cancel"}
+                    </Button>
+                  </form>
+                </CardContent>
+                <CardContent className="border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "es"
+                      ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
+                      : "Wait feeling long? Invite a friend to get matched faster."}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
+                      {referralLink(session.user.id)}
+                    </code>
+                    <CopyButton text={referralLink(session.user.id)} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
       {isInActiveMatch ? (
-        <Card className="mt-8">
+        <Card className="mt-4">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">
               {lang === "es"
@@ -210,53 +256,9 @@ export default async function LobbyPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="mt-8">
+        <Card className="mt-4">
           <CardContent className="pt-4">
             <MatchmakingForm userId={session.user.id} lang={lang} />
-          </CardContent>
-        </Card>
-      )}
-
-      {!entry && (
-        <Card className="mt-4">
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">
-              {lang === "es" ? "No estás en la cola." : "You're not in the queue."}
-            </p>
-            <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
-              <JoinLobbyForm action={joinLobby} className="mt-4" lang={lang} />
-            </QueueCooldownGate>
-          </CardContent>
-        </Card>
-      )}
-
-      {entry?.status === "WAITING" && (
-        <Card className="mt-4">
-          <CardContent className="flex items-center gap-3 pt-4">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {lang === "es" ? "Esperando a un rival…" : "Waiting for an opponent…"}
-            </p>
-          </CardContent>
-          <CardContent className="pt-0">
-            <form action={cancelLobby}>
-              <Button type="submit" variant="outline">
-                {lang === "es" ? "Cancelar" : "Cancel"}
-              </Button>
-            </form>
-          </CardContent>
-          <CardContent className="border-t border-border pt-3">
-            <p className="text-xs text-muted-foreground">
-              {lang === "es"
-                ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
-                : "Wait feeling long? Invite a friend to get matched faster."}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
-                {referralLink(session.user.id)}
-              </code>
-              <CopyButton text={referralLink(session.user.id)} />
-            </div>
           </CardContent>
         </Card>
       )}
