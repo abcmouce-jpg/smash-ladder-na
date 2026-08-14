@@ -21,6 +21,9 @@ const PAD_TOP = 12;
 const PAD_BOTTOM = 24;
 const LABEL_GAP = 6;
 const DAY_MS = 86_400_000;
+// Longest timeline the x axis spans: when the earliest match is older than
+// this, the chart window starts 90 days back instead of at that match.
+const CHART_DAYS = 90;
 
 // Server-rendered pages don't know the visitor's timezone, so dates render in
 // UTC for the first paint — identical to SSR, so no hydration mismatch — and
@@ -71,7 +74,34 @@ export function RatingChart({ points }: { points: Point[] }) {
     return <p className="text-sm text-muted-foreground">Not enough confirmed matches yet.</p>;
   }
 
-  const ratings = condensed.map((p) => p.rating);
+  // Build the full daily series the x axis spans: one point per calendar day
+  // from the chart start to the last match day. Days with no match keep the
+  // previous day's rating (no change), so gaps between matches render as flat
+  // segments instead of diagonals and the timeline reads as a true daily
+  // history. The chart starts at the earliest match day when the whole history
+  // fits in the 90-day window, or 90 days back otherwise — except players
+  // inactive for 90+ days, who keep their full history rather than an empty
+  // window.
+  const now = new Date();
+  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - CHART_DAYS);
+  const dayNumber = (date: string) => Date.parse(`${dayKey(date)}T00:00:00Z`) / DAY_MS;
+  const firstDay = dayNumber(condensed[0].date);
+  const lastDay = dayNumber(condensed[condensed.length - 1].date);
+  const cutoffDay = dayNumber(cutoff.toISOString());
+  const startDay = firstDay >= cutoffDay || lastDay < cutoffDay ? firstDay : cutoffDay;
+
+  const filled: Point[] = [];
+  let carryRating = condensed[0].rating;
+  let next = 0;
+  for (let d = startDay; d <= lastDay; d++) {
+    while (next < condensed.length && dayNumber(condensed[next].date) <= d) {
+      carryRating = condensed[next].rating;
+      next++;
+    }
+    filled.push({ date: new Date(d * DAY_MS).toISOString(), rating: carryRating });
+  }
+
+  const ratings = filled.map((p) => p.rating);
   const min = Math.min(...ratings);
   const max = Math.max(...ratings);
   const span = Math.max(max - min, 1);
@@ -82,30 +112,25 @@ export function RatingChart({ points }: { points: Point[] }) {
   const plotW = WIDTH - PAD_LEFT - PAD_RIGHT;
   const plotH = HEIGHT - PAD_TOP - PAD_BOTTOM;
 
-  // The x axis is a local-day scale: spacing reflects the calendar-day gap
-  // between matches, so a two-day gap is twice as wide as a one-day gap. Day
-  // numbers derive from the local-day keys above, so consecutive points always
-  // span at least one day and the scale is well defined.
-  const dayNumbers = condensed.map((p) => Date.parse(`${dayKey(p.date)}T00:00:00Z`) / DAY_MS);
-  const minDay = dayNumbers[0];
-  const maxDay = dayNumbers[dayNumbers.length - 1];
-  const daySpan = Math.max(maxDay - minDay, 1);
-
-  const x = (i: number) => PAD_LEFT + ((dayNumbers[i] - minDay) / daySpan) * plotW;
+  // One x unit per calendar day; the first day of the series sits at the left
+  // edge, so the axis always reads as a continuous timeline.
+  const daySpan = Math.max(lastDay - startDay, 1);
+  const x = (day: number) => PAD_LEFT + ((day - startDay) / daySpan) * plotW;
   const y = (rating: number) => PAD_TOP + (1 - (rating - yMin) / (yMax - yMin)) * plotH;
 
-  const linePath = condensed.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.rating)}`).join(" ");
+  const linePath = filled.map((p, i) => `${i === 0 ? "M" : "L"}${x(startDay + i)},${y(p.rating)}`).join(" ");
 
   const gridLines = [yMin + (yMax - yMin) * 0.25, yMin + (yMax - yMin) * 0.5, yMin + (yMax - yMin) * 0.75];
 
   // Date labels along the bottom so the timeline reads at a glance — hovering
-  // (below) still gives the exact date+rating for any point, but that's
+  // (below) still gives the exact date+rating for any day, but that's
   // undiscoverable on touch devices, which don't really have a hover state.
-  // Every day is a label candidate; ones whose estimated width would collide
-  // with an already-placed label are skipped. First and last are always kept.
+  // Only match days are label candidates; ones whose estimated width would
+  // collide with an already-placed label are skipped. First and last are
+  // always kept.
   const labelWidth = (text: string) => text.length * 5.5;
-  const labelRange = (index: number, text: string, anchor: "start" | "middle" | "end"): [number, number] => {
-    const cx = x(index);
+  const labelRange = (day: number, text: string, anchor: "start" | "middle" | "end"): [number, number] => {
+    const cx = x(day);
     const w = labelWidth(text);
     if (anchor === "start") return [cx, cx + w];
     if (anchor === "end") return [cx - w, cx];
@@ -116,27 +141,26 @@ export function RatingChart({ points }: { points: Point[] }) {
   for (let i = 0; i < condensed.length; i++) {
     const anchor = i === 0 ? "start" : i === condensed.length - 1 ? "end" : "middle";
     const text = formatDate(condensed[i].date, tz);
-    const [start, end] = labelRange(i, text, anchor);
+    const [start, end] = labelRange(dayNumber(condensed[i].date), text, anchor);
     const collides = labels.some((placed) => {
       const [ps, pe] = labelRange(placed.index, placed.text, placed.anchor);
       return start < pe + LABEL_GAP && end > ps - LABEL_GAP;
     });
     if (i === 0 || i === condensed.length - 1 || !collides) {
-      labels.push({ index: i, text, anchor });
+      labels.push({ index: dayNumber(condensed[i].date), text, anchor });
     }
   }
 
-  const hovered = hoverIndex !== null ? condensed[hoverIndex] : null;
+  const hovered = hoverIndex !== null ? filled[hoverIndex] : null;
 
   function handleMove(e: React.MouseEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const relX = ((e.clientX - rect.left) / rect.width) * WIDTH;
-    // Points aren't evenly spaced (x reflects the day gap between matches),
-    // so find the nearest one by position rather than inferring an index by ratio.
+    // Days are evenly spaced, so find the nearest one by position.
     let nearest = 0;
     let nearestDist = Infinity;
-    for (let i = 0; i < condensed.length; i++) {
-      const dist = Math.abs(x(i) - relX);
+    for (let i = 0; i < filled.length; i++) {
+      const dist = Math.abs(x(startDay + i) - relX);
       if (dist < nearestDist) {
         nearestDist = dist;
         nearest = i;
@@ -190,15 +214,15 @@ export function RatingChart({ points }: { points: Point[] }) {
         {hovered && hoverIndex !== null && (
           <g>
             <line
-              x1={x(hoverIndex)}
-              x2={x(hoverIndex)}
+              x1={x(startDay + hoverIndex)}
+              x2={x(startDay + hoverIndex)}
               y1={PAD_TOP}
               y2={HEIGHT - PAD_BOTTOM}
               className="stroke-muted-foreground/40"
               strokeWidth={1}
             />
             <circle
-              cx={x(hoverIndex)}
+              cx={x(startDay + hoverIndex)}
               cy={y(hovered.rating)}
               r={4}
               fill="oklch(0.6 0.19 255)"
