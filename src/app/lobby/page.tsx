@@ -1319,7 +1319,7 @@ function GameSection({
             action={unstrikeStage.bind(null, match.id, current.gameNumber)}
             className="mt-2"
           >
-            <Button type="submit" size="sm" variant="ghost">
+            <Button type="submit" size="sm" variant="outline">
               {lang === "es" ? "Deshacer mi último descarte" : "Undo my last strike"}
             </Button>
           </form>
@@ -1373,16 +1373,28 @@ function CharacterPickSection({
           {lang === "es" ? (
             <>
               Personajes del juego {game.gameNumber} — tú:{" "}
-              <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {yourCharacter}
+              </span>,{" "}
               {opponentName}:{" "}
-              <span className="font-medium text-foreground">{opponentCharacter}</span>
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {opponentCharacter}
+              </span>
             </>
           ) : (
             <>
               Game {game.gameNumber} characters — you:{" "}
-              <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {yourCharacter}
+              </span>,{" "}
               {opponentName}:{" "}
-              <span className="font-medium text-foreground">{opponentCharacter}</span>
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {opponentCharacter}
+              </span>
             </>
           )}
         </p>
@@ -1397,7 +1409,10 @@ function CharacterPickSection({
           {lang === "es" ? (
             <>
               Juego {game.gameNumber} — elegiste{" "}
-              <span className="font-medium text-foreground">{yourCharacter}</span>. Esperando a
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {yourCharacter}
+              </span>. Esperando a
               que {opponentName} elija…{" "}
               {secondsLeft > 0 ? (
                 <>
@@ -1410,7 +1425,10 @@ function CharacterPickSection({
           ) : (
             <>
               Game {game.gameNumber} — you locked in{" "}
-              <span className="font-medium text-foreground">{yourCharacter}</span>.
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {yourCharacter}
+              </span>.
               Waiting for {opponentName} to pick…{" "}
               {secondsLeft > 0 ? (
                 <>
