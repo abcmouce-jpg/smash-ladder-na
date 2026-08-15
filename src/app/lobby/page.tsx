@@ -8,6 +8,7 @@ import { CANCEL_GRACE_PERIOD_SECONDS, getUnresolvedMatchForUser, hasOpponentEnga
 import { shouldPollLobby } from "@/lib/lobby-poll";
 import {
   currentStreak,
+  getHeadToHead,
   getPlayerMatchHistory,
   getTopCharacters,
 } from "@/lib/players";
@@ -671,6 +672,10 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
   const opponentStreak = currentStreak(
     await getPlayerMatchHistory(opponent.id),
   );
+  // Lifetime record vs this specific opponent (confirmed, non-practice sets
+  // only). Skipped in zen mode — like the streak badge, it would give away
+  // who the masked opponent is.
+  const headToHead = zenMode ? null : await getHeadToHead(userId, opponent.id);
   // Once any game's been decided or reported, cancelMatch is blocked
   // outright (see its gameInProgress check) — surrenderMatch isn't, so the
   // button always means "surrender" from that point on, no need to spend a
@@ -739,7 +744,16 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
             )}
             <div className={zenMode ? "flex-1" : ""}>
             <p className="flex items-center gap-1.5 font-medium">
-              {displayName}
+              {!zenMode ? (
+                <Link
+                  href={`/players/${opponent.id}`}
+                  className="hover:underline"
+                >
+                  {displayName}
+                </Link>
+              ) : (
+                displayName
+              )}
               {!zenMode && opponentStreak > 0 && (
                 <Badge variant="success" className="tabular-nums">
                   {lang === "es" ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
@@ -764,6 +778,20 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
                       <MapPin className="size-3" />
                       {opponent.region}
                     </span>
+                  )}
+                </p>
+              )}
+              {!zenMode && (
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  {headToHead ? (
+                    <>
+                      {lang === "es" ? "Tu récord: " : "Your record: "}
+                      {headToHead.wins}W–{headToHead.losses}L
+                    </>
+                  ) : lang === "es" ? (
+                    "Primera vez que se enfrentan"
+                  ) : (
+                    "First time opponent"
                   )}
                 </p>
               )}
