@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import {
+  adminCorrectOldMatchResult,
   adminForceConfirmMatch,
   adminOverrideMatchResult,
   applyEloAndConfirm,
@@ -372,6 +373,83 @@ describe("adminOverrideMatchResult", () => {
     await createConfirmedMatch(p1.id, p3.id);
 
     await expect(adminOverrideMatchResult(match.id, p2.id)).rejects.toThrow(/newer match/i);
+  });
+});
+
+describe("adminCorrectOldMatchResult", () => {
+  it("flips the winner and adjusts current rating by the negated delta, even with newer matches on top", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p3 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id); // p1 confirmed as winner
+    // A newer match for p1 — this is exactly what blocks adminOverrideMatchResult,
+    // but shouldn't block this relative-delta path.
+    await createConfirmedMatch(p1.id, p3.id);
+
+    const [p1BeforeCorrection, p2BeforeCorrection] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    const matchBefore = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    const p1OriginalDelta = matchBefore.player1RatingAfter! - matchBefore.player1RatingBefore!;
+    const p2OriginalDelta = matchBefore.player2RatingAfter! - matchBefore.player2RatingBefore!;
+    const p3Before = await prisma.user.findUniqueOrThrow({ where: { id: p3.id } });
+
+    await adminCorrectOldMatchResult(match.id, p2.id);
+
+    const corrected = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(corrected.reportedWinnerId).toBe(p2.id);
+    expect(corrected.confirmationMethod).toBe("CORRECTED");
+
+    const [p1After, p2After] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    expect(p1After.rating).toBe(Math.round(p1BeforeCorrection.rating - 2 * p1OriginalDelta));
+    expect(p2After.rating).toBe(Math.round(p2BeforeCorrection.rating - 2 * p2OriginalDelta));
+    // p3's rating (from the newer match) must be untouched — this path doesn't
+    // ripple through anything downstream of the corrected match.
+    const p3After = await prisma.user.findUniqueOrThrow({ where: { id: p3.id } });
+    expect(p3After.rating).toBe(p3Before.rating);
+  });
+
+  it("flips each game's recorded winner to the other player", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id);
+    await prisma.matchGame.createMany({
+      data: [
+        { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, winnerId: p2.id },
+        { matchId: match.id, gameNumber: 2, actorAId: p2.id, actorAStrikes: 1, actorBId: p1.id, actorBStrikes: 2, winnerId: p1.id },
+        { matchId: match.id, gameNumber: 3, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, winnerId: p1.id },
+      ],
+    });
+
+    await adminCorrectOldMatchResult(match.id, p2.id);
+
+    const games = await prisma.matchGame.findMany({
+      where: { matchId: match.id },
+      orderBy: { gameNumber: "asc" },
+    });
+    expect(games.map((g) => g.winnerId)).toEqual([p1.id, p2.id, p2.id]);
+  });
+
+  it("rejects a non-confirmed match", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await expect(adminCorrectOldMatchResult(match.id, p2.id)).rejects.toThrow(/only a confirmed match/i);
+  });
+
+  it("rejects when the requested winner is already the recorded winner", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id);
+
+    await expect(adminCorrectOldMatchResult(match.id, p1.id)).rejects.toThrow(/already has that winner/i);
   });
 });
 
