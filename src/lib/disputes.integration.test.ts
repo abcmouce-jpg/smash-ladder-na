@@ -8,6 +8,7 @@ import {
   adminSetGameWinner,
   adminResetMatchToZero,
   adminCancelMatch,
+  adminUndoOldMatch,
 } from "@/lib/disputes";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
@@ -582,5 +583,95 @@ describe("adminCancelMatch", () => {
 
   it("throws for a match that doesn't exist", async () => {
     await expect(adminCancelMatch("nonexistent-id")).rejects.toThrow("not found");
+  });
+});
+
+describe("adminUndoOldMatch", () => {
+  it("rejects a non-confirmed match", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.DISPUTED, expiresAt: new Date() },
+    });
+
+    await expect(adminUndoOldMatch(match.id)).rejects.toThrow("Only a confirmed match");
+  });
+
+  it("rejects a CONFIRMED match missing its rating change", async () => {
+    const seasonId = await activeSeasonId();
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(),
+        expiresAt: new Date(),
+        seasonId,
+      },
+    });
+
+    await expect(adminUndoOldMatch(match.id)).rejects.toThrow("missing its rating change");
+  });
+
+  // The whole point of this path vs. adminCancelMatch: works even once a
+  // newer match has confirmed for one of the players.
+  it("undoes a match by negating its own delta against CURRENT rating, even with a newer match on top", async () => {
+    const seasonId = await activeSeasonId();
+    const p1 = await createTestUser({ rating: 1520, gamesPlayed: 6 });
+    const p2 = await createTestUser({ rating: 1480, gamesPlayed: 4 });
+    const p3 = await createTestUser({ rating: 1500, gamesPlayed: 5 });
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(Date.now() - 60_000),
+        expiresAt: new Date(),
+        player1RatingBefore: 1500,
+        player1RatingAfter: 1520,
+        player2RatingBefore: 1500,
+        player2RatingAfter: 1480,
+        seasonId,
+      },
+    });
+    // A newer match for p1 — this is exactly what blocks adminCancelMatch,
+    // but shouldn't block this path. p1's rating has since moved to 1540
+    // (not the 1520 stored as this match's "after"), simulating that
+    // newer match's own effect already having landed.
+    await prisma.user.update({ where: { id: p1.id }, data: { rating: 1540 } });
+    await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p3.id,
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(),
+        expiresAt: new Date(),
+        seasonId,
+      },
+    });
+
+    await adminUndoOldMatch(match.id);
+
+    const [updatedMatch, updatedP1, updatedP2] = await Promise.all([
+      prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    expect(updatedMatch.status).toBe(MatchStatus.CANCELLED);
+    // 1540 (current) - 20 (this match's own delta) = 1520 — p1's later
+    // match's rating gain is preserved, only this match's own effect is undone.
+    expect(updatedP1.rating).toBe(1520);
+    expect(updatedP1.gamesPlayed).toBe(5);
+    expect(updatedP2.rating).toBe(1500);
+    expect(updatedP2.gamesPlayed).toBe(3);
+
+    const history = await prisma.ratingHistory.findMany({ where: { matchId: match.id } });
+    expect(history).toHaveLength(0);
+  });
+
+  it("throws for a match that doesn't exist", async () => {
+    await expect(adminUndoOldMatch("nonexistent-id")).rejects.toThrow("not found");
   });
 });

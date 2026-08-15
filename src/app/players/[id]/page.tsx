@@ -38,8 +38,10 @@ import { isBlockedByMe } from "@/lib/blocks";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { listReportsForUser } from "@/lib/reports";
 import {
+  adminCorrectOldResultAction,
   adminOverrideResultAction,
   adminUndoMatchAction,
+  adminUndoOldMatchAction,
   banPlayerIpAction,
   blockUserAction,
   deleteAccountAction,
@@ -543,6 +545,23 @@ export default async function PlayerProfilePage({
                     actionForPlayer1={adminOverrideResultAction.bind(null, match.id, id, id)}
                     actionForPlayer2={adminOverrideResultAction.bind(null, match.id, id, match.opponent.id)}
                     undoAction={adminUndoMatchAction.bind(null, match.id, id)}
+                  />
+                )}
+                {isModerator && !isOwnProfile && match.id !== mostRecentRealMatchId && (
+                  // Same tool, for a match the player has since queued past —
+                  // adminOverrideResultAction/adminUndoMatchAction require this
+                  // to still be each side's most recent confirmed match, which
+                  // stops applying the moment they play again. These use the
+                  // relative-delta correction instead (see
+                  // adminCorrectOldMatchResult/adminUndoOldMatch), so a mod
+                  // can still fix a bad result from days ago without needing
+                  // to have caught it before the player's next set.
+                  <AdminMatchOverride
+                    player1Username={player.username}
+                    player2Username={match.opponent.username}
+                    actionForPlayer1={adminCorrectOldResultAction.bind(null, match.id, id, id)}
+                    actionForPlayer2={adminCorrectOldResultAction.bind(null, match.id, id, match.opponent.id)}
+                    undoAction={adminUndoOldMatchAction.bind(null, match.id, id)}
                   />
                 )}
               </MatchHistoryEntry>

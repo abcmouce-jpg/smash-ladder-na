@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { auth, signOut } from "@/auth";
 import { deleteMyAccount } from "@/lib/account";
 import { blockUser } from "@/lib/blocks";
-import { adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches";
-import { adminCancelMatch } from "@/lib/disputes";
+import { adminCorrectOldMatchResult, adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches";
+import { adminCancelMatch, adminUndoOldMatch } from "@/lib/disputes";
 import { moderateUserDirectly } from "@/lib/reports";
 import { banIp } from "@/lib/ip-bans";
 import { listMatchComments, listMatchCommentsAsMod } from "@/lib/match-comments";
@@ -172,6 +172,43 @@ export async function adminUndoMatchAction(
   await requireModerator();
   try {
     await adminCancelMatch(matchId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath(`/players/${viewedPlayerId}`);
+  return { error: null };
+}
+
+// Counterparts to the two actions above for a match that's no longer each
+// player's most recent confirmed one — e.g. the player kept queueing
+// overnight before a mod got to a bad result. See adminCorrectOldMatchResult
+// / adminUndoOldMatch for the relative-delta approach this uses instead.
+export async function adminCorrectOldResultAction(
+  matchId: string,
+  viewedPlayerId: string,
+  winnerId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: AdminOverrideState,
+): Promise<AdminOverrideState> {
+  await requireModerator();
+  try {
+    await adminCorrectOldMatchResult(matchId, winnerId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath(`/players/${viewedPlayerId}`);
+  return { error: null };
+}
+
+export async function adminUndoOldMatchAction(
+  matchId: string,
+  viewedPlayerId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: AdminOverrideState,
+): Promise<AdminOverrideState> {
+  await requireModerator();
+  try {
+    await adminUndoOldMatch(matchId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }
