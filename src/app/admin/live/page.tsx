@@ -1,4 +1,5 @@
-import { Radio } from "lucide-react";
+import Link from "next/link";
+import { Radio, Search } from "lucide-react";
 import { auth } from "@/auth";
 import { listLiveMatches } from "@/lib/disputes";
 import { listMatchCommentsAsMod } from "@/lib/match-comments";
@@ -17,7 +18,11 @@ import {
   cancelMatchAction,
 } from "./actions";
 
-export default async function LiveMatchesPage() {
+export default async function LiveMatchesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const session = await auth();
   const role = session?.user?.role;
 
@@ -32,7 +37,19 @@ export default async function LiveMatchesPage() {
     );
   }
 
-  const matches = await listLiveMatches();
+  const { q } = await searchParams;
+  const query = (q ?? "").trim().toLowerCase();
+  const allMatches = await listLiveMatches();
+  // Filtered in memory rather than in the query — this list is already
+  // small (live + recently-expired matches only) and unindexed for search,
+  // so there's no real cost to fetching everything and narrowing here.
+  const matches = query
+    ? allMatches.filter(
+        (m) =>
+          m.player1.username.toLowerCase().includes(query) ||
+          m.player2.username.toLowerCase().includes(query),
+      )
+    : allMatches;
   const comments = await Promise.all(matches.map((m) => listMatchCommentsAsMod(m.id)));
 
   return (
@@ -48,8 +65,29 @@ export default async function LiveMatchesPage() {
       </p>
       <StreamRefreshPoller intervalMs={5000} />
 
+      <form method="get" className="mt-4 flex items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Search className="size-3.5" /> Player
+          </span>
+          <input
+            type="text"
+            name="q"
+            defaultValue={q}
+            placeholder="Search by username"
+            maxLength={32}
+            className="h-8 w-64 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+          />
+        </label>
+        <Button type="submit" size="sm" variant="outline">
+          Search
+        </Button>
+      </form>
+
       {matches.length === 0 && (
-        <p className="mt-4 text-sm text-muted-foreground">No matches in progress right now.</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          {query ? `No live matches for players matching "${q}".` : "No matches in progress right now."}
+        </p>
       )}
 
       <ul className="mt-6 flex flex-col gap-4">
@@ -65,7 +103,13 @@ export default async function LiveMatchesPage() {
                 <CardContent className="pt-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium">
-                      {match.player1.username} vs {match.player2.username}
+                      <Link href={`/players/${match.player1.id}`} className="hover:underline">
+                        {match.player1.username}
+                      </Link>{" "}
+                      vs{" "}
+                      <Link href={`/players/${match.player2.id}`} className="hover:underline">
+                        {match.player2.username}
+                      </Link>
                     </p>
                     <div className="flex items-center gap-1.5">
                       <Badge variant="outline" className="tabular-nums">

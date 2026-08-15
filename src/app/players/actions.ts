@@ -19,9 +19,15 @@ async function requireModerator() {
   return session.user.id;
 }
 
-function parseSuspensionHours(raw: FormDataEntryValue | null) {
-  if (raw === "indefinite" || raw === null) return null;
-  const hours = Number(raw);
+function parseSuspensionHours(
+  customRaw: FormDataEntryValue | null,
+  presetRaw: FormDataEntryValue | null,
+) {
+  const custom = Number(customRaw);
+  if (customRaw && Number.isFinite(custom) && custom > 0) return custom;
+
+  if (presetRaw === "indefinite" || presetRaw === null) return null;
+  const hours = Number(presetRaw);
   return Number.isFinite(hours) ? hours : null;
 }
 
@@ -94,7 +100,10 @@ export async function moderateUserAction(
 ): Promise<ModerationState> {
   const modId = await requireModerator();
   const action = String(formData.get("action") ?? "") as "SUSPEND" | "BAN" | "REINSTATE";
-  const suspensionHours = parseSuspensionHours(formData.get("suspensionHours"));
+  const suspensionHours = parseSuspensionHours(
+    formData.get("customHours"),
+    formData.get("suspensionHours"),
+  );
   const reason = String(formData.get("reason") ?? "");
   try {
     await moderateUserDirectly(modId, targetUserId, action, { suspensionHours, reason });

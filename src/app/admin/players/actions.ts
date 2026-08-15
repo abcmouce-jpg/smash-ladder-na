@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { UserRole } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import { moderateUserDirectly } from "@/lib/reports";
 import { canManageRoles } from "@/lib/roles";
 
 async function requireModerator() {
@@ -18,6 +19,12 @@ async function requireModerator() {
 export async function setSupporter(userId: string, isSupporter: boolean) {
   await requireModerator();
   await prisma.user.update({ where: { id: userId }, data: { isSupporter } });
+  revalidatePath("/admin/players");
+}
+
+export async function reinstate(userId: string) {
+  const modId = await requireModerator();
+  await moderateUserDirectly(modId, userId, "REINSTATE");
   revalidatePath("/admin/players");
 }
 

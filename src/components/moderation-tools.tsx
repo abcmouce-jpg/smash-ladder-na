@@ -45,6 +45,13 @@ export function ModerationStatusForm({
           ))}
         </select>
         <input
+          type="number"
+          name="customHours"
+          min={1}
+          placeholder="or custom hrs"
+          className="h-7 w-24 rounded-lg border border-border bg-background px-1.5 text-xs text-foreground outline-none focus-visible:border-ring"
+        />
+        <input
           name="reason"
           placeholder="Reason (optional)"
           maxLength={1000}

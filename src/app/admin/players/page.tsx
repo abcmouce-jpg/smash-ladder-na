@@ -7,7 +7,7 @@ import { canManageRoles } from "@/lib/roles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { setRole, setSupporter } from "./actions";
+import { reinstate, setRole, setSupporter } from "./actions";
 
 const ROLE_OPTIONS: UserRole[] = [UserRole.USER, UserRole.MOD, UserRole.ADMIN];
 
@@ -100,9 +100,16 @@ export default async function AdminPlayersPage({
                   {player.status === "ACTIVE" ? (
                     <span className="text-muted-foreground">active</span>
                   ) : (
-                    <Badge variant="destructive" className="text-xs">
-                      {player.status.toLowerCase()}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="destructive" className="text-xs">
+                        {player.status.toLowerCase()}
+                      </Badge>
+                      <form action={reinstate.bind(null, player.id)}>
+                        <Button type="submit" size="sm" variant="outline" className="h-6 px-2 text-xs">
+                          Reinstate
+                        </Button>
+                      </form>
+                    </div>
                   )}
                 </td>
                 <td className="py-2 text-muted-foreground">{player.region ?? "—"}</td>
