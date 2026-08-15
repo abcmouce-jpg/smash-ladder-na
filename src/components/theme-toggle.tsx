@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { useCallback, useLayoutEffect, useState } from "react";
 import { applyTheme, getStoredTheme, type Theme } from "@/lib/theme";
 
@@ -21,7 +21,8 @@ export function ThemeToggle() {
 
   const toggle = useCallback(() => {
     setTheme((prev) => {
-      const next: Theme = prev === "dark" ? "light" : "dark";
+      const next: Theme =
+        prev === "light" ? "dark" : prev === "dark" ? "auto" : "light";
       try {
         localStorage.setItem("theme", next);
       } catch {
@@ -37,8 +38,18 @@ export function ThemeToggle() {
       suppressHydrationWarning
       className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none hover:bg-muted hover:text-foreground"
     >
-      {theme === "dark" ? <Moon className="size-3.5" /> : <Sun className="size-3.5" />}
-      {theme === "dark" ? "Dark theme" : "Light theme"}
+      {theme === "dark" ? (
+        <Moon className="size-3.5" />
+      ) : theme === "light" ? (
+        <Sun className="size-3.5" />
+      ) : (
+        <Monitor className="size-3.5" />
+      )}
+      {theme === "dark"
+        ? "Dark theme"
+        : theme === "light"
+          ? "Light theme"
+          : "Auto theme"}
     </button>
   );
 }
