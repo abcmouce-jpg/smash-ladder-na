@@ -199,7 +199,7 @@ function SetPlayer({
       {player.avatarUrl && (
         <Image src={player.avatarUrl} alt="" width={20} height={20} className="shrink-0 rounded-full" />
       )}
-      {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={18} />}
+      {player.currentCharacter && <CharacterIcon name={player.currentCharacter} size={18} />}
       <span className="flex min-w-0 flex-col">
         <span className="flex items-center gap-1">
           <span className={`truncate text-sm ${won ? "font-semibold" : "font-medium"}`}>{player.username}</span>
