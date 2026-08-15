@@ -44,11 +44,12 @@ import {
 } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
+import { SMASH_CHARACTERS } from "@/lib/characters";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
-import { CharacterSelect } from "@/components/character-select";
+import { CharacterPickForm } from "@/components/character-pick";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RoomCodeForm } from "@/components/room-code-form";
@@ -646,7 +647,12 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
 
   const games = await getMatchGames(match.id);
   const topCharacters = await getTopCharacters(opponent.id);
-  const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
+  // Filtered to the live roster so a stale historical name (e.g. recorded
+  // before a character rename) can't become a quick-pick button that fails
+  // validation in pickGameCharacter.
+  const myTopCharacters = (await getTopCharacters(userId, 3)).filter((c) =>
+    (SMASH_CHARACTERS as readonly string[]).includes(c),
+  );
   const opponentStreak = currentStreak(
     await getPlayerMatchHistory(opponent.id),
   );
@@ -874,7 +880,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
             match={match}
             games={games}
             opponentName={displayName}
-            myTopCharacter={myTopCharacter}
+            myTopCharacters={myTopCharacters}
             lang={lang}
           />
         )}
@@ -1022,14 +1028,14 @@ function GameSection({
   match,
   games,
   opponentName,
-  myTopCharacter,
+  myTopCharacters,
   lang,
 }: {
   userId: string;
   match: Match;
   games: Awaited<ReturnType<typeof getMatchGames>>;
   opponentName: string;
-  myTopCharacter: string | null;
+  myTopCharacters: string[];
   lang: Lang;
 }) {
   // A disputed game is skipped here — it doesn't block the rest of the set,
@@ -1099,7 +1105,8 @@ function GameSection({
   // null and this defaults to the player's most-played character instead;
   // every later game already has a locked-in character from the prior game,
   // so this fallback is effectively game-1-only.
-  const defaultCharacter = lastUsedCharacter(games, userId) ?? myTopCharacter;
+  const defaultCharacter =
+    lastUsedCharacter(games, userId) ?? myTopCharacters[0] ?? null;
   const characterSection = (
     <CharacterPickSection
       userId={userId}
@@ -1108,6 +1115,7 @@ function GameSection({
       opponentName={opponentName}
       isPracticing={isPracticing}
       defaultCharacter={defaultCharacter}
+      topCharacters={myTopCharacters}
       lang={lang}
     />
   );
@@ -1340,6 +1348,7 @@ function CharacterPickSection({
   opponentName,
   isPracticing,
   defaultCharacter,
+  topCharacters,
   lang,
 }: {
   userId: string;
@@ -1354,6 +1363,7 @@ function CharacterPickSection({
   };
   opponentName: string;
   defaultCharacter: string | null;
+  topCharacters: string[];
   isPracticing: boolean;
   lang: Lang;
 }) {
@@ -1500,20 +1510,13 @@ function CharacterPickSection({
             : "You queued this match as Practicing — this set only affects your separate practice rating, not your ladder rating."}
         </p>
       )}
-      <form
+      <CharacterPickForm
+        key={game.gameNumber}
+        defaultCharacter={defaultCharacter}
+        topCharacters={topCharacters}
         action={pickCharacter.bind(null, matchId, game.gameNumber)}
-        className="mt-3 flex items-end gap-2"
-      >
-        <CharacterSelect
-          key={game.gameNumber}
-          name="character"
-          defaultValue={defaultCharacter ?? ""}
-          placeholder={lang === "es" ? "Elegir personaje" : "Select character"}
-        />
-        <Button type="submit" size="sm" variant="outline">
-          {lang === "es" ? "Elegir" : "Lock in"}
-        </Button>
-      </form>
+        lang={lang}
+      />
     </CardContent>
   );
 }
