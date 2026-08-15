@@ -54,7 +54,7 @@ export async function getActiveUserSnapshot() {
   return { last24h, last7d, last30d };
 }
 
-type RetentionRow = { cohort_week: Date; cohort_size: bigint; retained: bigint };
+type RetentionRow = { cohort_week: Date; cohort_size: bigint; retained: bigint; still_pending: bigint };
 
 // A user counts as "retained" if they played a 2nd ranked match (any
 // resolution — CONFIRMED/CANCELLED/etc. all show real engagement, unlike a
@@ -63,6 +63,16 @@ type RetentionRow = { cohort_week: Date; cohort_size: bigint; retained: bigint }
 // Prisma's query builder does cleanly, and this only ever reads, so a raw
 // SQL query here doesn't carry the write-path risk that ad-hoc production
 // SQL has elsewhere in this app.
+//
+// still_pending tracks signups whose own 7-day window hasn't closed yet AND
+// haven't retained (yet) — someone who signed up 2 days ago with no 2nd
+// match isn't "not retained", they just haven't had their full week. A
+// cohort in progress (see the most recent row this can return) will read as
+// falsely low if still_pending isn't excluded from whatever denominator the
+// caller computes a rate from — it inflates the "failed" side of an outcome
+// that hasn't happened yet. Only exclude at read time, not by filtering the
+// cohort query itself, so an in-progress week's confirmed-retained count is
+// still visible while its rate stays undefined until the window closes.
 async function retentionByCohort(weeks: number, referredOnly: boolean | null) {
   const referralFilter =
     referredOnly === null ? "" : referredOnly ? 'AND u."referredById" IS NOT NULL' : 'AND u."referredById" IS NULL';
@@ -72,6 +82,7 @@ async function retentionByCohort(weeks: number, referredOnly: boolean | null) {
       SELECT
         u.id,
         date_trunc('week', u."createdAt") AS cohort_week,
+        u."createdAt" + interval '7 days' <= now() AS window_closed,
         EXISTS (
           SELECT 1 FROM "RatingMatch" m
           WHERE (m."player1Id" = u.id OR m."player2Id" = u.id)
@@ -82,7 +93,11 @@ async function retentionByCohort(weeks: number, referredOnly: boolean | null) {
       WHERE u."createdAt" >= now() - (interval '1 week' * $1)
         ${referralFilter}
     )
-    SELECT cohort_week, count(*) AS cohort_size, count(*) FILTER (WHERE retained) AS retained
+    SELECT
+      cohort_week,
+      count(*) AS cohort_size,
+      count(*) FILTER (WHERE retained) AS retained,
+      count(*) FILTER (WHERE NOT retained AND NOT window_closed) AS still_pending
     FROM cohorts
     GROUP BY cohort_week
     ORDER BY cohort_week ASC
@@ -95,6 +110,7 @@ export async function getWeeklyRetentionCohorts(weeks = 8) {
     weekStart: r.cohort_week.toISOString(),
     cohortSize: Number(r.cohort_size),
     retained: Number(r.retained),
+    stillPending: Number(r.still_pending),
   }));
 }
 
@@ -109,6 +125,7 @@ export async function getReferralRetentionComparison(weeks = 12) {
   const sum = (rows: RetentionRow[]) => ({
     cohortSize: rows.reduce((n, r) => n + Number(r.cohort_size), 0),
     retained: rows.reduce((n, r) => n + Number(r.retained), 0),
+    stillPending: rows.reduce((n, r) => n + Number(r.still_pending), 0),
   });
   return { referred: sum(referred), organic: sum(organic) };
 }

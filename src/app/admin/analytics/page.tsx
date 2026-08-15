@@ -42,8 +42,13 @@ export default async function AdminAnalyticsPage() {
       getRatingGapChurnAnalysis(),
     ]);
 
-  const totalCohortSize = cohorts.reduce((n, c) => n + c.cohortSize, 0);
+  // "Determined" excludes still-pending signups (their own 7-day window
+  // hasn't closed yet) from the rate's denominator — otherwise someone who
+  // signed up 2 days ago with no 2nd match yet reads as "not retained"
+  // instead of "not decided yet", understating the rate for any in-progress
+  // week. See retentionByCohort's own comment in admin-analytics.ts.
   const totalRetained = cohorts.reduce((n, c) => n + c.retained, 0);
+  const totalDetermined = cohorts.reduce((n, c) => n + c.cohortSize - c.stillPending, 0);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -134,7 +139,7 @@ export default async function AdminAnalyticsPage() {
         <CardContent>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-sm">
-              Overall: {pct(totalRetained, totalCohortSize)} ({totalRetained}/{totalCohortSize})
+              Overall: {pct(totalRetained, totalDetermined)} ({totalRetained}/{totalDetermined} decided)
             </Badge>
           </div>
           <table className="mt-4 w-full text-left text-sm">
@@ -146,17 +151,31 @@ export default async function AdminAnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {[...cohorts].reverse().map((c) => (
-                <tr key={c.weekStart} className="border-b border-border/60 last:border-0">
-                  <td className="py-1.5">
-                    {new Date(c.weekStart).toLocaleDateString("en-US", { dateStyle: "medium" })}
-                  </td>
-                  <td className="py-1.5 text-right tabular-nums">{c.cohortSize}</td>
-                  <td className="py-1.5 text-right tabular-nums">
-                    {c.retained} ({pct(c.retained, c.cohortSize)})
-                  </td>
-                </tr>
-              ))}
+              {[...cohorts].reverse().map((c) => {
+                const determined = c.cohortSize - c.stillPending;
+                return (
+                  <tr key={c.weekStart} className="border-b border-border/60 last:border-0">
+                    <td className="py-1.5">
+                      {new Date(c.weekStart).toLocaleDateString("en-US", { dateStyle: "medium" })}
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums">{c.cohortSize}</td>
+                    <td className="py-1.5 text-right tabular-nums">
+                      {determined === 0 ? (
+                        <span className="text-muted-foreground">
+                          {c.retained} so far — too early to tell
+                        </span>
+                      ) : (
+                        <>
+                          {c.retained} ({pct(c.retained, determined)})
+                          {c.stillPending > 0 && (
+                            <span className="text-muted-foreground"> · {c.stillPending} still pending</span>
+                          )}
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {cohorts.length === 0 && (
                 <tr>
                   <td colSpan={3} className="py-3 text-center text-muted-foreground">
@@ -178,18 +197,26 @@ export default async function AdminAnalyticsPage() {
         <CardContent className="flex gap-4">
           <div className="flex-1 rounded-lg border border-border p-3 text-center">
             <p className="text-lg font-semibold tabular-nums">
-              {pct(referralRetention.referred.retained, referralRetention.referred.cohortSize)}
+              {pct(
+                referralRetention.referred.retained,
+                referralRetention.referred.cohortSize - referralRetention.referred.stillPending,
+              )}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Referred ({referralRetention.referred.retained}/{referralRetention.referred.cohortSize})
+              Referred ({referralRetention.referred.retained}/
+              {referralRetention.referred.cohortSize - referralRetention.referred.stillPending} decided)
             </p>
           </div>
           <div className="flex-1 rounded-lg border border-border p-3 text-center">
             <p className="text-lg font-semibold tabular-nums">
-              {pct(referralRetention.organic.retained, referralRetention.organic.cohortSize)}
+              {pct(
+                referralRetention.organic.retained,
+                referralRetention.organic.cohortSize - referralRetention.organic.stillPending,
+              )}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Organic ({referralRetention.organic.retained}/{referralRetention.organic.cohortSize})
+              Organic ({referralRetention.organic.retained}/
+              {referralRetention.organic.cohortSize - referralRetention.organic.stillPending} decided)
             </p>
           </div>
         </CardContent>
