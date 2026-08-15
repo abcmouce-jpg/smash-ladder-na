@@ -208,3 +208,10 @@ export function computeAchievements(stats: {
     },
   ];
 }
+
+// Achieved achievements first, unearned ones after — within each group the
+// relative order is left untouched
+export function achievementComparator(a: Achievement, b: Achievement): number {
+  if (a.achieved === b.achieved) return 0;
+  return a.achieved ? -1 : 1;
+}
