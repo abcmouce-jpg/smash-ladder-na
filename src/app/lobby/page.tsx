@@ -4,7 +4,7 @@ import { Check, Loader2, MapPin, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
-import { getUnresolvedMatchForUser, hasOpponentEngaged } from "@/lib/matches";
+import { CANCEL_GRACE_PERIOD_SECONDS, getUnresolvedMatchForUser, hasOpponentEngaged } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
 import {
   currentStreak,
@@ -44,16 +44,18 @@ import {
 } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
+import { SMASH_CHARACTERS } from "@/lib/characters";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
-import { CharacterSelect } from "@/components/character-select";
+import { CharacterPickForm } from "@/components/character-pick";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RoomCodeForm } from "@/components/room-code-form";
 import { FlashOnChange } from "@/components/flash-on-change";
 import { Countdown } from "@/components/countdown";
+import { QueueTimer } from "@/components/queue-timer";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
@@ -181,26 +183,71 @@ export default async function LobbyPage() {
         lang={lang}
       />
 
-      {matchJustEnded && (
-        <Card className="mt-4 border-primary/30">
-          <CardContent className="pt-4">
-            <p className="text-sm font-medium">
-              {lang === "es" ? "¿Listo para otra partida?" : "Ready for another match?"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {lang === "es"
-                ? "Esto empieza una búsqueda totalmente nueva — no tiene relación con la partida de abajo."
-                : "This starts a brand new search — it's not related to the match below."}
-            </p>
-            <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
-              <JoinLobbyForm action={joinLobby} className="mt-3" lang={lang} />
-            </QueueCooldownGate>
-          </CardContent>
-        </Card>
+
+
+            {matchJustEnded && (
+              <Card className="mt-4 border-primary/30">
+                <CardContent className="pt-4">
+                  <p className="text-sm font-medium">
+                    {lang === "es" ? "¿Listo para otra partida?" : "Ready for another match?"}
+                  </p>
+                  <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
+                    <JoinLobbyForm action={joinLobby} className="mt-3" lang={lang} />
+                  </QueueCooldownGate>
+                </CardContent>
+              </Card>
+            )}
+
+            {!entry && (
+              <Card className="mt-4">
+                <CardContent className="pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    {lang === "es" ? "No estás en la cola." : "You're not in the queue."}
+                  </p>
+                  <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
+                    <JoinLobbyForm action={joinLobby} className="mt-4" lang={lang} />
+                  </QueueCooldownGate>
+                </CardContent>
+              </Card>
       )}
 
+            {entry?.status === "WAITING" && (
+              <Card className="mt-4">
+                <CardContent className="flex items-center gap-3 pt-4">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    {lang === "es" ? "Esperando a un rival…" : "Waiting for an opponent…"}
+                  </p>
+                  <span className="ml-auto text-sm tabular-nums text-muted-foreground">
+                    {lang === "es" ? "Tiempo en cola:" : "In queue:"}{" "}
+                    <QueueTimer joinedAt={entry.joinedAt.toISOString()} />
+                  </span>
+                </CardContent>
+                <CardContent className="pt-0">
+                  <form action={cancelLobby}>
+                    <Button type="submit" variant="outline">
+                      {lang === "es" ? "Cancelar" : "Cancel"}
+                    </Button>
+                  </form>
+                </CardContent>
+                <CardContent className="border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "es"
+                      ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
+                      : "Wait feeling long? Invite a friend to get matched faster."}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
+                      {referralLink(session.user.id)}
+                    </code>
+                    <CopyButton text={referralLink(session.user.id)} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
       {isInActiveMatch ? (
-        <Card className="mt-8">
+        <Card className="mt-4">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">
               {lang === "es"
@@ -210,53 +257,9 @@ export default async function LobbyPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="mt-8">
+        <Card className="mt-4">
           <CardContent className="pt-4">
             <MatchmakingForm userId={session.user.id} lang={lang} />
-          </CardContent>
-        </Card>
-      )}
-
-      {!entry && (
-        <Card className="mt-4">
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">
-              {lang === "es" ? "No estás en la cola." : "You're not in the queue."}
-            </p>
-            <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
-              <JoinLobbyForm action={joinLobby} className="mt-4" lang={lang} />
-            </QueueCooldownGate>
-          </CardContent>
-        </Card>
-      )}
-
-      {entry?.status === "WAITING" && (
-        <Card className="mt-4">
-          <CardContent className="flex items-center gap-3 pt-4">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {lang === "es" ? "Esperando a un rival…" : "Waiting for an opponent…"}
-            </p>
-          </CardContent>
-          <CardContent className="pt-0">
-            <form action={cancelLobby}>
-              <Button type="submit" variant="outline">
-                {lang === "es" ? "Cancelar" : "Cancel"}
-              </Button>
-            </form>
-          </CardContent>
-          <CardContent className="border-t border-border pt-3">
-            <p className="text-xs text-muted-foreground">
-              {lang === "es"
-                ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
-                : "Wait feeling long? Invite a friend to get matched faster."}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
-                {referralLink(session.user.id)}
-              </code>
-              <CopyButton text={referralLink(session.user.id)} />
-            </div>
           </CardContent>
         </Card>
       )}
@@ -567,6 +570,13 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
   });
   const zenMode = me?.zenMode ?? false;
   const displayName = zenMode ? (lang === "es" ? "Rival" : "Opponent") : opponent.username;
+  // Doesn't hide the opponent's real name/rating from them (that's what
+  // zenMode above does, one-directionally) — just lets them know you have
+  // it on, so they're not confused if you're less chatty/less findable.
+  const opponentInZenMode = opponent.zenMode;
+  const opponentIsPracticing = isPlayer1
+    ? match.player2IsPracticing
+    : match.player1IsPracticing;
 
   if (
     match.status === "CONFIRMED" ||
@@ -646,7 +656,12 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
 
   const games = await getMatchGames(match.id);
   const topCharacters = await getTopCharacters(opponent.id);
-  const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
+  // Filtered to the live roster so a stale historical name (e.g. recorded
+  // before a character rename) can't become a quick-pick button that fails
+  // validation in pickGameCharacter.
+  const myTopCharacters = (await getTopCharacters(userId, 3)).filter((c) =>
+    (SMASH_CHARACTERS as readonly string[]).includes(c),
+  );
   const opponentStreak = currentStreak(
     await getPlayerMatchHistory(opponent.id),
   );
@@ -692,7 +707,13 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <p className="text-xs text-muted-foreground tabular-nums">
-            {lang === "es" ? `Tú: ${me?.rating} de clasificación` : `You: ${me?.rating} rating`}
+            <span>
+              {lang === "es" ? "Tú:" : "You:"}
+              {!zenMode &&
+                (lang === "es"
+                  ? ` ${me?.rating} de clasificación`
+                  : ` ${me?.rating} rating`)}
+            </span>
             {me?.region && (
               <span className="ml-2 inline-flex items-center gap-1">
                 <MapPin className="size-3" />
@@ -711,16 +732,24 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
               />
             )}
             <div className={zenMode ? "flex-1" : ""}>
-              {!zenMode && (
-                <p className="flex items-center gap-1.5 font-medium">
-                  {displayName}
-                  {opponentStreak > 0 && (
-                    <Badge variant="success" className="tabular-nums">
-                      {lang === "es" ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
-                    </Badge>
-                  )}
-                </p>
+            <p className="flex items-center gap-1.5 font-medium">
+              {displayName}
+              {!zenMode && opponentStreak > 0 && (
+                <Badge variant="success" className="tabular-nums">
+                  {lang === "es" ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
+                </Badge>
               )}
+              {opponentInZenMode && (
+                <Badge variant="outline">
+                  {lang === "es" ? "🧘 Modo Zen" : "🧘 Zen Mode"}
+                </Badge>
+              )}
+              {opponentIsPracticing && (
+                <Badge variant="outline">
+                  {lang === "es" ? "Practicando" : "Practicing"}
+                </Badge>
+              )}
+            </p>
               {(!zenMode || opponent.region) && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
                   {!zenMode && <span>{lang === "es" ? `${opponent.rating} de clasificación` : `${opponent.rating} rating`}</span>}
@@ -870,7 +899,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
             match={match}
             games={games}
             opponentName={displayName}
-            myTopCharacter={myTopCharacter}
+            myTopCharacters={myTopCharacters}
             lang={lang}
           />
         )}
@@ -951,6 +980,11 @@ function MatchFooterActions({
                 ? surrenderMatchAction.bind(null, match.id)
                 : cancelMatchInProgress.bind(null, match.id)
             }
+            cancelReadyAt={
+              new Date(
+                match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000,
+              ).toISOString()
+            }
             lang={lang}
           />
         )}
@@ -1018,14 +1052,14 @@ function GameSection({
   match,
   games,
   opponentName,
-  myTopCharacter,
+  myTopCharacters,
   lang,
 }: {
   userId: string;
   match: Match;
   games: Awaited<ReturnType<typeof getMatchGames>>;
   opponentName: string;
-  myTopCharacter: string | null;
+  myTopCharacters: string[];
   lang: Lang;
 }) {
   // A disputed game is skipped here — it doesn't block the rest of the set,
@@ -1095,7 +1129,8 @@ function GameSection({
   // null and this defaults to the player's most-played character instead;
   // every later game already has a locked-in character from the prior game,
   // so this fallback is effectively game-1-only.
-  const defaultCharacter = lastUsedCharacter(games, userId) ?? myTopCharacter;
+  const defaultCharacter =
+    lastUsedCharacter(games, userId) ?? myTopCharacters[0] ?? null;
   const characterSection = (
     <CharacterPickSection
       userId={userId}
@@ -1104,6 +1139,7 @@ function GameSection({
       opponentName={opponentName}
       isPracticing={isPracticing}
       defaultCharacter={defaultCharacter}
+      topCharacters={myTopCharacters}
       lang={lang}
     />
   );
@@ -1319,7 +1355,7 @@ function GameSection({
             action={unstrikeStage.bind(null, match.id, current.gameNumber)}
             className="mt-2"
           >
-            <Button type="submit" size="sm" variant="ghost">
+            <Button type="submit" size="sm" variant="outline">
               {lang === "es" ? "Deshacer mi último descarte" : "Undo my last strike"}
             </Button>
           </form>
@@ -1336,6 +1372,7 @@ function CharacterPickSection({
   opponentName,
   isPracticing,
   defaultCharacter,
+  topCharacters,
   lang,
 }: {
   userId: string;
@@ -1350,6 +1387,7 @@ function CharacterPickSection({
   };
   opponentName: string;
   defaultCharacter: string | null;
+  topCharacters: string[];
   isPracticing: boolean;
   lang: Lang;
 }) {
@@ -1373,16 +1411,28 @@ function CharacterPickSection({
           {lang === "es" ? (
             <>
               Personajes del juego {game.gameNumber} — tú:{" "}
-              <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {yourCharacter}
+              </span>,{" "}
               {opponentName}:{" "}
-              <span className="font-medium text-foreground">{opponentCharacter}</span>
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {opponentCharacter}
+              </span>
             </>
           ) : (
             <>
               Game {game.gameNumber} characters — you:{" "}
-              <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {yourCharacter}
+              </span>,{" "}
               {opponentName}:{" "}
-              <span className="font-medium text-foreground">{opponentCharacter}</span>
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {opponentCharacter}
+              </span>
             </>
           )}
         </p>
@@ -1397,7 +1447,10 @@ function CharacterPickSection({
           {lang === "es" ? (
             <>
               Juego {game.gameNumber} — elegiste{" "}
-              <span className="font-medium text-foreground">{yourCharacter}</span>. Esperando a
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {yourCharacter}
+              </span>. Esperando a
               que {opponentName} elija…{" "}
               {secondsLeft > 0 ? (
                 <>
@@ -1410,7 +1463,10 @@ function CharacterPickSection({
           ) : (
             <>
               Game {game.gameNumber} — you locked in{" "}
-              <span className="font-medium text-foreground">{yourCharacter}</span>.
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {yourCharacter}
+              </span>.
               Waiting for {opponentName} to pick…{" "}
               {secondsLeft > 0 ? (
                 <>
@@ -1478,20 +1534,13 @@ function CharacterPickSection({
             : "You queued this match as Practicing — this set only affects your separate practice rating, not your ladder rating."}
         </p>
       )}
-      <form
+      <CharacterPickForm
+        key={game.gameNumber}
+        defaultCharacter={defaultCharacter}
+        topCharacters={topCharacters}
         action={pickCharacter.bind(null, matchId, game.gameNumber)}
-        className="mt-3 flex items-end gap-2"
-      >
-        <CharacterSelect
-          key={game.gameNumber}
-          name="character"
-          defaultValue={defaultCharacter ?? ""}
-          placeholder={lang === "es" ? "Elegir personaje" : "Select character"}
-        />
-        <Button type="submit" size="sm" variant="outline">
-          {lang === "es" ? "Elegir" : "Lock in"}
-        </Button>
-      </form>
+        lang={lang}
+      />
     </CardContent>
   );
 }
@@ -1840,6 +1889,7 @@ async function CommentsSection({
             ? "Rival"
             : "Opponent"
           : c.author.username,
+      role: c.author.role,
     },
     body: c.body,
     translatedBody: c.translatedBody,

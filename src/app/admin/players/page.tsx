@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { auth } from "@/auth";
+import { UserRole } from "@/generated/prisma/enums";
 import { searchPlayersForAdmin } from "@/lib/admin-players";
+import { canManageRoles } from "@/lib/roles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { setSupporter } from "./actions";
+import { reinstate, setRole, setSupporter } from "./actions";
+
+const ROLE_OPTIONS: UserRole[] = [UserRole.USER, UserRole.MOD, UserRole.ADMIN];
 
 export default async function AdminPlayersPage({
   searchParams,
@@ -25,6 +29,8 @@ export default async function AdminPlayersPage({
       </main>
     );
   }
+
+  const canEditRoles = canManageRoles(session.user.id);
 
   const { q, page: pageParam } = await searchParams;
   const query = q ?? "";
@@ -73,6 +79,7 @@ export default async function AdminPlayersPage({
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
               <th className="py-2 font-medium text-right tabular-nums">Sets</th>
               <th className="py-2 font-medium text-center">Ad-free</th>
+              {canEditRoles && <th className="py-2 font-medium">Role</th>}
               <th className="py-2 pr-4 font-medium text-right">Joined</th>
             </tr>
           </thead>
@@ -93,9 +100,16 @@ export default async function AdminPlayersPage({
                   {player.status === "ACTIVE" ? (
                     <span className="text-muted-foreground">active</span>
                   ) : (
-                    <Badge variant="destructive" className="text-xs">
-                      {player.status.toLowerCase()}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="destructive" className="text-xs">
+                        {player.status.toLowerCase()}
+                      </Badge>
+                      <form action={reinstate.bind(null, player.id)}>
+                        <Button type="submit" size="sm" variant="outline" className="h-6 px-2 text-xs">
+                          Reinstate
+                        </Button>
+                      </form>
+                    </div>
                   )}
                 </td>
                 <td className="py-2 text-muted-foreground">{player.region ?? "—"}</td>
@@ -115,6 +129,25 @@ export default async function AdminPlayersPage({
                     </Button>
                   </form>
                 </td>
+                {canEditRoles && (
+                  <td className="py-2">
+                    <div className="flex gap-1">
+                      {ROLE_OPTIONS.map((roleOption) => (
+                        <form key={roleOption} action={setRole.bind(null, player.id, roleOption)}>
+                          <Button
+                            type="submit"
+                            size="sm"
+                            variant={player.role === roleOption ? "default" : "outline"}
+                            disabled={player.role === roleOption}
+                            className="h-6 px-2 text-xs"
+                          >
+                            {roleOption.toLowerCase()}
+                          </Button>
+                        </form>
+                      ))}
+                    </div>
+                  </td>
+                )}
                 <td className="py-2 pr-4 text-right text-xs text-muted-foreground">
                   {player.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })}
                 </td>

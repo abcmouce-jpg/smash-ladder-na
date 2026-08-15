@@ -224,92 +224,125 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
-      {/* Top-center: Current match — scoreboard style
+      {/* Top-center: Scoreboard (when a match is live) with the branding
+          below it; when idle, the branding alone at the top with the logo
+          and title side by side. Same centering approach as before
           (inset-x-0 + items-center instead of left-1/2 -translate-x-1/2:
           Tailwind v4's -translate-x-1/2 compiles to the native `translate`
           CSS property, which older OBS Browser Source builds (pre-Chromium
           104) ignore — the scoreboard would sit pinned at left: 50% and
           look shoved right.) */}
-      {currentMatch && (
-        <div className="absolute inset-x-0 top-2 flex flex-col items-center gap-0">
-          {/* Best of 5 label */}
-          <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
-            {lang === "es" ? "Mejor de 5" : "Best of 5"}
-          </span>
+      <div className="absolute inset-x-0 top-6 flex flex-col items-center">
+        {currentMatch ? (
+          <>
+            {/* Best of 5 label */}
+            <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
+              {lang === "es" ? "Mejor de 5" : "Best of 5"}
+            </span>
 
-          {/* Scoreboard */}
-          <div className="flex items-stretch overflow-hidden rounded-2xl shadow-2xl">
-            {/* Stream user side (left) */}
-            <div className="flex min-w-96 max-w-96 flex-1 items-center justify-end gap-5 bg-zinc-800 px-8 py-2">
-              <div className="flex flex-col items-end">
-                <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
-                  {isUserPlayer1
-                    ? currentMatch.player1.username
-                    : currentMatch.player2.username}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  {streak > 0 && (
-                    <span className="flex items-center gap-0.5 text-orange-400">
-                      <Flame className="size-4 fill-orange-400" />
-                      <span className="text-base font-semibold tabular-nums">
-                        {streak}
-                      </span>
-                    </span>
-                  )}
-                  <span className="text-base text-white/50 tabular-nums">
-                    {user.rating}
+            {/* Scoreboard */}
+            <div className="flex items-stretch overflow-hidden rounded-2xl shadow-2xl">
+              {/* Stream user side (left) */}
+              <div className="flex min-w-96 max-w-96 flex-1 items-center justify-end gap-5 bg-zinc-800 px-8 py-2">
+                <div className="flex flex-col items-end">
+                  <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
+                    {isUserPlayer1
+                      ? currentMatch.player1.username
+                      : currentMatch.player2.username}
                   </span>
-                </span>
-              </div>
-              <div className="flex shrink-0">
-                {userCharacter && (
-                  <CharacterIcon name={userCharacter} size={48} />
-                )}
-              </div>
-            </div>
-
-            {/* Score divider */}
-            <div className="flex items-center justify-center gap-4 bg-zinc-900 px-10 py-2">
-              <span className="text-5xl font-bold tabular-nums leading-none text-red-400">
-                {userWins}
-              </span>
-              <span className="text-2xl font-bold tracking-widest text-zinc-500">
-                VS
-              </span>
-              <span className="text-5xl font-bold tabular-nums leading-none text-sky-400">
-                {opponentWins}
-              </span>
-            </div>
-
-            {/* Opponent side (right) */}
-            <div className="flex min-w-96 max-w-96 flex-1 items-center justify-start gap-5 bg-zinc-800 px-8 py-2">
-              <div className="flex shrink-0">
-                {opponentCharacter && (
-                  <CharacterIcon name={opponentCharacter} size={48} />
-                )}
-              </div>
-              <div className="flex flex-col items-start">
-                <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
-                  {opponentUsername}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="text-base text-white/50 tabular-nums">
-                    {opponentRating}
-                  </span>
-                  {opponentStreak !== null && opponentStreak > 0 && (
-                    <span className="flex items-center gap-0.5 text-orange-400">
-                      <Flame className="size-4 fill-orange-400" />
-                      <span className="text-base font-semibold tabular-nums">
-                        {opponentStreak}
+                  <span className="flex items-center gap-1.5">
+                    {streak > 0 && (
+                      <span className="flex items-center gap-0.5 text-orange-400">
+                        <Flame className="size-4 fill-orange-400" />
+                        <span className="text-base font-semibold tabular-nums">
+                          {streak}
+                        </span>
                       </span>
+                    )}
+                    <span className="text-base text-white/50 tabular-nums">
+                      {user.rating}
                     </span>
+                  </span>
+                </div>
+                <div className="flex shrink-0">
+                  {userCharacter && (
+                    <CharacterIcon name={userCharacter} size={48} />
                   )}
+                </div>
+              </div>
+
+              {/* Score divider */}
+              <div className="flex items-center justify-center gap-4 bg-zinc-900 px-10 py-2">
+                <span className="text-5xl font-bold tabular-nums leading-none text-red-400">
+                  {userWins}
+                </span>
+                <span className="text-2xl font-bold tracking-widest text-zinc-500">
+                  VS
+                </span>
+                <span className="text-5xl font-bold tabular-nums leading-none text-sky-400">
+                  {opponentWins}
                 </span>
               </div>
+
+              {/* Opponent side (right) */}
+              <div className="flex min-w-96 max-w-96 flex-1 items-center justify-start gap-5 bg-zinc-800 px-8 py-2">
+                <div className="flex shrink-0">
+                  {opponentCharacter && (
+                    <CharacterIcon name={opponentCharacter} size={48} />
+                  )}
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
+                    {opponentUsername}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-base text-white/50 tabular-nums">
+                      {opponentRating}
+                    </span>
+                    {opponentStreak !== null && opponentStreak > 0 && (
+                      <span className="flex items-center gap-0.5 text-orange-400">
+                        <Flame className="size-4 fill-orange-400" />
+                        <span className="text-base font-semibold tabular-nums">
+                          {opponentStreak}
+                        </span>
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
+
+            {/* Branding below the scoreboard */}
+            <div className="flex items-center gap-4 rounded-b-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm border-t-0">
+              <Image
+                src="/smash_ladder_icon_white.png"
+                alt=""
+                width={256}
+                height={256}
+                className="size-12 block"
+              />
+              <span className="text-2xl font-semibold tracking-tight text-white">
+                Smash Ladder <span className="text-primary">NA</span>
+              </span>
+            </div>
+          </>
+        ) : (
+          /* No match in progress — logo and title on one line inside a
+             single bordered pill */
+          <div className="mt-2 flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm">
+            <Image
+              src="/smash_ladder_icon_white.png"
+              alt=""
+              width={256}
+              height={256}
+              className="size-16 block"
+            />
+            <span className="text-3xl font-semibold tracking-tight text-white">
+              Smash Ladder <span className="text-primary">NA</span>
+            </span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Top-right: Recent matches */}
       {showRecentMatches && (
@@ -358,23 +391,6 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
-      {/* Bottom-center: Branding (same centering approach as the
-          scoreboard above — flexbox, not transform, so old OBS builds
-          keep it centered) */}
-      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-1">
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-2 py-2 shadow-2xl backdrop-blur-sm">
-          <Image
-            src="/smash_ladder_icon_white.png"
-            alt=""
-            width={256}
-            height={256}
-            className="size-24 block"
-          />
-        </div>
-        <span className="text-white rounded-t-2xl border border-white/10 bg-zinc-900/95 px-2 py-2 shadow-2xl backdrop-blur-sm text-3xl font-semibold tracking-tight">
-          Smash Ladder <span className="text-primary">NA</span>
-        </span>
-      </div>
     </div>
   );
 }

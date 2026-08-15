@@ -1,0 +1,81 @@
+name: Notify Discord on deploy
+
+# Runs after CI finishes on main. Splits into two jobs so the actual
+# Discord post requires a manual approval: `compose` drafts the message and
+# writes it to the run summary (visible without approving anything), `post`
+# is gated behind the `discord-notify-review` environment's required
+# reviewer — GitHub blocks it until approved from the Actions tab, and the
+# reviewer can read the exact message in `compose`'s summary before doing so.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'push'
+    outputs:
+      title: ${{ steps.build.outputs.title }}
+      description: ${{ steps.build.outputs.description }}
+      color: ${{ steps.build.outputs.color }}
+    steps:
+      - name: Build message
+        id: build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA="${SHA:0:7}"
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${SHA}"
+          RUN_URL="${{ github.event.workflow_run.html_url }}"
+
+          if [ "$CONCLUSION" = "success" ]; then
+            COLOR=3066993
+            TITLE="✅ Deployed to production"
+          else
+            COLOR=15158332
+            TITLE="❌ CI failed on main — not deployed"
+          fi
+
+          COMMIT_MSG=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${SHA}" \
+            | jq -r '.commit.message' | head -n1)
+
+          DESC="**$COMMIT_MSG**\n[\`$SHORT_SHA\`]($COMMIT_URL) · [CI run]($RUN_URL)"
+
+          {
+            echo "title=$TITLE"
+            echo "description=$DESC"
+            echo "color=$COLOR"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Draft Discord message"
+            echo "**$TITLE**"
+            echo ""
+            echo -e "$DESC"
+            echo ""
+            echo "Approve the \`post\` job below to actually send this."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  post:
+    needs: compose
+    runs-on: ubuntu-latest
+    environment: discord-notify-review
+    steps:
+      - name: Post to Discord
+        env:
+          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          TITLE: ${{ needs.compose.outputs.title }}
+          DESCRIPTION: ${{ needs.compose.outputs.description }}
+          COLOR: ${{ needs.compose.outputs.color }}
+        run: |
+          jq -n \
+            --arg title "$TITLE" \
+            --arg desc "$DESCRIPTION" \
+            --argjson color "$COLOR" \
+            '{embeds: [{title: $title, description: $desc, color: $color}]}' \
+            | curl -s -X POST -H "Content-Type: application/json" -d @- "$DISCORD_DEPLOY_WEBHOOK_URL"
