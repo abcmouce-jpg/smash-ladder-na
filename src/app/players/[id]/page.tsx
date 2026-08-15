@@ -182,10 +182,22 @@ export default async function PlayerProfilePage({
                   {player.role.toLowerCase()}
                 </Badge>
               )}
+              {player.isSupporter && (
+                <Badge variant="success" className="text-xs">
+                  {lang === "es" ? "💖 Patrocinador" : "💖 Supporter"}
+                </Badge>
+              )}
               <CharacterUsageIcons usage={characterUsage} />
             </h1>
             {player.discordUsername && player.discordUsername !== player.username && (
               <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
+            )}
+            {player.isSupporter && (
+              <p className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? `${player.username} ha donado para apoyar Smash Ladder NA — ¡gracias!`
+                  : `${player.username} has donated to support Smash Ladder NA — thank you!`}
+              </p>
             )}
             <p className="text-sm tabular-nums text-muted-foreground">
               {lang === "es"

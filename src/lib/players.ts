@@ -14,6 +14,7 @@ export async function getPlayerProfile(userId: string) {
       discordUsername: true,
       avatarUrl: true,
       role: true,
+      isSupporter: true,
       rating: true,
       gamesPlayed: true,
       practiceRating: true,
