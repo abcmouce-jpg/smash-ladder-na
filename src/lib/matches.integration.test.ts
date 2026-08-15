@@ -4,6 +4,7 @@ import {
   adminForceConfirmMatch,
   adminOverrideMatchResult,
   applyEloAndConfirm,
+  CANCEL_GRACE_PERIOD_SECONDS,
   cancelMatch,
   getLatestMatchForUser,
   getUnresolvedMatchForUser,
@@ -15,6 +16,10 @@ import {
   resolveMatchCorrection,
   surrenderMatch,
 } from "@/lib/matches";
+
+// Past the free-cancel grace period, so tests exercising a successful
+// cancelMatch don't have to actually wait it out in real time.
+const PAST_GRACE_PERIOD = new Date(Date.now() - (CANCEL_GRACE_PERIOD_SECONDS + 5) * 1000);
 import { reportGameResult } from "@/lib/match-games";
 import { blockUser } from "@/lib/blocks";
 import { fileConnectionReport } from "@/lib/reports";
@@ -375,13 +380,29 @@ describe("cancelMatch", () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await prisma.ratingMatch.create({
-      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+        createdAt: PAST_GRACE_PERIOD,
+      },
     });
 
     await cancelMatch(p1.id, match.id);
 
     const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
     expect(updated.status).toBe(MatchStatus.CANCELLED);
+  });
+
+  it("blocks cancelling before the grace period has elapsed, even with no opponent activity", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await expect(cancelMatch(p1.id, match.id)).rejects.toThrow(/moment to show up/i);
   });
 
   it("blocks cancelling once a game has been decided (the dodge-a-loss exploit)", async () => {
@@ -430,7 +451,13 @@ describe("cancelMatch", () => {
 
   async function cancelPendingMatch(userId: string, opponentId: string) {
     const match = await prisma.ratingMatch.create({
-      data: { player1Id: userId, player2Id: opponentId, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+      data: {
+        player1Id: userId,
+        player2Id: opponentId,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+        createdAt: PAST_GRACE_PERIOD,
+      },
     });
     await cancelMatch(userId, match.id);
   }
@@ -492,7 +519,13 @@ describe("cancelMatch", () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await prisma.ratingMatch.create({
-      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+        createdAt: PAST_GRACE_PERIOD,
+      },
     });
     // p2 (the canceller) locked in a character; p1 (the opponent) never touched it.
     await prisma.matchGame.create({

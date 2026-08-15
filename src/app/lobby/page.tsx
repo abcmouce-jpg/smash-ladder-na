@@ -4,7 +4,7 @@ import { Check, Loader2, MapPin, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
-import { getUnresolvedMatchForUser, hasOpponentEngaged } from "@/lib/matches";
+import { CANCEL_GRACE_PERIOD_SECONDS, getUnresolvedMatchForUser, hasOpponentEngaged } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
 import {
   currentStreak,
@@ -570,6 +570,13 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
   });
   const zenMode = me?.zenMode ?? false;
   const displayName = zenMode ? (lang === "es" ? "Rival" : "Opponent") : opponent.username;
+  // Doesn't hide the opponent's real name/rating from them (that's what
+  // zenMode above does, one-directionally) — just lets them know you have
+  // it on, so they're not confused if you're less chatty/less findable.
+  const opponentInZenMode = opponent.zenMode;
+  const opponentIsPracticing = isPlayer1
+    ? match.player2IsPracticing
+    : match.player1IsPracticing;
 
   if (
     match.status === "CONFIRMED" ||
@@ -730,6 +737,16 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
               {!zenMode && opponentStreak > 0 && (
                 <Badge variant="success" className="tabular-nums">
                   {lang === "es" ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
+                </Badge>
+              )}
+              {opponentInZenMode && (
+                <Badge variant="outline">
+                  {lang === "es" ? "🧘 Modo Zen" : "🧘 Zen Mode"}
+                </Badge>
+              )}
+              {opponentIsPracticing && (
+                <Badge variant="outline">
+                  {lang === "es" ? "Practicando" : "Practicing"}
                 </Badge>
               )}
             </p>
@@ -962,6 +979,11 @@ function MatchFooterActions({
               opponentEngaged
                 ? surrenderMatchAction.bind(null, match.id)
                 : cancelMatchInProgress.bind(null, match.id)
+            }
+            cancelReadyAt={
+              new Date(
+                match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000,
+              ).toISOString()
             }
             lang={lang}
           />

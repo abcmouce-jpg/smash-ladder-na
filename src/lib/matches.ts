@@ -13,15 +13,39 @@ import { recomputeCharacterUsage } from "@/lib/character-stats";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 
+// Free cancel is blocked for this long after a match is created, giving the
+// opponent a moment to actually show up before the other side can bail —
+// otherwise a fast-fingered player could cancel before the other side's
+// client has even rendered the match, making pairing feel like a coin flip.
+// Doesn't apply once the opponent has engaged (hasOpponentEngaged already
+// forces Surrender by then) or once the deadline itself has passed.
+export const CANCEL_GRACE_PERIOD_SECONDS = 20;
+
 // Used as `include`, which already returns every scalar column (leftAt,
 // rematchRequestedAt, etc.) by default — no need to list them here, and
 // doing so breaks the query since `include` only accepts relation fields.
 export const matchWithPlayers = {
   player1: {
-    select: { id: true, username: true, avatarUrl: true, rating: true, region: true, arenaPassword: true },
+    select: {
+      id: true,
+      username: true,
+      avatarUrl: true,
+      rating: true,
+      region: true,
+      arenaPassword: true,
+      zenMode: true,
+    },
   },
   player2: {
-    select: { id: true, username: true, avatarUrl: true, rating: true, region: true, arenaPassword: true },
+    select: {
+      id: true,
+      username: true,
+      avatarUrl: true,
+      rating: true,
+      region: true,
+      arenaPassword: true,
+      zenMode: true,
+    },
   },
 } as const;
 
@@ -125,6 +149,11 @@ export async function cancelMatch(userId: string, matchId: string) {
     throw new Error(
       "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
     );
+  }
+
+  const cancelReadyAt = match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000;
+  if (Date.now() < cancelReadyAt) {
+    throw new Error("Give your opponent a moment to show up — you can cancel in a few seconds.");
   }
 
   const [, updatedUser] = await prisma.$transaction([
