@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { auth } from "@/auth";
-import { UserRole } from "@/generated/prisma/enums";
 import { searchPlayersForAdmin } from "@/lib/admin-players";
 import { canManageRoles } from "@/lib/roles";
+import { RoleSelect } from "@/components/admin/role-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { reinstate, setRole, setSupporter } from "./actions";
-
-const ROLE_OPTIONS: UserRole[] = [UserRole.USER, UserRole.MOD, UserRole.ADMIN];
+import { reinstate, setRoleFromForm, setSupporter } from "./actions";
 
 export default async function AdminPlayersPage({
   searchParams,
@@ -70,7 +68,12 @@ export default async function AdminPlayersPage({
       </form>
 
       <Card className="mt-6 overflow-hidden py-0">
-        <table className="w-full text-left text-sm">
+        {/* Horizontally scrollable rather than squeezed — 8 columns
+            (including the role picker) don't fit a phone screen, and
+            shrinking them down would make the role select (and its native
+            OS picker) fiddly to tap accurately. */}
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
               <th className="py-2 pl-4 font-medium">Player</th>
@@ -131,21 +134,9 @@ export default async function AdminPlayersPage({
                 </td>
                 {canEditRoles && (
                   <td className="py-2">
-                    <div className="flex gap-1">
-                      {ROLE_OPTIONS.map((roleOption) => (
-                        <form key={roleOption} action={setRole.bind(null, player.id, roleOption)}>
-                          <Button
-                            type="submit"
-                            size="sm"
-                            variant={player.role === roleOption ? "default" : "outline"}
-                            disabled={player.role === roleOption}
-                            className="h-6 px-2 text-xs"
-                          >
-                            {roleOption.toLowerCase()}
-                          </Button>
-                        </form>
-                      ))}
-                    </div>
+                    <form action={setRoleFromForm.bind(null, player.id)}>
+                      <RoleSelect currentRole={player.role} />
+                    </form>
                   </td>
                 )}
                 <td className="py-2 pr-4 text-right text-xs text-muted-foreground">
@@ -155,6 +146,7 @@ export default async function AdminPlayersPage({
             ))}
           </tbody>
         </table>
+        </div>
 
         {players.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">
