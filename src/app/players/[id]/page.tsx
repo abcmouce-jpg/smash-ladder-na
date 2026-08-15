@@ -177,6 +177,11 @@ export default async function PlayerProfilePage({
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
               {player.username}
+              {player.role !== "USER" && (
+                <Badge variant={player.role === "ADMIN" ? "warning" : "secondary"} className="text-xs">
+                  {player.role.toLowerCase()}
+                </Badge>
+              )}
               <CharacterUsageIcons usage={characterUsage} />
             </h1>
             {player.discordUsername && player.discordUsername !== player.username && (

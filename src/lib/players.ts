@@ -13,6 +13,7 @@ export async function getPlayerProfile(userId: string) {
       username: true,
       discordUsername: true,
       avatarUrl: true,
+      role: true,
       rating: true,
       gamesPlayed: true,
       practiceRating: true,

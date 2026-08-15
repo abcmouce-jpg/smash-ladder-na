@@ -1889,6 +1889,7 @@ async function CommentsSection({
             ? "Rival"
             : "Opponent"
           : c.author.username,
+      role: c.author.role,
     },
     body: c.body,
     translatedBody: c.translatedBody,
