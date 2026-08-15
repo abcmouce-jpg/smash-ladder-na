@@ -10,6 +10,8 @@ import { PushNotificationsForm } from "@/components/push-notifications-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { UsernameForm } from "@/components/username-form";
+import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
+import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
 import { listBlockedUsers } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
@@ -20,6 +22,7 @@ import {
   updateArenaPassword,
   updateAudioPingOnMatchSetting,
   updateAvoidPracticeOpponentsSetting,
+  updateMatchFoundSoundSetting,
   updateUsernameAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
@@ -63,6 +66,7 @@ export default async function SettingsPage({
         arenaPassword: true,
         avoidPracticeOpponents: true,
         audioPingOnMatch: true,
+        matchFoundSound: true,
         _count: { select: { pushSubscriptions: true } },
       },
     }),
@@ -130,7 +134,11 @@ export default async function SettingsPage({
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <AudioPingOnMatchForm defaultValue={me?.audioPingOnMatch ?? true} lang={lang} />
+          <AudioPingOnMatchForm
+            defaultEnabled={me?.audioPingOnMatch ?? true}
+            defaultSound={me?.matchFoundSound ?? "CHIME"}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 
@@ -411,34 +419,52 @@ function AvoidPracticeOpponentsForm({ defaultValue, lang }: { defaultValue: bool
   );
 }
 
-function AudioPingOnMatchForm({ defaultValue, lang }: { defaultValue: boolean; lang: Lang }) {
+function AudioPingOnMatchForm({
+  defaultEnabled,
+  defaultSound,
+  lang,
+}: {
+  defaultEnabled: boolean;
+  defaultSound: MatchFoundSound;
+  lang: Lang;
+}) {
   async function action(formData: FormData) {
     "use server";
     await updateAudioPingOnMatchSetting(formData.get("audioPingOnMatch") === "on");
+    const sound = formData.get("matchFoundSound");
+    await updateMatchFoundSoundSetting(sound === "CHIME" ? "CHIME" : "ANNOUNCER");
   }
 
   return (
-    <form action={action} className="flex items-end justify-between gap-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          key={String(defaultValue)}
-          type="checkbox"
-          name="audioPingOnMatch"
-          defaultChecked={defaultValue}
-          className="size-4 rounded border-border"
-        />
-        <span>
-          {lang === "es" ? "Sonido al ser emparejado" : "Audio ping when matched"}
-          <span className="block text-xs font-normal text-muted-foreground">
-            {lang === "es"
-              ? "Reproduce un anuncio de voz en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
-              : "Plays an announcer voice clip on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
+    <form action={action} className="space-y-3">
+      <div className="flex items-end justify-between gap-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            key={String(defaultEnabled)}
+            type="checkbox"
+            name="audioPingOnMatch"
+            defaultChecked={defaultEnabled}
+            className="size-4 rounded border-border"
+          />
+          <span>
+            {lang === "es" ? "Sonido al ser emparejado" : "Audio ping when matched"}
+            <span className="block text-xs font-normal text-muted-foreground">
+              {lang === "es"
+                ? "Reproduce un sonido en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
+                : "Plays a sound on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
+            </span>
           </span>
+        </label>
+        <Button type="submit" size="sm">
+          {lang === "es" ? "Guardar" : "Save"}
+        </Button>
+      </div>
+      <div className="flex items-center justify-between gap-2 pl-6">
+        <span className="text-sm">
+          {lang === "es" ? "Sonido" : "Sound"}
         </span>
-      </label>
-      <Button type="submit" size="sm">
-        {lang === "es" ? "Guardar" : "Save"}
-      </Button>
+        <MatchFoundSoundPicker key={defaultSound} defaultValue={defaultSound} lang={lang} />
+      </div>
     </form>
   );
 }
