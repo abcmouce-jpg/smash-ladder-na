@@ -1,0 +1,50 @@
+name: Notify Discord on deploy
+
+# Runs after push-to-main CI finishes, whether or not it passed — mods
+# should hear about a broken main just as much as a clean deploy, since
+# push-to-main triggers a real Vercel production deploy (see AGENTS.md /
+# the postinstall prisma-generate fix this replaced manual `vercel --prod`
+# with). workflow_run rather than a plain `push` trigger so this can report
+# CI's actual pass/fail status instead of guessing.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'push'
+    steps:
+      - name: Post to Discord
+        env:
+          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+        run: |
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA="${SHA:0:7}"
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${SHA}"
+          RUN_URL="${{ github.event.workflow_run.html_url }}"
+
+          if [ "$CONCLUSION" = "success" ]; then
+            COLOR=3066993
+            TITLE="✅ Deployed to production"
+          else
+            COLOR=15158332
+            TITLE="❌ CI failed on main — not deployed"
+          fi
+
+          # Pull the actual commit message via the GitHub API rather than
+          # trusting anything from the push event body (this workflow has no
+          # push payload of its own — it's triggered by the CI run finishing).
+          COMMIT_MSG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${SHA}" \
+            | jq -r '.commit.message' | head -n1)
+
+          jq -n \
+            --arg title "$TITLE" \
+            --arg desc "**$COMMIT_MSG**\n[\`$SHORT_SHA\`]($COMMIT_URL) · [CI run]($RUN_URL)" \
+            --argjson color "$COLOR" \
+            '{embeds: [{title: $title, description: $desc, color: $color}]}' \
+            | curl -s -X POST -H "Content-Type: application/json" -d @- "$DISCORD_DEPLOY_WEBHOOK_URL"
