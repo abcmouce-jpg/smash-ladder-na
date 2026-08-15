@@ -36,4 +36,19 @@ describe("blockUser", () => {
       /only block up to/i,
     );
   });
+
+  it("doesn't count a block against a deleted account toward the cap", async () => {
+    const blocker = await createTestUser();
+    const deleted = await createTestUser({ discordId: "deleted-someoldid" });
+    const others = await Promise.all(
+      Array.from({ length: MAX_BLOCKS_PER_USER }, () => createTestUser()),
+    );
+    await blockUser(blocker.id, deleted.id);
+    for (const other of others) {
+      await blockUser(blocker.id, other.id);
+    }
+
+    const total = await prisma.block.count({ where: { blockerId: blocker.id } });
+    expect(total).toBe(MAX_BLOCKS_PER_USER + 1);
+  });
 });
