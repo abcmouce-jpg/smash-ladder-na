@@ -1,11 +1,11 @@
 name: Notify Discord on deploy
 
-# Runs after push-to-main CI finishes, whether or not it passed — mods
-# should hear about a broken main just as much as a clean deploy, since
-# push-to-main triggers a real Vercel production deploy (see AGENTS.md /
-# the postinstall prisma-generate fix this replaced manual `vercel --prod`
-# with). workflow_run rather than a plain `push` trigger so this can report
-# CI's actual pass/fail status instead of guessing.
+# Runs after CI finishes on main. Splits into two jobs so the actual
+# Discord post requires a manual approval: `compose` drafts the message and
+# writes it to the run summary (visible without approving anything), `post`
+# is gated behind the `discord-notify-review` environment's required
+# reviewer — GitHub blocks it until approved from the Actions tab, and the
+# reviewer can read the exact message in `compose`'s summary before doing so.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -13,13 +13,18 @@ on:
     branches: [main]
 
 jobs:
-  notify:
+  compose:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.event == 'push'
+    outputs:
+      title: ${{ steps.build.outputs.title }}
+      description: ${{ steps.build.outputs.description }}
+      color: ${{ steps.build.outputs.color }}
     steps:
-      - name: Post to Discord
+      - name: Build message
+        id: build
         env:
-          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           CONCLUSION="${{ github.event.workflow_run.conclusion }}"
           SHA="${{ github.event.workflow_run.head_sha }}"
@@ -35,16 +40,42 @@ jobs:
             TITLE="❌ CI failed on main — not deployed"
           fi
 
-          # Pull the actual commit message via the GitHub API rather than
-          # trusting anything from the push event body (this workflow has no
-          # push payload of its own — it's triggered by the CI run finishing).
-          COMMIT_MSG=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          COMMIT_MSG=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/commits/${SHA}" \
             | jq -r '.commit.message' | head -n1)
 
+          DESC="**$COMMIT_MSG**\n[\`$SHORT_SHA\`]($COMMIT_URL) · [CI run]($RUN_URL)"
+
+          {
+            echo "title=$TITLE"
+            echo "description=$DESC"
+            echo "color=$COLOR"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Draft Discord message"
+            echo "**$TITLE**"
+            echo ""
+            echo -e "$DESC"
+            echo ""
+            echo "Approve the \`post\` job below to actually send this."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  post:
+    needs: compose
+    runs-on: ubuntu-latest
+    environment: discord-notify-review
+    steps:
+      - name: Post to Discord
+        env:
+          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          TITLE: ${{ needs.compose.outputs.title }}
+          DESCRIPTION: ${{ needs.compose.outputs.description }}
+          COLOR: ${{ needs.compose.outputs.color }}
+        run: |
           jq -n \
             --arg title "$TITLE" \
-            --arg desc "**$COMMIT_MSG**\n[\`$SHORT_SHA\`]($COMMIT_URL) · [CI run]($RUN_URL)" \
+            --arg desc "$DESCRIPTION" \
             --argjson color "$COLOR" \
             '{embeds: [{title: $title, description: $desc, color: $color}]}' \
             | curl -s -X POST -H "Content-Type: application/json" -d @- "$DISCORD_DEPLOY_WEBHOOK_URL"
