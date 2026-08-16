@@ -14,8 +14,6 @@ export function getStoredTheme(): Theme {
 }
 
 export function applyTheme(theme: Theme) {
-  const dark =
-    theme === "dark" ||
-    (theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const dark = theme === "dark" || (theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.classList.toggle("dark", dark);
 }

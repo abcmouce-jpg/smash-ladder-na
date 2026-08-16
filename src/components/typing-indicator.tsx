@@ -1,12 +1,6 @@
 "use client";
 
-export function TypingIndicator({
-  opponentName,
-  lang = "en",
-}: {
-  opponentName: string;
-  lang?: "en" | "es";
-}) {
+export function TypingIndicator({ opponentName, lang = "en" }: { opponentName: string; lang?: "en" | "es" }) {
   return (
     <div className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground">
       <span className="flex items-center gap-0.5">

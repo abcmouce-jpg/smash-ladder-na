@@ -77,7 +77,8 @@ async function retentionByCohort(weeks: number, referredOnly: boolean | null) {
   const referralFilter =
     referredOnly === null ? "" : referredOnly ? 'AND u."referredById" IS NOT NULL' : 'AND u."referredById" IS NULL';
 
-  return prisma.$queryRawUnsafe<RetentionRow[]>(`
+  return prisma.$queryRawUnsafe<RetentionRow[]>(
+    `
     WITH cohorts AS (
       SELECT
         u.id,
@@ -101,7 +102,9 @@ async function retentionByCohort(weeks: number, referredOnly: boolean | null) {
     FROM cohorts
     GROUP BY cohort_week
     ORDER BY cohort_week ASC
-  `, weeks);
+  `,
+    weeks,
+  );
 }
 
 export async function getWeeklyRetentionCohorts(weeks = 8) {
@@ -118,10 +121,7 @@ export async function getWeeklyRetentionCohorts(weeks = 8) {
 // organic signups — a direct read on whether the referral program is
 // actually producing stickier players, not just more signups.
 export async function getReferralRetentionComparison(weeks = 12) {
-  const [referred, organic] = await Promise.all([
-    retentionByCohort(weeks, true),
-    retentionByCohort(weeks, false),
-  ]);
+  const [referred, organic] = await Promise.all([retentionByCohort(weeks, true), retentionByCohort(weeks, false)]);
   const sum = (rows: RetentionRow[]) => ({
     cohortSize: rows.reduce((n, r) => n + Number(r.cohort_size), 0),
     retained: rows.reduce((n, r) => n + Number(r.retained), 0),

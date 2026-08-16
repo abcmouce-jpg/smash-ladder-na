@@ -116,20 +116,11 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverIndex(null)}
         role="img"
-        aria-label={
-          lang === "es" ? "Partidas por día en los últimos 30 días" : "Matches per day over the last 30 days"
-        }
+        aria-label={lang === "es" ? "Partidas por día en los últimos 30 días" : "Matches per day over the last 30 days"}
       >
         {gridLines.map((g) => (
           <g key={g}>
-            <line
-              x1={PAD_LEFT}
-              x2={WIDTH - PAD_RIGHT}
-              y1={y(g)}
-              y2={y(g)}
-              className="stroke-border"
-              strokeWidth={1}
-            />
+            <line x1={PAD_LEFT} x2={WIDTH - PAD_RIGHT} y1={y(g)} y2={y(g)} className="stroke-border" strokeWidth={1} />
             <text
               x={PAD_LEFT - 4}
               y={y(g) + 3}
@@ -142,12 +133,7 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
           </g>
         ))}
 
-        <path
-          d={areaPath}
-          fill="oklch(0.6 0.19 255)"
-          fillOpacity={0.1}
-          className="dark:fill-[oklch(0.65_0.17_255)]"
-        />
+        <path d={areaPath} fill="oklch(0.6 0.19 255)" fillOpacity={0.1} className="dark:fill-[oklch(0.65_0.17_255)]" />
         <path
           d={linePath}
           fill="none"
@@ -230,9 +216,7 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
             <thead>
               <tr className="text-muted-foreground">
                 <th className="py-1 font-medium">{lang === "es" ? "Fecha" : "Date"}</th>
-                <th className="py-1 text-right font-medium tabular-nums">
-                  {lang === "es" ? "Partidas" : "Matches"}
-                </th>
+                <th className="py-1 text-right font-medium tabular-nums">{lang === "es" ? "Partidas" : "Matches"}</th>
               </tr>
             </thead>
             <tbody>

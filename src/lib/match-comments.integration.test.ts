@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
-import { listMatchCommentsAsMod, postMatchCommentAsMod, listMatchComments, postMatchComment } from "@/lib/match-comments";
+import {
+  listMatchCommentsAsMod,
+  postMatchCommentAsMod,
+  listMatchComments,
+  postMatchComment,
+} from "@/lib/match-comments";
 import { createTestUser } from "@/test/factories";
 
 async function createMatch(p1: string, p2: string) {

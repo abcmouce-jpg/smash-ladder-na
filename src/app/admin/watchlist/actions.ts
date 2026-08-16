@@ -15,10 +15,7 @@ async function requireModerator() {
 
 export async function suspendFromWatchlist(userId: string, formData: FormData) {
   const modId = await requireModerator();
-  const suspensionHours = parseSuspensionHours(
-    formData.get("customHours"),
-    formData.get("suspensionHours"),
-  );
+  const suspensionHours = parseSuspensionHours(formData.get("customHours"), formData.get("suspensionHours"));
   await moderateUserDirectly(modId, userId, "SUSPEND", {
     suspensionHours,
     reason: "Cancel-abuse pattern flagged on the mod watchlist",
@@ -26,10 +23,7 @@ export async function suspendFromWatchlist(userId: string, formData: FormData) {
   revalidatePath("/admin/watchlist");
 }
 
-function parseSuspensionHours(
-  customRaw: FormDataEntryValue | null,
-  presetRaw: FormDataEntryValue | null,
-) {
+function parseSuspensionHours(customRaw: FormDataEntryValue | null, presetRaw: FormDataEntryValue | null) {
   const custom = Number(customRaw);
   if (customRaw && Number.isFinite(custom) && custom > 0) return custom;
 

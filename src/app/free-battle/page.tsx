@@ -27,10 +27,7 @@ export default async function FreeBattlePage() {
   }
 
   const userId = session.user.id;
-  const [ownPost, openPosts] = await Promise.all([
-    getOwnActivePost(userId),
-    listOpenPosts(userId),
-  ]);
+  const [ownPost, openPosts] = await Promise.all([getOwnActivePost(userId), listOpenPosts(userId)]);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -38,24 +35,22 @@ export default async function FreeBattlePage() {
       <p className="mt-1 text-sm text-muted-foreground">
         {lang === "es" ? (
           <>
-            Un tablón de anuncios para amistosos casuales, sin afectar la clasificación — sin
-            impacto en tu rating, y sin emparejamiento automático. Es lo opuesto a la cola
-            rankeada de la{" "}
+            Un tablón de anuncios para amistosos casuales, sin afectar la clasificación — sin impacto en tu rating, y
+            sin emparejamiento automático. Es lo opuesto a la cola rankeada de la{" "}
             <Link href="/lobby" className="underline hover:text-foreground">
               Sala
             </Link>
-            : aquí publicas lo que buscas y eliges con quién jugar, en vez de que te emparejen
-            automáticamente.
+            : aquí publicas lo que buscas y eliges con quién jugar, en vez de que te emparejen automáticamente.
           </>
         ) : (
           <>
-            A bulletin board for casual, unranked friendlies — no rating on the line, and no
-            auto-matching. It&apos;s the opposite of the{" "}
+            A bulletin board for casual, unranked friendlies — no rating on the line, and no auto-matching. It&apos;s
+            the opposite of the{" "}
             <Link href="/lobby" className="underline hover:text-foreground">
               Lobby
             </Link>
-            &apos;s ranked queue: here, you post what you want and pick who to play, instead of being
-            paired automatically.
+            &apos;s ranked queue: here, you post what you want and pick who to play, instead of being paired
+            automatically.
           </>
         )}
       </p>
@@ -64,27 +59,28 @@ export default async function FreeBattlePage() {
           <>
             <li>1. Publica un comentario diciendo qué buscas (matchup, disponibilidad, etc).</li>
             <li>
-              2. Cualquiera puede ver las publicaciones abiertas y presionar &quot;Voy&quot; para
-              reclamar la tuya — recibirás un DM de Discord en cuanto alguien lo haga.
+              2. Cualquiera puede ver las publicaciones abiertas y presionar &quot;Voy&quot; para reclamar la tuya —
+              recibirás un DM de Discord en cuanto alguien lo haga.
             </li>
             <li>
-              3. Una vez emparejados, coordinen la partida ustedes mismos (código de sala,
-              horario) — Free Battle solo hace la presentación, no lleva registro de los juegos ni
-              afecta tu clasificación como las partidas rankeadas.
+              3. Una vez emparejados, coordinen la partida ustedes mismos (código de sala, horario) — Free Battle solo
+              hace la presentación, no lleva registro de los juegos ni afecta tu clasificación como las partidas
+              rankeadas.
             </li>
-            <li>4. Las publicaciones expiran solas después de 24 horas; ciérrala y vuelve a publicar cuando quieras.</li>
+            <li>
+              4. Las publicaciones expiran solas después de 24 horas; ciérrala y vuelve a publicar cuando quieras.
+            </li>
           </>
         ) : (
           <>
             <li>1. Post a comment saying what you&apos;re looking for (matchup, availability, etc).</li>
             <li>
-              2. Anyone can browse open posts and hit &quot;I&apos;m in&quot; to claim yours — you&apos;ll
-              get a Discord DM the moment someone does.
+              2. Anyone can browse open posts and hit &quot;I&apos;m in&quot; to claim yours — you&apos;ll get a Discord
+              DM the moment someone does.
             </li>
             <li>
-              3. Once matched, coordinate the actual set yourselves (room code, timing) — Free Battle
-              just makes the introduction, it doesn&apos;t track games or affect your rating like
-              ranked matches do.
+              3. Once matched, coordinate the actual set yourselves (room code, timing) — Free Battle just makes the
+              introduction, it doesn&apos;t track games or affect your rating like ranked matches do.
             </li>
             <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
           </>
@@ -202,7 +198,9 @@ async function OwnPostCard({
       <Card className="mt-8">
         <CardContent className="pt-4">
           <p className="text-sm text-muted-foreground">
-            {lang === "es" ? "Tu publicación está activa. Esperando a que alguien se una…" : "Your post is live. Waiting for someone to join…"}
+            {lang === "es"
+              ? "Tu publicación está activa. Esperando a que alguien se una…"
+              : "Your post is live. Waiting for someone to join…"}
           </p>
           <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
             <Button type="submit" variant="outline" size="sm">

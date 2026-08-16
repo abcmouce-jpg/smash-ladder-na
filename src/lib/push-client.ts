@@ -9,10 +9,7 @@ export type PushSubscriptionKeys = { endpoint: string; p256dh: string; auth: str
 
 export function isPushSupported(): boolean {
   return (
-    typeof window !== "undefined" &&
-    "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    "Notification" in window
+    typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window
   );
 }
 
@@ -52,9 +49,7 @@ export async function getPushSubscription(): Promise<PushSubscription | null> {
 
 // Ask for permission and subscribe this browser. Returns either the fresh
 // subscription or a human-readable error string for the settings UI.
-export async function subscribeToPush(): Promise<
-  { subscription: PushSubscription } | { error: string }
-> {
+export async function subscribeToPush(): Promise<{ subscription: PushSubscription } | { error: string }> {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (!publicKey) {
     return { error: "Push notifications aren't set up on this site yet." };

@@ -21,9 +21,7 @@ function mockStartggResponses(identity: {
               currentUser: {
                 id: identity.id,
                 slug: identity.slug,
-                player: identity.gamerTag
-                  ? { id: identity.playerId ?? null, gamerTag: identity.gamerTag }
-                  : null,
+                player: identity.gamerTag ? { id: identity.playerId ?? null, gamerTag: identity.gamerTag } : null,
               },
             },
           }),
@@ -82,7 +80,9 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
           return Promise.resolve(
             new Response(
               JSON.stringify({
-                data: { currentUser: { id: 1897815, slug: "user/realuser", player: { id: 987654, gamerTag: "RealUser" } } },
+                data: {
+                  currentUser: { id: 1897815, slug: "user/realuser", player: { id: 987654, gamerTag: "RealUser" } },
+                },
               }),
               { status: 200 },
             ),
@@ -102,14 +102,11 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
   it("rejects connecting a start.gg account already linked to someone else", async () => {
     const existingOwner = await createTestUser({ startggUserId: "sgg-shared" });
     const requester = await createTestUser();
-    vi.stubGlobal(
-      "fetch",
-      mockStartggResponses({ id: "sgg-shared", slug: "user/shared", gamerTag: null }),
-    );
+    vi.stubGlobal("fetch", mockStartggResponses({ id: "sgg-shared", slug: "user/shared", gamerTag: null }));
 
-    await expect(
-      connectStartggAccount(requester.id, "auth-code", "https://example.com/callback"),
-    ).rejects.toThrow(/already linked to a different ladder account/i);
+    await expect(connectStartggAccount(requester.id, "auth-code", "https://example.com/callback")).rejects.toThrow(
+      /already linked to a different ladder account/i,
+    );
 
     const requesterAfter = await prisma.user.findUniqueOrThrow({ where: { id: requester.id } });
     expect(requesterAfter.startggUserId).toBeNull();
@@ -119,26 +116,18 @@ describe("connectStartggAccount / disconnectStartggAccount", () => {
 
   it("allows reconnecting the same start.gg account to the same user", async () => {
     const user = await createTestUser({ startggUserId: "sgg-1", startggSlug: "user/abc123" });
-    vi.stubGlobal(
-      "fetch",
-      mockStartggResponses({ id: "sgg-1", slug: "user/abc123", gamerTag: "PlayerTag" }),
-    );
+    vi.stubGlobal("fetch", mockStartggResponses({ id: "sgg-1", slug: "user/abc123", gamerTag: "PlayerTag" }));
 
-    await expect(
-      connectStartggAccount(user.id, "auth-code", "https://example.com/callback"),
-    ).resolves.not.toThrow();
+    await expect(connectStartggAccount(user.id, "auth-code", "https://example.com/callback")).resolves.not.toThrow();
   });
 
   it("throws a friendly error when start.gg rejects the code", async () => {
     const user = await createTestUser();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response("", { status: 400 })),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 400 })));
 
-    await expect(
-      connectStartggAccount(user.id, "bad-code", "https://example.com/callback"),
-    ).rejects.toThrow(/rejected the authorization code/i);
+    await expect(connectStartggAccount(user.id, "bad-code", "https://example.com/callback")).rejects.toThrow(
+      /rejected the authorization code/i,
+    );
   });
 
   it("clears a connected account", async () => {

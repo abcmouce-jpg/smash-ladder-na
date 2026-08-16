@@ -108,7 +108,11 @@ describe("hasRiskyBusiness", () => {
 
   it("false when the set didn't go 5 games", () => {
     const m = match({
-      games: [game({ actorACharacter: "Mario" }), game({ actorACharacter: "Mario" }), game({ actorACharacter: "Luigi" })],
+      games: [
+        game({ actorACharacter: "Mario" }),
+        game({ actorACharacter: "Mario" }),
+        game({ actorACharacter: "Luigi" }),
+      ],
     });
     expect(hasRiskyBusiness([m], ME)).toBe(false);
   });

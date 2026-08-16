@@ -244,9 +244,7 @@ describe("character lock-in gates stage striking", () => {
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
 
-    await expect(
-      strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0]),
-    ).rejects.toThrow(/character/i);
+    await expect(strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0])).rejects.toThrow(/character/i);
   });
 
   it("still rejects a strike when only the striking player has locked in (opponent hasn't)", async () => {
@@ -259,9 +257,7 @@ describe("character lock-in gates stage striking", () => {
 
     await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
 
-    await expect(
-      strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0]),
-    ).rejects.toThrow(/character/i);
+    await expect(strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0])).rejects.toThrow(/character/i);
   });
 
   it("allows a strike once both players have locked in a character", async () => {
@@ -296,9 +292,7 @@ describe("character lock-in gates stage striking", () => {
     await pickGameCharacter(opponentId, match.id, 1, "Luigi");
     const afterSecondPick = await getCurrentGame(match.id);
 
-    expect(afterSecondPick!.turnStartedAt.getTime()).toBeGreaterThan(
-      afterFirstPick!.turnStartedAt.getTime(),
-    );
+    expect(afterSecondPick!.turnStartedAt.getTime()).toBeGreaterThan(afterFirstPick!.turnStartedAt.getTime());
   });
 
   it("rejects the final stage pick from a player who hasn't locked in a character yet", async () => {
@@ -320,9 +314,7 @@ describe("character lock-in gates stage striking", () => {
       },
     });
 
-    await expect(
-      pickGameStage(p2.id, match.id, 2, "Final Destination"),
-    ).rejects.toThrow(/character/i);
+    await expect(pickGameStage(p2.id, match.id, 2, "Final Destination")).rejects.toThrow(/character/i);
   });
 
   it("allows the final stage pick once both players have locked in a character", async () => {
@@ -517,7 +509,16 @@ describe("pickSameStage", () => {
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await prisma.matchGame.create({
-      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [],
+        finalStage: COUNTERPICK_STAGES[0],
+      },
     });
     await prisma.matchGame.create({
       data: {
@@ -547,7 +548,16 @@ describe("pickSameStage", () => {
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await prisma.matchGame.create({
-      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [],
+        finalStage: COUNTERPICK_STAGES[0],
+      },
     });
     await prisma.matchGame.create({
       data: {
@@ -594,7 +604,16 @@ describe("pickSameStage", () => {
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await prisma.matchGame.create({
-      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [],
+        finalStage: COUNTERPICK_STAGES[0],
+      },
     });
     await prisma.matchGame.create({
       data: {

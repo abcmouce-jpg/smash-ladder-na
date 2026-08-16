@@ -26,14 +26,13 @@ export function ArenaPasswordForm({
           <span className="text-xs font-normal text-muted-foreground">
             {lang === "es" ? (
               <>
-                Se muestra a tu rival como la contraseña que debe poner en la sala del juego. Déjalo
-                en blanco para usar el valor por defecto del ladder (
-                <span className="font-medium text-foreground">{fallback}</span>).
+                Se muestra a tu rival como la contraseña que debe poner en la sala del juego. Déjalo en blanco para usar
+                el valor por defecto del ladder (<span className="font-medium text-foreground">{fallback}</span>).
               </>
             ) : (
               <>
-                Shown to your opponent as what to set the in-game room password to. Leave blank to use
-                the ladder default (<span className="font-medium text-foreground">{fallback}</span>).
+                Shown to your opponent as what to set the in-game room password to. Leave blank to use the ladder
+                default (<span className="font-medium text-foreground">{fallback}</span>).
               </>
             )}
           </span>

@@ -187,88 +187,90 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
   const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
   const myEffectiveGap = effectiveMaxRatingGap(me);
 
-  const paired = await withTransientRetry(() => prisma.$transaction(async (tx) => {
-    // Candidates within MY reach on both region and rating — the other half
-    // (their own settings covering me back) is checked in JS below, since it
-    // depends on each candidate's own values rather than a single filterable
-    // column.
-    const candidates = await tx.ratingLobbyEntry.findMany({
-      where: {
-        status: LobbyEntryStatus.WAITING,
-        expiresAt: { gt: now },
-        userId: { notIn: [userId, ...blockedIds] },
-        id: { not: newEntry.id },
-        user: {
-          region: { in: myReach },
-          ...(myEffectiveGap !== null
-            ? { rating: { gte: me.rating - myEffectiveGap, lte: me.rating + myEffectiveGap } }
-            : {}),
-        },
-      },
-      orderBy: { joinedAt: "asc" },
-      take: 20,
-      include: {
-        user: {
-          select: {
-            region: true,
-            maxMatchDistanceKm: true,
-            rating: true,
-            maxRatingGap: true,
-            gamesPlayed: true,
-            rematchCooldownHours: true,
-            wiredConnection: true,
-            requireWiredOpponent: true,
-            avoidPracticeOpponents: true,
+  const paired = await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      // Candidates within MY reach on both region and rating — the other half
+      // (their own settings covering me back) is checked in JS below, since it
+      // depends on each candidate's own values rather than a single filterable
+      // column.
+      const candidates = await tx.ratingLobbyEntry.findMany({
+        where: {
+          status: LobbyEntryStatus.WAITING,
+          expiresAt: { gt: now },
+          userId: { notIn: [userId, ...blockedIds] },
+          id: { not: newEntry.id },
+          user: {
+            region: { in: myReach },
+            ...(myEffectiveGap !== null
+              ? { rating: { gte: me.rating - myEffectiveGap, lte: me.rating + myEffectiveGap } }
+              : {}),
           },
         },
-      },
-    });
-    const candidate = candidates.find(
-      (c) =>
-        getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
-        ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user)) &&
-        rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
-        wiredRequirementAllows(me, c.user) &&
-        practiceMatchAllowed(
-          { isPracticing, avoidPracticeOpponents: me.avoidPracticeOpponents },
-          { isPracticing: c.isPracticing, avoidPracticeOpponents: c.user.avoidPracticeOpponents },
-        ),
-    );
-    if (!candidate) return null;
+        orderBy: { joinedAt: "asc" },
+        take: 20,
+        include: {
+          user: {
+            select: {
+              region: true,
+              maxMatchDistanceKm: true,
+              rating: true,
+              maxRatingGap: true,
+              gamesPlayed: true,
+              rematchCooldownHours: true,
+              wiredConnection: true,
+              requireWiredOpponent: true,
+              avoidPracticeOpponents: true,
+            },
+          },
+        },
+      });
+      const candidate = candidates.find(
+        (c) =>
+          getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
+          ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user)) &&
+          rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
+          wiredRequirementAllows(me, c.user) &&
+          practiceMatchAllowed(
+            { isPracticing, avoidPracticeOpponents: me.avoidPracticeOpponents },
+            { isPracticing: c.isPracticing, avoidPracticeOpponents: c.user.avoidPracticeOpponents },
+          ),
+      );
+      if (!candidate) return null;
 
-    // Atomically claim the candidate so two concurrent joins can't pair with the same entry.
-    const claim = await tx.ratingLobbyEntry.updateMany({
-      where: { id: candidate.id, status: LobbyEntryStatus.WAITING },
-      data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
-    });
-    if (claim.count === 0) return null;
+      // Atomically claim the candidate so two concurrent joins can't pair with the same entry.
+      const claim = await tx.ratingLobbyEntry.updateMany({
+        where: { id: candidate.id, status: LobbyEntryStatus.WAITING },
+        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+      });
+      if (claim.count === 0) return null;
 
-    const match = await tx.ratingMatch.create({
-      data: {
-        player1Id: candidate.userId,
-        player2Id: userId,
-        pairingMethod: PairingMethod.AUTO,
-        status: MatchStatus.PENDING_REPORT,
-        expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
-        player1IsPracticing: candidate.isPracticing,
-        player2IsPracticing: isPracticing,
-      },
-    });
+      const match = await tx.ratingMatch.create({
+        data: {
+          player1Id: candidate.userId,
+          player2Id: userId,
+          pairingMethod: PairingMethod.AUTO,
+          status: MatchStatus.PENDING_REPORT,
+          expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
+          player1IsPracticing: candidate.isPracticing,
+          player2IsPracticing: isPracticing,
+        },
+      });
 
-    // matchId and pairedEntryId are unique on RatingLobbyEntry, so only the
-    // candidate (already claimed above) records them; the joining side is
-    // just marked PAIRED and its match is found by player lookup instead.
-    await tx.ratingLobbyEntry.update({
-      where: { id: candidate.id },
-      data: { matchId: match.id, pairedEntryId: newEntry.id },
-    });
-    await tx.ratingLobbyEntry.update({
-      where: { id: newEntry.id },
-      data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
-    });
+      // matchId and pairedEntryId are unique on RatingLobbyEntry, so only the
+      // candidate (already claimed above) records them; the joining side is
+      // just marked PAIRED and its match is found by player lookup instead.
+      await tx.ratingLobbyEntry.update({
+        where: { id: candidate.id },
+        data: { matchId: match.id, pairedEntryId: newEntry.id },
+      });
+      await tx.ratingLobbyEntry.update({
+        where: { id: newEntry.id },
+        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+      });
 
-    return match;
-  }, TX_OPTIONS));
+      return match;
+    }, TX_OPTIONS),
+  );
 
   // Notify outside the transaction — a push failure must never roll back (or
   // delay) the pairing itself. Best-effort internally (see push-server).

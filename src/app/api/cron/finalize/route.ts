@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  finalizeExpiredFreeBattlePosts,
-  finalizeExpiredLobbyEntries,
-  finalizeExpiredMatches,
-} from "@/lib/finalize";
+import { finalizeExpiredFreeBattlePosts, finalizeExpiredLobbyEntries, finalizeExpiredMatches } from "@/lib/finalize";
 import { sweepLobbyPairing } from "@/lib/lobby";
 
 function isAuthorized(request: Request) {

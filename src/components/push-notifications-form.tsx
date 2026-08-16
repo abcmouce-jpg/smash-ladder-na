@@ -3,17 +3,8 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  removePushSubscriptionAction,
-  savePushSubscriptionAction,
-  sendTestPushAction,
-} from "@/app/settings/actions";
-import {
-  getPushSubscription,
-  isPushSupported,
-  subscribeToPush,
-  unsubscribeFromPush,
-} from "@/lib/push-client";
+import { removePushSubscriptionAction, savePushSubscriptionAction, sendTestPushAction } from "@/app/settings/actions";
+import { getPushSubscription, isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import type { Lang } from "@/lib/i18n";
 
 type Status = { kind: "error" | "info"; text: string } | null;
@@ -35,8 +26,7 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
       setSupported(supportedNow);
       setEnabled(!!sub);
       setNeedsHomeScreenInstall(
-        /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-          !window.matchMedia("(display-mode: standalone)").matches,
+        /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.matchMedia("(display-mode: standalone)").matches,
       );
     })();
     return () => {
@@ -64,9 +54,7 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
       setStatus({
         kind: "info",
         text:
-          lang === "es"
-            ? "Notificaciones activadas para este navegador."
-            : "Notifications enabled for this browser.",
+          lang === "es" ? "Notificaciones activadas para este navegador." : "Notifications enabled for this browser.",
       });
     } catch {
       setStatus({
@@ -89,10 +77,7 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
       }
       setStatus({
         kind: "info",
-        text:
-          lang === "es"
-            ? "Notificación de prueba enviada."
-            : "Test notification sent — check your devices.",
+        text: lang === "es" ? "Notificación de prueba enviada." : "Test notification sent — check your devices.",
       });
     } catch {
       setStatus({
@@ -173,21 +158,9 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
       {supported && (
         <div className="flex shrink-0 items-center gap-2">
           {enabled && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={sendTest}
-              disabled={busy || testing}
-            >
+            <Button type="button" size="sm" variant="outline" onClick={sendTest} disabled={busy || testing}>
               {testing && <Loader2 className="size-4 animate-spin" />}
-              {testing
-                ? lang === "es"
-                  ? "Enviando…"
-                  : "Sending…"
-                : lang === "es"
-                  ? "Probar"
-                  : "Test"}
+              {testing ? (lang === "es" ? "Enviando…" : "Sending…") : lang === "es" ? "Probar" : "Test"}
             </Button>
           )}
           <Button

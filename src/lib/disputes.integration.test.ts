@@ -254,9 +254,7 @@ describe("requestDisputeResolution", () => {
     });
     await createDisputedGame(match.id, p1.id, p2.id);
 
-    await expect(requestDisputeResolution(outsider.id, match.id, 1, p1.id)).rejects.toThrow(
-      /not a participant/i,
-    );
+    await expect(requestDisputeResolution(outsider.id, match.id, 1, p1.id)).rejects.toThrow(/not a participant/i);
   });
 
   it("rejects a game that isn't actually disputed", async () => {

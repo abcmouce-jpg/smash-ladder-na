@@ -15,14 +15,7 @@ describe("currentStreak", () => {
   });
 
   it("skips practice matches instead of counting them or breaking the streak", () => {
-    expect(
-      currentStreak([
-        { won: true },
-        { won: true, isPracticing: true },
-        { won: true },
-        { won: false },
-      ]),
-    ).toBe(2);
+    expect(currentStreak([{ won: true }, { won: true, isPracticing: true }, { won: true }, { won: false }])).toBe(2);
   });
 
   it("returns 0 when every match is practice", () => {

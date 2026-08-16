@@ -9,21 +9,21 @@ describe("enforceRateLimit", () => {
   });
 
   it("throws when count meets the limit", async () => {
-    await expect(
-      enforceRateLimit({ count: async () => 5, limit: 5, windowLabel: "5 minutes" }),
-    ).rejects.toThrow("Too many requests");
+    await expect(enforceRateLimit({ count: async () => 5, limit: 5, windowLabel: "5 minutes" })).rejects.toThrow(
+      "Too many requests",
+    );
   });
 
   it("throws when count exceeds the limit", async () => {
-    await expect(
-      enforceRateLimit({ count: async () => 10, limit: 5, windowLabel: "5 minutes" }),
-    ).rejects.toThrow("Too many requests");
+    await expect(enforceRateLimit({ count: async () => 10, limit: 5, windowLabel: "5 minutes" })).rejects.toThrow(
+      "Too many requests",
+    );
   });
 
   it("includes the limit and window in the error message", async () => {
-    await expect(
-      enforceRateLimit({ count: async () => 3, limit: 3, windowLabel: "1 hour" }),
-    ).rejects.toThrow("3 per 1 hour");
+    await expect(enforceRateLimit({ count: async () => 3, limit: 3, windowLabel: "1 hour" })).rejects.toThrow(
+      "3 per 1 hour",
+    );
   });
 });
 

@@ -22,8 +22,7 @@ function getContext(): AudioContext | null {
       // Older iOS Safari (<14.5) only exposes the prefixed constructor —
       // without it, mobile silently gets no chime at all.
       const Ctor =
-        window.AudioContext ??
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctor) return null;
       sharedCtx = new Ctor();
     }
@@ -64,7 +63,10 @@ if (typeof window !== "undefined") {
     // also warms the browser's cache for all the clips ahead of the real play.
     MATCH_FOUND_CLIPS.forEach((src) => {
       const audio = new Audio(src);
-      audio.play().then(() => audio.pause()).catch(() => {});
+      audio
+        .play()
+        .then(() => audio.pause())
+        .catch(() => {});
     });
   };
   // Any of these count as a user gesture — first one wins, then this is done.
@@ -81,13 +83,7 @@ if (typeof window !== "undefined") {
   });
 }
 
-function playTone(
-  ctx: AudioContext,
-  frequency: number,
-  startTime: number,
-  duration: number,
-  volume = 0.2,
-) {
+function playTone(ctx: AudioContext, frequency: number, startTime: number, duration: number, volume = 0.2) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
   oscillator.type = "sine";

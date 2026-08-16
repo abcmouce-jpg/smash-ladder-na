@@ -70,9 +70,7 @@ export async function getAdminOverview() {
     }),
   ]);
 
-  const openDisputes = disputedGameCandidates.filter(
-    (g) => g.reportedWinnerId !== g.secondReportWinnerId,
-  ).length;
+  const openDisputes = disputedGameCandidates.filter((g) => g.reportedWinnerId !== g.secondReportWinnerId).length;
 
   return {
     activeUsers24h,

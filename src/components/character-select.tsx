@@ -52,9 +52,7 @@ export function CharacterSelect({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const roster = SMASH_CHARACTERS;
-  const filtered = query
-    ? roster.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
-    : roster;
+  const filtered = query ? roster.filter((c) => c.toLowerCase().includes(query.toLowerCase())) : roster;
 
   const selected = effectiveValue ? (effectiveValue as SmashCharacter) : null;
 
@@ -172,16 +170,12 @@ export function CharacterSelect({
                     type="button"
                     onClick={() => select(char)}
                     className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-1.5 text-left text-sm outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground ${
-                      char === selected
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-foreground"
+                      char === selected ? "bg-primary/10 font-medium text-primary" : "text-foreground"
                     }`}
                   >
                     <CharacterIcon name={char} size={18} />
                     <span className="flex-1">{char}</span>
-                    {char === selected && (
-                      <Check className="size-3.5 shrink-0 text-primary" />
-                    )}
+                    {char === selected && <Check className="size-3.5 shrink-0 text-primary" />}
                   </button>
                 </li>
               ))

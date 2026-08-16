@@ -21,17 +21,11 @@ export function MatchSettingsForm({
   const [state, formAction, isPending] = useActionState(action, { error: null, saved: false });
 
   return (
-    <form
-      action={formAction}
-      className={className}
-      onChange={(e) => e.currentTarget.requestSubmit()}
-    >
+    <form action={formAction} className={className} onChange={(e) => e.currentTarget.requestSubmit()}>
       {children}
       {state.error && <p className="mt-3 text-xs text-destructive">{state.error}</p>}
       <div className="mt-4 flex items-center justify-end gap-3">
-        {isPending && (
-          <span className="text-xs text-muted-foreground">{lang === "es" ? "Guardando…" : "Saving…"}</span>
-        )}
+        {isPending && <span className="text-xs text-muted-foreground">{lang === "es" ? "Guardando…" : "Saving…"}</span>}
         {!isPending && state.saved && !state.error && (
           <span className="text-xs text-muted-foreground">{lang === "es" ? "Guardado" : "Saved"}</span>
         )}

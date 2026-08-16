@@ -3,11 +3,7 @@ import { notFound } from "next/navigation";
 import { Flame, MapPin, Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import {
-  getCurrentStreak,
-  getDailyStats,
-  getPlayerMatchHistory,
-} from "@/lib/players";
+import { getCurrentStreak, getDailyStats, getPlayerMatchHistory } from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { RankBadge } from "@/components/rank-badge";
 import { CharacterIcon } from "@/components/character-icon";
@@ -121,9 +117,7 @@ export default async function StreamOverlayPage({
   // getCurrentStreak returns a signed count (positive = win streak), and the
   // scoreboard only shows the orange flame for active win streaks.
   const opponentStreak = currentMatch
-    ? await getCurrentStreak(
-        isUserPlayer1 ? currentMatch.player2.id : currentMatch.player1.id,
-      )
+    ? await getCurrentStreak(isUserPlayer1 ? currentMatch.player2.id : currentMatch.player1.id)
     : null;
   const currentGame = currentMatchGames.at(-1);
   // Game 1 is a blind pick — neither side's character is shown on the
@@ -131,8 +125,7 @@ export default async function StreamOverlayPage({
   // sequential (actorA locks in first, then actorB reacts), so each icon
   // can appear as soon as its pick is set there.
   const game1BlindPickPending =
-    currentGame?.gameNumber === 1 &&
-    (!currentGame.actorACharacter || !currentGame.actorBCharacter);
+    currentGame?.gameNumber === 1 && (!currentGame.actorACharacter || !currentGame.actorBCharacter);
   const userCharacter = game1BlindPickPending
     ? null
     : currentGame
@@ -149,12 +142,8 @@ export default async function StreamOverlayPage({
       : null;
 
   // Count games won by each player
-  const userWins = currentMatchGames.filter(
-    (g) => g.winnerId === user.id,
-  ).length;
-  const opponentWins = currentMatchGames.filter(
-    (g) => g.winnerId && g.winnerId !== user.id,
-  ).length;
+  const userWins = currentMatchGames.filter((g) => g.winnerId === user.id).length;
+  const opponentWins = currentMatchGames.filter((g) => g.winnerId && g.winnerId !== user.id).length;
 
   const opponentUsername = currentMatch
     ? isUserPlayer1
@@ -185,16 +174,10 @@ export default async function StreamOverlayPage({
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
               {lang === "es" ? "Clasificación" : "Rating"}
             </span>
-            <RankBadge
-              rating={user.rating}
-              gamesPlayed={user.gamesPlayed}
-              className="text-md mx-3 px-3 py-1"
-            />
+            <RankBadge rating={user.rating} gamesPlayed={user.gamesPlayed} className="text-md mx-3 px-3 py-1" />
             <div className="mt-1 flex items-baseline gap-4">
               <Trophy className="size-8 text-white drop-shadow-lg" />
-              <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">
-                {user.rating}
-              </span>
+              <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">{user.rating}</span>
             </div>
             <div className="mt-1.5 flex items-center gap-4">
               {rank && (
@@ -206,12 +189,8 @@ export default async function StreamOverlayPage({
 
             <div className="text-white mt-1.5 flex items-center gap-5 text-xl">
               {lang === "es" ? "Hoy:" : "Today:"}
-              <span className="text-emerald-400 font-semibold">
-                {dailyStats.totalWins}W
-              </span>
-              <span className="text-red-400 font-semibold">
-                {dailyStats.totalLosses}L
-              </span>
+              <span className="text-emerald-400 font-semibold">{dailyStats.totalWins}W</span>
+              <span className="text-red-400 font-semibold">{dailyStats.totalLosses}L</span>
             </div>
 
             {user.region && (
@@ -246,65 +225,41 @@ export default async function StreamOverlayPage({
               <div className="flex min-w-96 max-w-96 flex-1 items-center justify-end gap-5 bg-zinc-800 px-8 py-2">
                 <div className="flex flex-col items-end">
                   <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
-                    {isUserPlayer1
-                      ? currentMatch.player1.username
-                      : currentMatch.player2.username}
+                    {isUserPlayer1 ? currentMatch.player1.username : currentMatch.player2.username}
                   </span>
                   <span className="flex items-center gap-1.5">
                     {streak > 0 && (
                       <span className="flex items-center gap-0.5 text-orange-400">
                         <Flame className="size-4 fill-orange-400" />
-                        <span className="text-base font-semibold tabular-nums">
-                          {streak}
-                        </span>
+                        <span className="text-base font-semibold tabular-nums">{streak}</span>
                       </span>
                     )}
-                    <span className="text-base text-white/50 tabular-nums">
-                      {user.rating}
-                    </span>
+                    <span className="text-base text-white/50 tabular-nums">{user.rating}</span>
                   </span>
                 </div>
-                <div className="flex shrink-0">
-                  {userCharacter && (
-                    <CharacterIcon name={userCharacter} size={48} />
-                  )}
-                </div>
+                <div className="flex shrink-0">{userCharacter && <CharacterIcon name={userCharacter} size={48} />}</div>
               </div>
 
               {/* Score divider */}
               <div className="flex items-center justify-center gap-4 bg-zinc-900 px-10 py-2">
-                <span className="text-5xl font-bold tabular-nums leading-none text-red-400">
-                  {userWins}
-                </span>
-                <span className="text-2xl font-bold tracking-widest text-zinc-500">
-                  VS
-                </span>
-                <span className="text-5xl font-bold tabular-nums leading-none text-sky-400">
-                  {opponentWins}
-                </span>
+                <span className="text-5xl font-bold tabular-nums leading-none text-red-400">{userWins}</span>
+                <span className="text-2xl font-bold tracking-widest text-zinc-500">VS</span>
+                <span className="text-5xl font-bold tabular-nums leading-none text-sky-400">{opponentWins}</span>
               </div>
 
               {/* Opponent side (right) */}
               <div className="flex min-w-96 max-w-96 flex-1 items-center justify-start gap-5 bg-zinc-800 px-8 py-2">
                 <div className="flex shrink-0">
-                  {opponentCharacter && (
-                    <CharacterIcon name={opponentCharacter} size={48} />
-                  )}
+                  {opponentCharacter && <CharacterIcon name={opponentCharacter} size={48} />}
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
-                    {opponentUsername}
-                  </span>
+                  <span className="truncate text-3xl font-bold text-white drop-shadow-sm">{opponentUsername}</span>
                   <span className="flex items-center gap-1.5">
-                    <span className="text-base text-white/50 tabular-nums">
-                      {opponentRating}
-                    </span>
+                    <span className="text-base text-white/50 tabular-nums">{opponentRating}</span>
                     {opponentStreak !== null && opponentStreak > 0 && (
                       <span className="flex items-center gap-0.5 text-orange-400">
                         <Flame className="size-4 fill-orange-400" />
-                        <span className="text-base font-semibold tabular-nums">
-                          {opponentStreak}
-                        </span>
+                        <span className="text-base font-semibold tabular-nums">{opponentStreak}</span>
                       </span>
                     )}
                   </span>
@@ -314,13 +269,7 @@ export default async function StreamOverlayPage({
 
             {/* Branding below the scoreboard */}
             <div className="flex items-center gap-4 rounded-b-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm border-t-0">
-              <Image
-                src="/smash_ladder_icon_white.png"
-                alt=""
-                width={256}
-                height={256}
-                className="size-12 block"
-              />
+              <Image src="/smash_ladder_icon_white.png" alt="" width={256} height={256} className="size-12 block" />
               <span className="text-2xl font-semibold tracking-tight text-white">
                 Smash Ladder <span className="text-primary">NA</span>
               </span>
@@ -330,13 +279,7 @@ export default async function StreamOverlayPage({
           /* No match in progress — logo and title on one line inside a
              single bordered pill */
           <div className="mt-2 flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm">
-            <Image
-              src="/smash_ladder_icon_white.png"
-              alt=""
-              width={256}
-              height={256}
-              className="size-16 block"
-            />
+            <Image src="/smash_ladder_icon_white.png" alt="" width={256} height={256} className="size-16 block" />
             <span className="text-3xl font-semibold tracking-tight text-white">
               Smash Ladder <span className="text-primary">NA</span>
             </span>
@@ -346,10 +289,7 @@ export default async function StreamOverlayPage({
 
       {/* Top-right: Recent matches */}
       {showRecentMatches && (
-        <div
-          className="absolute right-8"
-          style={{ top: "calc(2.5rem + 96px)" }}
-        >
+        <div className="absolute right-8" style={{ top: "calc(2.5rem + 96px)" }}>
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
               {lang === "es" ? "Partidas recientes" : "Recent matches"}
@@ -361,20 +301,15 @@ export default async function StreamOverlayPage({
                 </span>
               ) : (
                 recentMatches.map((match) => (
-                  <div
-                    key={match.id}
-                    className="flex items-center gap-4 text-xl"
-                  >
+                  <div key={match.id} className="flex items-center gap-4 text-xl">
                     <span
                       className={`w-6 shrink-0 text-center text-base font-bold ${
                         match.won ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
-                      {match.won ? (lang === "es" ? "V" : "W") : (lang === "es" ? "D" : "L")}
+                      {match.won ? (lang === "es" ? "V" : "W") : lang === "es" ? "D" : "L"}
                     </span>
-                    <span className="min-w-0 max-w-48 truncate text-white/80">
-                      {match.opponent.username}
-                    </span>
+                    <span className="min-w-0 max-w-48 truncate text-white/80">{match.opponent.username}</span>
                     <span
                       className={`ml-auto shrink-0 tabular-nums text-base font-semibold ${
                         match.delta >= 0 ? "text-emerald-400" : "text-red-400"
@@ -390,7 +325,6 @@ export default async function StreamOverlayPage({
           </div>
         </div>
       )}
-
     </div>
   );
 }

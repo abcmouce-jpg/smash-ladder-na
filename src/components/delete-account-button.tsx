@@ -4,13 +4,7 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 
-export function DeleteAccountButton({
-  action,
-  lang = "en",
-}: {
-  action: () => Promise<void>;
-  lang?: "en" | "es";
-}) {
+export function DeleteAccountButton({ action, lang = "en" }: { action: () => Promise<void>; lang?: "en" | "es" }) {
   const [confirm, confirmDialog] = useConfirm();
   const confirmReadyRef = useRef(false);
 

@@ -9,9 +9,7 @@ export const LADDER_TIME_ZONE = "America/New_York";
 // "YYYY-MM-DD" for the given date as it falls in timeZone — en-CA happens to
 // format that way natively, no manual part-assembly needed.
 export function dayKeyInTimeZone(date: Date, timeZone: string = LADDER_TIME_ZONE): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    date,
-  );
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
 function offsetMinutesFor(date: Date, timeZone: string): number {

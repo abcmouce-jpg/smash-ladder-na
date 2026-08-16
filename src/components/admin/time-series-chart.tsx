@@ -108,15 +108,14 @@ export function TimeSeriesChart({
       >
         {gridLines.map((g) => (
           <g key={g}>
-            <line
-              x1={PAD_LEFT}
-              x2={WIDTH - PAD_RIGHT}
-              y1={y(g)}
-              y2={y(g)}
-              className="stroke-border"
-              strokeWidth={1}
-            />
-            <text x={PAD_LEFT - 4} y={y(g) + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 9 }}>
+            <line x1={PAD_LEFT} x2={WIDTH - PAD_RIGHT} y1={y(g)} y2={y(g)} className="stroke-border" strokeWidth={1} />
+            <text
+              x={PAD_LEFT - 4}
+              y={y(g) + 3}
+              textAnchor="end"
+              className="fill-muted-foreground"
+              style={{ fontSize: 9 }}
+            >
               {g}
             </text>
           </g>
@@ -154,7 +153,14 @@ export function TimeSeriesChart({
           const anchor = i === days - 1 ? "end" : i === 0 ? "start" : "middle";
           const [, month, day] = d.key.split("-").map(Number);
           return (
-            <text key={d.key} x={pointX(i)} y={HEIGHT - 5} textAnchor={anchor} className="fill-muted-foreground" style={{ fontSize: 9 }}>
+            <text
+              key={d.key}
+              x={pointX(i)}
+              y={HEIGHT - 5}
+              textAnchor={anchor}
+              className="fill-muted-foreground"
+              style={{ fontSize: 9 }}
+            >
               {MONTHS[month - 1]} {day}
             </text>
           );

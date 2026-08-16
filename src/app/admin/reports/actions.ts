@@ -21,10 +21,7 @@ export async function dismiss(reportId: string) {
 
 export async function suspendReportedUser(reportId: string, formData: FormData) {
   await requireModerator();
-  const suspensionHours = parseSuspensionHours(
-    formData.get("customHours"),
-    formData.get("suspensionHours"),
-  );
+  const suspensionHours = parseSuspensionHours(formData.get("customHours"), formData.get("suspensionHours"));
   const skipThreshold = formData.get("insta") === "on";
   await actionReport(reportId, "SUSPENDED", { suspensionHours, skipThreshold });
   revalidatePath("/admin/reports");
@@ -37,10 +34,7 @@ export async function banReportedUser(reportId: string, formData: FormData) {
   revalidatePath("/admin/reports");
 }
 
-function parseSuspensionHours(
-  customRaw: FormDataEntryValue | null,
-  presetRaw: FormDataEntryValue | null,
-) {
+function parseSuspensionHours(customRaw: FormDataEntryValue | null, presetRaw: FormDataEntryValue | null) {
   // The custom hours field wins whenever it's a valid positive number —
   // it's an explicit override of whatever the preset dropdown happens to be
   // sitting on, not a fallback path.

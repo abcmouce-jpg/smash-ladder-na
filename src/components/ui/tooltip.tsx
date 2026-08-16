@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Popover as PopoverPrimitive, Tooltip as TooltipPrimitive } from "radix-ui"
+import * as React from "react";
+import { Popover as PopoverPrimitive, Tooltip as TooltipPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils"
-import { useIsTouchDevice } from "@/hooks/use-is-touch-device"
+import { cn } from "@/lib/utils";
+import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
 
 const TOOLTIP_CONTENT_CLASSNAME =
-  "z-50 max-w-64 rounded-lg border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md"
+  "z-50 max-w-64 rounded-lg border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md";
 const TOOLTIP_CONTENT_ANIMATION_CLASSNAME =
-  "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2"
+  "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2";
 
 // Radix Tooltip deliberately ignores touch input (hover-open is skipped for
 // touch pointers, and its trigger's click handler always force-closes), so
@@ -25,17 +25,17 @@ const TOOLTIP_CONTENT_ANIMATION_CLASSNAME =
 // (or vice versa) and crashing. Computing it once here and passing it down
 // via context guarantees every consumer sees the same value in the same
 // render.
-const TooltipDeviceContext = React.createContext(false)
+const TooltipDeviceContext = React.createContext(false);
 
 function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  const isTouch = useIsTouchDevice()
+  const isTouch = useIsTouchDevice();
 
   if (isTouch) {
     return (
       <TooltipDeviceContext.Provider value={isTouch}>
         <PopoverPrimitive.Root data-slot="tooltip" {...props} />
       </TooltipDeviceContext.Provider>
-    )
+    );
   }
 
   return (
@@ -44,19 +44,17 @@ function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root
         <TooltipPrimitive.Root data-slot="tooltip" {...props} />
       </TooltipPrimitive.Provider>
     </TooltipDeviceContext.Provider>
-  )
+  );
 }
 
-function TooltipTrigger({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  const isTouch = React.useContext(TooltipDeviceContext)
+function TooltipTrigger({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  const isTouch = React.useContext(TooltipDeviceContext);
 
   if (isTouch) {
-    return <PopoverPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+    return <PopoverPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
   }
 
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
 function TooltipContent({
@@ -64,7 +62,7 @@ function TooltipContent({
   sideOffset = 6,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
-  const isTouch = React.useContext(TooltipDeviceContext)
+  const isTouch = React.useContext(TooltipDeviceContext);
 
   if (isTouch) {
     return (
@@ -82,7 +80,7 @@ function TooltipContent({
           {...props}
         />
       </PopoverPrimitive.Portal>
-    )
+    );
   }
 
   return (
@@ -99,7 +97,7 @@ function TooltipContent({
         {...props}
       />
     </TooltipPrimitive.Portal>
-  )
+  );
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent }
+export { Tooltip, TooltipTrigger, TooltipContent };

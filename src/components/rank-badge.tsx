@@ -9,7 +9,11 @@ import { Badge } from "@/components/ui/badge";
 // colors in a second place.
 export function TierBadge({ tier, className }: { tier: RankTier | null; className?: string }) {
   if (!tier) {
-    return <Badge variant="outline" className={className}>Provisional</Badge>;
+    return (
+      <Badge variant="outline" className={className}>
+        Provisional
+      </Badge>
+    );
   }
 
   return (
@@ -19,6 +23,14 @@ export function TierBadge({ tier, className }: { tier: RankTier | null; classNam
   );
 }
 
-export function RankBadge({ rating, gamesPlayed, className }: { rating: number; gamesPlayed: number; className?: string }) {
+export function RankBadge({
+  rating,
+  gamesPlayed,
+  className,
+}: {
+  rating: number;
+  gamesPlayed: number;
+  className?: string;
+}) {
   return <TierBadge tier={getRankTier(rating, gamesPlayed)} className={className} />;
 }

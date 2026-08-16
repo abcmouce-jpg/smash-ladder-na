@@ -17,11 +17,7 @@ async function discordRequest(path: string, init: RequestInit) {
 // a burst of identical, unsolicited DMs (e.g. announcing a tournament to every
 // entrant) is exactly the pattern Discord's abuse detection flags, and it can
 // get the whole application (bot + OAuth login) suspended pending review.
-export async function sendDiscordDMsSequentially(
-  recipients: { discordId: string }[],
-  content: string,
-  delayMs = 1000,
-) {
+export async function sendDiscordDMsSequentially(recipients: { discordId: string }[], content: string, delayMs = 1000) {
   for (const { discordId } of recipients) {
     await sendDiscordDM(discordId, content);
     await new Promise((resolve) => setTimeout(resolve, delayMs));

@@ -146,9 +146,7 @@ export function AdminMatchOverride({
 
   return (
     <details className="mt-1 text-xs">
-      <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-        Mod: change winner
-      </summary>
+      <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Mod: change winner</summary>
       <div className="mt-2 flex flex-col gap-1.5">
         <div className="flex gap-2">
           <form action={formAction1}>

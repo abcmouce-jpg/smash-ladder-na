@@ -17,9 +17,7 @@ export const REMATCH_COOLDOWN_PRESETS = [
   { label: "Rematches allowed anytime", hours: null },
 ] as const;
 
-export const MAX_REMATCH_COOLDOWN_HOURS = Math.max(
-  ...REMATCH_COOLDOWN_PRESETS.map((preset) => preset.hours ?? 0),
-);
+export const MAX_REMATCH_COOLDOWN_HOURS = Math.max(...REMATCH_COOLDOWN_PRESETS.map((preset) => preset.hours ?? 0));
 
 export function rematchCooldownAllows(
   lastMatchAt: Date | undefined,

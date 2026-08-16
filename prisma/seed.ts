@@ -1,10 +1,5 @@
 import { prisma } from "../src/lib/db";
-import {
-  ConfirmationMethod,
-  MatchStatus,
-  PairingMethod,
-  TournamentStatus,
-} from "../src/generated/prisma/enums";
+import { ConfirmationMethod, MatchStatus, PairingMethod, TournamentStatus } from "../src/generated/prisma/enums";
 
 const SEED_USERS = [
   { discordId: "seed-001", username: "FoxMain_East", rating: 1820, gamesPlayed: 62, mainCharacter: "Fox" },

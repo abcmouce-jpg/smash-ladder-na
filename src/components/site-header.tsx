@@ -47,13 +47,7 @@ export async function SiteHeader() {
               prefetch={false}
               className="flex shrink-0 items-center gap-1.5 text-sm font-semibold tracking-tight"
             >
-              <Image
-                src="/smash_ladder_icon.png"
-                alt=""
-                width={24}
-                height={24}
-                className="size-6 block dark:hidden"
-              />
+              <Image src="/smash_ladder_icon.png" alt="" width={24} height={24} className="size-6 block dark:hidden" />
               <Image
                 src="/smash_ladder_icon_white.png"
                 alt=""
@@ -114,9 +108,7 @@ export async function SiteHeader() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <ThemeToggle />
-                  <form
-                    action={setLangAction.bind(null, lang === "es" ? "en" : "es")}
-                  >
+                  <form action={setLangAction.bind(null, lang === "es" ? "en" : "es")}>
                     <button
                       type="submit"
                       className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none hover:bg-muted hover:text-foreground"
@@ -162,74 +154,42 @@ export async function SiteHeader() {
 
         <div className="relative mt-3">
           <nav className="flex items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
-            <Link
-              href="/lobby"
-              prefetch={false}
-              className="flex items-center gap-1.5 hover:text-foreground"
-            >
+            <Link href="/lobby" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
               <Swords className="size-3.5" />
               {lang === "es" ? "Sala" : "Lobby"}
             </Link>
-            <Link
-              href="/sets"
-              prefetch={false}
-              className="flex items-center gap-1.5 hover:text-foreground"
-            >
+            <Link href="/sets" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
               <Radio className="size-3.5" />
               {lang === "es" ? "Partidas" : "Sets"}
             </Link>
-            <Link
-              href="/leaderboard"
-              prefetch={false}
-              className="flex items-center gap-1.5 hover:text-foreground"
-            >
+            <Link href="/leaderboard" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
               <Trophy className="size-3.5" />
               {lang === "es" ? "Clasificación" : "Leaderboard"}
             </Link>
-            <Link
-              href="/characters"
-              prefetch={false}
-              className="flex items-center gap-1.5 hover:text-foreground"
-            >
+            <Link href="/characters" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
               <Gamepad2 className="size-3.5" />
               {lang === "es" ? "Personajes" : "Characters"}
             </Link>
             {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link
-                href="/admin"
-                prefetch={false}
-                className="flex items-center gap-1.5 hover:text-foreground"
-              >
+              <Link href="/admin" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
                 <Gauge className="size-3.5" />
                 Admin
               </Link>
             )}
             {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link
-                href="/admin/players"
-                prefetch={false}
-                className="flex items-center gap-1.5 hover:text-foreground"
-              >
+              <Link href="/admin/players" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
                 <Search className="size-3.5" />
                 Players
               </Link>
             )}
             {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link
-                href="/admin/disputes"
-                prefetch={false}
-                className="flex items-center gap-1.5 hover:text-foreground"
-              >
+              <Link href="/admin/disputes" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
                 <Shield className="size-3.5" />
                 Disputes
               </Link>
             )}
             {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link
-                href="/admin/reports"
-                prefetch={false}
-                className="flex items-center gap-1.5 hover:text-foreground"
-              >
+              <Link href="/admin/reports" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
                 <Flag className="size-3.5" />
                 Reports
               </Link>
@@ -245,11 +205,7 @@ export async function SiteHeader() {
               </Link>
             )}
             {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link
-                href="/admin/seasons"
-                prefetch={false}
-                className="flex items-center gap-1.5 hover:text-foreground"
-              >
+              <Link href="/admin/seasons" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
                 <CalendarClock className="size-3.5" />
                 Seasons
               </Link>

@@ -50,22 +50,20 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
   if (!player) {
     return new ImageResponse(
-      (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#0a0a0a",
-            color: "#9a9a9e",
-            fontSize: 40,
-          }}
-        >
-          Smash Ladder NA
-        </div>
-      ),
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#0a0a0a",
+          color: "#9a9a9e",
+          fontSize: 40,
+        }}
+      >
+        Smash Ladder NA
+      </div>,
       { ...size },
     );
   }
@@ -76,84 +74,78 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const characterIcon = characterIconDataUri(player.mainCharacter);
 
   return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          padding: "72px",
-          backgroundColor: "#0a0a0a",
-          backgroundImage: `radial-gradient(circle at 82% 20%, ${tierColor}33, rgba(10,10,10,0) 55%)`,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img src={ICON_URI} width={36} height={36} style={{ borderRadius: 8 }} alt="" />
-          <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: "#9a9a9e", letterSpacing: 1 }}>
-            SMASH LADDER NA
-          </div>
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        padding: "72px",
+        backgroundColor: "#0a0a0a",
+        backgroundImage: `radial-gradient(circle at 82% 20%, ${tierColor}33, rgba(10,10,10,0) 55%)`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <img src={ICON_URI} width={36} height={36} style={{ borderRadius: 8 }} alt="" />
+        <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: "#9a9a9e", letterSpacing: 1 }}>
+          SMASH LADDER NA
         </div>
+      </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-          {player.avatarUrl && (
-            <img
-              src={player.avatarUrl}
-              width={160}
-              height={160}
-              style={{ borderRadius: "50%", border: `4px solid ${tierColor}` }}
-              alt=""
-            />
-          )}
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: "#f5f4f2", letterSpacing: -2 }}>
-              {player.username}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 14 }}>
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 32,
-                  fontWeight: 700,
-                  color: tierColor,
-                  padding: "6px 20px",
-                  borderRadius: 999,
-                  border: `2px solid ${tierColor}`,
-                }}
-              >
-                {tier ? tier.name.toUpperCase() : "PROVISIONAL"}
-              </div>
-              <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>{player.rating} rating</div>
-              {characterIcon && (
-                <img src={characterIcon} width={44} height={44} style={{ borderRadius: 8 }} alt="" />
-              )}
-            </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
+        {player.avatarUrl && (
+          <img
+            src={player.avatarUrl}
+            width={160}
+            height={160}
+            style={{ borderRadius: "50%", border: `4px solid ${tierColor}` }}
+            alt=""
+          />
+        )}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: "#f5f4f2", letterSpacing: -2 }}>
+            {player.username}
           </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 64 }}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
-              {career.totalWins}-{career.totalLosses}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 32,
+                fontWeight: 700,
+                color: tierColor,
+                padding: "6px 20px",
+                borderRadius: 999,
+                border: `2px solid ${tierColor}`,
+              }}
+            >
+              {tier ? tier.name.toUpperCase() : "PROVISIONAL"}
             </div>
-            <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>LIFETIME RECORD</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
-              {career.bestWinStreak}
-            </div>
-            <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>BEST STREAK</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
-              {career.peakRating ?? "—"}
-            </div>
-            <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>PEAK RATING</div>
+            <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>{player.rating} rating</div>
+            {characterIcon && <img src={characterIcon} width={44} height={44} style={{ borderRadius: 8 }} alt="" />}
           </div>
         </div>
       </div>
-    ),
+
+      <div style={{ display: "flex", gap: 64 }}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
+            {career.totalWins}-{career.totalLosses}
+          </div>
+          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>LIFETIME RECORD</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>{career.bestWinStreak}</div>
+          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>BEST STREAK</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
+            {career.peakRating ?? "—"}
+          </div>
+          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>PEAK RATING</div>
+        </div>
+      </div>
+    </div>,
     { ...size },
   );
 }

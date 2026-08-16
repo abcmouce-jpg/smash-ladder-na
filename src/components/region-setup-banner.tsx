@@ -25,9 +25,7 @@ export async function RegionSetupBanner() {
     <div className="border-b border-border bg-primary/5">
       <div className="mx-auto flex max-w-3xl items-center gap-2 px-6 py-2 text-sm">
         <MapPin className="size-3.5 text-primary" />
-        <span className="text-muted-foreground">
-          Set your region to start matching —
-        </span>
+        <span className="text-muted-foreground">Set your region to start matching —</span>
         <Link href="/lobby" className="font-medium text-primary hover:underline">
           go to Lobby
         </Link>

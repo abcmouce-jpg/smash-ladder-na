@@ -21,8 +21,7 @@ export function ThemeToggle() {
 
   const toggle = useCallback(() => {
     setTheme((prev) => {
-      const next: Theme =
-        prev === "light" ? "dark" : prev === "dark" ? "auto" : "light";
+      const next: Theme = prev === "light" ? "dark" : prev === "dark" ? "auto" : "light";
       try {
         localStorage.setItem("theme", next);
       } catch {
@@ -45,11 +44,7 @@ export function ThemeToggle() {
       ) : (
         <Monitor className="size-3.5" />
       )}
-      {theme === "dark"
-        ? "Dark theme"
-        : theme === "light"
-          ? "Light theme"
-          : "Auto theme"}
+      {theme === "dark" ? "Dark theme" : theme === "light" ? "Light theme" : "Auto theme"}
     </button>
   );
 }

@@ -37,12 +37,7 @@ export function TwitchLiveEmbed({ username, parentHost }: { username: string; pa
         </button>
         {expanded && (
           <div className="mt-2 aspect-video w-full overflow-hidden rounded-lg">
-            <iframe
-              src={src}
-              allowFullScreen
-              className="h-full w-full"
-              title={`${username}'s Twitch stream`}
-            />
+            <iframe src={src} allowFullScreen className="h-full w-full" title={`${username}'s Twitch stream`} />
           </div>
         )}
       </CardContent>

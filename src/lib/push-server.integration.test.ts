@@ -155,7 +155,9 @@ describe("sendTestPushToUser", () => {
   it("returns an error when every subscription is dead", async () => {
     const user = await createTestUser();
     await subscribeUser(user.id, "https://push.example.com/dead-test");
-    sendNotificationMock.mockRejectedValue(new webpush.WebPushError("gone", 410, {}, "", "https://push.example.com/dead-test"));
+    sendNotificationMock.mockRejectedValue(
+      new webpush.WebPushError("gone", 410, {}, "", "https://push.example.com/dead-test"),
+    );
 
     const result = await sendTestPushToUser(user.id);
 

@@ -25,7 +25,10 @@ function colorFor(name: string) {
 }
 
 function initialsFor(name: string) {
-  const words = name.replace(/[().]/g, "").split(/[\s&/-]+/).filter(Boolean);
+  const words = name
+    .replace(/[().]/g, "")
+    .split(/[\s&/-]+/)
+    .filter(Boolean);
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
 }
@@ -39,7 +42,6 @@ export function CharacterIcon({
   size?: number;
   className?: string;
 }) {
-
   const slug = characterIconSlug(name);
   if (slug) {
     return (

@@ -2,7 +2,13 @@ import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { auth } from "@/auth";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
-import { MATCH_REGIONS, MATCH_REGION_GROUPS, MATCH_COUNTRIES, expandCountryForSearch, type MatchCountry } from "@/lib/regions";
+import {
+  MATCH_REGIONS,
+  MATCH_REGION_GROUPS,
+  MATCH_COUNTRIES,
+  expandCountryForSearch,
+  type MatchCountry,
+} from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { getCharacterUsage } from "@/lib/players";
@@ -46,17 +52,14 @@ export default async function LeaderboardPage({
   const isValidRegion =
     region && (MATCH_REGIONS as readonly string[]).includes(region) && (!countryRegions || countryRegions.has(region));
   const query = (q ?? "").trim().slice(0, 32);
-  const isFiltered =
-    Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion) || Boolean(isValidCountry);
+  const isFiltered = Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion) || Boolean(isValidCountry);
 
   const requestedPage = Number(pageParam);
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   // Narrowed to the selected country's regions once one is picked, so the
   // dropdown can't offer a region that'd just get silently ignored.
-  const regionOptions = countryRegions
-    ? REGION_OPTIONS.filter((opt) => countryRegions.has(opt.value))
-    : REGION_OPTIONS;
+  const regionOptions = countryRegions ? REGION_OPTIONS.filter((opt) => countryRegions.has(opt.value)) : REGION_OPTIONS;
 
   const [session, season, { players, totalCount }, lang] = await Promise.all([
     auth(),
@@ -110,9 +113,7 @@ export default async function LeaderboardPage({
         ) : (
           <>
             Ranked players with {LEADERBOARD_MIN_GAMES}+ sets played
-            {isValidCharacter
-              ? ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary`
-              : ""}
+            {isValidCharacter ? ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary` : ""}
             {isValidRegion ? ` in ${region}` : ""}
             {!isValidRegion && isValidCountry ? ` in ${country}` : ""}
             {query ? ` matching "${query}"` : ""}.
@@ -127,14 +128,14 @@ export default async function LeaderboardPage({
               <>
                 🏆{" "}
                 <span className="font-medium">
-                  Bolsa de premios de ${SEASON_PRIZE_POOL_USD} USD (≈ ${approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN)
+                  Bolsa de premios de ${SEASON_PRIZE_POOL_USD} USD (≈ $
+                  {approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN)
                 </span>{" "}
                 — repartida entre los 5 primeros cuando termine {season.name}.
                 {season.name === "Preseason" && (
                   <>
                     {" "}
-                    Esta preseason es fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado
-                    alrededor del{" "}
+                    Esta preseason es fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor del{" "}
                     {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("es-MX", {
                       timeZone: "America/New_York",
                       dateStyle: "long",
@@ -145,8 +146,8 @@ export default async function LeaderboardPage({
               </>
             ) : (
               <>
-                🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> —
-                split among the top 5 finishers when {season.name} ends.
+                🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> — split among the
+                top 5 finishers when {season.name} ends.
                 {season.name === "Preseason" && (
                   <>
                     {" "}
@@ -200,7 +201,7 @@ export default async function LeaderboardPage({
               (see regionOptions above) — pick a country, and the list here
               only offers regions that actually belong to it. */}
           <OptionSelect
-            key={isValidRegion ? region : effectiveCountry ?? ""}
+            key={isValidRegion ? region : (effectiveCountry ?? "")}
             name="region"
             defaultValue={isValidRegion ? region : ""}
             placeholder={lang === "es" ? "Todas las regiones" : "All regions"}
@@ -268,14 +269,9 @@ export default async function LeaderboardPage({
                       isViewer ? "bg-primary/10" : rank < 3 ? "bg-primary/[0.04]" : ""
                     }`}
                   >
-                    <td className="py-2 pl-4 tabular-nums text-muted-foreground">
-                      {MEDALS[rank] ?? rank + 1}
-                    </td>
+                    <td className="py-2 pl-4 tabular-nums text-muted-foreground">{MEDALS[rank] ?? rank + 1}</td>
                     <td className="py-2">
-                      <Link
-                        href={`/players/${player.id}`}
-                        className="flex items-center gap-2 hover:underline"
-                      >
+                      <Link href={`/players/${player.id}`} className="flex items-center gap-2 hover:underline">
                         {player.username}
                         <CharacterUsageIcons usage={usageByPlayerId.get(player.id) ?? []} />
                         {gapToNext !== null && gapToNext > 0 && (
@@ -291,11 +287,7 @@ export default async function LeaderboardPage({
                       <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
                     </td>
                     <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
-                    <td
-                      className={`py-2 text-right tabular-nums text-muted-foreground ${
-                        isFiltered ? "pr-4" : ""
-                      }`}
-                    >
+                    <td className={`py-2 text-right tabular-nums text-muted-foreground ${isFiltered ? "pr-4" : ""}`}>
                       {player.gamesPlayed}
                     </td>
                     {!isFiltered && (
@@ -363,7 +355,14 @@ function PaginationBar({
       {totalPages > 1 && (
         <div className="flex items-center gap-3 text-sm">
           <div className="flex items-center gap-2">
-            <PageLink page={page - 1} character={character} query={query} region={region} country={country} disabled={page <= 1}>
+            <PageLink
+              page={page - 1}
+              character={character}
+              query={query}
+              region={region}
+              country={country}
+              disabled={page <= 1}
+            >
               {lang === "es" ? "← Anterior" : "← Previous"}
             </PageLink>
             <span className="text-muted-foreground tabular-nums">

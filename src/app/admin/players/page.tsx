@@ -21,9 +21,7 @@ export default async function AdminPlayersPage({
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Players</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You don&apos;t have access to this page.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">You don&apos;t have access to this page.</p>
       </main>
     );
   }
@@ -45,8 +43,8 @@ export default async function AdminPlayersPage({
         <h1 className="text-2xl font-semibold tracking-tight">Players</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Look up any player, including new accounts that haven&apos;t played enough sets to show
-        up on the public leaderboard yet.
+        Look up any player, including new accounts that haven&apos;t played enough sets to show up on the public
+        leaderboard yet.
       </p>
 
       <form method="get" className="mt-4 flex items-end gap-2">
@@ -73,79 +71,77 @@ export default async function AdminPlayersPage({
             shrinking them down would make the role select (and its native
             OS picker) fiddly to tap accurately. */}
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="py-2 pl-4 font-medium">Player</th>
-              <th className="py-2 font-medium">Status</th>
-              <th className="py-2 font-medium">Region</th>
-              <th className="py-2 font-medium text-right tabular-nums">Rating</th>
-              <th className="py-2 font-medium text-right tabular-nums">Sets</th>
-              <th className="py-2 font-medium text-center">Ad-free</th>
-              {canEditRoles && <th className="py-2 font-medium">Role</th>}
-              <th className="py-2 pr-4 font-medium text-right">Joined</th>
-            </tr>
-          </thead>
-          <tbody>
-            {players.map((player) => (
-              <tr key={player.id} className="border-b border-border/60 last:border-0">
-                <td className="py-2 pl-4">
-                  <Link href={`/players/${player.id}`} className="hover:underline">
-                    {player.username}
-                  </Link>
-                  {player.role !== "USER" && (
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      {player.role.toLowerCase()}
-                    </Badge>
-                  )}
-                </td>
-                <td className="py-2">
-                  {player.status === "ACTIVE" ? (
-                    <span className="text-muted-foreground">active</span>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <Badge variant="destructive" className="text-xs">
-                        {player.status.toLowerCase()}
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="py-2 pl-4 font-medium">Player</th>
+                <th className="py-2 font-medium">Status</th>
+                <th className="py-2 font-medium">Region</th>
+                <th className="py-2 font-medium text-right tabular-nums">Rating</th>
+                <th className="py-2 font-medium text-right tabular-nums">Sets</th>
+                <th className="py-2 font-medium text-center">Ad-free</th>
+                {canEditRoles && <th className="py-2 font-medium">Role</th>}
+                <th className="py-2 pr-4 font-medium text-right">Joined</th>
+              </tr>
+            </thead>
+            <tbody>
+              {players.map((player) => (
+                <tr key={player.id} className="border-b border-border/60 last:border-0">
+                  <td className="py-2 pl-4">
+                    <Link href={`/players/${player.id}`} className="hover:underline">
+                      {player.username}
+                    </Link>
+                    {player.role !== "USER" && (
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {player.role.toLowerCase()}
                       </Badge>
-                      <form action={reinstate.bind(null, player.id)}>
-                        <Button type="submit" size="sm" variant="outline" className="h-6 px-2 text-xs">
-                          Reinstate
-                        </Button>
-                      </form>
-                    </div>
-                  )}
-                </td>
-                <td className="py-2 text-muted-foreground">{player.region ?? "—"}</td>
-                <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
-                <td className="py-2 text-right tabular-nums text-muted-foreground">
-                  {player.gamesPlayed}
-                </td>
-                <td className="py-2 text-center">
-                  <form action={setSupporter.bind(null, player.id, !player.isSupporter)}>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant={player.isSupporter ? "default" : "outline"}
-                      className="h-6 px-2 text-xs"
-                    >
-                      {player.isSupporter ? "Supporter" : "—"}
-                    </Button>
-                  </form>
-                </td>
-                {canEditRoles && (
+                    )}
+                  </td>
                   <td className="py-2">
-                    <form action={setRoleFromForm.bind(null, player.id)}>
-                      <RoleSelect currentRole={player.role} />
+                    {player.status === "ACTIVE" ? (
+                      <span className="text-muted-foreground">active</span>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="destructive" className="text-xs">
+                          {player.status.toLowerCase()}
+                        </Badge>
+                        <form action={reinstate.bind(null, player.id)}>
+                          <Button type="submit" size="sm" variant="outline" className="h-6 px-2 text-xs">
+                            Reinstate
+                          </Button>
+                        </form>
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-2 text-muted-foreground">{player.region ?? "—"}</td>
+                  <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
+                  <td className="py-2 text-right tabular-nums text-muted-foreground">{player.gamesPlayed}</td>
+                  <td className="py-2 text-center">
+                    <form action={setSupporter.bind(null, player.id, !player.isSupporter)}>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        variant={player.isSupporter ? "default" : "outline"}
+                        className="h-6 px-2 text-xs"
+                      >
+                        {player.isSupporter ? "Supporter" : "—"}
+                      </Button>
                     </form>
                   </td>
-                )}
-                <td className="py-2 pr-4 text-right text-xs text-muted-foreground">
-                  {player.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  {canEditRoles && (
+                    <td className="py-2">
+                      <form action={setRoleFromForm.bind(null, player.id)}>
+                        <RoleSelect currentRole={player.role} />
+                      </form>
+                    </td>
+                  )}
+                  <td className="py-2 pr-4 text-right text-xs text-muted-foreground">
+                    {player.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {players.length === 0 && (

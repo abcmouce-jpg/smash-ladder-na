@@ -31,9 +31,8 @@ function PlayerRow({ player, showSuspendAction }: { player: WatchlistPlayer; sho
             {player.username}
           </Link>
           <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-            {player.cancelCount} cancels / {player.gamesPlayed} played (
-            {Math.round(cancelRatio(player) * 100)}%) · {player.noShowCount} no-shows · misconduct{" "}
-            {player.misconductScore}
+            {player.cancelCount} cancels / {player.gamesPlayed} played ({Math.round(cancelRatio(player) * 100)}%) ·{" "}
+            {player.noShowCount} no-shows · misconduct {player.misconductScore}
             {player.openReportCount > 0 && (
               <>
                 {" · "}
@@ -96,10 +95,9 @@ export default async function AdminWatchlistPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Watchlist</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        ACTIVE players whose cancel history already crosses the site&apos;s own auto-suspend
-        thresholds — cancelMatch only checks this at the moment of a qualifying cancel, so anyone
-        whose auto-suspend already lapsed and kept playing sits here unflagged until this page (or
-        their next cancel) catches it again.
+        ACTIVE players whose cancel history already crosses the site&apos;s own auto-suspend thresholds — cancelMatch
+        only checks this at the moment of a qualifying cancel, so anyone whose auto-suspend already lapsed and kept
+        playing sits here unflagged until this page (or their next cancel) catches it again.
       </p>
 
       <h2 className="mt-8 text-sm font-semibold text-destructive">
@@ -129,8 +127,8 @@ export default async function AdminWatchlistPage() {
       </div>
 
       <p className="mt-8 text-xs text-muted-foreground">
-        Suspending here goes through the same path as a manual suspend elsewhere — it&apos;s
-        recorded as an ACTIONED conduct report and bumps misconduct score.
+        Suspending here goes through the same path as a manual suspend elsewhere — it&apos;s recorded as an ACTIONED
+        conduct report and bumps misconduct score.
       </p>
       <Badge variant="outline" className="mt-2">
         Not a queue — recomputed fresh on every visit, nothing to dismiss

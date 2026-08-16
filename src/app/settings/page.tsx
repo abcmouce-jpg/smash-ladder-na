@@ -30,7 +30,12 @@ import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ startggConnected?: string; startggError?: string; twitchConnected?: string; twitchError?: string }>;
+  searchParams: Promise<{
+    startggConnected?: string;
+    startggError?: string;
+    twitchConnected?: string;
+    twitchError?: string;
+  }>;
 }) {
   const session = await auth();
   const { startggConnected, startggError, twitchConnected, twitchError } = await searchParams;
@@ -89,7 +94,11 @@ export default async function SettingsPage({
           <TwitchConnectCard
             connected={
               me?.twitchUserId && me.twitchUsername
-                ? { username: me.twitchUsername, displayName: me.twitchDisplayName, profileImageUrl: me.twitchProfileImageUrl }
+                ? {
+                    username: me.twitchUsername,
+                    displayName: me.twitchDisplayName,
+                    profileImageUrl: me.twitchProfileImageUrl,
+                  }
                 : null
             }
             justConnected={twitchConnected === "1"}
@@ -115,9 +124,7 @@ export default async function SettingsPage({
         <CardContent className="pt-4">
           <StartggConnectCard
             connected={
-              me?.startggUserId && me.startggSlug
-                ? { slug: me.startggSlug, gamerTag: me.startggGamerTag }
-                : null
+              me?.startggUserId && me.startggSlug ? { slug: me.startggSlug, gamerTag: me.startggGamerTag } : null
             }
             justConnected={startggConnected === "1"}
             error={startggError}
@@ -144,10 +151,7 @@ export default async function SettingsPage({
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <PushNotificationsForm
-            defaultEnabled={(me?._count.pushSubscriptions ?? 0) > 0}
-            lang={lang}
-          />
+          <PushNotificationsForm defaultEnabled={(me?._count.pushSubscriptions ?? 0) > 0} lang={lang} />
         </CardContent>
       </Card>
 
@@ -197,15 +201,7 @@ export default async function SettingsPage({
   );
 }
 
-function InviteLinkCard({
-  userId,
-  referralCount,
-  lang,
-}: {
-  userId: string;
-  referralCount: number;
-  lang: Lang;
-}) {
+function InviteLinkCard({ userId, referralCount, lang }: { userId: string; referralCount: number; lang: Lang }) {
   const link = referralLink(userId);
 
   return (
@@ -250,13 +246,13 @@ function StreamOverlayCard({
       <p className="text-xs text-muted-foreground">
         {lang === "es" ? (
           <>
-            Usa esta URL como Browser Source en OBS (configurada a <strong>1920 x 1080</strong>)
-            para mostrar tu clasificación, partidas recientes, y la partida actual en tu stream.
+            Usa esta URL como Browser Source en OBS (configurada a <strong>1920 x 1080</strong>) para mostrar tu
+            clasificación, partidas recientes, y la partida actual en tu stream.
           </>
         ) : (
           <>
-            Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your
-            rating, recent matches, and current match info on stream.
+            Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your rating, recent
+            matches, and current match info on stream.
           </>
         )}
       </p>
@@ -288,21 +284,13 @@ function TwitchConnectCard({
       </p>
       {connected ? (
         <>
-          {justConnected && (
-            <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>
-          )}
+          {justConnected && <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>}
           <div className="mt-1 flex items-center gap-2">
             {connected.profileImageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={connected.profileImageUrl}
-                alt=""
-                className="size-6 rounded-full"
-              />
+              <img src={connected.profileImageUrl} alt="" className="size-6 rounded-full" />
             )}
-            <span className="font-medium">
-              {connected.displayName ?? connected.username} ✓
-            </span>
+            <span className="font-medium">{connected.displayName ?? connected.username} ✓</span>
             <form action={disconnectTwitchAction}>
               <Button type="submit" size="sm" variant="outline">
                 {lang === "es" ? "Desconectar" : "Disconnect"}
@@ -343,9 +331,7 @@ function StartggConnectCard({
       </p>
       {connected ? (
         <>
-          {justConnected && (
-            <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>
-          )}
+          {justConnected && <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>}
           <div className="mt-1 flex items-center gap-2">
             <a
               href={startggProfileUrl(connected.slug)}
@@ -378,9 +364,7 @@ function PageTitle({ lang }: { lang: Lang }) {
   return (
     <div className="flex items-center gap-2">
       <Settings className="size-5 text-muted-foreground" />
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {lang === "es" ? "Ajustes" : "Settings"}
-      </h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Ajustes" : "Settings"}</h1>
     </div>
   );
 }
@@ -460,9 +444,7 @@ function AudioPingOnMatchForm({
         </Button>
       </div>
       <div className="flex items-center justify-between gap-2 pl-6">
-        <span className="text-sm">
-          {lang === "es" ? "Sonido" : "Sound"}
-        </span>
+        <span className="text-sm">{lang === "es" ? "Sonido" : "Sound"}</span>
         <MatchFoundSoundPicker key={defaultSound} defaultValue={defaultSound} lang={lang} />
       </div>
     </form>

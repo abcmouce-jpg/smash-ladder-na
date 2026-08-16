@@ -14,9 +14,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "cdn.discordapp.com" },
-    ],
+    remotePatterns: [{ protocol: "https", hostname: "cdn.discordapp.com" }],
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
