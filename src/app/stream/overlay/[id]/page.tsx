@@ -254,7 +254,7 @@ export default async function StreamOverlayPage({
         <div className="absolute left-8 top-8">
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {lang === "es" ? "Clasificación" : "Rating"}
+              {lang === "es" ? "Clas." : "Rating"}
             </span>
             <RankBadge
               rating={user.rating}
