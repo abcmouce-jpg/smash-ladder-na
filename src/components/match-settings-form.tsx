@@ -12,11 +12,13 @@ export function MatchSettingsForm({
   className,
   children,
   lang = "en",
+  disabled = false,
 }: {
   action: (prevState: MatchSettingsState, formData: FormData) => Promise<MatchSettingsState>;
   className?: string;
   children: React.ReactNode;
   lang?: "en" | "es";
+  disabled?: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, saved: false });
 
@@ -24,7 +26,9 @@ export function MatchSettingsForm({
     <form
       action={formAction}
       className={className}
-      onChange={(e) => e.currentTarget.requestSubmit()}
+      onChange={(e) => {
+        if (!disabled) e.currentTarget.requestSubmit();
+      }}
     >
       {children}
       {state.error && <p className="mt-3 text-xs text-destructive">{state.error}</p>}
@@ -35,7 +39,7 @@ export function MatchSettingsForm({
         {!isPending && state.saved && !state.error && (
           <span className="text-xs text-muted-foreground">{lang === "es" ? "Guardado" : "Saved"}</span>
         )}
-        <Button type="submit" size="sm" disabled={isPending}>
+        <Button type="submit" size="sm" disabled={isPending || disabled}>
           {lang === "es" ? "Guardar" : "Save"}
         </Button>
       </div>
