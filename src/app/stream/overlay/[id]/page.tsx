@@ -12,7 +12,30 @@ import { MatchStatus } from "@/generated/prisma/enums";
 import { RankBadge } from "@/components/rank-badge";
 import { CharacterIcon } from "@/components/character-icon";
 import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
+import { StagePickHighlight } from "@/components/stage-pick-highlight";
 import { getLang } from "@/lib/i18n";
+import { bothCharactersLocked } from "@/lib/match-games";
+import {
+  GAME_ONE_STAGES,
+  COUNTERPICK_STAGES,
+  stageImagePath,
+} from "@/lib/stages";
+
+// How long the picked stage stays highlighted on stream once it's picked,
+// and how long the server keeps rendering the highlight card — the window
+// must cover the 10s refresh poll plus the 5s client-side hold so the
+// highlight is always seen at least once, but stays short enough that a
+// finished game (or an OBS source reload) never shows the card mid-game.
+const PICK_HIGHLIGHT_HOLD_MS = 5_000;
+const PICK_HIGHLIGHT_WINDOW_MS = 15_000;
+
+// Indirection so Date.now() isn't called directly in a component's render
+// body — the react-hooks purity lint rule flags it, even though a server
+// component renders once per request anyway (same pattern as secondsUntil
+// in lib/match-games.ts).
+function nowMs() {
+  return Date.now();
+}
 
 // Broadcast overlay meant to be captured directly by OBS as a Browser Source
 // (see layout.tsx's isStreamOverlay branch for the chrome-less,
@@ -24,6 +47,9 @@ import { getLang } from "@/lib/i18n";
 // Query params:
 //   hideRecentMatches=1 — hides the recent matches panel
 //   hideRatingCard=1   — hides the rating card (top-left panel)
+//   hideStageBans=1    — hides the stage pick/ban panel (bottom-center);
+//                        hidden by default — streamers opt in by removing
+//                        it in the settings toggle
 //   lang=es            — Spanish labels (OBS's embedded browser doesn't
 //                         share cookies with the streamer's own browser, so
 //                         the usual cookie/DB language resolution can't
@@ -38,11 +64,17 @@ export default async function StreamOverlayPage({
   searchParams: Promise<{
     hideRecentMatches?: string;
     hideRatingCard?: string;
+    hideStageBans?: string;
     lang?: string;
   }>;
 }) {
   const { id } = await params;
-  const { hideRecentMatches, hideRatingCard, lang: langParam } = await searchParams;
+  const {
+    hideRecentMatches,
+    hideRatingCard,
+    hideStageBans,
+    lang: langParam,
+  } = await searchParams;
   const lang = langParam === "es" ? "es" : langParam === "en" ? "en" : await getLang();
 
   const user = await prisma.user.findUnique({
@@ -110,6 +142,11 @@ export default async function StreamOverlayPage({
           actorBId: true,
           actorACharacter: true,
           actorBCharacter: true,
+          actorAStrikes: true,
+          actorBStrikes: true,
+          struckStages: true,
+          finalStage: true,
+          turnStartedAt: true,
         },
       })
     : [];
@@ -169,6 +206,40 @@ export default async function StreamOverlayPage({
 
   const showRecentMatches = hideRecentMatches !== "1";
   const showRatingCard = hideRatingCard !== "1";
+  const showStageBans = hideStageBans !== "1";
+
+  // Stage pick/ban phase: once both characters are locked in and no final
+  // stage has been picked yet, show the stage pool with each side's bans.
+  // Strikes are recorded in order — actorA's share first, then actorB's —
+  // so a stage's index in struckStages tells us who banned it.
+  const stageBanInProgress =
+    !!currentGame &&
+    bothCharactersLocked(currentGame) &&
+    !currentGame.finalStage;
+  const stagePool =
+    currentGame?.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
+  const strikeOwner = (stage: string): "user" | "opponent" | null => {
+    if (!currentGame) return null;
+    const index = currentGame.struckStages.indexOf(stage);
+    if (index < 0) return null;
+    const actorId =
+      index < currentGame.actorAStrikes
+        ? currentGame.actorAId
+        : currentGame.actorBId;
+    return actorId === user.id ? "user" : "opponent";
+  };
+
+  // Once the final stage is picked, the card switches to a brief highlight
+  // (the chosen stage gets an emerald ring + badge) and StagePickHighlight
+  // hides it after PICK_HIGHLIGHT_HOLD_MS. turnStartedAt is reset when the
+  // final stage is picked (see pickGameStage), so its age tells us whether
+  // the pick is recent enough to still be showing.
+  const pickedStage = currentGame?.finalStage ?? null;
+  const pickAgeMs = currentGame?.finalStage
+    ? nowMs() - currentGame.turnStartedAt.getTime()
+    : Infinity;
+  const showPickHighlight =
+    pickedStage !== null && pickAgeMs < PICK_HIGHLIGHT_WINDOW_MS;
 
   return (
     // The overlay is always a dark broadcast graphic (zinc panels, white
@@ -183,7 +254,7 @@ export default async function StreamOverlayPage({
         <div className="absolute left-8 top-8">
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {lang === "es" ? "Clasificación" : "Rating"}
+              {lang === "es" ? "Clas." : "Rating"}
             </span>
             <RankBadge
               rating={user.rating}
@@ -232,7 +303,7 @@ export default async function StreamOverlayPage({
           CSS property, which older OBS Browser Source builds (pre-Chromium
           104) ignore — the scoreboard would sit pinned at left: 50% and
           look shoved right.) */}
-      <div className="absolute inset-x-0 top-6 flex flex-col items-center">
+      <div className="absolute inset-x-0 top-2 flex flex-col items-center">
         {currentMatch ? (
           <>
             {/* Best of 5 label */}
@@ -329,7 +400,7 @@ export default async function StreamOverlayPage({
         ) : (
           /* No match in progress — logo and title on one line inside a
              single bordered pill */
-          <div className="mt-2 flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm">
+          <div className="mt-6 flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm">
             <Image
               src="/smash_ladder_icon_white.png"
               alt=""
@@ -391,6 +462,77 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
+      {/* Bottom-center: Stage pick/ban (while the current game's stage
+          selection is in progress; when the final stage is picked, the
+          chosen stage is highlighted for a few seconds before the card
+          hides — all gated by the streamer's hideStageBans toggle) */}
+      {showStageBans && currentGame && (stageBanInProgress || showPickHighlight) && (
+        <StagePickHighlight
+          autoHide={showPickHighlight}
+          holdMs={PICK_HIGHLIGHT_HOLD_MS}
+        >
+          <div className="absolute inset-x-0 bottom-8 flex justify-center">
+            <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-4 shadow-2xl backdrop-blur-sm">
+              <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
+                {lang === "es"
+                  ? `Juego ${currentGame.gameNumber} — ${
+                      pickedStage ? "Escenario elegido" : "Elección de escenario"
+                    }`
+                  : `Game ${currentGame.gameNumber} — ${
+                      pickedStage ? "Stage picked" : "Stage pick/ban"
+                    }`}
+              </span>
+              <div className="mt-3 flex gap-2">
+                {stagePool.map((stage) => {
+                  const imgPath = stageImagePath(stage);
+                  const owner = strikeOwner(stage);
+                  const picked = pickedStage === stage;
+                  return (
+                    <div
+                      key={stage}
+                      className={`relative h-24 w-36 overflow-hidden rounded-lg border border-white/10 ${
+                        picked ? "ring-2 ring-emerald-400" : ""
+                      }`}
+                    >
+                      {imgPath && (
+                        <Image
+                          src={`/stages/${imgPath}`}
+                          alt={stage}
+                          fill
+                          className="object-cover"
+                          sizes="144px"
+                        />
+                      )}
+                      {picked && (
+                        <span className="absolute inset-x-0 top-0 z-30 bg-emerald-500/90 px-1 py-0.5 text-center text-[10px] font-bold tracking-wider text-white uppercase">
+                          {lang === "es" ? "Elegido" : "Picked"}
+                        </span>
+                      )}
+                      {owner && (
+                        <div
+                          className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-black/60 ${
+                            owner === "user" ? "text-red-400" : "text-sky-400"
+                          }`}
+                        >
+                          <span className="max-w-full truncate px-1 text-xs font-semibold text-white">
+                            {owner === "user" ? user.username : opponentUsername}
+                          </span>
+                          <span className="text-4xl font-bold leading-none">
+                            ✕
+                          </span>
+                        </div>
+                      )}
+                      <span className="absolute inset-x-0 bottom-0 z-20 truncate bg-black/70 px-1 py-0.5 text-center text-xs font-medium text-white">
+                        {stage}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </StagePickHighlight>
+      )}
     </div>
   );
 }
