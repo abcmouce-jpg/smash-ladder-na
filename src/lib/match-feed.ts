@@ -22,6 +22,26 @@ const feedPlayerSelect = {
   region: true,
 } as const;
 
+const matchFeedSelect = {
+  id: true,
+  status: true,
+  createdAt: true,
+  confirmedAt: true,
+  reportedWinnerId: true,
+  player1: { select: feedPlayerSelect },
+  player2: { select: feedPlayerSelect },
+  games: {
+    select: {
+      gameNumber: true,
+      winnerId: true,
+      actorAId: true,
+      actorACharacter: true,
+      actorBId: true,
+      actorBCharacter: true,
+    },
+  },
+} as const;
+
 export type MatchFeedEntry = Awaited<ReturnType<typeof getMatchFeed>>[number];
 
 // Character shown next to a player's name on the feed: the one they're
@@ -59,38 +79,31 @@ function characterForPlayer(
 export async function getMatchFeed() {
   const since = new Date(Date.now() - RECENT_FINISHED_WINDOW_MS);
 
-  const matches = await prisma.ratingMatch.findMany({
-    where: {
-      OR: [
-        { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
-        {
-          status: { in: [MatchStatus.CONFIRMED, MatchStatus.CANCELLED, MatchStatus.EXPIRED] },
-          createdAt: { gte: since },
-        },
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-    take: FEED_LIMIT,
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-      confirmedAt: true,
-      reportedWinnerId: true,
-      player1: { select: feedPlayerSelect },
-      player2: { select: feedPlayerSelect },
-      games: {
-        select: {
-          gameNumber: true,
-          winnerId: true,
-          actorAId: true,
-          actorACharacter: true,
-          actorBId: true,
-          actorBCharacter: true,
-        },
+  // In-progress matches are fetched with no LIMIT, separately from finished
+  // ones, and always kept in full — a single combined query with one flat
+  // `take: FEED_LIMIT` (sorted by createdAt across every status) let a burst
+  // of newly-finished matches push an older still-in-progress match (with a
+  // live stream on it) out of the top 40 entirely, even though it was the
+  // one thing actually worth surfacing (#129). In-progress sets don't pile
+  // up the way finished ones do — every one auto-resolves within a bounded
+  // window — so this is never unbounded in practice.
+  const [inProgressMatches, finishedMatches] = await Promise.all([
+    prisma.ratingMatch.findMany({
+      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
+      orderBy: { createdAt: "desc" },
+      select: matchFeedSelect,
+    }),
+    prisma.ratingMatch.findMany({
+      where: {
+        status: { in: [MatchStatus.CONFIRMED, MatchStatus.CANCELLED, MatchStatus.EXPIRED] },
+        createdAt: { gte: since },
       },
-    },
-  });
+      orderBy: { createdAt: "desc" },
+      take: Math.max(0, FEED_LIMIT - 1), // -1: worst case leaves room for at least one in-progress match
+      select: matchFeedSelect,
+    }),
+  ]);
+  const matches = [...inProgressMatches, ...finishedMatches];
 
   const twitchUsernames = matches.flatMap((m) =>
     [m.player1.twitchUsername, m.player2.twitchUsername].filter((u): u is string => !!u),

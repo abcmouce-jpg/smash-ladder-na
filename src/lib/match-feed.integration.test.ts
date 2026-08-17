@@ -46,6 +46,51 @@ describe("getMatchFeed", () => {
     expect(byId.get(cancelled.id)?.hasLiveStreamer).toBe(false);
   });
 
+  // #129: a burst of finished matches created after an older in-progress
+  // match used to push it out of the feed's flat top-40, even though it was
+  // still live with a stream running. In-progress matches must never be cut
+  // by the recent-finished window's own limit.
+  it("always includes an older in-progress match even when 40+ newer finished matches exist", async () => {
+    const { getLiveTwitchUsernames } = await import("@/lib/twitch-helix");
+    vi.mocked(getLiveTwitchUsernames).mockResolvedValue(new Set(["streamerchannel"]));
+
+    const streamer = await createTestUser({ twitchUsername: "StreamerChannel" });
+    const opponent = await createTestUser();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    const oldInProgress = await prisma.ratingMatch.create({
+      data: {
+        player1Id: streamer.id,
+        player2Id: opponent.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt,
+        createdAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    // 45 newer finished matches — more than FEED_LIMIT (40) — all created
+    // after the in-progress one.
+    for (let i = 0; i < 45; i++) {
+      const p1 = await createTestUser();
+      const p2 = await createTestUser();
+      await prisma.ratingMatch.create({
+        data: {
+          player1Id: p1.id,
+          player2Id: p2.id,
+          status: MatchStatus.CONFIRMED,
+          confirmedAt: new Date(),
+          reportedWinnerId: p1.id,
+          expiresAt,
+        },
+      });
+    }
+
+    const entries = await getMatchFeed();
+    const stillPresent = entries.find((e) => e.id === oldInProgress.id);
+    expect(stillPresent).toBeDefined();
+    expect(stillPresent?.hasLiveStreamer).toBe(true);
+  });
+
   it("shows the character from the latest game, not the profile main", async () => {
     const player = await createTestUser({ mainCharacter: "Fox" });
     const opponent = await createTestUser({ mainCharacter: "Marth" });
