@@ -196,10 +196,7 @@ async function autoResolveStaleGameReport(match: {
   player2Id: string;
   status: MatchStatus;
 }) {
-  if (
-    match.status !== MatchStatus.PENDING_REPORT &&
-    match.status !== MatchStatus.REPORTED
-  ) {
+  if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
     return; // mod-ruled or finished matches shouldn't shift under anyone
   }
 
@@ -213,8 +210,7 @@ async function autoResolveStaleGameReport(match: {
   if (Date.now() - game.reportedAt.getTime() < REPORT_TIMEOUT_MS) return;
 
   const reportedWinnerId = game.reportedWinnerId;
-  const nonReporterId =
-    game.reportedById === match.player1Id ? match.player2Id : match.player1Id;
+  const nonReporterId = game.reportedById === match.player1Id ? match.player2Id : match.player1Id;
 
   const confirmed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
@@ -433,12 +429,7 @@ export function lastPlayedStage(
   return games.find((g) => g.gameNumber === currentGameNumber - 1)?.finalStage ?? null;
 }
 
-export async function pickGameCharacter(
-  userId: string,
-  matchId: string,
-  gameNumber: number,
-  character: string,
-) {
+export async function pickGameCharacter(userId: string, matchId: string, gameNumber: number, character: string) {
   const game = await requireGame(matchId, gameNumber);
   if (userId !== game.actorAId && userId !== game.actorBId) {
     throw new Error("Not a participant in this game");
@@ -477,12 +468,7 @@ async function requireGame(matchId: string, gameNumber: number) {
   return game;
 }
 
-export async function strikeGameStage(
-  userId: string,
-  matchId: string,
-  gameNumber: number,
-  stage: string,
-) {
+export async function strikeGameStage(userId: string, matchId: string, gameNumber: number, stage: string) {
   const game = await requireGame(matchId, gameNumber);
   if (game.finalStage) throw new Error("Stage already decided");
   const actor = actorForStrike(game);
@@ -559,12 +545,7 @@ export async function strikeSameBans(userId: string, matchId: string, gameNumber
   });
 }
 
-export async function pickGameStage(
-  userId: string,
-  matchId: string,
-  gameNumber: number,
-  stage: string,
-) {
+export async function pickGameStage(userId: string, matchId: string, gameNumber: number, stage: string) {
   const game = await requireGame(matchId, gameNumber);
   if (game.finalStage) throw new Error("Stage already decided");
   if (actorForStrike(game) !== null) throw new Error("Striking isn't finished yet");
@@ -614,12 +595,7 @@ type ReportOutcome =
   | { type: "game_won"; player1Id: string; player2Id: string; nextGameNumber: number }
   | { type: "set_confirmed"; player1Id: string; player2Id: string };
 
-export async function reportGameResult(
-  userId: string,
-  matchId: string,
-  gameNumber: number,
-  won: boolean,
-) {
+export async function reportGameResult(userId: string, matchId: string, gameNumber: number, won: boolean) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
   if (!match) throw new Error("Match not found");
   requireParticipant(match, userId);
@@ -716,8 +692,7 @@ export async function reportGameResult(
             data: { secondReporterConfirmedAt: new Date() },
           });
         }
-        const otherConfirmed =
-          game.reportedById === userId ? game.secondReporterConfirmedAt : game.reporterConfirmedAt;
+        const otherConfirmed = game.reportedById === userId ? game.secondReporterConfirmedAt : game.reporterConfirmedAt;
         if (!otherConfirmed) return { type: "confirmed" };
 
         // Both sides re-confirmed their conflicting claims — now it's a real
@@ -870,8 +845,14 @@ async function notifyDisputeEscalated(
     select: { discordId: true },
   });
   await Promise.all([
-    sendDiscordDM(p1.discordId, `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
-    sendDiscordDM(p2.discordId, `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
+    sendDiscordDM(
+      p1.discordId,
+      `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`,
+    ),
+    sendDiscordDM(
+      p2.discordId,
+      `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`,
+    ),
     ...mods.map((mod) =>
       sendDiscordDM(
         mod.discordId,
@@ -903,8 +884,7 @@ export async function autoConfirmStaleGameReport(
   if (!hangingGame?.reportedWinnerId || !hangingGame.reportedById) return null;
 
   const reportedWinnerId = hangingGame.reportedWinnerId;
-  const nonReporterId =
-    hangingGame.reportedById === match.player1Id ? match.player2Id : match.player1Id;
+  const nonReporterId = hangingGame.reportedById === match.player1Id ? match.player2Id : match.player1Id;
 
   const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {

@@ -91,34 +91,17 @@ export function useConfirm() {
             aria-label={state.title}
           >
             {/* Backdrop */}
-            <div
-              className="absolute inset-0 bg-black/50"
-              onClick={handleCancel}
-            />
+            <div className="absolute inset-0 bg-black/50" onClick={handleCancel} />
 
             {/* Panel */}
             <div className="relative mx-4 w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
-              {state.title && (
-                <p className="mb-2 text-sm font-medium text-card-foreground">
-                  {state.title}
-                </p>
-              )}
+              {state.title && <p className="mb-2 text-sm font-medium text-card-foreground">{state.title}</p>}
               <p className="text-sm text-muted-foreground">{state.message}</p>
               <div className="mt-4 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCancel}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={handleCancel}>
                   {state.cancelLabel}
                 </Button>
-                <Button
-                  type="button"
-                  variant={state.variant}
-                  size="sm"
-                  onClick={handleConfirm}
-                >
+                <Button type="button" variant={state.variant} size="sm" onClick={handleConfirm}>
                   {state.confirmLabel}
                 </Button>
               </div>

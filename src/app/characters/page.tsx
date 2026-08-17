@@ -19,11 +19,7 @@ import { getLang } from "@/lib/i18n";
 // name). No value means the roster order SMASH_CHARACTERS already provides.
 const SORT_KEYS = ["alpha", "players", "mains", "games", "winrate", "rating"] as const;
 
-export default async function CharactersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ sort?: string }>;
-}) {
+export default async function CharactersPage({ searchParams }: { searchParams: Promise<{ sort?: string }> }) {
   const { sort } = await searchParams;
   const isValidSort = sort && (SORT_KEYS as readonly string[]).includes(sort);
   const lang = await getLang();
@@ -169,28 +165,24 @@ export default async function CharactersPage({
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Swords className="size-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {lang === "es" ? "Personajes" : "Characters"}
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Personajes" : "Characters"}</h1>
         {season && <Badge variant="outline">{season.name}</Badge>}
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {lang === "es" ? (
           <>
-            Los mains y secundarios se calculan automáticamente a partir de tu historial real de
-            partidas — un secundario necesita 10%+ de tus partidas para contar. La mayoría de los
-            personajes echo (Dark Pit, Daisy, Dark Samus, Richter) se cuentan junto con su
-            personaje base — Marth/Lucina, Roy/Chrom, y Ryu/Ken se mantienen aparte. Los juegos y
-            la tasa de victorias cubren los juegos rankeados de la temporada actual. Explora la
-            tabla de posiciones de un personaje abajo.
+            Los mains y secundarios se calculan automáticamente a partir de tu historial real de partidas — un
+            secundario necesita 10%+ de tus partidas para contar. La mayoría de los personajes echo (Dark Pit, Daisy,
+            Dark Samus, Richter) se cuentan junto con su personaje base — Marth/Lucina, Roy/Chrom, y Ryu/Ken se
+            mantienen aparte. Los juegos y la tasa de victorias cubren los juegos rankeados de la temporada actual.
+            Explora la tabla de posiciones de un personaje abajo.
           </>
         ) : (
           <>
-            Mains and secondaries are computed automatically from your actual match history — a
-            secondary needs 10%+ of your games to count. Most echo fighters (Dark Pit, Daisy, Dark
-            Samus, Richter) are counted together with their base fighter — Marth/Lucina, Roy/Chrom,
-            and Ryu/Ken are kept separate. Games and win rate cover ranked games from the current
-            season. Browse a character&apos;s leaderboard below.
+            Mains and secondaries are computed automatically from your actual match history — a secondary needs 10%+ of
+            your games to count. Most echo fighters (Dark Pit, Daisy, Dark Samus, Richter) are counted together with
+            their base fighter — Marth/Lucina, Roy/Chrom, and Ryu/Ken are kept separate. Games and win rate cover ranked
+            games from the current season. Browse a character&apos;s leaderboard below.
           </>
         )}
       </p>
@@ -220,9 +212,7 @@ export default async function CharactersPage({
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="py-2 pl-4 font-medium">
-                  {lang === "es" ? "Personaje" : "Character"}
-                </th>
+                <th className="py-2 pl-4 font-medium">{lang === "es" ? "Personaje" : "Character"}</th>
                 <th className="py-2 font-medium">
                   {lang === "es" ? "Jugadores" : "Players"}
                   <span className="block text-xs font-normal">
@@ -230,9 +220,7 @@ export default async function CharactersPage({
                   </span>
                 </th>
                 <th className="py-2 text-right font-medium tabular-nums">Mains</th>
-                <th className="py-2 text-right font-medium tabular-nums">
-                  {lang === "es" ? "Juegos" : "Games"}
-                </th>
+                <th className="py-2 text-right font-medium tabular-nums">{lang === "es" ? "Juegos" : "Games"}</th>
                 <th className="py-2 text-right font-medium tabular-nums">
                   {lang === "es" ? "Tasa de victorias" : "Win rate"}
                 </th>
@@ -266,11 +254,7 @@ export default async function CharactersPage({
                     )}
                   </td>
                   <td className="py-2 pr-4 text-right tabular-nums">
-                    {row.avgRating === null ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : (
-                      row.avgRating
-                    )}
+                    {row.avgRating === null ? <span className="text-muted-foreground">—</span> : row.avgRating}
                   </td>
                 </tr>
               ))}

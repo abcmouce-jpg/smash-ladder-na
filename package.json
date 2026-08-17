@@ -9,6 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts"
@@ -36,6 +38,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",

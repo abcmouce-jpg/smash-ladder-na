@@ -11,13 +11,7 @@ import type { Lang } from "@/lib/i18n";
 // (playMatchFoundSound uses Web Audio / <audio>, which a server action
 // can't do). The selection itself still submits with the surrounding form
 // via OptionSelect's hidden field.
-export function MatchFoundSoundPicker({
-  defaultValue,
-  lang,
-}: {
-  defaultValue: MatchFoundSound;
-  lang: Lang;
-}) {
+export function MatchFoundSoundPicker({ defaultValue, lang }: { defaultValue: MatchFoundSound; lang: Lang }) {
   const [value, setValue] = useState<MatchFoundSound>(defaultValue);
 
   return (

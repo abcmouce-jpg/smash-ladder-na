@@ -48,9 +48,7 @@ function useCountUp(from: number, to: number) {
   useEffect(() => {
     fromRef.current = value;
     const start = fromRef.current;
-    const reduceMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (reduceMotion || start === to) {
       setValue(to);

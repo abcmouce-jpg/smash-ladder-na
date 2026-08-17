@@ -13,9 +13,5 @@ function getIsCoarsePointer() {
 }
 
 export function useIsTouchDevice() {
-  return React.useSyncExternalStore(
-    subscribeToCoarsePointerChange,
-    getIsCoarsePointer,
-    () => false,
-  );
+  return React.useSyncExternalStore(subscribeToCoarsePointerChange, getIsCoarsePointer, () => false);
 }

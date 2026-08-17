@@ -2,11 +2,7 @@ import { prisma } from "@/lib/db";
 import { ConductAction, ReportStatus, UserStatus } from "@/generated/prisma/enums";
 import { isWiredClaimDisputedByOpponents, liftExpiredSuspension } from "@/lib/account";
 
-export async function fileMatchReport(
-  reporterId: string,
-  matchId: string,
-  reason: string,
-) {
+export async function fileMatchReport(reporterId: string, matchId: string, reason: string) {
   const trimmed = reason.trim().slice(0, 1000);
   if (!trimmed) throw new Error("Please describe what happened");
 

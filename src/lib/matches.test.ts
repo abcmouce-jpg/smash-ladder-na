@@ -100,9 +100,7 @@ describe("getRoomHostId", () => {
   it("picks different hosts for at least one pair across many match ids", () => {
     const hosts = new Set<string>();
     for (let i = 0; i < 50; i++) {
-      hosts.add(
-        getRoomHostId({ id: `match-${i}`, player1Id: "p1", player2Id: "p2", roomCodeSetById: null }),
-      );
+      hosts.add(getRoomHostId({ id: `match-${i}`, player1Id: "p1", player2Id: "p2", roomCodeSetById: null }));
     }
     expect(hosts.size).toBe(2);
   });

@@ -86,8 +86,7 @@ export async function joinLobby(_prevState: JoinLobbyState, formData: FormData):
   try {
     await requireNotBanned(userId); // ranked play stays open at Level-1 (SUSPENDED)
     await enforceRateLimit({
-      count: () =>
-        prisma.ratingLobbyEntry.count({ where: { userId, joinedAt: { gt: minutesAgo(1) } } }),
+      count: () => prisma.ratingLobbyEntry.count({ where: { userId, joinedAt: { gt: minutesAgo(1) } } }),
       limit: 5,
       windowLabel: "minute",
     });
@@ -242,8 +241,7 @@ export async function sendMatchCommentAction(
   if (!body) return { error: null };
   try {
     await enforceRateLimit({
-      count: () =>
-        prisma.matchComment.count({ where: { authorId: userId, createdAt: { gt: minutesAgo(1) } } }),
+      count: () => prisma.matchComment.count({ where: { authorId: userId, createdAt: { gt: minutesAgo(1) } } }),
       limit: 15,
       windowLabel: "minute",
     });
@@ -333,8 +331,7 @@ export async function reportConductAction(
   try {
     await requireActiveUser(userId); // Level-1 (SUSPENDED) can't file new reports — no retaliation
     await enforceRateLimit({
-      count: () =>
-        prisma.conductReport.count({ where: { reporterId: userId, createdAt: { gt: minutesAgo(60) } } }),
+      count: () => prisma.conductReport.count({ where: { reporterId: userId, createdAt: { gt: minutesAgo(60) } } }),
       limit: 5,
       windowLabel: "hour",
     });

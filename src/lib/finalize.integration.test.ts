@@ -106,7 +106,14 @@ describe("finalizeExpiredMatches", () => {
     });
     // Game 2 exists but nobody ever locked in a character or reported it.
     await prisma.matchGame.create({
-      data: { matchId: match.id, gameNumber: 2, actorAId: leader.id, actorAStrikes: 3, actorBId: ghost.id, actorBStrikes: 0 },
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: leader.id,
+        actorAStrikes: 3,
+        actorBId: ghost.id,
+        actorBStrikes: 0,
+      },
     });
 
     const result = await finalizeExpiredMatches(new Date());
@@ -318,7 +325,14 @@ describe("finalizeExpiredMatches", () => {
         },
       });
       await prisma.matchGame.create({
-        data: { matchId: match.id, gameNumber: 2, actorAId: leader.id, actorAStrikes: 3, actorBId: ghost.id, actorBStrikes: 0 },
+        data: {
+          matchId: match.id,
+          gameNumber: 2,
+          actorAId: leader.id,
+          actorAStrikes: 3,
+          actorBId: ghost.id,
+          actorBStrikes: 0,
+        },
       });
 
       const now = new Date();

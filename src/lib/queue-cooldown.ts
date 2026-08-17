@@ -16,8 +16,7 @@ export function nextTimeoutCooldown(
   now: Date,
 ): { recentTimeoutCount: number; cooldownUntil: Date } {
   const isStale =
-    !previous.lastTimeoutAt ||
-    now.getTime() - previous.lastTimeoutAt.getTime() > TIMEOUT_COOLDOWN_RESET_WINDOW_MS;
+    !previous.lastTimeoutAt || now.getTime() - previous.lastTimeoutAt.getTime() > TIMEOUT_COOLDOWN_RESET_WINDOW_MS;
   const recentTimeoutCount = (isStale ? 0 : previous.recentTimeoutCount) + 1;
   const cooldownUntil = new Date(now.getTime() + recentTimeoutCount * TIMEOUT_COOLDOWN_STEP_MS);
   return { recentTimeoutCount, cooldownUntil };

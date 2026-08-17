@@ -508,9 +508,7 @@ export async function getTopRivals(userId: string, limit = 3) {
     record.set(opponentId, entry);
   }
 
-  const topIds = [...record.entries()]
-    .sort(([, a], [, b]) => b.wins + b.losses - (a.wins + a.losses))
-    .slice(0, limit);
+  const topIds = [...record.entries()].sort(([, a], [, b]) => b.wins + b.losses - (a.wins + a.losses)).slice(0, limit);
   if (topIds.length === 0) return [];
 
   const opponents = await prisma.user.findMany({

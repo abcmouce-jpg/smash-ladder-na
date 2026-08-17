@@ -34,9 +34,7 @@ export function CancelOrSurrenderButton({
   const confirmReadyRef = useRef(false);
 
   const cancelReadyAtMs = mode === "cancel" && cancelReadyAt ? new Date(cancelReadyAt).getTime() : null;
-  const [secondsLeft, setSecondsLeft] = useState(() =>
-    cancelReadyAtMs ? secondsUntil(cancelReadyAtMs) : 0,
-  );
+  const [secondsLeft, setSecondsLeft] = useState(() => (cancelReadyAtMs ? secondsUntil(cancelReadyAtMs) : 0));
 
   useEffect(() => {
     if (!cancelReadyAtMs) return;

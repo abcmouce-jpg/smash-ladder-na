@@ -1,15 +1,5 @@
 import Link from "next/link";
-import {
-  Activity,
-  AlertTriangle,
-  Ban,
-  Flag,
-  Gauge,
-  Radio,
-  Shield,
-  Swords,
-  Users,
-} from "lucide-react";
+import { Activity, AlertTriangle, Ban, Flag, Gauge, Radio, Shield, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { getAdminOverview } from "@/lib/admin-stats";
 import { getSuspendWatchlist } from "@/lib/admin-watchlist";
@@ -68,9 +58,7 @@ export default async function AdminOverviewPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You don&apos;t have access to this page.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">You don&apos;t have access to this page.</p>
       </main>
     );
   }
@@ -84,27 +72,15 @@ export default async function AdminOverviewPage() {
         <Gauge className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">Admin overview</h1>
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Live snapshot — refreshes on every visit.
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">Live snapshot — refreshes on every visit.</p>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
         <StatCard icon={Activity} label="Active in last 24h" value={stats.activeUsers24h} />
         <StatCard icon={Users} label="Total players" value={stats.totalUsers} />
         <StatCard icon={Swords} label="Matches today" value={stats.matchesToday} />
         <StatCard icon={Swords} label="Matches total" value={stats.matchesTotal} />
-        <StatCard
-          icon={Users}
-          label="Lobby waiting / paired"
-          value={stats.lobbyWaiting}
-          href="/lobby"
-        />
-        <StatCard
-          icon={Radio}
-          label="Matches in progress"
-          value={stats.matchesInProgress}
-          href="/admin/live"
-        />
+        <StatCard icon={Users} label="Lobby waiting / paired" value={stats.lobbyWaiting} href="/lobby" />
+        <StatCard icon={Radio} label="Matches in progress" value={stats.matchesInProgress} href="/admin/live" />
         <StatCard
           icon={Shield}
           label="Open disputes"
@@ -162,10 +138,7 @@ export default async function AdminOverviewPage() {
         <Link href="/admin/analytics" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Analytics →
         </Link>
-        <Link
-          href="/api/admin/players-export"
-          className="text-muted-foreground hover:text-foreground hover:underline"
-        >
+        <Link href="/api/admin/players-export" className="text-muted-foreground hover:text-foreground hover:underline">
           Export players (CSV) →
         </Link>
       </div>

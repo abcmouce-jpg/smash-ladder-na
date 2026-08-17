@@ -254,9 +254,7 @@ export function RatingChart({ points }: { points: Point[] }) {
       </div>
 
       <details className="mt-2 text-xs">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          View as table
-        </summary>
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">View as table</summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
           <table className="w-full text-left">
             <thead>

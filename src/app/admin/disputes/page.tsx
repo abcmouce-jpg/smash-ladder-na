@@ -51,9 +51,7 @@ export default async function DisputesPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Disputes</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You don&apos;t have access to this page.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">You don&apos;t have access to this page.</p>
       </main>
     );
   }
@@ -67,13 +65,11 @@ export default async function DisputesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Disputes</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Resolving a game doesn&apos;t block the rest of the set — players can keep playing other
-        games while one is pending here.
+        Resolving a game doesn&apos;t block the rest of the set — players can keep playing other games while one is
+        pending here.
       </p>
 
-      {games.length === 0 && (
-        <p className="mt-4 text-sm text-muted-foreground">No disputed games.</p>
-      )}
+      {games.length === 0 && <p className="mt-4 text-sm text-muted-foreground">No disputed games.</p>}
 
       <ul className="mt-6 flex flex-col gap-4">
         {games.map((game) => (
@@ -87,22 +83,16 @@ export default async function DisputesPage() {
                   <Badge variant="warning">game {game.gameNumber} disputed</Badge>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {nameFor(game, game.reportedById)} reported{" "}
-                  {nameFor(game, game.reportedWinnerId)} won.{" "}
-                  {nameFor(game, game.secondReportById)} reported{" "}
-                  {nameFor(game, game.secondReportWinnerId)} won.
+                  {nameFor(game, game.reportedById)} reported {nameFor(game, game.reportedWinnerId)} won.{" "}
+                  {nameFor(game, game.secondReportById)} reported {nameFor(game, game.secondReportWinnerId)} won.
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <ModContextBadges player={game.match.player1} />
                   <ModContextBadges player={game.match.player2} />
                 </div>
-                {game.finalStage && (
-                  <p className="mt-1 text-xs text-muted-foreground">Stage: {game.finalStage}</p>
-                )}
+                {game.finalStage && <p className="mt-1 text-xs text-muted-foreground">Stage: {game.finalStage}</p>}
                 {game.match.roomCode && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Room code: {game.match.roomCode}
-                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">Room code: {game.match.roomCode}</p>
                 )}
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -127,14 +117,8 @@ export default async function DisputesPage() {
                   <p className="text-xs text-muted-foreground">
                     Message a player about this dispute (sent as a Discord DM):
                   </p>
-                  <MessagePlayerForm
-                    playerId={game.match.player1Id}
-                    playerName={game.match.player1.username}
-                  />
-                  <MessagePlayerForm
-                    playerId={game.match.player2Id}
-                    playerName={game.match.player2.username}
-                  />
+                  <MessagePlayerForm playerId={game.match.player1Id} playerName={game.match.player1.username} />
+                  <MessagePlayerForm playerId={game.match.player2Id} playerName={game.match.player2.username} />
                 </div>
               </CardContent>
             </Card>
@@ -147,13 +131,10 @@ export default async function DisputesPage() {
         <h2 className="text-xl font-semibold tracking-tight">Correction disputes</h2>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Both sides tried to correct an already-confirmed match&apos;s result and disagreed on the
-        winner.
+        Both sides tried to correct an already-confirmed match&apos;s result and disagreed on the winner.
       </p>
 
-      {corrections.length === 0 && (
-        <p className="mt-4 text-sm text-muted-foreground">No disputed corrections.</p>
-      )}
+      {corrections.length === 0 && <p className="mt-4 text-sm text-muted-foreground">No disputed corrections.</p>}
 
       <ul className="mt-6 flex flex-col gap-4">
         {corrections.map((correction) => (

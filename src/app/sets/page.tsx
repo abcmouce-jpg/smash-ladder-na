@@ -62,8 +62,7 @@ export default async function SetsFeedPage() {
       <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
         <span className="flex items-center gap-1.5 tabular-nums">
           <Swords className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{inProgress}</span>{" "}
-          {lang === "es" ? "en curso" : "in progress"}
+          <span className="font-medium text-foreground">{inProgress}</span> {lang === "es" ? "en curso" : "in progress"}
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
@@ -83,7 +82,9 @@ export default async function SetsFeedPage() {
       <div className="mt-8 flex flex-col gap-2">
         {entries.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            {lang === "es" ? "No hay partidas en curso ni recién terminadas." : "No sets in progress or recently finished."}
+            {lang === "es"
+              ? "No hay partidas en curso ni recién terminadas."
+              : "No sets in progress or recently finished."}
           </p>
         )}
         {entries.map((entry) => (
@@ -100,15 +101,7 @@ function streamingPlayer(entry: MatchFeedEntry) {
   return null;
 }
 
-function LiveSetCard({
-  entry,
-  parentHost,
-  lang,
-}: {
-  entry: MatchFeedEntry;
-  parentHost: string;
-  lang: Lang;
-}) {
+function LiveSetCard({ entry, parentHost, lang }: { entry: MatchFeedEntry; parentHost: string; lang: Lang }) {
   const streamer = streamingPlayer(entry);
   if (!streamer?.twitchUsername) return null;
   const opponent = streamer.id === entry.player1.id ? entry.player2 : entry.player1;
@@ -125,8 +118,7 @@ function LiveSetCard({
             className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:underline"
           >
             <Radio className="size-4" />
-            {streamer.twitchDisplayName ?? streamer.username}{" "}
-            {lang === "es" ? "está en vivo" : "is live"}
+            {streamer.twitchDisplayName ?? streamer.username} {lang === "es" ? "está en vivo" : "is live"}
             <ExternalLink className="size-3" />
           </a>
           <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"}>{statusLabel}</Badge>
@@ -185,15 +177,7 @@ function SetRow({ entry, lang }: { entry: MatchFeedEntry; lang: Lang }) {
   );
 }
 
-function SetPlayer({
-  player,
-  won,
-  live,
-}: {
-  player: MatchFeedEntry["player1"];
-  won: boolean;
-  live: boolean;
-}) {
+function SetPlayer({ player, won, live }: { player: MatchFeedEntry["player1"]; won: boolean; live: boolean }) {
   return (
     <Link href={`/players/${player.id}`} className="flex min-w-0 items-center gap-1.5 hover:underline">
       {player.avatarUrl && (
@@ -204,7 +188,11 @@ function SetPlayer({
         <span className="flex items-center gap-1">
           <span className={`truncate text-sm ${won ? "font-semibold" : "font-medium"}`}>{player.username}</span>
           {live && <Radio className="size-3 shrink-0 text-red-500" />}
-          <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} className="hidden shrink-0 sm:inline-flex" />
+          <RankBadge
+            rating={player.rating}
+            gamesPlayed={player.gamesPlayed}
+            className="hidden shrink-0 sm:inline-flex"
+          />
         </span>
         <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
           <span className="tabular-nums">{player.rating}</span>
@@ -215,7 +203,11 @@ function SetPlayer({
             </span>
           )}
         </span>
-        <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} className="mt-0.5 shrink self-start sm:hidden" />
+        <RankBadge
+          rating={player.rating}
+          gamesPlayed={player.gamesPlayed}
+          className="mt-0.5 shrink self-start sm:hidden"
+        />
       </span>
     </Link>
   );

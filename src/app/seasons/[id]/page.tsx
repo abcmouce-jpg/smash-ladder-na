@@ -8,11 +8,7 @@ import { getLang } from "@/lib/i18n";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-export default async function SeasonStandingsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function SeasonStandingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const season = await prisma.season.findUnique({ where: { id } });
   if (!season) notFound();
@@ -40,26 +36,20 @@ export default async function SeasonStandingsPage({
               <th className="py-2 font-medium text-right tabular-nums">
                 {lang === "es" ? "Clasificación final" : "Final rating"}
               </th>
-              <th className="py-2 pr-4 font-medium text-right tabular-nums">
-                {lang === "es" ? "Partidas" : "Sets"}
-              </th>
+              <th className="py-2 pr-4 font-medium text-right tabular-nums">{lang === "es" ? "Partidas" : "Sets"}</th>
             </tr>
           </thead>
           <tbody>
             {standings.map((s) => (
               <tr key={s.id} className="border-b border-border/60 last:border-0">
-                <td className="py-2 pl-4 tabular-nums text-muted-foreground">
-                  {MEDALS[s.rank - 1] ?? s.rank}
-                </td>
+                <td className="py-2 pl-4 tabular-nums text-muted-foreground">{MEDALS[s.rank - 1] ?? s.rank}</td>
                 <td className="py-2">
                   <Link href={`/players/${s.user.id}`} className="hover:underline">
                     {s.user.username}
                   </Link>
                 </td>
                 <td className="py-2 text-right font-medium tabular-nums">{s.finalRating}</td>
-                <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                  {s.gamesPlayed}
-                </td>
+                <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{s.gamesPlayed}</td>
               </tr>
             ))}
           </tbody>

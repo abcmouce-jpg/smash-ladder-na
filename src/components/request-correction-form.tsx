@@ -29,13 +29,13 @@ export function RequestCorrectionForm({
         <p className="text-muted-foreground">
           {lang === "es" ? (
             <>
-              Solo funciona mientras esta siga siendo la partida confirmada más reciente de ambos.
-              Si tu elección no coincide con la de {opponentUsername}, un mod la revisa en su lugar.
+              Solo funciona mientras esta siga siendo la partida confirmada más reciente de ambos. Si tu elección no
+              coincide con la de {opponentUsername}, un mod la revisa en su lugar.
             </>
           ) : (
             <>
-              Only works while this is still both of your most recent confirmed match. If your pick
-              doesn&apos;t match {opponentUsername}&apos;s, a mod reviews it instead.
+              Only works while this is still both of your most recent confirmed match. If your pick doesn&apos;t match{" "}
+              {opponentUsername}&apos;s, a mod reviews it instead.
             </>
           )}
         </p>

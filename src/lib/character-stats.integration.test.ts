@@ -20,7 +20,17 @@ async function createGame(
   winnerId: string | null,
 ) {
   return prisma.matchGame.create({
-    data: { matchId, gameNumber, actorAId, actorAStrikes: 1, actorACharacter, actorBId, actorBStrikes: 2, actorBCharacter, winnerId },
+    data: {
+      matchId,
+      gameNumber,
+      actorAId,
+      actorAStrikes: 1,
+      actorACharacter,
+      actorBId,
+      actorBStrikes: 2,
+      actorBCharacter,
+      winnerId,
+    },
   });
 }
 

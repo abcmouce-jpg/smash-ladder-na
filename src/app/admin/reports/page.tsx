@@ -40,9 +40,7 @@ export default async function ReportsPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You don&apos;t have access to this page.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">You don&apos;t have access to this page.</p>
       </main>
     );
   }
@@ -56,9 +54,7 @@ export default async function ReportsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
       </div>
 
-      {reports.length === 0 && (
-        <p className="mt-4 text-sm text-muted-foreground">No open reports.</p>
-      )}
+      {reports.length === 0 && <p className="mt-4 text-sm text-muted-foreground">No open reports.</p>}
 
       <ul className="mt-6 flex flex-col gap-4">
         {reports.map((report) => {
@@ -96,9 +92,7 @@ export default async function ReportsPage() {
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{report.reason}</p>
-                  {report.match && (
-                    <p className="mt-1 text-xs text-muted-foreground">Match: {report.match.id}</p>
-                  )}
+                  {report.match && <p className="mt-1 text-xs text-muted-foreground">Match: {report.match.id}</p>}
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <form action={dismiss.bind(null, report.id)}>

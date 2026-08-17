@@ -25,13 +25,7 @@ function formatTime(iso: string) {
   });
 }
 
-export function ChatMessages({
-  comments,
-  empty,
-}: {
-  comments: Comment[];
-  empty: ReactNode;
-}) {
+export function ChatMessages({ comments, empty }: { comments: Comment[]; empty: ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isNearBottom = useRef(true);
 
@@ -96,8 +90,7 @@ function ChatMessage({ comment }: { comment: Comment }) {
           {comment.author.role}
         </span>
       )}
-      :{" "}
-      <span className="whitespace-pre-wrap">{displayBody}</span>
+      : <span className="whitespace-pre-wrap">{displayBody}</span>
       <span className="ml-1.5 whitespace-nowrap text-[10px] text-muted-foreground/60">
         {formatTime(comment.createdAt)}
       </span>

@@ -312,14 +312,16 @@ describe("getCareerStats", () => {
     expect(stats.totalLosses).toBe(0);
   });
 
-  async function createConfirmedMatchAt(
-    p1: string,
-    p2: string,
-    reportedWinnerId: string,
-    confirmedAt: Date,
-  ) {
+  async function createConfirmedMatchAt(p1: string, p2: string, reportedWinnerId: string, confirmedAt: Date) {
     return prisma.ratingMatch.create({
-      data: { player1Id: p1, player2Id: p2, status: MatchStatus.CONFIRMED, expiresAt: new Date(), reportedWinnerId, confirmedAt },
+      data: {
+        player1Id: p1,
+        player2Id: p2,
+        status: MatchStatus.CONFIRMED,
+        expiresAt: new Date(),
+        reportedWinnerId,
+        confirmedAt,
+      },
     });
   }
 
@@ -418,20 +420,8 @@ describe("getSeasonStats", () => {
     const active = await createSeason("Season 1", null);
     const past = await createSeason("Season 0", new Date());
 
-    const activeMatch = await createConfirmedMatchInSeason(
-      player.id,
-      opponent.id,
-      active.id,
-      player.id,
-      new Date(),
-    );
-    const pastMatch = await createConfirmedMatchInSeason(
-      player.id,
-      opponent.id,
-      past.id,
-      player.id,
-      new Date(),
-    );
+    const activeMatch = await createConfirmedMatchInSeason(player.id, opponent.id, active.id, player.id, new Date());
+    const pastMatch = await createConfirmedMatchInSeason(player.id, opponent.id, past.id, player.id, new Date());
     await prisma.ratingHistory.create({
       data: { userId: player.id, matchId: activeMatch.id, ratingBefore: 1500, ratingAfter: 1530, delta: 30 },
     });
@@ -507,14 +497,16 @@ describe("getSeasonStats", () => {
 });
 
 describe("getCurrentStreak", () => {
-  async function createConfirmedMatchAt(
-    p1: string,
-    p2: string,
-    reportedWinnerId: string,
-    confirmedAt: Date,
-  ) {
+  async function createConfirmedMatchAt(p1: string, p2: string, reportedWinnerId: string, confirmedAt: Date) {
     return prisma.ratingMatch.create({
-      data: { player1Id: p1, player2Id: p2, status: MatchStatus.CONFIRMED, expiresAt: new Date(), reportedWinnerId, confirmedAt },
+      data: {
+        player1Id: p1,
+        player2Id: p2,
+        status: MatchStatus.CONFIRMED,
+        expiresAt: new Date(),
+        reportedWinnerId,
+        confirmedAt,
+      },
     });
   }
 

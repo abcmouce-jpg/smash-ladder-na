@@ -77,11 +77,10 @@ export function OptionSelect({
   const selected = options.find((opt) => opt.value === value);
   const display = selected?.label ?? placeholder ?? clearLabel;
 
-  const filtered = searchable && query
-    ? options.filter((opt) =>
-        `${opt.label} ${opt.group ?? ""}`.toLowerCase().includes(query.toLowerCase()),
-      )
-    : options;
+  const filtered =
+    searchable && query
+      ? options.filter((opt) => `${opt.label} ${opt.group ?? ""}`.toLowerCase().includes(query.toLowerCase()))
+      : options;
 
   // Close on outside click
   useEffect(() => {
@@ -103,12 +102,15 @@ export function OptionSelect({
     }
   }, [open, searchable]);
 
-  const select = useCallback((next: string) => {
-    setValue(next);
-    setOpen(false);
-    setQuery("");
-    onChange?.(next);
-  }, [onChange]);
+  const select = useCallback(
+    (next: string) => {
+      setValue(next);
+      setOpen(false);
+      setQuery("");
+      onChange?.(next);
+    },
+    [onChange],
+  );
 
   // Only fires on a genuine change after mount — not for the initial
   // defaultValue, and not for remounts via the `key` prop callers use to
@@ -184,9 +186,7 @@ export function OptionSelect({
                 return (
                   <Fragment key={opt.value}>
                     {showHeader && (
-                      <li className="px-3 pb-1 pt-2 text-xs font-medium text-muted-foreground">
-                        {opt.group}
-                      </li>
+                      <li className="px-3 pb-1 pt-2 text-xs font-medium text-muted-foreground">{opt.group}</li>
                     )}
                     <li>
                       <button

@@ -134,10 +134,7 @@ const COUNTRY_FALLBACK: Record<string, MatchRegion> = {
 // for the numbers on how many new sign-ups never came back to set this).
 // Always overridable in Lobby settings; callers must never use this to
 // overwrite a region a player already set themselves.
-export function defaultRegionFromGeoHeaders(
-  country: string | null,
-  countryRegion: string | null,
-): MatchRegion | null {
+export function defaultRegionFromGeoHeaders(country: string | null, countryRegion: string | null): MatchRegion | null {
   if (country === "US" && countryRegion) {
     const state = US_STATE_CODES[countryRegion.toUpperCase()];
     if (state) return state;

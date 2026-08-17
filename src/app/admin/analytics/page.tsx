@@ -31,16 +31,15 @@ export default async function AdminAnalyticsPage() {
     );
   }
 
-  const [signups, cancels, disputes, activeSnapshot, cohorts, referralRetention, ratingGapChurn] =
-    await Promise.all([
-      getSignupsPerDay(),
-      getCancelsPerDay(),
-      getDisputesPerDay(),
-      getActiveUserSnapshot(),
-      getWeeklyRetentionCohorts(8),
-      getReferralRetentionComparison(),
-      getRatingGapChurnAnalysis(),
-    ]);
+  const [signups, cancels, disputes, activeSnapshot, cohorts, referralRetention, ratingGapChurn] = await Promise.all([
+    getSignupsPerDay(),
+    getCancelsPerDay(),
+    getDisputesPerDay(),
+    getActiveUserSnapshot(),
+    getWeeklyRetentionCohorts(8),
+    getReferralRetentionComparison(),
+    getRatingGapChurnAnalysis(),
+  ]);
 
   // "Determined" excludes still-pending signups (their own 7-day window
   // hasn't closed yet) from the rate's denominator — otherwise someone who
@@ -82,8 +81,8 @@ export default async function AdminAnalyticsPage() {
         </Card>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Point-in-time only — lastSignInAt holds just the most recent sign-in per user, so these can&apos;t be
-        charted historically without new daily tracking. Ask if that&apos;s worth adding.
+        Point-in-time only — lastSignInAt holds just the most recent sign-in per user, so these can&apos;t be charted
+        historically without new daily tracking. Ask if that&apos;s worth adding.
       </p>
 
       {/* Trend charts */}
@@ -92,11 +91,7 @@ export default async function AdminAnalyticsPage() {
           <p className="text-sm font-medium">New signups</p>
         </CardHeader>
         <CardContent>
-          <TimeSeriesChart
-            timestamps={signups}
-            label="Signups"
-            emptyMessage="No signups in the last 90 days."
-          />
+          <TimeSeriesChart timestamps={signups} label="Signups" emptyMessage="No signups in the last 90 days." />
         </CardContent>
       </Card>
 
@@ -161,9 +156,7 @@ export default async function AdminAnalyticsPage() {
                     <td className="py-1.5 text-right tabular-nums">{c.cohortSize}</td>
                     <td className="py-1.5 text-right tabular-nums">
                       {determined === 0 ? (
-                        <span className="text-muted-foreground">
-                          {c.retained} so far — too early to tell
-                        </span>
+                        <span className="text-muted-foreground">{c.retained} so far — too early to tell</span>
                       ) : (
                         <>
                           {c.retained} ({pct(c.retained, determined)})
@@ -227,8 +220,8 @@ export default async function AdminAnalyticsPage() {
         <CardHeader>
           <p className="text-sm font-medium">Early rating-gap stomps vs. churn</p>
           <p className="text-xs text-muted-foreground">
-            Among players with ≥1 match: did facing a 200+ rated opponent in their first 3 matches correlate
-            with no sign-in in the last 30 days?
+            Among players with ≥1 match: did facing a 200+ rated opponent in their first 3 matches correlate with no
+            sign-in in the last 30 days?
           </p>
         </CardHeader>
         <CardContent className="flex gap-4">

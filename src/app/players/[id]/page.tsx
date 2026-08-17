@@ -156,8 +156,7 @@ export default async function PlayerProfilePage({
   // your main profile" promise as everywhere else practice mode is handled.
   const realRecentHistory = recentHistory.filter((m) => !m.isPracticing);
   const realRecentWins = realRecentHistory.filter((m) => m.won).length;
-  const winRate =
-    realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
+  const winRate = realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
   const achievements = [...computeAchievements(careerStats), ...matchAchievements].sort(achievementComparator);
@@ -168,13 +167,7 @@ export default async function PlayerProfilePage({
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           {player.avatarUrl && (
-            <Image
-              src={player.avatarUrl}
-              alt={player.username}
-              width={56}
-              height={56}
-              className="rounded-full"
-            />
+            <Image src={player.avatarUrl} alt={player.username} width={56} height={56} className="rounded-full" />
           )}
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
@@ -287,13 +280,7 @@ export default async function PlayerProfilePage({
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
                   >
-                    <Image
-                      src="/supermajor-icon.png"
-                      alt="Supermajor"
-                      width={24}
-                      height={24}
-                      className="size-4"
-                    />
+                    <Image src="/supermajor-icon.png" alt="Supermajor" width={24} height={24} className="size-4" />
                     supermajor.gg
                     <ExternalLink className="size-3" />
                   </a>
@@ -328,12 +315,7 @@ export default async function PlayerProfilePage({
       )}
 
       {currentMatch && (
-        <CurrentMatchCard
-          userId={id}
-          match={currentMatch}
-          zenMode={isOwnProfile && player.zenMode}
-          lang={lang}
-        />
+        <CurrentMatchCard userId={id} match={currentMatch} zenMode={isOwnProfile && player.zenMode} lang={lang} />
       )}
 
       {chartPoints.length >= 2 && (
@@ -412,9 +394,7 @@ export default async function PlayerProfilePage({
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.peakRating ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Clasificación máxima" : "Peak rating"}
-              </p>
+              <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación máxima" : "Peak rating"}</p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.bestWinStreak}</p>
@@ -424,9 +404,7 @@ export default async function PlayerProfilePage({
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Temporadas jugadas" : "Seasons played"}
-              </p>
+              <p className="text-xs text-muted-foreground">{lang === "es" ? "Temporadas jugadas" : "Seasons played"}</p>
             </div>
           </div>
 
@@ -461,10 +439,7 @@ export default async function PlayerProfilePage({
             <ul className="mt-2 flex flex-col gap-1.5">
               {rivals.map((r) => (
                 <li key={r.opponentId} className="flex items-center justify-between text-sm">
-                  <Link
-                    href={`/players/${r.opponentId}`}
-                    className="flex items-center gap-1.5 hover:underline"
-                  >
+                  <Link href={`/players/${r.opponentId}`} className="flex items-center gap-1.5 hover:underline">
                     <Swords className="size-3.5 text-muted-foreground" />
                     {r.username}
                   </Link>
@@ -583,7 +558,9 @@ export default async function PlayerProfilePage({
                 <li key={r.id} className="text-sm">
                   <div className="flex items-center gap-1.5">
                     <Badge
-                      variant={r.status === "ACTIONED" ? "destructive" : r.status === "DISMISSED" ? "outline" : "warning"}
+                      variant={
+                        r.status === "ACTIONED" ? "destructive" : r.status === "DISMISSED" ? "outline" : "warning"
+                      }
                     >
                       {r.status.toLowerCase()}
                     </Badge>
@@ -615,10 +592,7 @@ export default async function PlayerProfilePage({
 
           {player.lastKnownIp && (
             <div className="mt-4">
-              <BanIpButton
-                action={banPlayerIpAction.bind(null, id, player.lastKnownIp)}
-                ip={player.lastKnownIp}
-              />
+              <BanIpButton action={banPlayerIpAction.bind(null, id, player.lastKnownIp)} ip={player.lastKnownIp} />
             </div>
           )}
         </div>
@@ -626,9 +600,7 @@ export default async function PlayerProfilePage({
 
       {isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
-          <h2 className="text-sm font-medium text-destructive">
-            {lang === "es" ? "Zona de peligro" : "Danger zone"}
-          </h2>
+          <h2 className="text-sm font-medium text-destructive">{lang === "es" ? "Zona de peligro" : "Danger zone"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {lang === "es"
               ? "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos."
@@ -678,8 +650,8 @@ function CurrentMatchCard({
   // shows a stale game number.
   const currentGame = match.games.find((game) => !game.winnerId && !isDisputedGame(game)) ?? null;
   const lastGame = match.games[match.games.length - 1];
-  const gameNumber = currentGame?.gameNumber ??
-    (lastGame && isDisputedGame(lastGame) ? lastGame.gameNumber : match.games.length + 1);
+  const gameNumber =
+    currentGame?.gameNumber ?? (lastGame && isDisputedGame(lastGame) ? lastGame.gameNumber : match.games.length + 1);
   const myCharacter = currentGame
     ? currentGame.actorAId === userId
       ? currentGame.actorACharacter
@@ -693,8 +665,7 @@ function CurrentMatchCard({
   // Game 1 is a blind pick — characters stay hidden until both sides have
   // locked in, same as the in-lobby pick UI.
   const showCharacters =
-    currentGame !== null &&
-    (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
+    currentGame !== null && (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
 
   return (
     <Card className="mt-8">
@@ -737,11 +708,12 @@ function CurrentMatchCard({
               ))}
             <div className="min-w-0">
               {zenMode ? (
-                <p className="truncate text-right text-sm font-medium">
-                  {lang === "es" ? "Rival" : "Opponent"}
-                </p>
+                <p className="truncate text-right text-sm font-medium">{lang === "es" ? "Rival" : "Opponent"}</p>
               ) : (
-                <Link href={`/players/${opponent.id}`} className="block truncate text-right text-sm font-medium hover:underline">
+                <Link
+                  href={`/players/${opponent.id}`}
+                  className="block truncate text-right text-sm font-medium hover:underline"
+                >
                   {opponent.username}
                 </Link>
               )}

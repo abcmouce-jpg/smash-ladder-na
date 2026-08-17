@@ -15,13 +15,7 @@ type Comment = {
 // first expand, via the passed-in server action. Rendered inside the
 // match-details modal, which scrolls as a whole, so the log itself doesn't
 // cap its own height (a nested scrollbar in a scrolling panel is janky).
-export function MatchChatLog({
-  action,
-  lang = "en",
-}: {
-  action: () => Promise<Comment[]>;
-  lang?: "en" | "es";
-}) {
+export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Comment[]>; lang?: "en" | "es" }) {
   const [state, setState] = useState<
     { status: "collapsed" } | { status: "loading" } | { status: "error" } | { status: "loaded"; comments: Comment[] }
   >({ status: "collapsed" });

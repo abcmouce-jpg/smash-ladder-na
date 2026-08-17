@@ -115,13 +115,7 @@ export async function resolveDisputedGame(matchId: string, gameNumber: number, w
     prisma.$transaction(async (tx) => {
       const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
       if (!match) throw new Error("Match not found");
-      const setWinnerId = await applyDisputeRuling(
-        tx,
-        match,
-        gameNumber,
-        winnerId,
-        ConfirmationMethod.ADMIN_RESOLVED,
-      );
+      const setWinnerId = await applyDisputeRuling(tx, match, gameNumber, winnerId, ConfirmationMethod.ADMIN_RESOLVED);
       return { match, setWinnerId };
     }, TX_OPTIONS),
   );
@@ -144,12 +138,7 @@ export async function resolveDisputedGame(matchId: string, gameNumber: number, w
 // just records itself; the second either matches (resolved immediately,
 // same as a mod ruling) or doesn't (reset back to null so either side can
 // try again, and it stays queued for a mod in the meantime).
-export async function requestDisputeResolution(
-  userId: string,
-  matchId: string,
-  gameNumber: number,
-  winnerId: string,
-) {
+export async function requestDisputeResolution(userId: string, matchId: string, gameNumber: number, winnerId: string) {
   return withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
       const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
@@ -265,9 +254,7 @@ export async function adminSetGameWinner(matchId: string, gameNumber: number, wi
           throw new Error(`This match has already been edited the maximum of ${MAX_ADMIN_GAME_EDITS} times`);
         }
         if (!(await isMostRecentConfirmedMatch(tx, match))) {
-          throw new Error(
-            "Can't edit — a newer match has been confirmed since, or the season has ended",
-          );
+          throw new Error("Can't edit — a newer match has been confirmed since, or the season has ended");
         }
       }
 
@@ -387,9 +374,7 @@ export async function adminCancelMatch(matchId: string) {
 
       if (match.status === MatchStatus.CONFIRMED) {
         if (!(await isMostRecentConfirmedMatch(tx, match))) {
-          throw new Error(
-            "Can't cancel — a newer match has been confirmed since, or the season has ended",
-          );
+          throw new Error("Can't cancel — a newer match has been confirmed since, or the season has ended");
         }
         if (match.player1RatingBefore === null || match.player2RatingBefore === null) {
           throw new Error("This match is missing its pre-match ratings and can't be safely reverted");

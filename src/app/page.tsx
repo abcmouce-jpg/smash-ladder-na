@@ -87,8 +87,8 @@ export default async function Home() {
             </>
           ) : (
             <>
-              You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated across{" "}
-              {me.gamesPlayed} sets.
+              You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated across {me.gamesPlayed}{" "}
+              sets.
             </>
           )}
         </p>
@@ -127,9 +127,7 @@ export default async function Home() {
               <Link key={p.id} href={`/players/${p.id}`}>
                 <Card className="h-full py-0 transition-colors hover:border-foreground/30">
                   <CardContent className="flex items-center gap-3 py-3">
-                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">
-                      {["🥇", "🥈", "🥉"][i]}
-                    </span>
+                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">{["🥇", "🥈", "🥉"][i]}</span>
                     {p.avatarUrl && (
                       <Image
                         src={p.avatarUrl}
@@ -256,16 +254,13 @@ export default async function Home() {
             <CardHeader>
               <Trophy className="size-5 text-muted-foreground" />
               <CardTitle className="text-base">{lang === "es" ? "Tabla de clasificación" : "Leaderboard"}</CardTitle>
-              <CardDescription>{lang === "es" ? "Mira en qué posición estás." : "See where you stack up."}</CardDescription>
+              <CardDescription>
+                {lang === "es" ? "Mira en qué posición estás." : "See where you stack up."}
+              </CardDescription>
             </CardHeader>
           </Card>
         </Link>
-        <a
-          href={DISCORD_SERVER_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="h-full"
-        >
+        <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="h-full">
           <Card className="h-full transition-colors hover:border-foreground/30">
             <CardHeader>
               <DiscordIcon className="size-5 text-muted-foreground" />

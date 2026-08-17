@@ -15,9 +15,7 @@ export default async function SeasonsAdminPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Seasons</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You don&apos;t have access to this page.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">You don&apos;t have access to this page.</p>
       </main>
     );
   }
@@ -37,21 +35,17 @@ export default async function SeasonsAdminPage() {
             <p className="text-sm font-medium">{active.name}</p>
             <Badge variant="success">active</Badge>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Started {active.startsAt.toLocaleDateString()}
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Started {active.startsAt.toLocaleDateString()}</p>
           <div className="mt-3">
             {!SEASON_MANAGER_USER_ID || session.user.id === SEASON_MANAGER_USER_ID ? (
               <EndSeasonButton action={endSeason.bind(null, "")} seasonName={active.name} />
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Ending a season is restricted to one admin for now.
-              </p>
+              <p className="text-xs text-muted-foreground">Ending a season is restricted to one admin for now.</p>
             )}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Snapshots the current leaderboard (10+ sets) as final standings, then resets
-            everyone&apos;s rating to 1500 and sets played to 0.
+            Snapshots the current leaderboard (10+ sets) as final standings, then resets everyone&apos;s rating to 1500
+            and sets played to 0.
           </p>
         </CardContent>
       </Card>
@@ -67,8 +61,7 @@ export default async function SeasonsAdminPage() {
                     <CardContent className="flex items-center justify-between pt-4">
                       <p className="text-sm">{season.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {season.startsAt.toLocaleDateString()} –{" "}
-                        {season.endsAt?.toLocaleDateString()}
+                        {season.startsAt.toLocaleDateString()} – {season.endsAt?.toLocaleDateString()}
                       </p>
                     </CardContent>
                   </Card>

@@ -18,11 +18,7 @@ import {
   cancelMatchAction,
 } from "./actions";
 
-export default async function LiveMatchesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
+export default async function LiveMatchesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const session = await auth();
   const role = session?.user?.role;
 
@@ -30,9 +26,7 @@ export default async function LiveMatchesPage({
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Live matches</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You don&apos;t have access to this page.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">You don&apos;t have access to this page.</p>
       </main>
     );
   }
@@ -45,9 +39,7 @@ export default async function LiveMatchesPage({
   // so there's no real cost to fetching everything and narrowing here.
   const matches = query
     ? allMatches.filter(
-        (m) =>
-          m.player1.username.toLowerCase().includes(query) ||
-          m.player2.username.toLowerCase().includes(query),
+        (m) => m.player1.username.toLowerCase().includes(query) || m.player2.username.toLowerCase().includes(query),
       )
     : allMatches;
   const comments = await Promise.all(matches.map((m) => listMatchCommentsAsMod(m.id)));
@@ -59,9 +51,9 @@ export default async function LiveMatchesPage({
         <h1 className="text-2xl font-semibold tracking-tight">Live matches</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Sets currently being played, plus recently-expired ones nobody reported — use &quot;Force
-        result&quot; to close out a set stuck with no report from either side. Refreshes
-        automatically every 5s, including chat — no need to reload or re-find your spot.
+        Sets currently being played, plus recently-expired ones nobody reported — use &quot;Force result&quot; to close
+        out a set stuck with no report from either side. Refreshes automatically every 5s, including chat — no need to
+        reload or re-find your spot.
       </p>
       <StreamRefreshPoller intervalMs={5000} />
 
@@ -116,17 +108,13 @@ export default async function LiveMatchesPage({
                         {wins.p1}-{wins.p2}
                       </Badge>
                       <Badge
-                        variant={
-                          match.status === "DISPUTED" || match.status === "EXPIRED" ? "warning" : "outline"
-                        }
+                        variant={match.status === "DISPUTED" || match.status === "EXPIRED" ? "warning" : "outline"}
                       >
                         {match.status.toLowerCase()}
                       </Badge>
                     </div>
                   </div>
-                  {match.roomCode && (
-                    <p className="mt-1 text-xs text-muted-foreground">Room code: {match.roomCode}</p>
-                  )}
+                  {match.roomCode && <p className="mt-1 text-xs text-muted-foreground">Room code: {match.roomCode}</p>}
 
                   <ForceConfirmMatchForm
                     player1Username={match.player1.username}
@@ -162,9 +150,7 @@ export default async function LiveMatchesPage({
                       Chatroom ({comments[i].length})
                     </summary>
                     <div className="mt-2 flex flex-col gap-2">
-                      {comments[i].length === 0 && (
-                        <p className="text-muted-foreground">No messages yet.</p>
-                      )}
+                      {comments[i].length === 0 && <p className="text-muted-foreground">No messages yet.</p>}
                       {comments[i].map((c) => (
                         <p key={c.id}>
                           <span className="font-medium">{c.author.username}:</span> {c.body}

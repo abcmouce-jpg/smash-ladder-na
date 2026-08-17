@@ -95,13 +95,10 @@ describe("applyEloAndConfirm", () => {
     });
 
     await prisma.$transaction((tx) =>
-      applyEloAndConfirm(
-        tx,
-        match,
-        winner.id,
-        ConfirmationMethod.SELF_CONFIRMED,
-        { winnerId: winner.id, reporterId: winner.id },
-      ),
+      applyEloAndConfirm(tx, match, winner.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: winner.id,
+        reporterId: winner.id,
+      }),
     );
 
     const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
@@ -175,7 +172,12 @@ describe("applyEloAndConfirm", () => {
   });
 
   it("updates practiceRating instead of rating for a practicing side, and never touches the opponent's main rating twice", async () => {
-    const practicing = await createTestUser({ rating: 1500, gamesPlayed: 20, practiceRating: 1400, practiceGamesPlayed: 3 });
+    const practicing = await createTestUser({
+      rating: 1500,
+      gamesPlayed: 20,
+      practiceRating: 1400,
+      practiceGamesPlayed: 3,
+    });
     const normal = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const match = await prisma.ratingMatch.create({
       data: {
@@ -419,9 +421,33 @@ describe("adminCorrectOldMatchResult", () => {
     const match = await createConfirmedMatch(p1.id, p2.id);
     await prisma.matchGame.createMany({
       data: [
-        { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, winnerId: p2.id },
-        { matchId: match.id, gameNumber: 2, actorAId: p2.id, actorAStrikes: 1, actorBId: p1.id, actorBStrikes: 2, winnerId: p1.id },
-        { matchId: match.id, gameNumber: 3, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, winnerId: p1.id },
+        {
+          matchId: match.id,
+          gameNumber: 1,
+          actorAId: p1.id,
+          actorAStrikes: 1,
+          actorBId: p2.id,
+          actorBStrikes: 2,
+          winnerId: p2.id,
+        },
+        {
+          matchId: match.id,
+          gameNumber: 2,
+          actorAId: p2.id,
+          actorAStrikes: 1,
+          actorBId: p1.id,
+          actorBStrikes: 2,
+          winnerId: p1.id,
+        },
+        {
+          matchId: match.id,
+          gameNumber: 3,
+          actorAId: p1.id,
+          actorAStrikes: 1,
+          actorBId: p2.id,
+          actorBStrikes: 2,
+          winnerId: p1.id,
+        },
       ],
     });
 
@@ -966,9 +992,7 @@ describe("leaveMatch", () => {
     const { match } = await createConfirmedMatch();
     const outsider = await createTestUser();
 
-    await expect(leaveMatch(outsider.id, match.id)).rejects.toThrow(
-      "Not a participant in this match",
-    );
+    await expect(leaveMatch(outsider.id, match.id)).rejects.toThrow("Not a participant in this match");
   });
 
   it("is idempotent — leaving twice keeps the original timestamp", async () => {
@@ -1014,9 +1038,7 @@ describe("requestRematch", () => {
     const { match } = await createConfirmedMatch();
     const outsider = await createTestUser();
 
-    await expect(requestRematch(outsider.id, match.id)).rejects.toThrow(
-      "Not a participant in this match",
-    );
+    await expect(requestRematch(outsider.id, match.id)).rejects.toThrow("Not a participant in this match");
   });
 
   it("throws for a match that hasn't finished", async () => {
@@ -1031,18 +1053,14 @@ describe("requestRematch", () => {
       },
     });
 
-    await expect(requestRematch(player1.id, match.id)).rejects.toThrow(
-      "This match hasn't finished yet",
-    );
+    await expect(requestRematch(player1.id, match.id)).rejects.toThrow("This match hasn't finished yet");
   });
 
   it("throws if the caller has already left", async () => {
     const { player1, match } = await createConfirmedMatch();
     await leaveMatch(player1.id, match.id);
 
-    await expect(requestRematch(player1.id, match.id)).rejects.toThrow(
-      "You've left this match",
-    );
+    await expect(requestRematch(player1.id, match.id)).rejects.toThrow("You've left this match");
   });
 
   it("only records the first request when the opponent hasn't asked yet", async () => {
@@ -1069,9 +1087,7 @@ describe("requestRematch", () => {
     await requestRematch(player1.id, match.id);
     const afterSecond = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
 
-    expect(afterSecond.player1RematchRequestedAt?.getTime()).toBe(
-      afterFirst.player1RematchRequestedAt?.getTime(),
-    );
+    expect(afterSecond.player1RematchRequestedAt?.getTime()).toBe(afterFirst.player1RematchRequestedAt?.getTime());
   });
 
   it("creates a fresh paired match once both players have requested", async () => {
@@ -1089,9 +1105,7 @@ describe("requestRematch", () => {
     const entries = await prisma.ratingLobbyEntry.findMany({
       where: { userId: { in: [player1.id, player2.id] }, status: LobbyEntryStatus.PAIRED },
     });
-    const newEntries = entries.filter(
-      (e) => e.matchId === newMatch.id || e.pairedEntryId !== null,
-    );
+    const newEntries = entries.filter((e) => e.matchId === newMatch.id || e.pairedEntryId !== null);
     expect(newEntries.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -1164,7 +1178,12 @@ describe("requestRematch", () => {
     await requestRematch(player1.id, match.id);
 
     await prisma.ratingMatch.create({
-      data: { player1Id: player1.id, player2Id: stranger.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+      data: {
+        player1Id: player1.id,
+        player2Id: stranger.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
     });
 
     await requestRematch(player2.id, match.id);
@@ -1181,7 +1200,12 @@ describe("requestRematch", () => {
     await requestRematch(player1.id, match.id);
 
     await prisma.ratingMatch.create({
-      data: { player1Id: player2.id, player2Id: stranger.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+      data: {
+        player1Id: player2.id,
+        player2Id: stranger.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
     });
 
     await requestRematch(player2.id, match.id);

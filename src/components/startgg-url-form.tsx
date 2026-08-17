@@ -29,9 +29,7 @@ export function StartggUrlForm({
       <form action={formAction} className="flex items-end gap-2">
         <label className="flex flex-1 flex-col gap-1 text-sm">
           {label}
-          {description && (
-            <span className="text-xs font-normal text-muted-foreground">{description}</span>
-          )}
+          {description && <span className="text-xs font-normal text-muted-foreground">{description}</span>}
           <input
             name="startggUrl"
             type="url"

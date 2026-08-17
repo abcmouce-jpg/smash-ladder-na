@@ -105,17 +105,13 @@ export default async function HomeEs() {
 
       {stats.topPlayers.length > 0 && (
         <div className="mt-10">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Los mejores de la liga
-          </h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Los mejores de la liga</h2>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {stats.topPlayers.map((p, i) => (
               <Link key={p.id} href={`/players/${p.id}`}>
                 <Card className="h-full py-0 transition-colors hover:border-foreground/30">
                   <CardContent className="flex items-center gap-3 py-3">
-                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">
-                      {["🥇", "🥈", "🥉"][i]}
-                    </span>
+                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">{["🥇", "🥈", "🥉"][i]}</span>
                     {p.avatarUrl && (
                       <Image
                         src={p.avatarUrl}
@@ -161,12 +157,7 @@ export default async function HomeEs() {
             </CardHeader>
           </Card>
         </Link>
-        <a
-          href={DISCORD_SERVER_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="h-full"
-        >
+        <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="h-full">
           <Card className="h-full transition-colors hover:border-foreground/30">
             <CardHeader>
               <DiscordIcon className="size-5 text-muted-foreground" />

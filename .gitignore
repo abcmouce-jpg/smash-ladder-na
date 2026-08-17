@@ -46,3 +46,6 @@ next-env.d.ts
 
 # local one-off data backups/exports — never user-facing, never committed
 *.csv
+
+# per-machine MCP server config, not shared across contributors
+.mcp.json

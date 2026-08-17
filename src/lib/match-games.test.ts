@@ -6,7 +6,14 @@ vi.mock("@/generated/prisma/enums", () => ({ ConfirmationMethod: {}, MatchStatus
 vi.mock("@/lib/matches", () => ({ applyEloAndConfirm: vi.fn() }));
 vi.mock("@/lib/discord-bot", () => ({ sendDiscordDM: vi.fn() }));
 
-import { characterPickState, gameTurnState, lastSameBans, lastUsedCharacter, tallySetWins, GAMES_TO_WIN } from "./match-games";
+import {
+  characterPickState,
+  gameTurnState,
+  lastSameBans,
+  lastUsedCharacter,
+  tallySetWins,
+  GAMES_TO_WIN,
+} from "./match-games";
 
 describe("gameTurnState", () => {
   const base = {
@@ -60,11 +67,7 @@ describe("tallySetWins", () => {
   });
 
   it("counts settled games only (ignores null winnerId)", () => {
-    const games = [
-      { winnerId: "p1" },
-      { winnerId: null },
-      { winnerId: "p2" },
-    ];
+    const games = [{ winnerId: "p1" }, { winnerId: null }, { winnerId: "p2" }];
     expect(tallySetWins(games)).toEqual({ p1: 1, p2: 1 });
   });
 
@@ -76,11 +79,7 @@ describe("tallySetWins", () => {
   });
 
   it("correctly tallies a 2-1 set", () => {
-    const games = [
-      { winnerId: "p1" },
-      { winnerId: "p2" },
-      { winnerId: "p1" },
-    ];
+    const games = [{ winnerId: "p1" }, { winnerId: "p2" }, { winnerId: "p1" }];
     expect(tallySetWins(games)).toEqual({ p1: 2, p2: 1 });
   });
 });
@@ -95,60 +94,39 @@ describe("characterPickState", () => {
   const game1Base = { gameNumber: 1, actorAId: "p1", actorBId: "p2" };
 
   it("game 1: neither pick is visible until both have locked in", () => {
-    const state = characterPickState(
-      { ...game1Base, actorACharacter: "Mario", actorBCharacter: null },
-      "p1",
-    );
+    const state = characterPickState({ ...game1Base, actorACharacter: "Mario", actorBCharacter: null }, "p1");
     expect(state).toEqual({ yourCharacter: "Mario", opponentCharacter: null, canPickNow: false });
   });
 
   it("game 1: the other side sees no hint either, and can still pick", () => {
-    const state = characterPickState(
-      { ...game1Base, actorACharacter: "Mario", actorBCharacter: null },
-      "p2",
-    );
+    const state = characterPickState({ ...game1Base, actorACharacter: "Mario", actorBCharacter: null }, "p2");
     expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
   });
 
   it("game 1: both picks reveal once both are locked in", () => {
-    const state = characterPickState(
-      { ...game1Base, actorACharacter: "Mario", actorBCharacter: "Luigi" },
-      "p1",
-    );
+    const state = characterPickState({ ...game1Base, actorACharacter: "Mario", actorBCharacter: "Luigi" }, "p1");
     expect(state).toEqual({ yourCharacter: "Mario", opponentCharacter: "Luigi", canPickNow: false });
   });
 
   it("game 1: nobody has picked yet — both can pick", () => {
-    const state = characterPickState(
-      { ...game1Base, actorACharacter: null, actorBCharacter: null },
-      "p1",
-    );
+    const state = characterPickState({ ...game1Base, actorACharacter: null, actorBCharacter: null }, "p1");
     expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
   });
 
   const counterpickBase = { gameNumber: 2, actorAId: "winner", actorBId: "loser" };
 
   it("games 2+: actorA (previous winner) can pick first, before actorB does anything", () => {
-    const state = characterPickState(
-      { ...counterpickBase, actorACharacter: null, actorBCharacter: null },
-      "winner",
-    );
+    const state = characterPickState({ ...counterpickBase, actorACharacter: null, actorBCharacter: null }, "winner");
     expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
   });
 
   it("games 2+: actorB is blocked until actorA locks in", () => {
-    const state = characterPickState(
-      { ...counterpickBase, actorACharacter: null, actorBCharacter: null },
-      "loser",
-    );
+    const state = characterPickState({ ...counterpickBase, actorACharacter: null, actorBCharacter: null }, "loser");
     expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: false });
   });
 
   it("games 2+: once actorA locks in, actorB sees it immediately and can react", () => {
-    const state = characterPickState(
-      { ...counterpickBase, actorACharacter: "Fox", actorBCharacter: null },
-      "loser",
-    );
+    const state = characterPickState({ ...counterpickBase, actorACharacter: "Fox", actorBCharacter: null }, "loser");
     expect(state).toEqual({ yourCharacter: null, opponentCharacter: "Fox", canPickNow: true });
   });
 
@@ -201,9 +179,7 @@ describe("lastUsedCharacter", () => {
 
 describe("lastSameBans", () => {
   it("returns null when the player has never struck 3 stages as actorA", () => {
-    const games = [
-      { gameNumber: 1, actorAId: "p1", actorAStrikes: 1, struckStages: ["Battlefield"] },
-    ];
+    const games = [{ gameNumber: 1, actorAId: "p1", actorAStrikes: 1, struckStages: ["Battlefield"] }];
     expect(lastSameBans(games, "p1")).toBeNull();
   });
 

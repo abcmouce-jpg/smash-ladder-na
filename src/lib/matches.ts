@@ -119,9 +119,7 @@ export async function hasOpponentEngaged(
   if (!game) return false;
 
   const opponentIsActorA = game.actorAId === opponentId;
-  const opponentCharacterLocked = opponentIsActorA
-    ? game.actorACharacter !== null
-    : game.actorBCharacter !== null;
+  const opponentCharacterLocked = opponentIsActorA ? game.actorACharacter !== null : game.actorBCharacter !== null;
   if (opponentCharacterLocked) return true;
 
   // actorA always strikes first (see actorForStrike in lib/match-games.ts) —
@@ -162,9 +160,7 @@ export async function cancelMatch(userId: string, matchId: string) {
     where: { matchId, OR: [{ winnerId: { not: null } }, { reportedById: { not: null } }] },
   });
   if (gameInProgress) {
-    throw new Error(
-      "Can't cancel once a game has been decided or reported — report the result or dispute it instead.",
-    );
+    throw new Error("Can't cancel once a game has been decided or reported — report the result or dispute it instead.");
   }
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
@@ -359,18 +355,14 @@ export async function requestRematch(userId: string, matchId: string) {
     prisma.$transaction(async (tx) => {
       await tx.ratingMatch.update({
         where: { id: matchId },
-        data: isPlayer1
-          ? { player1RematchRequestedAt: new Date() }
-          : { player2RematchRequestedAt: new Date() },
+        data: isPlayer1 ? { player1RematchRequestedAt: new Date() } : { player2RematchRequestedAt: new Date() },
       });
 
       // Re-read within the transaction so a since-committed opponent request
       // (the common case — their click happened earlier, not concurrently)
       // is picked up even though the initial read above predates it.
       const fresh = await tx.ratingMatch.findUniqueOrThrow({ where: { id: matchId } });
-      const opponentRequestedAt = isPlayer1
-        ? fresh.player2RematchRequestedAt
-        : fresh.player1RematchRequestedAt;
+      const opponentRequestedAt = isPlayer1 ? fresh.player2RematchRequestedAt : fresh.player1RematchRequestedAt;
       const opponentLeftAt = isPlayer1 ? fresh.player2LeftAt : fresh.player1LeftAt;
       if (!opponentRequestedAt || opponentLeftAt) return;
 
@@ -515,10 +507,14 @@ export async function applyEloAndConfirm(
   const historyRows = [
     ...(matchRow.player1IsPracticing
       ? []
-      : [{ userId: p1.id, matchId: match.id, ratingBefore: p1Rating, ratingAfter: p1After, delta: p1After - p1Rating }]),
+      : [
+          { userId: p1.id, matchId: match.id, ratingBefore: p1Rating, ratingAfter: p1After, delta: p1After - p1Rating },
+        ]),
     ...(matchRow.player2IsPracticing
       ? []
-      : [{ userId: p2.id, matchId: match.id, ratingBefore: p2Rating, ratingAfter: p2After, delta: p2After - p2Rating }]),
+      : [
+          { userId: p2.id, matchId: match.id, ratingBefore: p2Rating, ratingAfter: p2After, delta: p2After - p2Rating },
+        ]),
   ];
   if (historyRows.length > 0) {
     await tx.ratingHistory.createMany({ data: historyRows });

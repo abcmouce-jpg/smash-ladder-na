@@ -1,9 +1,4 @@
-import {
-  PROVISIONAL_MIN_GAMES,
-  RANK_TIERS,
-  rankTierRatingRange,
-  type RankTier,
-} from "@/lib/rank-tier";
+import { PROVISIONAL_MIN_GAMES, RANK_TIERS, rankTierRatingRange, type RankTier } from "@/lib/rank-tier";
 import { TierBadge } from "@/components/rank-badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -13,15 +8,7 @@ import { cn } from "@/lib/utils";
 // provisional row is gated on sets played, not rating — it is the absence
 // of a tier, which is why it is not a member of RANK_TIERS and why `tier`
 // is nullable.
-function RankRow({
-  tier,
-  range,
-  children,
-}: {
-  tier: RankTier | null;
-  range: string;
-  children: React.ReactNode;
-}) {
+function RankRow({ tier, range, children }: { tier: RankTier | null; range: string; children: React.ReactNode }) {
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between gap-3">

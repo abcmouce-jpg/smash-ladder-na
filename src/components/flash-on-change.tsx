@@ -10,9 +10,7 @@ export function FlashOnChange({ value, children }: { value: string; children: Re
   const flashing = useFlashOnChange(value);
 
   return (
-    <span
-      className={`rounded px-0.5 transition-colors duration-500 ${flashing ? "bg-primary/25" : "bg-transparent"}`}
-    >
+    <span className={`rounded px-0.5 transition-colors duration-500 ${flashing ? "bg-primary/25" : "bg-transparent"}`}>
       {children}
     </span>
   );

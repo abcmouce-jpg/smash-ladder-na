@@ -11,9 +11,7 @@ describe("blockUser", () => {
 
   it("is a no-op when the block already exists, even at the cap", async () => {
     const blocker = await createTestUser();
-    const others = await Promise.all(
-      Array.from({ length: MAX_BLOCKS_PER_USER }, () => createTestUser()),
-    );
+    const others = await Promise.all(Array.from({ length: MAX_BLOCKS_PER_USER }, () => createTestUser()));
     for (const other of others) {
       await blockUser(blocker.id, other.id);
     }
@@ -25,24 +23,18 @@ describe("blockUser", () => {
 
   it(`rejects a new block past ${MAX_BLOCKS_PER_USER}`, async () => {
     const blocker = await createTestUser();
-    const others = await Promise.all(
-      Array.from({ length: MAX_BLOCKS_PER_USER + 1 }, () => createTestUser()),
-    );
+    const others = await Promise.all(Array.from({ length: MAX_BLOCKS_PER_USER + 1 }, () => createTestUser()));
     for (const other of others.slice(0, MAX_BLOCKS_PER_USER)) {
       await blockUser(blocker.id, other.id);
     }
 
-    await expect(blockUser(blocker.id, others[MAX_BLOCKS_PER_USER].id)).rejects.toThrow(
-      /only block up to/i,
-    );
+    await expect(blockUser(blocker.id, others[MAX_BLOCKS_PER_USER].id)).rejects.toThrow(/only block up to/i);
   });
 
   it("doesn't count a block against a deleted account toward the cap", async () => {
     const blocker = await createTestUser();
     const deleted = await createTestUser({ discordId: "deleted-someoldid" });
-    const others = await Promise.all(
-      Array.from({ length: MAX_BLOCKS_PER_USER }, () => createTestUser()),
-    );
+    const others = await Promise.all(Array.from({ length: MAX_BLOCKS_PER_USER }, () => createTestUser()));
     await blockUser(blocker.id, deleted.id);
     for (const other of others) {
       await blockUser(blocker.id, other.id);
