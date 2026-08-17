@@ -151,6 +151,113 @@ export async function getActiveLobbyEntry(userId: string) {
   return { ...entry, match };
 }
 
+// Shared by join-time pairing and the WAITING-poll retry below — both are
+// "does a candidate exist for this already-created entry right now" checks,
+// differing only in whether the entry was just created or already existed.
+async function attemptPairing(params: {
+  userId: string;
+  myEntry: { id: string; isPracticing: boolean; existingRoomCode: string | null };
+  myRegion: string;
+  me: {
+    rating: number;
+    rematchCooldownHours: number | null;
+    wiredConnection: boolean;
+    requireWiredOpponent: boolean;
+    avoidPracticeOpponents: boolean;
+  };
+  myReach: string[];
+  myEffectiveGap: number | null;
+  blockedIds: string[];
+  recentOpponents: Map<string, Date>;
+}) {
+  const { userId, myEntry, myRegion, me, myReach, myEffectiveGap, blockedIds, recentOpponents } = params;
+  return withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      // Candidates within MY reach on both region and rating — the other half
+      // (their own settings covering me back) is checked in JS below, since it
+      // depends on each candidate's own values rather than a single filterable
+      // column.
+      const candidates = await tx.ratingLobbyEntry.findMany({
+        where: {
+          status: LobbyEntryStatus.WAITING,
+          expiresAt: { gt: new Date() },
+          userId: { notIn: [userId, ...blockedIds] },
+          id: { not: myEntry.id },
+          user: {
+            region: { in: myReach },
+            ...(myEffectiveGap !== null
+              ? { rating: { gte: me.rating - myEffectiveGap, lte: me.rating + myEffectiveGap } }
+              : {}),
+          },
+        },
+        orderBy: { joinedAt: "asc" },
+        take: 20,
+        include: {
+          user: {
+            select: {
+              region: true,
+              maxMatchDistanceKm: true,
+              rating: true,
+              maxRatingGap: true,
+              gamesPlayed: true,
+              rematchCooldownHours: true,
+              wiredConnection: true,
+              requireWiredOpponent: true,
+              avoidPracticeOpponents: true,
+            },
+          },
+        },
+      });
+      const candidate = candidates.find(
+        (c) =>
+          getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
+          ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user)) &&
+          rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
+          wiredRequirementAllows(me, c.user) &&
+          practiceMatchAllowed(
+            { isPracticing: myEntry.isPracticing, avoidPracticeOpponents: me.avoidPracticeOpponents },
+            { isPracticing: c.isPracticing, avoidPracticeOpponents: c.user.avoidPracticeOpponents },
+          ),
+      );
+      if (!candidate) return null;
+
+      // Atomically claim the candidate so two concurrent joins can't pair with the same entry.
+      const claim = await tx.ratingLobbyEntry.updateMany({
+        where: { id: candidate.id, status: LobbyEntryStatus.WAITING },
+        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+      });
+      if (claim.count === 0) return null;
+
+      const match = await tx.ratingMatch.create({
+        data: {
+          player1Id: candidate.userId,
+          player2Id: userId,
+          pairingMethod: PairingMethod.AUTO,
+          status: MatchStatus.PENDING_REPORT,
+          expiresAt: new Date(Date.now() + MATCH_TTL_MS),
+          player1IsPracticing: candidate.isPracticing,
+          player2IsPracticing: myEntry.isPracticing,
+          ...resolvePrefilledRoom(candidate.userId, candidate.existingRoomCode, userId, myEntry.existingRoomCode),
+        },
+      });
+
+      // matchId and pairedEntryId are unique on RatingLobbyEntry, so only the
+      // candidate (already claimed above) records them; the joining side is
+      // just marked PAIRED and its match is found by player lookup instead.
+      await tx.ratingLobbyEntry.update({
+        where: { id: candidate.id },
+        data: { matchId: match.id, pairedEntryId: myEntry.id },
+      });
+      await tx.ratingLobbyEntry.update({
+        where: { id: myEntry.id },
+        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+      });
+
+      return match;
+    }, TX_OPTIONS),
+  );
+}
+
 export async function joinLobbyAndTryPair(
   userId: string,
   isPracticing = false,
@@ -213,91 +320,16 @@ export async function joinLobbyAndTryPair(
   const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
   const myEffectiveGap = effectiveMaxRatingGap(me);
 
-  const paired = await withTransientRetry(() =>
-    prisma.$transaction(async (tx) => {
-      // Candidates within MY reach on both region and rating — the other half
-      // (their own settings covering me back) is checked in JS below, since it
-      // depends on each candidate's own values rather than a single filterable
-      // column.
-      const candidates = await tx.ratingLobbyEntry.findMany({
-        where: {
-          status: LobbyEntryStatus.WAITING,
-          expiresAt: { gt: now },
-          userId: { notIn: [userId, ...blockedIds] },
-          id: { not: newEntry.id },
-          user: {
-            region: { in: myReach },
-            ...(myEffectiveGap !== null
-              ? { rating: { gte: me.rating - myEffectiveGap, lte: me.rating + myEffectiveGap } }
-              : {}),
-          },
-        },
-        orderBy: { joinedAt: "asc" },
-        take: 20,
-        include: {
-          user: {
-            select: {
-              region: true,
-              maxMatchDistanceKm: true,
-              rating: true,
-              maxRatingGap: true,
-              gamesPlayed: true,
-              rematchCooldownHours: true,
-              wiredConnection: true,
-              requireWiredOpponent: true,
-              avoidPracticeOpponents: true,
-            },
-          },
-        },
-      });
-      const candidate = candidates.find(
-        (c) =>
-          getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
-          ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user)) &&
-          rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
-          wiredRequirementAllows(me, c.user) &&
-          practiceMatchAllowed(
-            { isPracticing, avoidPracticeOpponents: me.avoidPracticeOpponents },
-            { isPracticing: c.isPracticing, avoidPracticeOpponents: c.user.avoidPracticeOpponents },
-          ),
-      );
-      if (!candidate) return null;
-
-      // Atomically claim the candidate so two concurrent joins can't pair with the same entry.
-      const claim = await tx.ratingLobbyEntry.updateMany({
-        where: { id: candidate.id, status: LobbyEntryStatus.WAITING },
-        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
-      });
-      if (claim.count === 0) return null;
-
-      const match = await tx.ratingMatch.create({
-        data: {
-          player1Id: candidate.userId,
-          player2Id: userId,
-          pairingMethod: PairingMethod.AUTO,
-          status: MatchStatus.PENDING_REPORT,
-          expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
-          player1IsPracticing: candidate.isPracticing,
-          player2IsPracticing: isPracticing,
-          ...resolvePrefilledRoom(candidate.userId, candidate.existingRoomCode, userId, existingRoomCode),
-        },
-      });
-
-      // matchId and pairedEntryId are unique on RatingLobbyEntry, so only the
-      // candidate (already claimed above) records them; the joining side is
-      // just marked PAIRED and its match is found by player lookup instead.
-      await tx.ratingLobbyEntry.update({
-        where: { id: candidate.id },
-        data: { matchId: match.id, pairedEntryId: newEntry.id },
-      });
-      await tx.ratingLobbyEntry.update({
-        where: { id: newEntry.id },
-        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
-      });
-
-      return match;
-    }, TX_OPTIONS),
-  );
+  const paired = await attemptPairing({
+    userId,
+    myEntry: { id: newEntry.id, isPracticing, existingRoomCode },
+    myRegion,
+    me,
+    myReach,
+    myEffectiveGap,
+    blockedIds,
+    recentOpponents,
+  });
 
   // Notify outside the transaction — a push failure must never roll back (or
   // delay) the pairing itself. Best-effort internally (see push-server).
@@ -305,6 +337,72 @@ export async function joinLobbyAndTryPair(
   const entry = await getActiveLobbyEntry(userId);
   await notifyMatchFoundToUsers(paired.player1Id, paired.player2Id);
   return entry;
+}
+
+// The lobby page's client poller (LobbyPoller, 5s interval, kept alive in
+// the background specifically while WAITING) re-renders the page constantly
+// but previously only re-read status — a candidate who wasn't there at join
+// time was invisible until either someone else's join-time check happened to
+// notice them, or the 5-minute sweepLobbyPairing cron caught them. That gap
+// is most of the p90/p99 tail on wait time. Calling this once per render
+// turns the existing 5s poll into a real retry instead of relying on the
+// 5-minute cron as the only fallback — same candidate logic as join time
+// (attemptPairing), no matching criteria loosened, so match quality doesn't
+// degrade just because someone's been waiting longer.
+//
+// Called straight from the lobby page's server component render (see
+// src/app/lobby/page.tsx), so — same contract as notifyMatchFoundToUsers —
+// this must never throw: a failed retry should just mean "no pairing found
+// this tick," not a broken page for someone who's already anxiously waiting
+// on a match. The 5-minute cron sweep is still there as a fallback if a
+// retry tick keeps failing.
+export async function retryPairForWaitingUser(userId: string) {
+  try {
+    const now = new Date();
+    const entry = await prisma.ratingLobbyEntry.findFirst({
+      where: { userId, status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
+    });
+    if (!entry) return;
+
+    const [me, blockedIds, recentOpponents] = await Promise.all([
+      prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: {
+          region: true,
+          maxMatchDistanceKm: true,
+          rating: true,
+          maxRatingGap: true,
+          gamesPlayed: true,
+          rematchCooldownHours: true,
+          wiredConnection: true,
+          requireWiredOpponent: true,
+          avoidPracticeOpponents: true,
+        },
+      }),
+      getBlockedEitherWayIds(userId),
+      getRecentOpponentTimestamps(userId),
+    ]);
+    // Region is required to join in the first place, so this shouldn't be
+    // reachable — guard anyway rather than passing null into region matching.
+    if (!me.region) return;
+
+    const myReach = getRegionsWithinDistance(me.region, me.maxMatchDistanceKm);
+    const myEffectiveGap = effectiveMaxRatingGap(me);
+
+    const paired = await attemptPairing({
+      userId,
+      myEntry: { id: entry.id, isPracticing: entry.isPracticing, existingRoomCode: entry.existingRoomCode },
+      myRegion: me.region,
+      me,
+      myReach,
+      myEffectiveGap,
+      blockedIds,
+      recentOpponents,
+    });
+    if (paired) await notifyMatchFoundToUsers(paired.player1Id, paired.player2Id);
+  } catch (err) {
+    console.error("retryPairForWaitingUser failed (non-fatal, will retry next poll or cron sweep):", err);
+  }
 }
 
 // Creates a match and its pair of already-PAIRED lobby entries directly,

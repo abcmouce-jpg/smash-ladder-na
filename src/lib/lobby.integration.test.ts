@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import {
   createDirectMatch,
   getActiveLobbyEntry,
   joinLobbyAndTryPair,
+  retryPairForWaitingUser,
   setMatchRoomCode,
   sweepLobbyPairing,
 } from "@/lib/lobby";
@@ -282,6 +283,70 @@ describe("joinLobbyAndTryPair", () => {
     });
     expect(match.roomCode).toBeNull();
     expect(match.roomCodeSetById).toBeNull();
+  });
+});
+
+describe("retryPairForWaitingUser", () => {
+  it("pairs two already-waiting users who missed each other at their own join time", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+
+    // Direct inserts bypass joinLobbyAndTryPair's own attemptPairing call —
+    // simulates two joins that didn't overlap live (e.g. seconds apart with
+    // no one polling in between), which previously only got caught by the
+    // 5-minute sweepLobbyPairing cron.
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: a.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: b.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+
+    await retryPairForWaitingUser(a.id);
+
+    const entryA = await getActiveLobbyEntry(a.id);
+    const entryB = await getActiveLobbyEntry(b.id);
+    expect(entryA?.status).toBe("PAIRED");
+    expect(entryB?.status).toBe("PAIRED");
+    expect(entryA?.match?.id).toBe(entryB?.match?.id);
+  });
+
+  it("is a no-op for a user who isn't waiting", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    await expect(retryPairForWaitingUser(a.id)).resolves.toBeUndefined();
+    const entries = await prisma.ratingLobbyEntry.count({ where: { userId: a.id } });
+    expect(entries).toBe(0);
+  });
+
+  it("never throws — this runs on every 5s lobby-page poll, so a failure here must not break the page", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: a.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+
+    const spy = vi.spyOn(prisma.user, "findUniqueOrThrow").mockRejectedValueOnce(new Error("simulated DB blip"));
+    try {
+      await expect(retryPairForWaitingUser(a.id)).resolves.toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("does not pair across regions outside either side's match distance", async () => {
+    const a = await createTestUser({ region: "USA East", maxMatchDistanceKm: 1 });
+    const b = await createTestUser({ region: "East Asia", maxMatchDistanceKm: 1 });
+
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: a.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: b.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+
+    await retryPairForWaitingUser(a.id);
+
+    const entryA = await getActiveLobbyEntry(a.id);
+    expect(entryA?.status).toBe("WAITING");
   });
 });
 

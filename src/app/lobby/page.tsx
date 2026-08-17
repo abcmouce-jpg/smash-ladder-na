@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Check, Loader2, MapPin, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
+import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser } from "@/lib/lobby";
 import {
   CANCEL_GRACE_PERIOD_SECONDS,
   getRoomHostId,
@@ -118,6 +118,7 @@ export default async function LobbyPage() {
     );
   }
 
+  await retryPairForWaitingUser(session.user.id);
   const entry = await getActiveLobbyEntry(session.user.id);
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
