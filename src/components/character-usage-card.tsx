@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatUsagePercent } from "@/lib/character-usage-display";
 import type { CharacterUsage } from "@/lib/players";
 
-function winRateVariant(winRate: number): "success" | "warning" | "destructive" {
+export function winRateVariant(winRate: number): "success" | "warning" | "destructive" {
   if (winRate >= 55) return "success";
   if (winRate >= 45) return "warning";
   return "destructive";
