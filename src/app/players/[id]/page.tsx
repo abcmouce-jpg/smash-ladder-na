@@ -592,6 +592,18 @@ export default async function PlayerProfilePage({
                     </span>
                   </div>
                   <p className="mt-0.5 text-muted-foreground">{r.reason}</p>
+                  {r.actionTaken && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      →{" "}
+                      {r.actionTaken === "SUSPENDED"
+                        ? r.actionSuspensionHours
+                          ? `Suspended ${r.actionSuspensionHours}h`
+                          : "Suspended indefinitely"
+                        : "Banned"}
+                      {r.actionedBy && ` by ${r.actionedBy.username}`}
+                      {r.actionedAt && ` · ${r.actionedAt.toISOString().slice(0, 10)}`}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

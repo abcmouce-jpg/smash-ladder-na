@@ -96,6 +96,9 @@ describe("moderateUserDirectly", () => {
     });
     expect(auditReport?.status).toBe("ACTIONED");
     expect(auditReport?.reason).toBe("test");
+    expect(auditReport?.actionTaken).toBe("SUSPENDED");
+    expect(auditReport?.actionedById).toBe(mod.id);
+    expect(auditReport?.actionSuspensionHours).toBe(24);
   });
 
   it("insta-suspends indefinitely when no duration is given", async () => {
@@ -183,11 +186,12 @@ describe("actionReport", () => {
   }
 
   it("suspends a reported user and closes out their open reports", async () => {
+    const mod = await createTestUser();
     const reporter = await createTestUser();
     const target = await createTestUser();
     const report = await createOpenReport(reporter.id, target.id);
 
-    await actionReport(report.id, "SUSPENDED", { suspensionHours: 24, skipThreshold: true });
+    await actionReport(report.id, mod.id, "SUSPENDED", { suspensionHours: 24, skipThreshold: true });
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
     expect(updated.status).toBe(UserStatus.SUSPENDED);
@@ -196,12 +200,34 @@ describe("actionReport", () => {
     expect(updatedReport.status).toBe(ReportStatus.ACTIONED);
   });
 
+  it("records the disposition (action, mod, duration) on every report it closes out", async () => {
+    const mod = await createTestUser();
+    const reporter = await createTestUser();
+    const target = await createTestUser();
+    const report1 = await createOpenReport(reporter.id, target.id);
+    const report2 = await createOpenReport(reporter.id, target.id);
+
+    await actionReport(report1.id, mod.id, "SUSPENDED", { suspensionHours: 48, skipThreshold: true });
+
+    const [updated1, updated2] = await Promise.all([
+      prisma.conductReport.findUniqueOrThrow({ where: { id: report1.id } }),
+      prisma.conductReport.findUniqueOrThrow({ where: { id: report2.id } }),
+    ]);
+    for (const r of [updated1, updated2]) {
+      expect(r.actionTaken).toBe("SUSPENDED");
+      expect(r.actionedById).toBe(mod.id);
+      expect(r.actionSuspensionHours).toBe(48);
+      expect(r.actionedAt).not.toBeNull();
+    }
+  });
+
   // Same bug as moderateUserDirectly above, but via the report-queue path:
   // actioning a report against an already-suspended user used to silently
   // skip the user update entirely (no error, no effect) instead of applying
   // the new duration — a mod would see the report resolve with nothing
   // actually changing about the suspension.
   it("still applies a new suspension duration when the user is already suspended", async () => {
+    const mod = await createTestUser();
     const reporter = await createTestUser();
     const target = await createTestUser({
       status: UserStatus.SUSPENDED,
@@ -209,18 +235,19 @@ describe("actionReport", () => {
     });
     const report = await createOpenReport(reporter.id, target.id);
 
-    await actionReport(report.id, "SUSPENDED", { suspensionHours: 720, skipThreshold: true });
+    await actionReport(report.id, mod.id, "SUSPENDED", { suspensionHours: 720, skipThreshold: true });
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
     expect(updated.suspendedUntil!.getTime()).toBeGreaterThan(Date.now() + 700 * 60 * 60 * 1000);
   });
 
   it("doesn't downgrade an already-banned user back to suspended", async () => {
+    const mod = await createTestUser();
     const reporter = await createTestUser();
     const target = await createTestUser({ status: UserStatus.BANNED });
     const report = await createOpenReport(reporter.id, target.id);
 
-    await actionReport(report.id, "SUSPENDED", { suspensionHours: 24, skipThreshold: true });
+    await actionReport(report.id, mod.id, "SUSPENDED", { suspensionHours: 24, skipThreshold: true });
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
     expect(updated.status).toBe(UserStatus.BANNED);

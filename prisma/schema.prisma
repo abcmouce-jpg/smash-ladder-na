@@ -81,6 +81,17 @@ enum ReportStatus {
   ACTIONED
 }
 
+// What a mod actually decided when moving a report (or a whole batch of a
+// player's open reports — see actionReport's "close out every other open
+// report too") to ACTIONED. Recorded verbatim as the mod's choice at the
+// time, even in the rare case the player's live status didn't actually
+// change (e.g. already BANNED and a new report is actioned as SUSPENDED) —
+// this is a history of decisions, not a live-derived value.
+enum ConductAction {
+  SUSPENDED
+  BANNED
+}
+
 enum TournamentStatus {
   SIGNUPS
   IN_PROGRESS
@@ -196,6 +207,7 @@ model User {
   matchComments             MatchComment[]
   reportsFiled              ConductReport[]    @relation("ReportsFiled")
   reportsReceived           ConductReport[]    @relation("ReportsReceived")
+  reportsActioned           ConductReport[]    @relation("ReportsActioned")
   seasonStandings           SeasonStanding[]
   tournamentsHosted         Tournament[]
   tournamentEntries         TournamentEntry[]
@@ -407,6 +419,14 @@ model ConductReport {
   reason         String
   status         ReportStatus @default(OPEN)
   createdAt      DateTime     @default(now())
+
+  // Disposition — set together, only once status moves to ACTIONED (see
+  // actionReport/moderateUserDirectly). Null for OPEN/DISMISSED reports.
+  actionTaken           ConductAction?
+  actionedById          String?
+  actionedBy            User?          @relation("ReportsActioned", fields: [actionedById], references: [id], onDelete: SetNull)
+  actionedAt            DateTime?
+  actionSuspensionHours Int? // only meaningful when actionTaken = SUSPENDED; null means indefinite
 
   @@index([reportedUserId])
   @@index([status])
