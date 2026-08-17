@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { setAudioPingOnMatch, setAvoidPracticeOpponents, setUsername } from "@/lib/account";
+import { setAudioPingOnMatch, setAvoidPracticeOpponents, setMatchFoundSound, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
 import { sendTestPushToUser } from "@/lib/push-server";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
@@ -48,6 +48,13 @@ export async function updateAvoidPracticeOpponentsSetting(avoid: boolean) {
 export async function updateAudioPingOnMatchSetting(enabled: boolean) {
   const userId = await requireUserId();
   await setAudioPingOnMatch(userId, enabled);
+  revalidatePath("/settings");
+  revalidatePath("/lobby");
+}
+
+export async function updateMatchFoundSoundSetting(sound: "CHIME" | "ANNOUNCER") {
+  const userId = await requireUserId();
+  await setMatchFoundSound(userId, sound);
   revalidatePath("/settings");
   revalidatePath("/lobby");
 }

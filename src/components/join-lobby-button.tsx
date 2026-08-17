@@ -56,17 +56,15 @@ export function JoinLobbyForm({
             : "As long as your opponent doesn't also bring one, you'll be host and they'll see this right away."}
         </span>
       </label>
-      <Button type="submit" disabled={isPending} className="mt-2">
-        {isPending ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            {lang === "es" ? "Buscando rival…" : "Searching for an opponent…"}
-          </>
-        ) : lang === "es" ? (
-          "Buscar nuevo rival"
-        ) : (
-          "Search for New Opponent"
-        )}
+      <Button type="submit" size="lg" className="text-2xl mt-3 px-12 py-6" disabled={isPending}>
+        {isPending && (
+          <Loader2 className="size-4 animate-spin" />
+        )}{
+          lang === "es" ? (
+            "Buscar partida"
+          ) : (
+            "Find Match"
+          )}
       </Button>
       {state.error && <p className="mt-2 text-sm text-destructive">{state.error}</p>}
     </form>

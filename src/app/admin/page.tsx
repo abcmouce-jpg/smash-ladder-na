@@ -159,6 +159,9 @@ export default async function AdminOverviewPage() {
         <Link href="/admin/seasons" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Seasons →
         </Link>
+        <Link href="/admin/analytics" className="text-muted-foreground hover:text-foreground hover:underline">
+          Go to Analytics →
+        </Link>
         <Link
           href="/api/admin/players-export"
           className="text-muted-foreground hover:text-foreground hover:underline"

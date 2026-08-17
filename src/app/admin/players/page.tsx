@@ -2,10 +2,12 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { auth } from "@/auth";
 import { searchPlayersForAdmin } from "@/lib/admin-players";
+import { canManageRoles } from "@/lib/roles";
+import { RoleSelect } from "@/components/admin/role-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { setSupporter } from "./actions";
+import { reinstate, setRoleFromForm, setSupporter } from "./actions";
 
 export default async function AdminPlayersPage({
   searchParams,
@@ -25,6 +27,8 @@ export default async function AdminPlayersPage({
       </main>
     );
   }
+
+  const canEditRoles = canManageRoles(session.user.id);
 
   const { q, page: pageParam } = await searchParams;
   const query = q ?? "";
@@ -64,7 +68,12 @@ export default async function AdminPlayersPage({
       </form>
 
       <Card className="mt-6 overflow-hidden py-0">
-        <table className="w-full text-left text-sm">
+        {/* Horizontally scrollable rather than squeezed — 8 columns
+            (including the role picker) don't fit a phone screen, and
+            shrinking them down would make the role select (and its native
+            OS picker) fiddly to tap accurately. */}
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
               <th className="py-2 pl-4 font-medium">Player</th>
@@ -73,6 +82,7 @@ export default async function AdminPlayersPage({
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
               <th className="py-2 font-medium text-right tabular-nums">Sets</th>
               <th className="py-2 font-medium text-center">Ad-free</th>
+              {canEditRoles && <th className="py-2 font-medium">Role</th>}
               <th className="py-2 pr-4 font-medium text-right">Joined</th>
             </tr>
           </thead>
@@ -93,9 +103,16 @@ export default async function AdminPlayersPage({
                   {player.status === "ACTIVE" ? (
                     <span className="text-muted-foreground">active</span>
                   ) : (
-                    <Badge variant="destructive" className="text-xs">
-                      {player.status.toLowerCase()}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="destructive" className="text-xs">
+                        {player.status.toLowerCase()}
+                      </Badge>
+                      <form action={reinstate.bind(null, player.id)}>
+                        <Button type="submit" size="sm" variant="outline" className="h-6 px-2 text-xs">
+                          Reinstate
+                        </Button>
+                      </form>
+                    </div>
                   )}
                 </td>
                 <td className="py-2 text-muted-foreground">{player.region ?? "—"}</td>
@@ -115,6 +132,13 @@ export default async function AdminPlayersPage({
                     </Button>
                   </form>
                 </td>
+                {canEditRoles && (
+                  <td className="py-2">
+                    <form action={setRoleFromForm.bind(null, player.id)}>
+                      <RoleSelect currentRole={player.role} />
+                    </form>
+                  </td>
+                )}
                 <td className="py-2 pr-4 text-right text-xs text-muted-foreground">
                   {player.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })}
                 </td>
@@ -122,6 +146,7 @@ export default async function AdminPlayersPage({
             ))}
           </tbody>
         </table>
+        </div>
 
         {players.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">

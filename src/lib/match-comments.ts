@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { UserRole } from "@/generated/prisma/enums";
 import { translateText } from "@/lib/translate";
 import type { Lang } from "@/lib/i18n";
 
@@ -17,7 +18,7 @@ export async function listMatchComments(userId: string, matchId: string) {
       where: { matchId },
       orderBy: { createdAt: "asc" },
       include: {
-        author: { select: { id: true, username: true, avatarUrl: true } },
+        author: { select: { id: true, username: true, avatarUrl: true, role: true } },
         translations: true,
       },
     }),
@@ -32,7 +33,7 @@ export async function listMatchComments(userId: string, matchId: string) {
 }
 
 type CommentWithAuthor = Awaited<ReturnType<typeof prisma.matchComment.findMany>>[number] & {
-  author: { id: string; username: string; avatarUrl: string | null };
+  author: { id: string; username: string; avatarUrl: string | null; role: UserRole };
   translations: { lang: string; body: string }[];
 };
 
@@ -109,7 +110,7 @@ export async function listMatchCommentsAsMod(matchId: string) {
   return prisma.matchComment.findMany({
     where: { matchId },
     orderBy: { createdAt: "asc" },
-    include: { author: { select: { id: true, username: true, avatarUrl: true } } },
+    include: { author: { select: { id: true, username: true, avatarUrl: true, role: true } } },
   });
 }
 

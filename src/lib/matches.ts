@@ -13,15 +13,39 @@ import { recomputeCharacterUsage } from "@/lib/character-stats";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 
+// Free cancel is blocked for this long after a match is created, giving the
+// opponent a moment to actually show up before the other side can bail —
+// otherwise a fast-fingered player could cancel before the other side's
+// client has even rendered the match, making pairing feel like a coin flip.
+// Doesn't apply once the opponent has engaged (hasOpponentEngaged already
+// forces Surrender by then) or once the deadline itself has passed.
+export const CANCEL_GRACE_PERIOD_SECONDS = 20;
+
 // Used as `include`, which already returns every scalar column (leftAt,
 // rematchRequestedAt, etc.) by default — no need to list them here, and
 // doing so breaks the query since `include` only accepts relation fields.
 export const matchWithPlayers = {
   player1: {
-    select: { id: true, username: true, avatarUrl: true, rating: true, region: true, arenaPassword: true },
+    select: {
+      id: true,
+      username: true,
+      avatarUrl: true,
+      rating: true,
+      region: true,
+      arenaPassword: true,
+      zenMode: true,
+    },
   },
   player2: {
-    select: { id: true, username: true, avatarUrl: true, rating: true, region: true, arenaPassword: true },
+    select: {
+      id: true,
+      username: true,
+      avatarUrl: true,
+      rating: true,
+      region: true,
+      arenaPassword: true,
+      zenMode: true,
+    },
   },
 } as const;
 
@@ -148,6 +172,11 @@ export async function cancelMatch(userId: string, matchId: string) {
     throw new Error(
       "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
     );
+  }
+
+  const cancelReadyAt = match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000;
+  if (Date.now() < cancelReadyAt) {
+    throw new Error("Give your opponent a moment to show up — you can cancel in a few seconds.");
   }
 
   const [, updatedUser] = await prisma.$transaction([
@@ -703,6 +732,104 @@ export async function adminOverrideMatchResult(matchId: string, winnerId: string
     }
     await assertCorrectable(tx, match, winnerId);
     await applyCorrection(tx, match, winnerId);
+  });
+}
+
+// Escape hatch for a CONFIRMED match that fails assertCorrectable's recency
+// check — i.e. one or both players have already had a newer match confirmed
+// since, so a full reverse-and-reapply (applyCorrection) can't run without
+// rippling through every match built on top of this one's rating change,
+// which nothing here attempts. Instead of a true replay, this applies a
+// one-time relative adjustment: this match's original rating delta for each
+// player (from its own stored before/after) gets negated twice — once to
+// undo it, once more to apply the opposite outcome — and that combined
+// delta is applied against each player's CURRENT rating rather than
+// overwriting it outright. This is an approximation (doesn't correct the
+// K-factor tier or expected-score baseline any match since would have used
+// under the corrected history) but is deliberately simple, and never
+// discards rating progress from matches since the way a naive replay of
+// applyCorrection's stored before/after would.
+export async function adminCorrectOldMatchResult(matchId: string, winnerId: string) {
+  await prisma.$transaction(async (tx) => {
+    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+    if (!match) throw new Error("Match not found");
+    if (match.status !== MatchStatus.CONFIRMED) {
+      throw new Error("Only a confirmed match's result can be corrected");
+    }
+    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+      throw new Error("Winner must be one of the two players");
+    }
+    if (winnerId === match.reportedWinnerId) {
+      throw new Error("This match already has that winner recorded");
+    }
+    if (
+      match.player1RatingBefore === null ||
+      match.player1RatingAfter === null ||
+      match.player2RatingBefore === null ||
+      match.player2RatingAfter === null
+    ) {
+      throw new Error("This match has no recorded rating change to reverse");
+    }
+
+    const p1OriginalDelta = match.player1RatingAfter - match.player1RatingBefore;
+    const p2OriginalDelta = match.player2RatingAfter - match.player2RatingBefore;
+
+    const [p1, p2] = await Promise.all([
+      tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
+      tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
+    ]);
+    const p1NewRating = Math.round(p1.rating - 2 * p1OriginalDelta);
+    const p2NewRating = Math.round(p2.rating - 2 * p2OriginalDelta);
+
+    await tx.ratingMatch.update({
+      where: { id: matchId },
+      data: {
+        reportedWinnerId: winnerId,
+        secondReportWinnerId: winnerId,
+        confirmationMethod: ConfirmationMethod.CORRECTED,
+      },
+    });
+    // Keeps the per-game log consistent with the new overall winner — every
+    // game's recorded winner flips to the other player, same as reversing
+    // the outcome of each individual game this set was made of. IDs are
+    // snapshotted before either write so the two updateManys below don't
+    // see (and re-flip) rows the other one just touched.
+    const games = await tx.matchGame.findMany({
+      where: { matchId, winnerId: { in: [match.player1Id, match.player2Id] } },
+      select: { id: true, winnerId: true },
+    });
+    const p1WonGameIds = games.filter((g) => g.winnerId === match.player1Id).map((g) => g.id);
+    const p2WonGameIds = games.filter((g) => g.winnerId === match.player2Id).map((g) => g.id);
+    await tx.matchGame.updateMany({
+      where: { id: { in: p1WonGameIds } },
+      data: { winnerId: match.player2Id },
+    });
+    await tx.matchGame.updateMany({
+      where: { id: { in: p2WonGameIds } },
+      data: { winnerId: match.player1Id },
+    });
+
+    await tx.user.update({ where: { id: p1.id }, data: { rating: p1NewRating } });
+    await tx.user.update({ where: { id: p2.id }, data: { rating: p2NewRating } });
+
+    await tx.ratingHistory.createMany({
+      data: [
+        {
+          userId: p1.id,
+          matchId: match.id,
+          ratingBefore: p1.rating,
+          ratingAfter: p1NewRating,
+          delta: p1NewRating - p1.rating,
+        },
+        {
+          userId: p2.id,
+          matchId: match.id,
+          ratingBefore: p2.rating,
+          ratingAfter: p2NewRating,
+          delta: p2NewRating - p2.rating,
+        },
+      ],
+    });
   });
 }
 

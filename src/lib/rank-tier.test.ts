@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { getRankTier, didTierUp, rankTierRatingRange, pointsToNextTier, RANK_TIERS } from "./rank-tier";
+import {
+  getRankTier,
+  didTierUp,
+  rankTierRatingRange,
+  pointsToNextTier,
+  RANK_TIERS,
+  achievementComparator,
+  type Achievement,
+} from "./rank-tier";
 
 describe("getRankTier", () => {
   it("returns null for provisional players (< 10 games)", () => {
@@ -117,5 +125,69 @@ describe("RANK_TIERS", () => {
     for (const tier of RANK_TIERS) {
       expect(tier.description.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("achievementComparator", () => {
+  const achievement = (id: string, achieved: boolean): Achievement => ({
+    id,
+    label: id,
+    description: id,
+    achieved,
+  });
+
+  it("returns 0 for two achieved achievements", () => {
+    expect(achievementComparator(achievement("a", true), achievement("b", true))).toBe(0);
+  });
+
+  it("returns 0 for two unachieved achievements", () => {
+    expect(achievementComparator(achievement("a", false), achievement("b", false))).toBe(0);
+  });
+
+  it("sorts an achieved achievement before an unachieved one", () => {
+    expect(achievementComparator(achievement("a", true), achievement("b", false))).toBeLessThan(0);
+    expect(achievementComparator(achievement("a", false), achievement("b", true))).toBeGreaterThan(0);
+  });
+
+  it("moves achieved achievements to the front when sorting", () => {
+    const list = [
+      achievement("locked-1", false),
+      achievement("locked-2", false),
+      achievement("earned-1", true),
+      achievement("locked-3", false),
+      achievement("earned-2", true),
+    ];
+
+    const sorted = [...list].sort(achievementComparator);
+
+    expect(sorted.map((a) => a.id)).toEqual(["earned-1", "earned-2", "locked-1", "locked-2", "locked-3"]);
+  });
+
+  it("preserves relative order within each group instead of reversing it", () => {
+    // Regression test: an earlier version returned -1 (never 0) whenever
+    // a.achieved === b.achieved, which is an inconsistent comparator and
+    // reversed same-group elements instead of leaving them in place.
+    const list = [
+      achievement("earned-1", true),
+      achievement("earned-2", true),
+      achievement("earned-3", true),
+      achievement("locked-1", false),
+      achievement("locked-2", false),
+      achievement("locked-3", false),
+    ];
+
+    const sorted = [...list].sort(achievementComparator);
+
+    expect(sorted.map((a) => a.id)).toEqual(list.map((a) => a.id));
+  });
+
+  it("leaves an all-achieved list untouched", () => {
+    const list = [achievement("a", true), achievement("b", true), achievement("c", true)];
+    expect([...list].sort(achievementComparator).map((a) => a.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("leaves an all-unachieved list untouched", () => {
+    const list = [achievement("a", false), achievement("b", false), achievement("c", false)];
+    expect([...list].sort(achievementComparator).map((a) => a.id)).toEqual(["a", "b", "c"]);
   });
 });

@@ -4,10 +4,15 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type Comment = {
   id: string;
-  author: { username: string };
+  author: { username: string; role?: "USER" | "MOD" | "ADMIN" };
   body: string;
   translatedBody?: string | null;
   createdAt: string; // ISO string from server
+};
+
+const ROLE_LABEL_CLASS: Record<string, string> = {
+  MOD: "text-blue-600 dark:text-blue-400",
+  ADMIN: "text-amber-600 dark:text-amber-400",
 };
 
 function formatTime(iso: string) {
@@ -81,9 +86,17 @@ function ChatMessage({ comment }: { comment: Comment }) {
   const hasTranslation = !!comment.translatedBody && comment.translatedBody !== comment.body;
   const displayBody = hasTranslation && !showOriginal ? comment.translatedBody! : comment.body;
 
+  const roleClass = comment.author.role ? ROLE_LABEL_CLASS[comment.author.role] : undefined;
+
   return (
     <li className="text-sm leading-relaxed break-words">
-      <span className="font-medium">{comment.author.username}:</span>{" "}
+      <span className={`font-medium ${roleClass ?? ""}`}>{comment.author.username}</span>
+      {roleClass && (
+        <span className="ml-1 rounded bg-muted px-1 py-px align-middle text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+          {comment.author.role}
+        </span>
+      )}
+      :{" "}
       <span className="whitespace-pre-wrap">{displayBody}</span>
       <span className="ml-1.5 whitespace-nowrap text-[10px] text-muted-foreground/60">
         {formatTime(comment.createdAt)}

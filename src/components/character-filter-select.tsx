@@ -25,7 +25,7 @@ export function CharacterFilterSelect({
         key={defaultValue}
         name="character"
         defaultValue={defaultValue}
-        placeholder={lang === "es" ? "Todos los jugadores" : "All players"}
+        placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
         clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
         className={className}
       />

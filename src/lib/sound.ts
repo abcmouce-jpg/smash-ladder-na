@@ -2,10 +2,10 @@
 
 // Synthesized rather than audio files — no asset to ship, and these are
 // tiny chimes, not worth a licensed sound effect for. The one exception is
-// the match-found sound further down, which plays supplied voice clips
-// instead. Best-effort only either way: browsers can block autoplay audio
-// outside a direct user gesture, so a rejected play() must never throw into
-// the caller.
+// the match-found announcer clips further down, which plays supplied voice
+// clips instead. Best-effort only either way: browsers can block autoplay
+// audio outside a direct user gesture, so a rejected play() must never
+// throw into the caller.
 
 // A fresh AudioContext created outside a user gesture starts (and stays)
 // "suspended" in Chrome/Safari — exactly what happens when a chime fires
@@ -40,6 +40,10 @@ function getContext(): AudioContext | null {
     return null;
   }
 }
+
+// Which sound plays when a match is found — the player's pick in Settings
+// (User.matchFoundSound). Values match the Prisma enum of the same name.
+export type MatchFoundSound = "CHIME" | "ANNOUNCER";
 
 // Real voice clips for the match-found moment specifically (the exception
 // noted above) — picked at random in playMatchFoundSound so repeat queues
@@ -109,7 +113,27 @@ export function playVictoryChime() {
   }
 }
 
-export function playMatchFoundSound() {
+// The original match-found sound, restored for players who preferred it to
+// the announcer clips: a short two-note chime, synthesized so it needs no
+// asset. Kept as a module-private helper — playMatchFoundSound dispatches
+// to it for the "CHIME" setting.
+function playMatchFoundChime() {
+  const ctx = getContext();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    playTone(ctx, 587, now, 0.12, 0.5);
+    playTone(ctx, 740, now + 0.1, 0.2, 0.5);
+  } catch {
+    // Autoplay restrictions, unsupported browser, etc. — silently skip.
+  }
+}
+
+export function playMatchFoundSound(style: MatchFoundSound) {
+  if (style === "CHIME") {
+    playMatchFoundChime();
+    return;
+  }
   const clip = MATCH_FOUND_CLIPS[Math.floor(Math.random() * MATCH_FOUND_CLIPS.length)];
   new Audio(clip).play().catch(() => {
     // Autoplay restrictions, unsupported browser, etc. — silently skip.

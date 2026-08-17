@@ -113,6 +113,11 @@ enum PostStatus {
   EXPIRED
 }
 
+enum MatchFoundSound {
+  CHIME // the original synthesized two-note chime (playMatchFoundChime in lib/sound.ts)
+  ANNOUNCER // the Smash announcer voice clips (the match-found sound as of PR #94)
+}
+
 // One-directional: A blocking B doesn't imply B blocked A. Matchmaking treats
 // a block as mutual either way (neither side should get paired with someone
 // who blocked them, whether or not they know about it), but only the blocker
@@ -130,55 +135,56 @@ model Block {
 }
 
 model User {
-  id                     String     @id @default(cuid())
-  discordId              String     @unique
-  username               String
-  discordUsername        String? // Discord's current display name, re-synced on every sign-in — independent of `username` (self-editable on this site) so a player's original/current Discord identity stays visible even after renaming here. Null for dev-credentials accounts, which have no real Discord profile.
-  avatarUrl              String?
-  email                  String?    @unique
-  rating                 Int        @default(1500)
-  gamesPlayed            Int        @default(0) // drives isProvisional + K-factor tier
-  noShowCount            Int        @default(0)
-  cancelCount            Int        @default(0)
-  queueCooldownUntil     DateTime? // set on an AFK/no-show forfeit (see applyTimeoutCooldown) — blocks joinLobbyAndTryPair until this passes
-  recentTimeoutCount     Int        @default(0) // escalates the next cooldown; reset to 0 if lastTimeoutAt is older than the reset window
-  lastTimeoutAt          DateTime? // when recentTimeoutCount was last bumped — determines whether the next timeout resets or escalates it
-  misconductScore        Int        @default(0) // bumped only when a mod actions a ConductReport, not on filing
-  suspendedUntil         DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
-  lastKnownIp            String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)
-  lastSignInAt           DateTime? // set only in auth.ts's signIn callback — unlike updatedAt (bumped by any write: rating changes, admin backfills, etc.), this is the one field that only ever reflects an actual sign-in, so it's what "Active in last 24h" on the admin overview keys off of
-  mainCharacter          String? // auto-computed from real play by recomputeCharacterUsage — powers the character-filtered leaderboard and /characters index; display elsewhere reads live usage instead (see getCharacterUsage)
-  secondaryCharacters    String[]   @default([]) // same source as mainCharacter
-  region                 String? // self-declared match region; drives distance-based matchmaking
-  preferredLanguage      String? // "es" or null (English, the default) — only controls which landing page ("/" vs "/es") a signed-in visit to "/" bounces to; the rest of the site has no Spanish translation yet, so this isn't a general i18n switch
-  maxMatchDistanceKm     Int?       @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
-  maxRatingGap           Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
-  rematchCooldownHours   Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
-  wiredConnection        Boolean    @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
-  requireWiredOpponent   Boolean    @default(false) // if set, only match with opponents who have wiredConnection on. Checked per-side against the OTHER side's actual wiredConnection fact — not symmetric like distance/rating gap, since this is a claim about the other person, not a shared value.
-  arenaPassword          String? // self-declared in-game room password override; null means use the ladder-wide default (see DEFAULT_ARENA_PASSWORD in lib/arena.ts). Lets streamers keep theirs off a publicly-documented value.
-  practiceRating         Int        @default(1500) // separate Elo track for matches joined with isPracticing — never touches `rating`/`gamesPlayed`
-  practiceGamesPlayed    Int        @default(0)
-  avoidPracticeOpponents Boolean    @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
-  zenMode                Boolean    @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
-  audioPingOnMatch       Boolean    @default(true) // self-declared; LobbyPoller's playMatchFoundChime (lib/sound.ts) only fires while this is on. Defaults true — matches the chime's original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
-  startggUserId          String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
-  startggPlayerId        String? // start.gg's player id (currentUser.player.id) — distinct from the user id above; supermajor.gg profile links (?id=S...) key off this one
-  startggSlug            String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
-  startggGamerTag        String? // display tag from start.gg's player object, if the account has one
-  startggConnectedAt     DateTime?
-  twitchUserId           String?    @unique // set via OAuth in lib/twitch-oauth.ts
-  twitchUsername         String? // Twitch login name (lowercase)
-  twitchDisplayName      String? // Twitch display name
-  twitchProfileImageUrl  String? // Twitch profile image URL
-  twitchConnectedAt      DateTime?
-  role                   UserRole   @default(USER)
-  isSupporter            Boolean    @default(false) // manually flagged by an admin (see admin/players) — hides AdSense ads for this account. No payment processing wired up yet; this is a bare flag.
-  status                 UserStatus @default(ACTIVE)
-  referredById           String? // set once, at account creation only (see auth.ts's signIn callback) — who this player's ?ref= link/cookie pointed at when they first signed up. Never touched again afterward.
-  referredBy             User?      @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
+  id                   String     @id @default(cuid())
+  discordId            String     @unique
+  username             String
+  discordUsername      String? // Discord's current display name, re-synced on every sign-in — independent of `username` (self-editable on this site) so a player's original/current Discord identity stays visible even after renaming here. Null for dev-credentials accounts, which have no real Discord profile.
+  avatarUrl            String?
+  email                String?    @unique
+  rating               Int        @default(1500)
+  gamesPlayed          Int        @default(0) // drives isProvisional + K-factor tier
+  noShowCount          Int        @default(0)
+  cancelCount          Int        @default(0)
+  queueCooldownUntil   DateTime? // set on an AFK/no-show forfeit (see applyTimeoutCooldown) — blocks joinLobbyAndTryPair until this passes
+  recentTimeoutCount   Int        @default(0) // escalates the next cooldown; reset to 0 if lastTimeoutAt is older than the reset window
+  lastTimeoutAt        DateTime? // when recentTimeoutCount was last bumped — determines whether the next timeout resets or escalates it
+  misconductScore      Int        @default(0) // bumped only when a mod actions a ConductReport, not on filing
+  suspendedUntil       DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
+  lastKnownIp          String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)
+  lastSignInAt         DateTime? // set only in auth.ts's signIn callback — unlike updatedAt (bumped by any write: rating changes, admin backfills, etc.), this is the one field that only ever reflects an actual sign-in, so it's what "Active in last 24h" on the admin overview keys off of
+  mainCharacter        String? // auto-computed from real play by recomputeCharacterUsage — powers the character-filtered leaderboard and /characters index; display elsewhere reads live usage instead (see getCharacterUsage)
+  secondaryCharacters  String[]   @default([]) // same source as mainCharacter
+  region               String? // self-declared match region; drives distance-based matchmaking
+  preferredLanguage    String? // "es" or null (English, the default) — only controls which landing page ("/" vs "/es") a signed-in visit to "/" bounces to; the rest of the site has no Spanish translation yet, so this isn't a general i18n switch
+  maxMatchDistanceKm   Int?       @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
+  maxRatingGap         Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
+  rematchCooldownHours Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
+  wiredConnection      Boolean    @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
+  requireWiredOpponent Boolean    @default(false) // if set, only match with opponents who have wiredConnection on. Checked per-side against the OTHER side's actual wiredConnection fact — not symmetric like distance/rating gap, since this is a claim about the other person, not a shared value.
+  arenaPassword        String? // self-declared in-game room password override; null means use the ladder-wide default (see DEFAULT_ARENA_PASSWORD in lib/arena.ts). Lets streamers keep theirs off a publicly-documented value.
+  practiceRating          Int     @default(1500) // separate Elo track for matches joined with isPracticing — never touches `rating`/`gamesPlayed`
+  practiceGamesPlayed     Int     @default(0)
+  avoidPracticeOpponents  Boolean @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
+  zenMode                Boolean @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
+  audioPingOnMatch        Boolean @default(true) // self-declared master switch; LobbyPoller's playMatchFoundSound (lib/sound.ts) only fires while this is on. Defaults true — matches the original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
+  matchFoundSound         MatchFoundSound @default(CHIME) // which sound the ping above plays: the original synthesized chime or the announcer voice clips. Defaults CHIME — the original match-found sound before PR #94 replaced it with announcer clips.
+  startggUserId        String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
+  startggPlayerId      String? // start.gg's player id (currentUser.player.id) — distinct from the user id above; supermajor.gg profile links (?id=S...) key off this one
+  startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
+  startggGamerTag      String? // display tag from start.gg's player object, if the account has one
+  startggConnectedAt   DateTime?
+  twitchUserId          String?    @unique // set via OAuth in lib/twitch-oauth.ts
+  twitchUsername        String? // Twitch login name (lowercase)
+  twitchDisplayName     String? // Twitch display name
+  twitchProfileImageUrl String? // Twitch profile image URL
+  twitchConnectedAt     DateTime?
+  role                 UserRole   @default(USER)
+  isSupporter          Boolean    @default(false) // manually flagged by an admin (see admin/players) — hides AdSense ads for this account. No payment processing wired up yet; this is a bare flag.
+  status               UserStatus @default(ACTIVE)
+  referredById         String? // set once, at account creation only (see auth.ts's signIn callback) — who this player's ?ref= link/cookie pointed at when they first signed up. Never touched again afterward.
+  referredBy           User?      @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
   accounts                  Account[]
   sessions                  Session[]

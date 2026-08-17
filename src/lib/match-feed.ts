@@ -24,6 +24,31 @@ const feedPlayerSelect = {
 
 export type MatchFeedEntry = Awaited<ReturnType<typeof getMatchFeed>>[number];
 
+// Character shown next to a player's name on the feed: the one they're
+// playing (or last played) in THIS set, taken from the newest game with a
+// locked pick — not the all-time mainCharacter on their profile. Falls back
+// to the profile main only while game 1's blind picks are still pending and
+// no character has been recorded yet.
+function characterForPlayer(
+  games: {
+    gameNumber: number;
+    actorAId: string;
+    actorACharacter: string | null;
+    actorBId: string;
+    actorBCharacter: string | null;
+  }[],
+  playerId: string,
+  fallback: string | null,
+) {
+  const newestFirst = [...games].sort((a, b) => b.gameNumber - a.gameNumber);
+  for (const game of newestFirst) {
+    const character =
+      game.actorAId === playerId ? game.actorACharacter : game.actorBId === playerId ? game.actorBCharacter : null;
+    if (character) return character;
+  }
+  return fallback;
+}
+
 // Public-safe feed of in-progress and recently-finished sets — no room
 // codes or arena passwords (see roomCode's own "never rendered outside the
 // paired pair's own view" comment in schema.prisma), just what's already
@@ -54,7 +79,16 @@ export async function getMatchFeed() {
       reportedWinnerId: true,
       player1: { select: feedPlayerSelect },
       player2: { select: feedPlayerSelect },
-      games: { select: { winnerId: true } },
+      games: {
+        select: {
+          gameNumber: true,
+          winnerId: true,
+          actorAId: true,
+          actorACharacter: true,
+          actorBId: true,
+          actorBCharacter: true,
+        },
+      },
     },
   });
 
@@ -81,7 +115,21 @@ export async function getMatchFeed() {
     const player2Live =
       isInProgress && !!match.player2.twitchUsername && liveUsernames.has(match.player2.twitchUsername.toLowerCase());
 
-    return { ...match, wins, player1Live, player2Live, hasLiveStreamer: player1Live || player2Live };
+    return {
+      ...match,
+      player1: {
+        ...match.player1,
+        currentCharacter: characterForPlayer(match.games, match.player1.id, match.player1.mainCharacter),
+      },
+      player2: {
+        ...match.player2,
+        currentCharacter: characterForPlayer(match.games, match.player2.id, match.player2.mainCharacter),
+      },
+      wins,
+      player1Live,
+      player2Live,
+      hasLiveStreamer: player1Live || player2Live,
+    };
   });
 
   entries.sort((a, b) => Number(b.hasLiveStreamer) - Number(a.hasLiveStreamer));

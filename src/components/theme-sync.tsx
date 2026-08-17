@@ -10,10 +10,15 @@ import { applyTheme, getStoredTheme } from "@/lib/theme";
 // anything later forces React to touch <html> (e.g. a hydration mismatch
 // elsewhere on the page triggering a recovery re-render) the class can get
 // silently dropped with nothing to reapply it. This re-syncs on mount to
-// close that gap.
+// close that gap, and re-applies whenever the OS preference changes so an
+// "auto" selection follows the browser live.
 export function ThemeSync() {
   useEffect(() => {
-    applyTheme(getStoredTheme());
+    const apply = () => applyTheme(getStoredTheme());
+    apply();
+    const mq = matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
   }, []);
   return null;
 }

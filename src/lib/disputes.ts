@@ -409,3 +409,51 @@ export async function adminCancelMatch(matchId: string) {
     }, TX_OPTIONS),
   );
 }
+
+// adminCancelMatch's counterpart for a CONFIRMED match that's no longer
+// eligible for it (isMostRecentConfirmedMatch fails — newer matches already
+// built on this one's rating change for one or both players). Same
+// relative-delta approach as adminCorrectOldMatchResult in matches.ts:
+// negates this match's own original delta against each player's CURRENT
+// rating rather than reverting to the stored pre-match rating outright,
+// which would erase progress from every match since. gamesPlayed and
+// RatingHistory are still fully reverted — those are exact regardless of
+// what's happened since, unlike rating.
+export async function adminUndoOldMatch(matchId: string) {
+  return withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+      if (!match) throw new Error("Match not found");
+      if (match.status !== MatchStatus.CONFIRMED) {
+        throw new Error("Only a confirmed match can be undone this way");
+      }
+      if (
+        match.player1RatingBefore === null ||
+        match.player1RatingAfter === null ||
+        match.player2RatingBefore === null ||
+        match.player2RatingAfter === null
+      ) {
+        throw new Error("This match is missing its rating change and can't be safely reverted");
+      }
+
+      const p1Delta = match.player1RatingAfter - match.player1RatingBefore;
+      const p2Delta = match.player2RatingAfter - match.player2RatingBefore;
+
+      const [p1, p2] = await Promise.all([
+        tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
+        tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
+      ]);
+
+      await tx.user.update({
+        where: { id: p1.id },
+        data: { rating: Math.round(p1.rating - p1Delta), gamesPlayed: { decrement: 1 } },
+      });
+      await tx.user.update({
+        where: { id: p2.id },
+        data: { rating: Math.round(p2.rating - p2Delta), gamesPlayed: { decrement: 1 } },
+      });
+      await tx.ratingHistory.deleteMany({ where: { matchId } });
+      await tx.ratingMatch.update({ where: { id: matchId }, data: { status: MatchStatus.CANCELLED } });
+    }, TX_OPTIONS),
+  );
+}

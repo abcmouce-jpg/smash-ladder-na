@@ -32,6 +32,7 @@ export function OptionSelect({
   searchable = false,
   searchPlaceholder = "Search…",
   autoSubmit = false,
+  onChange,
 }: {
   name: string;
   defaultValue?: string;
@@ -57,6 +58,10 @@ export function OptionSelect({
    *  requestSubmit() picks up the new selection rather than racing ahead of
    *  it. */
   autoSubmit?: boolean;
+  /** Fired with the picked value the moment an option is chosen (including
+   *  the clear option, with ""), for callers that need to react to the
+   *  selection — e.g. a preview button that plays the chosen sound. */
+  onChange?: (value: string) => void;
 }) {
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
@@ -98,7 +103,8 @@ export function OptionSelect({
     setValue(next);
     setOpen(false);
     setQuery("");
-  }, []);
+    onChange?.(next);
+  }, [onChange]);
 
   // Only fires on a genuine change after mount — not for the initial
   // defaultValue, and not for remounts via the `key` prop callers use to

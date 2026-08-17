@@ -167,6 +167,12 @@ export async function setAudioPingOnMatch(userId: string, audioPingOnMatch: bool
   await prisma.user.update({ where: { id: userId }, data: { audioPingOnMatch } });
 }
 
+// Which sound that ping plays while audioPingOnMatch is on — the original
+// synthesized chime or the announcer voice clips. See User.matchFoundSound.
+export async function setMatchFoundSound(userId: string, matchFoundSound: "CHIME" | "ANNOUNCER") {
+  await prisma.user.update({ where: { id: userId }, data: { matchFoundSound } });
+}
+
 // Only controls which landing page ("/" vs "/es") a signed-in visit to "/"
 // bounces to — see the field's own comment in schema.prisma. `null` means
 // English (the default); anything else falls back to English too, so a

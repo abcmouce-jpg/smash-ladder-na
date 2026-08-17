@@ -19,7 +19,7 @@ import {
 } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
-import { computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
+import { achievementComparator, computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
@@ -38,8 +38,10 @@ import { isBlockedByMe } from "@/lib/blocks";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { listReportsForUser } from "@/lib/reports";
 import {
+  adminCorrectOldResultAction,
   adminOverrideResultAction,
   adminUndoMatchAction,
+  adminUndoOldMatchAction,
   banPlayerIpAction,
   blockUserAction,
   deleteAccountAction,
@@ -158,7 +160,7 @@ export default async function PlayerProfilePage({
     realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
-  const achievements = [...computeAchievements(careerStats), ...matchAchievements];
+  const achievements = [...computeAchievements(careerStats), ...matchAchievements].sort(achievementComparator);
   const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
 
   return (
@@ -177,10 +179,27 @@ export default async function PlayerProfilePage({
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
               {player.username}
+              {player.role !== "USER" && (
+                <Badge variant={player.role === "ADMIN" ? "warning" : "secondary"} className="text-xs">
+                  {player.role.toLowerCase()}
+                </Badge>
+              )}
+              {player.isSupporter && (
+                <Badge variant="success" className="text-xs">
+                  {lang === "es" ? "💖 Patrocinador" : "💖 Supporter"}
+                </Badge>
+              )}
               <CharacterUsageIcons usage={characterUsage} />
             </h1>
             {player.discordUsername && player.discordUsername !== player.username && (
               <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
+            )}
+            {player.isSupporter && (
+              <p className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? `${player.username} ha donado para apoyar Smash Ladder NA — ¡gracias!`
+                  : `${player.username} has donated to support Smash Ladder NA — thank you!`}
+              </p>
             )}
             <p className="text-sm tabular-nums text-muted-foreground">
               {lang === "es"
@@ -526,6 +545,23 @@ export default async function PlayerProfilePage({
                     actionForPlayer1={adminOverrideResultAction.bind(null, match.id, id, id)}
                     actionForPlayer2={adminOverrideResultAction.bind(null, match.id, id, match.opponent.id)}
                     undoAction={adminUndoMatchAction.bind(null, match.id, id)}
+                  />
+                )}
+                {isModerator && !isOwnProfile && match.id !== mostRecentRealMatchId && (
+                  // Same tool, for a match the player has since queued past —
+                  // adminOverrideResultAction/adminUndoMatchAction require this
+                  // to still be each side's most recent confirmed match, which
+                  // stops applying the moment they play again. These use the
+                  // relative-delta correction instead (see
+                  // adminCorrectOldMatchResult/adminUndoOldMatch), so a mod
+                  // can still fix a bad result from days ago without needing
+                  // to have caught it before the player's next set.
+                  <AdminMatchOverride
+                    player1Username={player.username}
+                    player2Username={match.opponent.username}
+                    actionForPlayer1={adminCorrectOldResultAction.bind(null, match.id, id, id)}
+                    actionForPlayer2={adminCorrectOldResultAction.bind(null, match.id, id, match.opponent.id)}
+                    undoAction={adminUndoOldMatchAction.bind(null, match.id, id)}
                   />
                 )}
               </MatchHistoryEntry>
