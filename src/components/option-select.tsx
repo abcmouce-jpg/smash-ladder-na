@@ -33,6 +33,7 @@ export function OptionSelect({
   searchPlaceholder = "Search…",
   autoSubmit = false,
   onChange,
+  disabled = false,
 }: {
   name: string;
   defaultValue?: string;
@@ -58,6 +59,9 @@ export function OptionSelect({
    *  requestSubmit() picks up the new selection rather than racing ahead of
    *  it. */
   autoSubmit?: boolean;
+  /** When true, the trigger is inert (no dropdown) and the current value
+   *  stays visible but uneditable — e.g. while the player is in the queue. */
+  disabled?: boolean;
   /** Fired with the picked value the moment an option is chosen (including
    *  the clear option, with ""), for callers that need to react to the
    *  selection — e.g. a preview button that plays the chosen sound. */
@@ -128,11 +132,10 @@ export function OptionSelect({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none hover:bg-muted/50 focus-visible:border-ring ${
-          value === "" ? "text-muted-foreground" : ""
-        }`}
+        className={`flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none hover:bg-muted/50 focus-visible:border-ring ${disabled ? "cursor-not-allowed opacity-60" : ""} ${value === "" ? "text-muted-foreground" : ""}`}
       >
         <span className="flex-1 truncate text-left">{display}</span>
         <ChevronDown

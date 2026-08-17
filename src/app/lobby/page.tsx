@@ -268,7 +268,11 @@ export default async function LobbyPage() {
       ) : (
         <Card className="mt-4">
           <CardContent className="pt-4">
-            <MatchmakingForm userId={session.user.id} lang={lang} />
+            <MatchmakingForm
+              userId={session.user.id}
+              lang={lang}
+              disabled={entry?.status === "WAITING"}
+            />
           </CardContent>
         </Card>
       )}
@@ -367,7 +371,15 @@ const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group)
   })),
 );
 
-async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang }) {
+async function MatchmakingForm({
+  userId,
+  lang,
+  disabled = false,
+}: {
+  userId: string;
+  lang: Lang;
+  disabled?: boolean;
+}) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -425,7 +437,19 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
   }
 
   return (
-    <MatchSettingsForm action={action} className="flex flex-col gap-2" lang={lang}>
+    <MatchSettingsForm
+      action={action}
+      className="flex flex-col gap-2"
+      lang={lang}
+      disabled={disabled}
+    >
+      {disabled && (
+        <p className="text-xs text-muted-foreground">
+          {lang === "es"
+            ? "Los ajustes de emparejamiento están bloqueados mientras estás en la cola — cancela la búsqueda para cambiarlos."
+            : "Matchmaking settings are locked while you're in queue — cancel your search to change them."}
+        </p>
+      )}
       <label className="flex flex-col gap-1 text-sm">
         {lang === "es" ? "Región de partida" : "Match region"}
         <span className="text-xs font-normal text-muted-foreground">
@@ -442,6 +466,7 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
           className="w-52"
           searchable
           searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
+          disabled={disabled}
           options={REGION_OPTIONS}
         />
       </label>
@@ -456,6 +481,7 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
           key={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
           name="maxMatchDistanceKm"
           defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
+          disabled={disabled}
           className="w-48"
           options={MATCH_DISTANCE_PRESETS.map((preset) => ({
             value: String(preset.km ?? WORLDWIDE_VALUE),
@@ -474,6 +500,7 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
           key={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           name="maxRatingGap"
           defaultValue={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
+          disabled={disabled}
           className="w-48"
           options={MATCH_RATING_GAP_PRESETS.map((preset) => ({
             value: String(preset.gap ?? ANY_RATING_VALUE),
@@ -492,6 +519,7 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
           key={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
           name="rematchCooldownHours"
           defaultValue={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
+          disabled={disabled}
           className="w-48"
           options={REMATCH_COOLDOWN_PRESETS.map((preset) => ({
             value: String(preset.hours ?? ANYTIME_VALUE),
@@ -506,7 +534,8 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
             type="checkbox"
             name="wired"
             defaultChecked={me?.wiredConnection ?? false}
-            className="size-4 rounded border-border"
+            disabled={disabled}
+            className="size-4 rounded border-border disabled:opacity-60"
           />
           {lang === "es" ? "En una conexión por cable (LAN)" : "On a wired (LAN) connection"}
         </label>
@@ -533,7 +562,8 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
           type="checkbox"
           name="requireWiredOpponent"
           defaultChecked={me?.requireWiredOpponent ?? false}
-          className="size-4 rounded border-border"
+          disabled={disabled}
+          className="size-4 rounded border-border disabled:opacity-60"
         />
         {lang === "es" ? "Solo emparejar con rivales por cable" : "Only match with wired opponents"}
       </label>
@@ -543,7 +573,8 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
           type="checkbox"
           name="avoidPracticeOpponents"
           defaultChecked={me?.avoidPracticeOpponents ?? false}
-          className="size-4 rounded border-border"
+          disabled={disabled}
+          className="size-4 rounded border-border disabled:opacity-60"
         />
         {lang === "es"
           ? "No emparejarme con rivales que están practicando"
@@ -555,7 +586,8 @@ async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang })
           type="checkbox"
           name="zenMode"
           defaultChecked={me?.zenMode ?? false}
-          className="size-4 rounded border-border"
+          disabled={disabled}
+          className="size-4 rounded border-border disabled:opacity-60"
         />
         {lang === "es"
           ? "Modo Zen — oculta la clasificación, nombre, personajes y avatar del rival"
