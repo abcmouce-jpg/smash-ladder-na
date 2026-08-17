@@ -102,7 +102,6 @@ export default async function LobbyPage() {
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <ActivityLine
-          waiting={activity.waiting}
           inMatch={activity.inMatch}
           matched={false}
           isWaiting={false}
@@ -154,7 +153,6 @@ export default async function LobbyPage() {
     <main className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}>
       <PageTitle lang={lang} />
       <ActivityLine
-        waiting={activity.waiting}
         inMatch={activity.inMatch}
         matched={!!isInActiveMatch}
         isWaiting={entry?.status === "WAITING"}
@@ -262,7 +260,6 @@ function PageTitle({ lang }: { lang: Lang }) {
 }
 
 function ActivityLine({
-  waiting,
   inMatch,
   matched,
   isWaiting,
@@ -271,7 +268,6 @@ function ActivityLine({
   matchFoundSound = "CHIME",
   lang,
 }: {
-  waiting: number;
   inMatch: number;
   matched: boolean;
   isWaiting: boolean;
@@ -286,23 +282,11 @@ function ActivityLine({
       <span className="tabular-nums">
         {lang === "es" ? (
           <>
-            <span className="font-medium text-foreground">{waiting}</span> esperando ser emparejado
-            {inMatch > 0 && (
-              <>
-                {" "}
-                · <span className="font-medium text-foreground">{inMatch}</span> jugando ahora
-              </>
-            )}
+            <span className="font-medium text-foreground">{inMatch}</span> jugando ahora
           </>
         ) : (
           <>
-            <span className="font-medium text-foreground">{waiting}</span> waiting to be matched
-            {inMatch > 0 && (
-              <>
-                {" "}
-                · <span className="font-medium text-foreground">{inMatch}</span> currently playing
-              </>
-            )}
+            <span className="font-medium text-foreground">{inMatch}</span> currently playing
           </>
         )}
       </span>
