@@ -78,6 +78,21 @@ The checked-in `.env.development` file has everything pre-configured for this lo
 you want to use a remote database or real Discord OAuth instead, copy `.env.example` to `.env`
 and fill in the values.
 
+### Working with realistic data locally
+
+A fresh local DB only has a handful of seeded test accounts — not enough to build or sanity-check
+something like a stats page against. If you were handed an anonymized snapshot file (production
+match/rating/season history with all emails, IPs, and Discord/Twitch/start.gg identities stripped
+or never included), import it with:
+
+```bash
+psql "$(grep DATABASE_URL .env.development | cut -d= -f2- | tr -d '"')" < snapshot.sql
+```
+
+This replaces your local dev DB's data entirely. Only the project owner can generate a new
+snapshot (needs production DB access) via `scripts/snapshot-prod-anonymized.sh` — ask in the mod
+channel if you need one regenerated.
+
 ## Testing
 
 Run the unit tests (pure functions — rank tiers, Elo math, regions, etc., no database) with:
