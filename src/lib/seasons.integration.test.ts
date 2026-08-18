@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { getActiveSeason, launchPreSeasonIfDue, PRE_SEASON_STARTS_AT } from "@/lib/seasons";
+import { getActiveSeason, getPlayerSeasonAchievements, launchPreSeasonIfDue, PRE_SEASON_STARTS_AT } from "@/lib/seasons";
 import { createTestUser } from "@/test/factories";
 
 const before = new Date(PRE_SEASON_STARTS_AT.getTime() - 60_000);
@@ -61,5 +61,43 @@ describe("launchPreSeasonIfDue", () => {
     expect(launched).toBe(true);
     const active = await getActiveSeason();
     expect(active?.name).toBe("Preseason");
+  });
+});
+
+describe("getPlayerSeasonAchievements", () => {
+  it("surfaces top-3 finishes as achieved, medal-labeled entries, most recent season first", async () => {
+    const player = await createTestUser();
+    const season1 = await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+    const season2 = await prisma.season.create({ data: { name: "Season 2", startsAt: after } });
+    await prisma.seasonStanding.create({
+      data: { seasonId: season1.id, userId: player.id, finalRating: 1820, gamesPlayed: 40, rank: 3 },
+    });
+    await prisma.seasonStanding.create({
+      data: { seasonId: season2.id, userId: player.id, finalRating: 1950, gamesPlayed: 30, rank: 1 },
+    });
+
+    const achievements = await getPlayerSeasonAchievements(player.id);
+
+    expect(achievements).toHaveLength(2);
+    expect(achievements.every((a) => a.achieved)).toBe(true);
+    expect(achievements[0].label).toBe("🥇 Season 2 Champion");
+    expect(achievements[1].label).toBe("🥉 Season 1 3rd Place");
+  });
+
+  it("excludes finishes outside the top 3", async () => {
+    const player = await createTestUser();
+    const season = await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+    await prisma.seasonStanding.create({
+      data: { seasonId: season.id, userId: player.id, finalRating: 1600, gamesPlayed: 20, rank: 4 },
+    });
+
+    const achievements = await getPlayerSeasonAchievements(player.id);
+    expect(achievements).toHaveLength(0);
+  });
+
+  it("returns an empty list for a player with no season standings", async () => {
+    const player = await createTestUser();
+    const achievements = await getPlayerSeasonAchievements(player.id);
+    expect(achievements).toHaveLength(0);
   });
 });

@@ -19,6 +19,7 @@ import {
 } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
+import { getPlayerSeasonAchievements } from "@/lib/seasons";
 import { achievementComparator, computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
@@ -125,6 +126,7 @@ export default async function PlayerProfilePage({
     currentMatch,
     isLiveOnTwitch,
     matchAchievements,
+    seasonAchievements,
     streak,
     headToHead,
   ] = await Promise.all([
@@ -145,6 +147,7 @@ export default async function PlayerProfilePage({
     getCurrentMatchForUser(id),
     player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
     getMatchHistoryAchievements(id),
+    getPlayerSeasonAchievements(id),
     getCurrentStreak(id),
     session?.user?.id && !isOwnProfile ? getHeadToHead(session.user.id, id) : Promise.resolve(null),
   ]);
@@ -159,7 +162,9 @@ export default async function PlayerProfilePage({
   const winRate = realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
-  const achievements = [...computeAchievements(careerStats), ...matchAchievements].sort(achievementComparator);
+  const achievements = [...computeAchievements(careerStats), ...matchAchievements, ...seasonAchievements].sort(
+    achievementComparator,
+  );
   const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
 
   return (

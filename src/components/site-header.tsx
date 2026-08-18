@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   AlertTriangle,
+  Award,
   CalendarClock,
   ChevronDown,
   Coffee,
@@ -165,6 +166,10 @@ export async function SiteHeader() {
             <Link href="/leaderboard" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
               <Trophy className="size-3.5" />
               {lang === "es" ? "Clasificación" : "Leaderboard"}
+            </Link>
+            <Link href="/seasons" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
+              <Award className="size-3.5" />
+              {lang === "es" ? "Temporadas" : "Seasons"}
             </Link>
             <Link href="/characters" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
               <Gamepad2 className="size-3.5" />

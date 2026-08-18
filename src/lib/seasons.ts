@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
+import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
 
 // Pre-season launch announcement, shown site-wide until this passes.
 // -04:00 is ET's summer (EDT) offset — update if this ever needs to move
@@ -48,6 +48,29 @@ export async function listPastSeasons() {
     where: { endsAt: { not: null } },
     orderBy: { startsAt: "desc" },
   });
+}
+
+const PLACEMENT_MEDAL = ["🥇", "🥈", "🥉"];
+const PLACEMENT_LABEL = ["Champion", "Runner-up", "3rd Place"];
+
+// SeasonStanding rows are written once at rollover (endActiveSeasonAndStartNext)
+// and never touched again — the only place a season's outcome survives once
+// ratings reset back to 1500 for everyone. Surfaced as Achievement-shaped
+// entries (see rank-tier.ts) so a top-3 finish shows up in the same profile
+// achievements grid as everything else, instead of needing its own section —
+// always achieved:true since a row only exists here if it was actually earned.
+export async function getPlayerSeasonAchievements(userId: string): Promise<Achievement[]> {
+  const standings = await prisma.seasonStanding.findMany({
+    where: { userId, rank: { lte: 3 } },
+    orderBy: { season: { startsAt: "desc" } },
+    include: { season: { select: { name: true } } },
+  });
+  return standings.map((s) => ({
+    id: `season-${s.seasonId}-rank${s.rank}`,
+    label: `${PLACEMENT_MEDAL[s.rank - 1]} ${s.season.name} ${PLACEMENT_LABEL[s.rank - 1]}`,
+    description: `Finished rank ${s.rank} of ${s.season.name}, final rating ${s.finalRating}.`,
+    achieved: true,
+  }));
 }
 
 export async function getSeasonStandings(seasonId: string) {
