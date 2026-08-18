@@ -227,7 +227,7 @@ describe("stale character-pick auto-resolution", () => {
     expect(games[0].winnerId).toBeNull();
   });
 
-  it("forfeits the game to whichever player locked in, and dings the ghost's noShowCount, once the timeout elapses", async () => {
+  it("forfeits the whole match to whichever player locked in, and dings the ghost's noShowCount, once the timeout elapses", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -251,11 +251,16 @@ describe("stale character-pick auto-resolution", () => {
     const updatedP2 = await prisma.user.findUniqueOrThrow({ where: { id: p2.id } });
     expect(updatedP2.noShowCount).toBe(1);
 
-    // The set continues — a fresh game 2 should exist with p1 (the winner) striking first.
+    // A ghost who never locked in isn't coming back for game 2 either — the
+    // whole match is forfeited to p1, so no game 2 ever gets created.
     const game2 = await prisma.matchGame.findUnique({
       where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
     });
-    expect(game2?.actorAId).toBe(p1.id);
+    expect(game2).toBeNull();
+
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe("CONFIRMED");
+    expect(updatedMatch.reportedWinnerId).toBe(p1.id);
   });
 
   it("does nothing once the character-select timeout has elapsed if neither player locked in", async () => {

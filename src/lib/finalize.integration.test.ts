@@ -300,7 +300,7 @@ describe("finalizeExpiredMatches", () => {
       const updatedGhost = await prisma.user.findUniqueOrThrow({ where: { id: ghost.id } });
       expect(updatedGhost.noShowCount).toBe(1);
 
-      const autoConfirmDms = dmSpy.mock.calls.filter(([, content]) => content.includes("Auto-confirmed"));
+      const autoConfirmDms = dmSpy.mock.calls.filter(([, content]) => content.includes("Auto-forfeited"));
       expect(autoConfirmDms).toHaveLength(1);
     });
 

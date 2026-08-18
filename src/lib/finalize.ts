@@ -56,7 +56,7 @@ export async function finalizeExpiredMatches(now = new Date()) {
       const nonReporterName =
         result.nonReporterId === match.player1Id ? match.player1.username : match.player2.username;
       await alertModsOfAbandonedMatch(
-        `⏱️ Auto-confirmed: ${match.player1.username} vs ${match.player2.username}, game ${result.gameNumber} — ${reporterName}'s report was accepted after ${nonReporterName} didn't respond in time.`,
+        `⏱️ Auto-forfeited: ${match.player1.username} vs ${match.player2.username} — ${reporterName}'s game ${result.gameNumber} report was accepted and awarded the whole set after ${nonReporterName} didn't respond in time.`,
       );
       continue;
     }

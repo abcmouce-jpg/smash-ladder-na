@@ -109,15 +109,19 @@ async function autoResolveStaleTurn(matchId: string) {
 // deal than picking a stage for them.
 export const CHARACTER_TIMEOUT_MS = 3 * 60 * 1000;
 
-// Lazy, same pattern as autoResolveStaleTurn. Forfeits the current game to
+// Lazy, same pattern as autoResolveStaleTurn. Forfeits the WHOLE SET to
 // whichever side actually locked in a character, once the other side has
 // had CHARACTER_TIMEOUT_MS (measured from the game row's creation — the
 // moment character selection became available) and still hasn't — mirrors
 // autoConfirmStaleGameReport's "accept whoever showed up, penalize the
-// ghost" philosophy rather than fabricating a pick for them. If NEITHER
-// side has locked in, this deliberately does nothing: that's rare enough
-// (both players AFK simultaneously) to just fall through to the existing
-// 24h whole-match no-report expiry instead of inventing a second fallback.
+// ghost" philosophy. Ends the whole match rather than just this game (see
+// applyEloAndConfirm below) — a player who's stopped locking in characters
+// is not coming back for the next one either, and continuing to grind
+// through per-game timeouts before the set closes just wastes the present
+// player's time waiting out a ghost who's already gone. If NEITHER side has
+// locked in, this deliberately does nothing: that's rare enough (both
+// players AFK simultaneously) to just fall through to the existing
+// whole-match no-report expiry instead of inventing a second fallback.
 async function autoResolveStaleCharacterPick(match: { id: string; player1Id: string; player2Id: string }) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId: match.id, winnerId: null, finalStage: null },
@@ -136,12 +140,19 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
 
   const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
-      const claim = await tx.matchGame.updateMany({
-        where: { id: game.id, winnerId: null },
-        data: { winnerId },
+      // Claim the MATCH itself, not just the game — this now decides the
+      // whole set, so the match-level reportedWinnerId is what guards
+      // against a racing caller (another lazy check, or the cron
+      // finalizer's equivalent path) double-processing the same match.
+      const claim = await tx.ratingMatch.updateMany({
+        where: { id: match.id, reportedWinnerId: null },
+        data: { reportedWinnerId: winnerId, reportedById: winnerId, reportedAt: new Date() },
       });
       if (claim.count === 0) return false; // already resolved by a racing request
-      await progressSet(tx, match, game.gameNumber, winnerId, ConfirmationMethod.AUTO_TIMEOUT);
+      // Mark the stale game itself decided too, so match history shows a
+      // clean record instead of a trailing game stuck with no result.
+      await tx.matchGame.updateMany({ where: { id: game.id, winnerId: null }, data: { winnerId } });
+      await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.AUTO_TIMEOUT, null);
       await applyTimeoutCooldown(tx, ghostId);
       return true;
     }, TX_OPTIONS),
@@ -161,12 +172,12 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
   await Promise.all([
     sendDiscordDM(
       ghost.discordId,
-      `⏱️ Game ${game.gameNumber} vs ${winner.username} was forfeited to them — you didn't lock in a character in time. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
+      `⏱️ Your set vs ${winner.username} was forfeited to them — you didn't lock in a character in time on game ${game.gameNumber}. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
     ),
     ...mods.map((mod) =>
       sendDiscordDM(
         mod.discordId,
-        `⏱️ Character-pick forfeit: ${winner.username} awarded game ${game.gameNumber} over ${ghost.username} (match ${match.id}). Review at /admin/live if this looks unfair.`,
+        `⏱️ Character-pick forfeit: ${winner.username} awarded the whole set over ${ghost.username} on game ${game.gameNumber} (match ${match.id}). Review at /admin/live if this looks unfair.`,
       ),
     ),
   ]);
@@ -182,7 +193,10 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
 // shortened) could expire before a normal-length game even finished. Once
 // exactly one side reports, the other has REPORT_TIMEOUT_MS to confirm before
 // the lone report is accepted — mirrors autoConfirmStaleGameReport's "accept
-// whoever showed up, penalize the ghost" philosophy at game granularity. If
+// whoever showed up, penalize the ghost" philosophy, but ends the WHOLE
+// match rather than just this game (see applyEloAndConfirm below), same
+// reasoning as autoResolveStaleCharacterPick: someone who's stopped
+// confirming reports isn't coming back to play out the rest of the set. If
 // nobody has reported yet, deliberately do nothing: there's no fair way to
 // pick a winner from two silent sides, so that falls through to the
 // match-level TTL (closeOutUnansweredLead / plain expiry) instead — and
@@ -214,19 +228,18 @@ async function autoResolveStaleGameReport(match: {
 
   const confirmed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
-      const claim = await tx.matchGame.updateMany({
+      // Claim the MATCH itself, not just the game — see
+      // autoResolveStaleCharacterPick's identical comment above.
+      const claim = await tx.ratingMatch.updateMany({
+        where: { id: match.id, reportedWinnerId: null },
+        data: { reportedWinnerId, reportedById: reportedWinnerId, reportedAt: new Date() },
+      });
+      if (claim.count === 0) return false; // already decided by a racing request
+      await tx.matchGame.updateMany({
         where: { id: game.id, winnerId: null, reportedById: { not: null } },
         data: { winnerId: reportedWinnerId },
       });
-      if (claim.count === 0) return false; // already decided by a racing request
-      // If this doesn't decide the whole set, give the match a fresh deadline
-      // so it can continue rather than expiring mid-way (same as the cron
-      // path in autoConfirmStaleGameReport).
-      await tx.ratingMatch.update({
-        where: { id: match.id },
-        data: { expiresAt: new Date(Date.now() + MATCH_TTL_MS) },
-      });
-      await progressSet(tx, match, game.gameNumber, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT);
+      await applyEloAndConfirm(tx, match, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT, null);
       await applyTimeoutCooldown(tx, nonReporterId);
       return true;
     }, TX_OPTIONS),
@@ -246,12 +259,12 @@ async function autoResolveStaleGameReport(match: {
   await Promise.all([
     sendDiscordDM(
       ghost.discordId,
-      `⏱️ Game ${game.gameNumber} vs ${winner.username} was auto-confirmed from their report — you didn't confirm the result in time. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
+      `⏱️ Your set vs ${winner.username} was forfeited to them — their game ${game.gameNumber} report was auto-confirmed since you didn't respond in time. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
     ),
     ...mods.map((mod) =>
       sendDiscordDM(
         mod.discordId,
-        `⏱️ Auto-confirmed report: ${winner.username} awarded game ${game.gameNumber} over ${ghost.username} (match ${match.id}) after they didn't confirm in time. Review at /admin/live if this looks unfair.`,
+        `⏱️ Auto-confirmed report forfeit: ${winner.username} awarded the whole set over ${ghost.username} on game ${game.gameNumber} (match ${match.id}) after they didn't confirm in time. Review at /admin/live if this looks unfair.`,
       ),
     ),
   ]);
@@ -862,13 +875,13 @@ async function notifyDisputeEscalated(
   ]);
 }
 
-// Called by the cron finalizer for a PENDING_REPORT match past its deadline.
-// If the current game has one player's report sitting unconfirmed, accept
-// it as the result — the reporting player did their part, so the match
-// shouldn't just silently expire with no consequence for whoever ghosted.
-// Mirrors the pre-BO3 single-report auto-timeout, but at game granularity:
-// if this doesn't decide the whole set, the match gets a fresh deadline so
-// the set can continue rather than expiring mid-way regardless.
+// Called by the cron finalizer for a PENDING_REPORT match past its deadline
+// — a coarse backstop for whenever the lazy autoResolveStaleGameReport above
+// never got a chance to run (nobody loaded the match page during the live
+// 5-minute window). If the current game has one player's report sitting
+// unconfirmed, accept it and forfeit the WHOLE match to them, same as the
+// lazy path — the reporting player did their part, so the match shouldn't
+// just silently expire with no consequence for whoever ghosted.
 export async function autoConfirmStaleGameReport(
   match: { id: string; player1Id: string; player2Id: string },
   now: Date,
@@ -888,23 +901,21 @@ export async function autoConfirmStaleGameReport(
 
   const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
-      // Atomic claim: the cron finalizer can overlap with itself (a slow run
-      // still in flight when the next scheduled one starts) or run alongside
-      // a lazy autoResolve* triggered by someone loading the lobby. Without
-      // this, two callers racing on the same stale game would both see
-      // winnerId: null, both "win", and both fire progressSet/DM/cooldown —
-      // duplicate rating changes and duplicate mod DMs for one event. The
+      // Atomic claim on the MATCH itself now that this decides the whole
+      // set — the cron finalizer can overlap with itself (a slow run still
+      // in flight when the next scheduled one starts) or run alongside a
+      // lazy autoResolve* triggered by someone loading the lobby. Without
+      // this, two callers racing on the same match would both see
+      // reportedWinnerId: null, both "win", and both fire applyEloAndConfirm
+      // — duplicate rating changes and duplicate mod DMs for one event. The
       // conditional updateMany makes only the first one actually claim it.
-      const claim = await tx.matchGame.updateMany({
-        where: { id: hangingGame.id, winnerId: null },
-        data: { winnerId: reportedWinnerId },
+      const claim = await tx.ratingMatch.updateMany({
+        where: { id: match.id, reportedWinnerId: null },
+        data: { reportedWinnerId, reportedById: reportedWinnerId, reportedAt: now },
       });
       if (claim.count === 0) return false;
-      await tx.ratingMatch.update({
-        where: { id: match.id },
-        data: { expiresAt: new Date(now.getTime() + MATCH_TTL_MS) },
-      });
-      await progressSet(tx, match, hangingGame.gameNumber, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT);
+      await tx.matchGame.updateMany({ where: { id: hangingGame.id, winnerId: null }, data: { winnerId: reportedWinnerId } });
+      await applyEloAndConfirm(tx, match, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT, null);
       await applyTimeoutCooldown(tx, nonReporterId, now);
       return true;
     }, TX_OPTIONS),
