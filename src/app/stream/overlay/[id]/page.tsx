@@ -255,16 +255,14 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
-      {/* Top-center: Scoreboard (when a match is live) with the branding
-          below it; when idle, the branding alone at the top with the logo
-          and title side by side. Same centering approach as before
-          (inset-x-0 + items-center instead of left-1/2 -translate-x-1/2:
-          Tailwind v4's -translate-x-1/2 compiles to the native `translate`
-          CSS property, which older OBS Browser Source builds (pre-Chromium
-          104) ignore — the scoreboard would sit pinned at left: 50% and
-          look shoved right.) */}
+      {/* Top-center: Scoreboard (when a match is live). Same centering
+          approach as before (inset-x-0 + items-center instead of left-1/2
+          -translate-x-1/2: Tailwind v4's -translate-x-1/2 compiles to the
+          native `translate` CSS property, which older OBS Browser Source
+          builds (pre-Chromium 104) ignore — the scoreboard would sit pinned
+          at left: 50% and look shoved right.) */}
       <div className="absolute inset-x-0 top-2 flex flex-col items-center">
-        {currentMatch ? (
+        {currentMatch && (
           <>
             {/* Best of 5 label */}
             <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
@@ -318,24 +316,7 @@ export default async function StreamOverlayPage({
                 </div>
               </div>
             </div>
-
-            {/* Branding below the scoreboard */}
-            <div className="flex items-center gap-4 rounded-b-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm border-t-0">
-              <Image src="/smash_ladder_icon_white.png" alt="" width={256} height={256} className="size-12 block" />
-              <span className="text-2xl font-semibold tracking-tight text-white">
-                Smash Ladder <span className="text-primary">NA</span>
-              </span>
-            </div>
           </>
-        ) : (
-          /* No match in progress — logo and title on one line inside a
-             single bordered pill */
-          <div className="mt-6 flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm">
-            <Image src="/smash_ladder_icon_white.png" alt="" width={256} height={256} className="size-16 block" />
-            <span className="text-3xl font-semibold tracking-tight text-white">
-              Smash Ladder <span className="text-primary">NA</span>
-            </span>
-          </div>
         )}
       </div>
 
@@ -378,13 +359,14 @@ export default async function StreamOverlayPage({
         </div>
       )}
 
-      {/* Bottom-center: Stage pick/ban (while the current game's stage
-          selection is in progress; when the final stage is picked, the
-          chosen stage is highlighted for a few seconds before the card
-          hides — all gated by the streamer's hideStageBans toggle) */}
-      {showStageBans && currentGame && (stageBanInProgress || showPickHighlight) && (
-        <StagePickHighlight autoHide={showPickHighlight} holdMs={PICK_HIGHLIGHT_HOLD_MS}>
-          <div className="absolute inset-x-0 bottom-8 flex justify-center">
+      {/* Bottom-center: branding with the stage pick/ban card above it (the
+          card only shows while the current game's stage selection is in
+          progress; when the final stage is picked, the chosen stage is
+          highlighted for a few seconds before the card hides — all gated by
+          the streamer's hideStageBans toggle) */}
+      <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-4">
+        {showStageBans && currentGame && (stageBanInProgress || showPickHighlight) && (
+          <StagePickHighlight autoHide={showPickHighlight} holdMs={PICK_HIGHLIGHT_HOLD_MS}>
             <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-4 shadow-2xl backdrop-blur-sm">
               <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
                 {lang === "es"
@@ -431,9 +413,23 @@ export default async function StreamOverlayPage({
                 })}
               </div>
             </div>
-          </div>
-        </StagePickHighlight>
-      )}
+          </StagePickHighlight>
+        )}
+
+        {/* Branding */}
+        <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm">
+          <Image
+            src="/smash_ladder_icon_white.png"
+            alt=""
+            width={256}
+            height={256}
+            className={`block ${currentMatch ? "size-12" : "size-16"}`}
+          />
+          <span className={`font-semibold tracking-tight text-white ${currentMatch ? "text-2xl" : "text-3xl"}`}>
+            Smash Ladder <span className="text-primary">NA</span>
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
