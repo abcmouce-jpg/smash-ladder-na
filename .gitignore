@@ -46,3 +46,6 @@ next-env.d.ts
 
 # local one-off data backups/exports — never user-facing, never committed
 *.csv
+
+# subagent-driven-development scratch workspace (ledgers, briefs, reports)
+/.superpowers/
