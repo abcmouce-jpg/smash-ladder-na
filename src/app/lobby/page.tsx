@@ -4,6 +4,7 @@ import { Check, Loader2, MapPin, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser } from "@/lib/lobby";
+import { PushNudgeBanner } from "@/components/push-nudge-banner";
 import {
   CANCEL_GRACE_PERIOD_SECONDS,
   getRoomHostId,
@@ -166,6 +167,7 @@ export default async function LobbyPage() {
         matchFoundSound={matchFoundSound}
         lang={lang}
       />
+      <PushNudgeBanner lang={lang} />
 
       {matchJustEnded && (
         <Card className="mt-4 border-primary/30">
