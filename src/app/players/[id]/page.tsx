@@ -357,7 +357,14 @@ export default async function PlayerProfilePage({
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
                 <p className="text-lg font-semibold tabular-nums">
-                  {leaderboardRank.rank ? `#${leaderboardRank.rank}` : "—"}
+                  {leaderboardRank.rank ? (
+                    <>
+                      #{leaderboardRank.rank}
+                      <span className="text-sm">/{leaderboardRank.totalPlayers}</span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {lang === "es" ? "Posición en el ladder" : "Leaderboard rank"}
