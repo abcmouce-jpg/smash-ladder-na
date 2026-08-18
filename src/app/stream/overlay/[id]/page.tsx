@@ -423,7 +423,7 @@ export default async function StreamOverlayPage({
             alt=""
             width={256}
             height={256}
-            className={`block ${currentMatch ? "size-12" : "size-16"}`}
+            className={`block size-12`}
           />
           <span className={`font-semibold tracking-tight text-white text-xl`}>
             Smash Ladder <span className="text-primary">NA</span>
