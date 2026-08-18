@@ -50,10 +50,14 @@ function GameRow({
             return;
           }
           e.preventDefault();
+          // Captured now, not read off `e` in the .then() below — React nulls
+          // out a SyntheticEvent's currentTarget once the synchronous handler
+          // dispatch finishes, and confirm() resolves asynchronously.
+          const form = e.currentTarget;
           confirm(`Clear game ${gameNumber}'s result?`).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
-              e.currentTarget.requestSubmit();
+              form.requestSubmit();
             }
           });
         }}
@@ -131,10 +135,14 @@ export function EditGameScoreForm({
                 return;
               }
               e.preventDefault();
+              // Captured now, not read off `e` in the .then() below — React nulls
+              // out a SyntheticEvent's currentTarget once the synchronous handler
+              // dispatch finishes, and confirm() resolves asynchronously.
+              const form = e.currentTarget;
               confirm("Wipe this set's games entirely and restart from 0-0? This can't be undone.").then((ok) => {
                 if (ok) {
                   resetReadyRef.current = true;
-                  e.currentTarget.requestSubmit();
+                  form.requestSubmit();
                 }
               });
             }}
