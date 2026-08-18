@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getLeaderboardPlayers } from "@/lib/leaderboard";
+import { getLeaderboardPlayers, getLeaderboardRank } from "@/lib/leaderboard";
+import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { createTestUser } from "@/test/factories";
 
 describe("getLeaderboardPlayers", () => {
@@ -152,5 +153,71 @@ describe("getLeaderboardPlayers", () => {
     const ids = players.map((p) => p.id);
     expect(ids).toContain(target.id);
     expect(players.every((p) => p.username !== "Deleted User")).toBe(true);
+  });
+});
+
+describe("getLeaderboardRank", () => {
+  it("returns the 1-based position by rating desc, matching the leaderboard order", async () => {
+    await createTestUser({ gamesPlayed: 5, rating: 1400 });
+    await createTestUser({ gamesPlayed: 5, rating: 1500 });
+    const top = await createTestUser({ gamesPlayed: 5, rating: 1600 });
+
+    expect((await getLeaderboardRank(top.id)).rank).toBe(1);
+  });
+
+  it("counts every higher-rated player ahead of it", async () => {
+    const low = await createTestUser({ gamesPlayed: 5, rating: 1400 });
+    await createTestUser({ gamesPlayed: 5, rating: 1500 });
+    await createTestUser({ gamesPlayed: 5, rating: 1600 });
+
+    expect((await getLeaderboardRank(low.id)).rank).toBe(3);
+  });
+
+  it("gives players with the same rating the same rank, skipping the next rank", async () => {
+    const low = await createTestUser({ gamesPlayed: 5, rating: 1400 });
+    const a = await createTestUser({ gamesPlayed: 5, rating: 1500 });
+    const b = await createTestUser({ gamesPlayed: 5, rating: 1500 });
+
+    expect((await getLeaderboardRank(a.id)).rank).toBe(1);
+    expect((await getLeaderboardRank(b.id)).rank).toBe(1);
+    expect((await getLeaderboardRank(low.id)).rank).toBe(3);
+  });
+
+  it("reports how many players qualify for the board", async () => {
+    await createTestUser({ gamesPlayed: 5 });
+    await createTestUser({ gamesPlayed: 2 });
+
+    expect((await getLeaderboardRank("anyone")).totalPlayers).toBe(1);
+  });
+
+  it("excludes banned and 'Deleted User' accounts from the count", async () => {
+    await createTestUser({ gamesPlayed: 5 });
+    await createTestUser({ gamesPlayed: 5, status: "BANNED" });
+    await createTestUser({ gamesPlayed: 5, username: "Deleted User" });
+
+    expect((await getLeaderboardRank("anyone")).totalPlayers).toBe(1);
+  });
+
+  it("returns null rank when the player is under the games floor", async () => {
+    const player = await createTestUser({ gamesPlayed: LEADERBOARD_MIN_GAMES - 1 });
+    const { rank } = await getLeaderboardRank(player.id);
+    expect(rank).toBeNull();
+  });
+
+  it("returns null rank for banned players", async () => {
+    const banned = await createTestUser({ gamesPlayed: 5, status: "BANNED" });
+    const { rank } = await getLeaderboardRank(banned.id);
+    expect(rank).toBeNull();
+  });
+
+  it("returns null rank for an ACTIVE account still named 'Deleted User' (Discord self-deletion)", async () => {
+    const selfDeleted = await createTestUser({ gamesPlayed: 5, username: "Deleted User" });
+    const { rank } = await getLeaderboardRank(selfDeleted.id);
+    expect(rank).toBeNull();
+  });
+
+  it("returns null rank for a user that doesn't exist", async () => {
+    const { rank } = await getLeaderboardRank("no-such-user");
+    expect(rank).toBeNull();
   });
 });
