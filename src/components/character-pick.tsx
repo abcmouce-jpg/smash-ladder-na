@@ -32,10 +32,19 @@ export function CharacterPickForm({
   action: (formData: FormData) => void | Promise<void>;
   lang: Lang;
 }) {
-  const [character, setCharacter] = useState(defaultCharacter ?? "");
-  const [moveset, setMoveset] = useState(
-    defaultCharacter && isMiiCharacter(defaultCharacter) ? defaultMoveset : "",
+  // A default Mii pick with no accompanying moveset (game 1 falling back to
+  // the player's top character, or an in-flight match from before this
+  // feature shipped) can't be pre-selected: there'd be no discoverable way
+  // to reach the MovesetDialog for it, since re-picking an already-selected
+  // value doesn't change anything from the player's point of view. Start
+  // unselected instead, so picking the Mii is a real state change that
+  // triggers the dialog.
+  const miiWithoutMoveset =
+    !!defaultCharacter && isMiiCharacter(defaultCharacter) && !defaultMoveset;
+  const [character, setCharacter] = useState(
+    miiWithoutMoveset ? "" : (defaultCharacter ?? ""),
   );
+  const [moveset, setMoveset] = useState(miiWithoutMoveset ? "" : defaultMoveset);
   const [pendingCharacter, setPendingCharacter] = useState<string | null>(null);
 
   function attemptSelect(next: string) {
@@ -92,14 +101,17 @@ export function CharacterPickForm({
           {lang === "es" ? "Elegir" : "Lock in"}
         </Button>
       </form>
-      <MovesetDialog
-        open={pendingCharacter !== null}
-        character={pendingCharacter}
-        defaultValue={moveset || defaultMoveset}
-        onConfirm={handleMovesetConfirm}
-        onCancel={handleMovesetCancel}
-        lang={lang}
-      />
+      {pendingCharacter !== null && (
+        <MovesetDialog
+          key={pendingCharacter}
+          open
+          character={pendingCharacter}
+          defaultValue={moveset || defaultMoveset}
+          onConfirm={handleMovesetConfirm}
+          onCancel={handleMovesetCancel}
+          lang={lang}
+        />
+      )}
     </div>
   );
 }

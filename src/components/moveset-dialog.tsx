@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { MOVESET_PATTERN } from "@/lib/characters";
@@ -10,6 +10,11 @@ import type { Lang } from "@/lib/i18n";
 // of the 3 Mii characters. Validation is blocking, not keystroke-filtering:
 // the input accepts anything, and an invalid value shows an inline error on
 // confirm rather than silently rejecting characters as they're typed.
+//
+// The caller is expected to mount this component keyed by `character` (or
+// otherwise force a remount per pick) so `value`/`error` re-seed from
+// `defaultValue` on every fresh open, without needing an effect to
+// re-synchronize state.
 export function MovesetDialog({
   open,
   character,
@@ -27,16 +32,6 @@ export function MovesetDialog({
 }) {
   const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState<string | null>(null);
-
-  // Re-seed from defaultValue every time the dialog opens (e.g. re-picking a
-  // Mii should offer whatever moveset is already staged, or the last one
-  // used for a Mii earlier in this set — see lastUsedMoveset).
-  useEffect(() => {
-    if (open) {
-      setValue(defaultValue);
-      setError(null);
-    }
-  }, [open, defaultValue]);
 
   function handleConfirm() {
     if (!MOVESET_PATTERN.test(value)) {
