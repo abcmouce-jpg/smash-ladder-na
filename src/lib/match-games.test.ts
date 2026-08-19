@@ -11,6 +11,7 @@ import {
   gameTurnState,
   lastSameBans,
   lastUsedCharacter,
+  lastUsedMoveset,
   tallySetWins,
   GAMES_TO_WIN,
 } from "./match-games";
@@ -384,6 +385,100 @@ describe("lastUsedCharacter", () => {
 
   it("returns null if the player has no games at all", () => {
     expect(lastUsedCharacter([], "p1")).toBeNull();
+  });
+});
+
+describe("lastUsedMoveset", () => {
+  it("returns null for game 1 — no prior game to draw from", () => {
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+    ];
+    expect(lastUsedMoveset(games, "p1")).toBeNull();
+  });
+
+  it("picks up the moveset from the most recent Mii pick", () => {
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Mii Brawler",
+        actorAMoveset: "1221",
+        actorBCharacter: "Fox",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+    ];
+    expect(lastUsedMoveset(games, "p1")).toBe("1221");
+  });
+
+  it("is null when the player's most recent pick wasn't a Mii", () => {
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Mii Brawler",
+        actorAMoveset: "1221",
+        actorBCharacter: "Falco",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: "Mario",
+        actorBMoveset: null,
+      },
+    ];
+    expect(lastUsedMoveset(games, "p1")).toBeNull();
+  });
+
+  it("skips a game the player hasn't locked in yet and falls back further", () => {
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Mii Gunner",
+        actorAMoveset: "3213",
+        actorBCharacter: "Falco",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+    ];
+    // p1 hasn't picked game 2 yet — falls back to game 1's moveset.
+    expect(lastUsedMoveset(games, "p1")).toBe("3213");
+  });
+
+  it("returns null if the player has no games at all", () => {
+    expect(lastUsedMoveset([], "p1")).toBeNull();
   });
 });
 

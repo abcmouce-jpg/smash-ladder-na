@@ -425,6 +425,29 @@ export function lastUsedCharacter(games: CharacterPickGame[], userId: string): s
   return null;
 }
 
+// Mirrors lastUsedCharacter, but for the moveset attached to a Mii pick —
+// most recent game first, falling through to null if the player's most
+// recent locked-in pick in this match wasn't a Mii (or they have none).
+export function lastUsedMoveset(
+  games: {
+    gameNumber: number;
+    actorAId: string;
+    actorBId: string;
+    actorACharacter: string | null;
+    actorAMoveset: string | null;
+    actorBCharacter: string | null;
+    actorBMoveset: string | null;
+  }[],
+  userId: string,
+): string | null {
+  const sorted = [...games].sort((a, b) => b.gameNumber - a.gameNumber);
+  for (const game of sorted) {
+    if (game.actorAId === userId && game.actorACharacter) return game.actorAMoveset;
+    if (game.actorBId === userId && game.actorBCharacter) return game.actorBMoveset;
+  }
+  return null;
+}
+
 // Mirrors lastUsedCharacter, but for a player's 3-stage actorA strike turn
 // (games 2+, where the previous game's winner strikes 3 from the shared
 // COUNTERPICK_STAGES list) — powers the "Same Bans" shortcut. The
