@@ -9,6 +9,7 @@ import { RegionSetupBanner } from "@/components/region-setup-banner";
 import { PreSeasonBanner } from "@/components/pre-season-banner";
 import { ThemeSync } from "@/components/theme-sync";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -92,7 +93,7 @@ export default async function RootLayout({
           id="theme-init"
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('theme')||'auto';if(t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`,
           }}
         />
         <ThemeSync />
@@ -110,6 +111,7 @@ export default async function RootLayout({
         {children}
         {!isStreamOverlay && <SiteFooter />}
         {!isStreamOverlay && <Analytics />}
+        {!isStreamOverlay && <Toaster />}
       </body>
     </html>
   );

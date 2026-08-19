@@ -17,8 +17,7 @@ export async function postFreeBattle(comment: string) {
   const userId = await requireUserId();
   await requireActiveUser(userId);
   await enforceRateLimit({
-    count: () =>
-      prisma.freeBattlePost.count({ where: { authorId: userId, createdAt: { gt: minutesAgo(5) } } }),
+    count: () => prisma.freeBattlePost.count({ where: { authorId: userId, createdAt: { gt: minutesAgo(5) } } }),
     limit: 5,
     windowLabel: "5 minutes",
   });

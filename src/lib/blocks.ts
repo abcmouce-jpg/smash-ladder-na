@@ -10,7 +10,14 @@ export async function blockUser(blockerId: string, blockedId: string) {
   });
   if (existing) return; // already blocked — no-op, doesn't count against the cap again
 
-  const count = await prisma.block.count({ where: { blockerId } });
+  // Blocks against a deleted account are excluded from the cap — deleteMyAccount
+  // anonymizes rather than removes the row (see its own comment), so the Block
+  // row survives and would otherwise permanently occupy a slot against someone
+  // who can never be matched against again anyway. discordId's "deleted-"
+  // prefix is deleteMyAccount's only marker; there's no separate deleted flag.
+  const count = await prisma.block.count({
+    where: { blockerId, blocked: { NOT: { discordId: { startsWith: "deleted-" } } } },
+  });
   if (count >= MAX_BLOCKS_PER_USER) {
     throw new Error(`You can only block up to ${MAX_BLOCKS_PER_USER} players.`);
   }

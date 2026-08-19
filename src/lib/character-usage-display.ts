@@ -15,6 +15,13 @@ export interface CharacterUsageDisplay {
   overflow: CharacterUsage[];
 }
 
+// usagePercent is rounded, so a character played only a game or two out of
+// hundreds can round down to 0 — but it's in this list precisely because
+// games > 0, so "0%" would misleadingly read as "never played."
+export function formatUsagePercent(usagePercent: number): string {
+  return usagePercent === 0 ? "<1%" : `${usagePercent}%`;
+}
+
 // Slices a player's ranked character usage into what CharacterUsageIcons
 // renders inline (main + up to 3 next-most-played, each at least
 // SECONDARY_MIN_USAGE_PERCENT) versus what folds into the overflow tooltip,

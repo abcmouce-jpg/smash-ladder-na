@@ -30,9 +30,7 @@ export default async function StreamLeaderboardPage({
 
   const requestedLimit = Number(limitParam);
   const limit =
-    Number.isInteger(requestedLimit) && requestedLimit > 0
-      ? Math.min(requestedLimit, MAX_LIMIT)
-      : DEFAULT_LIMIT;
+    Number.isInteger(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, MAX_LIMIT) : DEFAULT_LIMIT;
 
   const [{ players }, lang] = await Promise.all([
     getLeaderboardPlayers(
@@ -49,9 +47,7 @@ export default async function StreamLeaderboardPage({
   // only needs the single most-played character live from getCharacterUsage
   // — not the full CharacterUsageIcons stack with its overflow tooltip.
   const mainCharacterByPlayerId = new Map(
-    await Promise.all(
-      players.map(async (p) => [p.id, (await getCharacterUsage(p.id))[0]?.character ?? null] as const),
-    ),
+    await Promise.all(players.map(async (p) => [p.id, (await getCharacterUsage(p.id))[0]?.character ?? null] as const)),
   );
 
   return (
@@ -61,9 +57,7 @@ export default async function StreamLeaderboardPage({
         <tbody>
           {players.map((player, index) => (
             <tr key={player.id}>
-              <td className="py-1 pr-2 tabular-nums text-muted-foreground">
-                {MEDALS[index] ?? index + 1}
-              </td>
+              <td className="py-1 pr-2 tabular-nums text-muted-foreground">{MEDALS[index] ?? index + 1}</td>
               <td className="py-1 pr-2">
                 <div className="flex items-center gap-2 font-medium">
                   {mainCharacterByPlayerId.get(player.id) && (

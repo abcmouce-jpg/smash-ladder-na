@@ -11,6 +11,7 @@ import { UserStatus } from "@/generated/prisma/enums";
 import type { UserRole } from "@/generated/prisma/enums";
 import { extractClientIp, isIpBanned } from "@/lib/ip-bans";
 import { resolveReferrerId } from "@/lib/referrals";
+import { defaultRegionFromGeoHeaders } from "@/lib/geo-region";
 
 declare module "next-auth" {
   interface Session {
@@ -60,7 +61,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Checked before anything else, including the dev-credentials bypass —
       // this targets the network (ban-evasion via a fresh Discord account
       // from the same connection), not a specific account.
-      const ip = extractClientIp((await headers()).get("x-forwarded-for"));
+      const requestHeaders = await headers();
+      const ip = extractClientIp(requestHeaders.get("x-forwarded-for"));
       if (await isIpBanned(ip)) return false;
 
       if (credentials) return true; // dev credentials — user already created in authorize()
@@ -78,6 +80,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // referredById is set once, at creation, and never touched again, so
       // there's no point looking this up for a returning sign-in.
       const referredById = existing ? null : await resolveReferrerId((await cookies()).get("ref")?.value);
+
+      // Same "only for a genuinely new account" reasoning as referredById —
+      // pre-fills region from Vercel's geolocation headers so a new player
+      // can join the queue immediately instead of silently being stuck
+      // until they find Lobby's settings (see region-setup-banner.tsx for
+      // why this matters: most early sign-ups never came back to set it).
+      // Never touches an existing account's region.
+      const defaultRegion = existing
+        ? null
+        : defaultRegionFromGeoHeaders(
+            requestHeaders.get("x-vercel-ip-country"),
+            requestHeaders.get("x-vercel-ip-country-region"),
+          );
 
       const discordUsername = discordProfile.global_name ?? discordProfile.username;
       await prisma.user.upsert({
@@ -104,6 +119,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           lastKnownIp: ip ?? undefined,
           lastSignInAt: new Date(),
           referredById,
+          region: defaultRegion ?? undefined,
         },
       });
 

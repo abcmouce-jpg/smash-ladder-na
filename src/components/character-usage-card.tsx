@@ -1,9 +1,10 @@
 import { ChevronDown } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
 import { Badge } from "@/components/ui/badge";
+import { formatUsagePercent } from "@/lib/character-usage-display";
 import type { CharacterUsage } from "@/lib/players";
 
-function winRateVariant(winRate: number): "success" | "warning" | "destructive" {
+export function winRateVariant(winRate: number): "success" | "warning" | "destructive" {
   if (winRate >= 55) return "success";
   if (winRate >= 45) return "warning";
   return "destructive";
@@ -23,9 +24,7 @@ export function CharacterUsageCard({
   return (
     <details className="group mt-4 rounded-xl border border-border bg-card text-card-foreground shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 [&::-webkit-details-marker]:hidden">
-        <span className="text-sm font-medium">
-          {lang === "es" ? "Uso de personajes" : "Character Usage"}
-        </span>
+        <span className="text-sm font-medium">{lang === "es" ? "Uso de personajes" : "Character Usage"}</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
       <div className="max-h-80 divide-y divide-border overflow-y-auto border-t border-border">
@@ -42,10 +41,7 @@ export function CharacterUsageCard({
                 )}
               </div>
               <div className="mt-1 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full bg-emerald-500"
-                  style={{ width: `${(u.usagePercent * u.winRate) / 100}%` }}
-                />
+                <div className="h-full bg-emerald-500" style={{ width: `${(u.usagePercent * u.winRate) / 100}%` }} />
                 <div
                   className="h-full bg-destructive"
                   style={{ width: `${(u.usagePercent * (100 - u.winRate)) / 100}%` }}
@@ -55,8 +51,8 @@ export function CharacterUsageCard({
             <div className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
               <div>
                 {lang === "es"
-                  ? `${u.usagePercent}% · ${u.games} ${u.games === 1 ? "partida" : "partidas"}`
-                  : `${u.usagePercent}% · ${u.games} game${u.games === 1 ? "" : "s"}`}
+                  ? `${formatUsagePercent(u.usagePercent)} · ${u.games} ${u.games === 1 ? "partida" : "partidas"}`
+                  : `${formatUsagePercent(u.usagePercent)} · ${u.games} game${u.games === 1 ? "" : "s"}`}
               </div>
               <div className="mt-0.5 flex items-center justify-end gap-1">
                 <span>

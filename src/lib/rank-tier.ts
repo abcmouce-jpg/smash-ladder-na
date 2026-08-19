@@ -35,7 +35,7 @@ export const MATCH_RATING_GAP_PRESETS = [
 // Ordered highest to lowest; the first tier whose floor the rating clears
 // wins. Centered on the 1500 starting rating so a fresh, actively-playing
 // account lands around Challenger rather than at the bottom of the ladder.
-  
+
 // Exported (and readonly) so the Info popup's rank list renders straight off
 // same array getRankTier reads, rather than keeping a parallel copy that
 // can silently fall out of date.
@@ -44,15 +44,13 @@ export const RANK_TIERS: readonly RankTier[] = [
     name: "Legend",
     minRating: 2100,
     className: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-400",
-    description:
-      "The peak of the ladder. Reserved for the players who define the meta at the very top of competition.",
+    description: "The peak of the ladder. Reserved for the players who define the meta at the very top of competition.",
   },
   {
     name: "Grandmaster",
     minRating: 1900,
     className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-400",
-    description:
-      "The top of the ladder. Held by the handful of players who consistently beat Master-level opposition.",
+    description: "The top of the ladder. Held by the handful of players who consistently beat Master-level opposition.",
   },
   {
     name: "Master",
@@ -65,15 +63,13 @@ export const RANK_TIERS: readonly RankTier[] = [
     name: "Elite",
     minRating: 1600,
     className: "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-400",
-    description:
-      "Well clear of the starting rating, with a proven winning record against the rest of the field.",
+    description: "Well clear of the starting rating, with a proven winning record against the rest of the field.",
   },
   {
     name: "Fighter",
     minRating: 1450,
     className: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-400",
-    description:
-      "The band the 1500 starting rating sits in, and where most players land once their rating settles.",
+    description: "The band the 1500 starting rating sits in, and where most players land once their rating settles.",
   },
   {
     name: "Challenger",
@@ -207,4 +203,11 @@ export function computeAchievements(stats: {
       achieved: stats.tournamentsEntered >= 1,
     },
   ];
+}
+
+// Achieved achievements first, unearned ones after — within each group the
+// relative order is left untouched
+export function achievementComparator(a: Achievement, b: Achievement): number {
+  if (a.achieved === b.achieved) return 0;
+  return a.achieved ? -1 : 1;
 }

@@ -106,7 +106,14 @@ describe("finalizeExpiredMatches", () => {
     });
     // Game 2 exists but nobody ever locked in a character or reported it.
     await prisma.matchGame.create({
-      data: { matchId: match.id, gameNumber: 2, actorAId: leader.id, actorAStrikes: 3, actorBId: ghost.id, actorBStrikes: 0 },
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: leader.id,
+        actorAStrikes: 3,
+        actorBId: ghost.id,
+        actorBStrikes: 0,
+      },
     });
 
     const result = await finalizeExpiredMatches(new Date());
@@ -293,7 +300,7 @@ describe("finalizeExpiredMatches", () => {
       const updatedGhost = await prisma.user.findUniqueOrThrow({ where: { id: ghost.id } });
       expect(updatedGhost.noShowCount).toBe(1);
 
-      const autoConfirmDms = dmSpy.mock.calls.filter(([, content]) => content.includes("Auto-confirmed"));
+      const autoConfirmDms = dmSpy.mock.calls.filter(([, content]) => content.includes("Auto-forfeited"));
       expect(autoConfirmDms).toHaveLength(1);
     });
 
@@ -318,7 +325,14 @@ describe("finalizeExpiredMatches", () => {
         },
       });
       await prisma.matchGame.create({
-        data: { matchId: match.id, gameNumber: 2, actorAId: leader.id, actorAStrikes: 3, actorBId: ghost.id, actorBStrikes: 0 },
+        data: {
+          matchId: match.id,
+          gameNumber: 2,
+          actorAId: leader.id,
+          actorAStrikes: 3,
+          actorBId: ghost.id,
+          actorBStrikes: 0,
+        },
       });
 
       const now = new Date();

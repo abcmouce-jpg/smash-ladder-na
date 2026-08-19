@@ -32,6 +32,8 @@ export function OptionSelect({
   searchable = false,
   searchPlaceholder = "Search…",
   autoSubmit = false,
+  onChange,
+  disabled = false,
 }: {
   name: string;
   defaultValue?: string;
@@ -57,6 +59,13 @@ export function OptionSelect({
    *  requestSubmit() picks up the new selection rather than racing ahead of
    *  it. */
   autoSubmit?: boolean;
+  /** When true, the trigger is inert (no dropdown) and the current value
+   *  stays visible but uneditable — e.g. while the player is in the queue. */
+  disabled?: boolean;
+  /** Fired with the picked value the moment an option is chosen (including
+   *  the clear option, with ""), for callers that need to react to the
+   *  selection — e.g. a preview button that plays the chosen sound. */
+  onChange?: (value: string) => void;
 }) {
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
@@ -68,11 +77,10 @@ export function OptionSelect({
   const selected = options.find((opt) => opt.value === value);
   const display = selected?.label ?? placeholder ?? clearLabel;
 
-  const filtered = searchable && query
-    ? options.filter((opt) =>
-        `${opt.label} ${opt.group ?? ""}`.toLowerCase().includes(query.toLowerCase()),
-      )
-    : options;
+  const filtered =
+    searchable && query
+      ? options.filter((opt) => `${opt.label} ${opt.group ?? ""}`.toLowerCase().includes(query.toLowerCase()))
+      : options;
 
   // Close on outside click
   useEffect(() => {
@@ -94,11 +102,15 @@ export function OptionSelect({
     }
   }, [open, searchable]);
 
-  const select = useCallback((next: string) => {
-    setValue(next);
-    setOpen(false);
-    setQuery("");
-  }, []);
+  const select = useCallback(
+    (next: string) => {
+      setValue(next);
+      setOpen(false);
+      setQuery("");
+      onChange?.(next);
+    },
+    [onChange],
+  );
 
   // Only fires on a genuine change after mount — not for the initial
   // defaultValue, and not for remounts via the `key` prop callers use to
@@ -116,29 +128,16 @@ export function OptionSelect({
 
   return (
     <div ref={containerRef} className={`relative ${className ?? ""}`}>
-      {/* Hidden native select for form integration */}
-      <select
-        name={name}
-        value={value}
-        onChange={() => {}} // value only ever changes via select() below; this just quiets React's controlled-without-onChange warning
-        className="hidden"
-        tabIndex={-1}
-        aria-hidden
-      >
-        <option value="" />
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value} />
-        ))}
-      </select>
+      {/* Hidden field for form integration */}
+      <input type="hidden" name={name} value={value} />
 
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none hover:bg-muted/50 focus-visible:border-ring ${
-          value === "" ? "text-muted-foreground" : ""
-        }`}
+        className={`flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none hover:bg-muted/50 focus-visible:border-ring ${disabled ? "cursor-not-allowed opacity-60" : ""} ${value === "" ? "text-muted-foreground" : ""}`}
       >
         <span className="flex-1 truncate text-left">{display}</span>
         <ChevronDown
@@ -187,9 +186,7 @@ export function OptionSelect({
                 return (
                   <Fragment key={opt.value}>
                     {showHeader && (
-                      <li className="px-3 pb-1 pt-2 text-xs font-medium text-muted-foreground">
-                        {opt.group}
-                      </li>
+                      <li className="px-3 pb-1 pt-2 text-xs font-medium text-muted-foreground">{opt.group}</li>
                     )}
                     <li>
                       <button

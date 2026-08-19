@@ -27,12 +27,10 @@ export default async function TournamentsPage() {
   const [tournaments, lang] = await Promise.all([listTournaments(), getLang()]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {lang === "es" ? "Torneos" : "Tournaments"}
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Torneos" : "Tournaments"}</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {lang === "es"
@@ -56,8 +54,7 @@ export default async function TournamentsPage() {
                 <div>
                   <p className="text-sm font-medium">{t.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {lang === "es" ? "Organizado por" : "Hosted by"} {t.host.username} ·{" "}
-                    {t._count.entries}{" "}
+                    {lang === "es" ? "Organizado por" : "Hosted by"} {t.host.username} · {t._count.entries}{" "}
                     {lang === "es"
                       ? t._count.entries === 1
                         ? "participante"
@@ -76,9 +73,7 @@ export default async function TournamentsPage() {
         ))}
         {tournaments.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Aún no hay torneos — organiza uno arriba."
-              : "No tournaments yet — host one above."}
+            {lang === "es" ? "Aún no hay torneos — organiza uno arriba." : "No tournaments yet — host one above."}
           </p>
         )}
       </div>
@@ -87,4 +82,3 @@ export default async function TournamentsPage() {
     </main>
   );
 }
-

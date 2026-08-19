@@ -182,7 +182,9 @@ function MatchDetailsModal({
         <div className="mt-4 flex flex-col gap-2">
           {match.games.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              {lang === "es" ? "No se registró ningún juego para esta partida." : "No games were recorded for this set."}
+              {lang === "es"
+                ? "No se registró ningún juego para esta partida."
+                : "No games were recorded for this set."}
             </p>
           )}
           {match.games.map((game) => (
@@ -224,7 +226,6 @@ function MatchDetailsModal({
                   </span>
                 </div>
               </div>
-
             </div>
           ))}
         </div>

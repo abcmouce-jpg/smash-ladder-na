@@ -49,3 +49,6 @@ next-env.d.ts
 
 # subagent-driven-development scratch workspace (ledgers, briefs, reports)
 /.superpowers/
+
+# per-machine MCP server config, not shared across contributors
+.mcp.json

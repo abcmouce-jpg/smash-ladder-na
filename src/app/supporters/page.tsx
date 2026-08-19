@@ -22,7 +22,7 @@ export default async function SupportersPage() {
   });
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
         <Heart className="size-6 text-primary" />
         {lang === "es" ? "Colaboradores" : "Supporters"}
@@ -37,9 +37,7 @@ export default async function SupportersPage() {
         <Card className="transition-colors hover:border-foreground/30">
           <CardHeader>
             <Coffee className="size-5 text-muted-foreground" />
-            <CardTitle className="text-base">
-              {lang === "es" ? "Apóyanos en Ko-fi" : "Support us on Ko-fi"}
-            </CardTitle>
+            <CardTitle className="text-base">{lang === "es" ? "Apóyanos en Ko-fi" : "Support us on Ko-fi"}</CardTitle>
             <CardDescription>
               {lang === "es"
                 ? "Totalmente opcional — no hay ninguna ventaja dentro del sitio atada a esto hoy."
@@ -52,9 +50,7 @@ export default async function SupportersPage() {
       <div className="mt-8">
         {donations.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Todavía no hay colaboradores públicos que mostrar."
-              : "No public supporters to show yet."}
+            {lang === "es" ? "Todavía no hay colaboradores públicos que mostrar." : "No public supporters to show yet."}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -64,9 +60,7 @@ export default async function SupportersPage() {
                   <CardContent className="flex items-start justify-between gap-4 py-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{d.fromName}</p>
-                      {d.message && (
-                        <p className="mt-0.5 text-sm text-muted-foreground">{d.message}</p>
-                      )}
+                      {d.message && <p className="mt-0.5 text-sm text-muted-foreground">{d.message}</p>}
                     </div>
                     <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
                       {d.currency} {Number(d.amount).toFixed(2)}

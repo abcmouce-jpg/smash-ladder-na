@@ -13,12 +13,14 @@ import {
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
+  getSeasonStats,
   getTopRivals,
   getCurrentMatchForUser,
 } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
-import { computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
+import { getPlayerSeasonAchievements } from "@/lib/seasons";
+import { achievementComparator, computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
@@ -37,8 +39,10 @@ import { isBlockedByMe } from "@/lib/blocks";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { listReportsForUser } from "@/lib/reports";
 import {
+  adminCorrectOldResultAction,
   adminOverrideResultAction,
   adminUndoMatchAction,
+  adminUndoOldMatchAction,
   banPlayerIpAction,
   blockUserAction,
   deleteAccountAction,
@@ -115,12 +119,14 @@ export default async function PlayerProfilePage({
     totalMatchCount,
     chartPoints,
     careerStats,
+    seasonStats,
     rivals,
     blocked,
     characterUsage,
     currentMatch,
     isLiveOnTwitch,
     matchAchievements,
+    seasonAchievements,
     streak,
     headToHead,
   ] = await Promise.all([
@@ -134,12 +140,14 @@ export default async function PlayerProfilePage({
     getPlayerMatchCount(id),
     getRatingChartPoints(id),
     getCareerStats(id),
+    getSeasonStats(id),
     getTopRivals(id),
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
     getCharacterUsage(id),
     getCurrentMatchForUser(id),
     player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
     getMatchHistoryAchievements(id),
+    getPlayerSeasonAchievements(id),
     getCurrentStreak(id),
     session?.user?.id && !isOwnProfile ? getHeadToHead(session.user.id, id) : Promise.resolve(null),
   ]);
@@ -151,33 +159,45 @@ export default async function PlayerProfilePage({
   // your main profile" promise as everywhere else practice mode is handled.
   const realRecentHistory = recentHistory.filter((m) => !m.isPracticing);
   const realRecentWins = realRecentHistory.filter((m) => m.won).length;
-  const winRate =
-    realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
+  const winRate = realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
-  const achievements = [...computeAchievements(careerStats), ...matchAchievements];
+  const achievements = [...computeAchievements(careerStats), ...matchAchievements, ...seasonAchievements].sort(
+    achievementComparator,
+  );
   const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           {player.avatarUrl && (
-            <Image
-              src={player.avatarUrl}
-              alt={player.username}
-              width={56}
-              height={56}
-              className="rounded-full"
-            />
+            <Image src={player.avatarUrl} alt={player.username} width={56} height={56} className="rounded-full" />
           )}
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
               {player.username}
+              {player.role !== "USER" && (
+                <Badge variant={player.role === "ADMIN" ? "warning" : "secondary"} className="text-xs">
+                  {player.role.toLowerCase()}
+                </Badge>
+              )}
+              {player.isSupporter && (
+                <Badge variant="success" className="text-xs">
+                  {lang === "es" ? "💖 Patrocinador" : "💖 Supporter"}
+                </Badge>
+              )}
               <CharacterUsageIcons usage={characterUsage} />
             </h1>
             {player.discordUsername && player.discordUsername !== player.username && (
               <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
+            )}
+            {player.isSupporter && (
+              <p className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? `${player.username} ha donado para apoyar Smash Ladder NA — ¡gracias!`
+                  : `${player.username} has donated to support Smash Ladder NA — thank you!`}
+              </p>
             )}
             <p className="text-sm tabular-nums text-muted-foreground">
               {lang === "es"
@@ -265,13 +285,7 @@ export default async function PlayerProfilePage({
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
                   >
-                    <Image
-                      src="/supermajor-icon.png"
-                      alt="Supermajor"
-                      width={24}
-                      height={24}
-                      className="size-4"
-                    />
+                    <Image src="/supermajor-icon.png" alt="Supermajor" width={24} height={24} className="size-4" />
                     supermajor.gg
                     <ExternalLink className="size-3" />
                   </a>
@@ -306,12 +320,7 @@ export default async function PlayerProfilePage({
       )}
 
       {currentMatch && (
-        <CurrentMatchCard
-          userId={id}
-          match={currentMatch}
-          zenMode={isOwnProfile && player.zenMode}
-          lang={lang}
-        />
+        <CurrentMatchCard userId={id} match={currentMatch} zenMode={isOwnProfile && player.zenMode} lang={lang} />
       )}
 
       {chartPoints.length >= 2 && (
@@ -337,13 +346,49 @@ export default async function PlayerProfilePage({
         </Card>
       )}
 
+      {seasonStats && (
+        <Card className="mt-4">
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium">
+              {lang === "es" ? "Temporada actual" : "Current season"}
+              {seasonStats.seasonName && ` · ${seasonStats.seasonName}`}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {lang === "es" ? "Se reinicia al terminar la temporada." : "Resets when the season ends."}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-lg font-semibold tabular-nums">
+                  {seasonStats.totalWins}-{seasonStats.totalLosses}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Récord de temporada" : "Season record"}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.peakRating ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Clasificación máxima de temporada" : "Season peak rating"}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.bestWinStreak}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Mejor racha de temporada" : "Season best win streak"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="mt-4">
         <CardContent className="pt-4">
           <p className="text-sm font-medium">{lang === "es" ? "Carrera" : "Career"}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {lang === "es" ? "No se reinicia entre temporadas." : "Doesn't reset between seasons."}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <p className="text-lg font-semibold tabular-nums">
                 {careerStats.totalWins}-{careerStats.totalLosses}
@@ -354,9 +399,7 @@ export default async function PlayerProfilePage({
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.peakRating ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Clasificación máxima" : "Peak rating"}
-              </p>
+              <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación máxima" : "Peak rating"}</p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.bestWinStreak}</p>
@@ -366,15 +409,7 @@ export default async function PlayerProfilePage({
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Temporadas jugadas" : "Seasons played"}
-              </p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold tabular-nums">{careerStats.tournamentsEntered}</p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Torneos disputados" : "Tournaments entered"}
-              </p>
+              <p className="text-xs text-muted-foreground">{lang === "es" ? "Temporadas jugadas" : "Seasons played"}</p>
             </div>
           </div>
 
@@ -409,10 +444,7 @@ export default async function PlayerProfilePage({
             <ul className="mt-2 flex flex-col gap-1.5">
               {rivals.map((r) => (
                 <li key={r.opponentId} className="flex items-center justify-between text-sm">
-                  <Link
-                    href={`/players/${r.opponentId}`}
-                    className="flex items-center gap-1.5 hover:underline"
-                  >
+                  <Link href={`/players/${r.opponentId}`} className="flex items-center gap-1.5 hover:underline">
                     <Swords className="size-3.5 text-muted-foreground" />
                     {r.username}
                   </Link>
@@ -495,6 +527,23 @@ export default async function PlayerProfilePage({
                     undoAction={adminUndoMatchAction.bind(null, match.id, id)}
                   />
                 )}
+                {isModerator && !isOwnProfile && match.id !== mostRecentRealMatchId && (
+                  // Same tool, for a match the player has since queued past —
+                  // adminOverrideResultAction/adminUndoMatchAction require this
+                  // to still be each side's most recent confirmed match, which
+                  // stops applying the moment they play again. These use the
+                  // relative-delta correction instead (see
+                  // adminCorrectOldMatchResult/adminUndoOldMatch), so a mod
+                  // can still fix a bad result from days ago without needing
+                  // to have caught it before the player's next set.
+                  <AdminMatchOverride
+                    player1Username={player.username}
+                    player2Username={match.opponent.username}
+                    actionForPlayer1={adminCorrectOldResultAction.bind(null, match.id, id, id)}
+                    actionForPlayer2={adminCorrectOldResultAction.bind(null, match.id, id, match.opponent.id)}
+                    undoAction={adminUndoOldMatchAction.bind(null, match.id, id)}
+                  />
+                )}
               </MatchHistoryEntry>
             ))}
           </Card>
@@ -514,7 +563,9 @@ export default async function PlayerProfilePage({
                 <li key={r.id} className="text-sm">
                   <div className="flex items-center gap-1.5">
                     <Badge
-                      variant={r.status === "ACTIONED" ? "destructive" : r.status === "DISMISSED" ? "outline" : "warning"}
+                      variant={
+                        r.status === "ACTIONED" ? "destructive" : r.status === "DISMISSED" ? "outline" : "warning"
+                      }
                     >
                       {r.status.toLowerCase()}
                     </Badge>
@@ -523,6 +574,18 @@ export default async function PlayerProfilePage({
                     </span>
                   </div>
                   <p className="mt-0.5 text-muted-foreground">{r.reason}</p>
+                  {r.actionTaken && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      →{" "}
+                      {r.actionTaken === "SUSPENDED"
+                        ? r.actionSuspensionHours
+                          ? `Suspended ${r.actionSuspensionHours}h`
+                          : "Suspended indefinitely"
+                        : "Banned"}
+                      {r.actionedBy && ` by ${r.actionedBy.username}`}
+                      {r.actionedAt && ` · ${r.actionedAt.toISOString().slice(0, 10)}`}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
@@ -534,10 +597,7 @@ export default async function PlayerProfilePage({
 
           {player.lastKnownIp && (
             <div className="mt-4">
-              <BanIpButton
-                action={banPlayerIpAction.bind(null, id, player.lastKnownIp)}
-                ip={player.lastKnownIp}
-              />
+              <BanIpButton action={banPlayerIpAction.bind(null, id, player.lastKnownIp)} ip={player.lastKnownIp} />
             </div>
           )}
         </div>
@@ -545,9 +605,7 @@ export default async function PlayerProfilePage({
 
       {isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
-          <h2 className="text-sm font-medium text-destructive">
-            {lang === "es" ? "Zona de peligro" : "Danger zone"}
-          </h2>
+          <h2 className="text-sm font-medium text-destructive">{lang === "es" ? "Zona de peligro" : "Danger zone"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {lang === "es"
               ? "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos."
@@ -597,8 +655,8 @@ function CurrentMatchCard({
   // shows a stale game number.
   const currentGame = match.games.find((game) => !game.winnerId && !isDisputedGame(game)) ?? null;
   const lastGame = match.games[match.games.length - 1];
-  const gameNumber = currentGame?.gameNumber ??
-    (lastGame && isDisputedGame(lastGame) ? lastGame.gameNumber : match.games.length + 1);
+  const gameNumber =
+    currentGame?.gameNumber ?? (lastGame && isDisputedGame(lastGame) ? lastGame.gameNumber : match.games.length + 1);
   const myCharacter = currentGame
     ? currentGame.actorAId === userId
       ? currentGame.actorACharacter
@@ -612,8 +670,7 @@ function CurrentMatchCard({
   // Game 1 is a blind pick — characters stay hidden until both sides have
   // locked in, same as the in-lobby pick UI.
   const showCharacters =
-    currentGame !== null &&
-    (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
+    currentGame !== null && (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
 
   return (
     <Card className="mt-8">
@@ -656,11 +713,12 @@ function CurrentMatchCard({
               ))}
             <div className="min-w-0">
               {zenMode ? (
-                <p className="truncate text-right text-sm font-medium">
-                  {lang === "es" ? "Rival" : "Opponent"}
-                </p>
+                <p className="truncate text-right text-sm font-medium">{lang === "es" ? "Rival" : "Opponent"}</p>
               ) : (
-                <Link href={`/players/${opponent.id}`} className="block truncate text-right text-sm font-medium hover:underline">
+                <Link
+                  href={`/players/${opponent.id}`}
+                  className="block truncate text-right text-sm font-medium hover:underline"
+                >
                   {opponent.username}
                 </Link>
               )}

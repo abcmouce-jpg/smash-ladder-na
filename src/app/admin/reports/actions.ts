@@ -20,23 +20,29 @@ export async function dismiss(reportId: string) {
 }
 
 export async function suspendReportedUser(reportId: string, formData: FormData) {
-  await requireModerator();
-  const suspensionHours = parseSuspensionHours(formData.get("suspensionHours"));
+  const modId = await requireModerator();
+  const suspensionHours = parseSuspensionHours(formData.get("customHours"), formData.get("suspensionHours"));
   const skipThreshold = formData.get("insta") === "on";
-  await actionReport(reportId, "SUSPENDED", { suspensionHours, skipThreshold });
+  await actionReport(reportId, modId, "SUSPENDED", { suspensionHours, skipThreshold });
   revalidatePath("/admin/reports");
 }
 
 export async function banReportedUser(reportId: string, formData: FormData) {
-  await requireModerator();
+  const modId = await requireModerator();
   const skipThreshold = formData.get("insta") === "on";
-  await actionReport(reportId, "BANNED", { skipThreshold });
+  await actionReport(reportId, modId, "BANNED", { skipThreshold });
   revalidatePath("/admin/reports");
 }
 
-function parseSuspensionHours(raw: FormDataEntryValue | null) {
-  if (raw === "indefinite" || raw === null) return null;
-  const hours = Number(raw);
+function parseSuspensionHours(customRaw: FormDataEntryValue | null, presetRaw: FormDataEntryValue | null) {
+  // The custom hours field wins whenever it's a valid positive number —
+  // it's an explicit override of whatever the preset dropdown happens to be
+  // sitting on, not a fallback path.
+  const custom = Number(customRaw);
+  if (customRaw && Number.isFinite(custom) && custom > 0) return custom;
+
+  if (presetRaw === "indefinite" || presetRaw === null) return null;
+  const hours = Number(presetRaw);
   return Number.isFinite(hours) ? hours : null;
 }
 

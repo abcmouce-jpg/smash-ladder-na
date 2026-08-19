@@ -28,12 +28,7 @@ export async function getTournament(id: string) {
   });
 }
 
-export async function createTournament(
-  hostId: string,
-  name: string,
-  description: string,
-  startggUrl: string,
-) {
+export async function createTournament(hostId: string, name: string, description: string, startggUrl: string) {
   const trimmedName = name.trim().slice(0, 100);
   if (!trimmedName) throw new Error("Name is required");
   return prisma.tournament.create({
@@ -46,11 +41,7 @@ export async function createTournament(
   });
 }
 
-async function requireHostOrMod(
-  tournamentId: string,
-  userId: string,
-  role: "USER" | "MOD" | "ADMIN",
-) {
+async function requireHostOrMod(tournamentId: string, userId: string, role: "USER" | "MOD" | "ADMIN") {
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) throw new Error("Tournament not found");
   if (tournament.hostId !== userId && role !== "MOD" && role !== "ADMIN") {
@@ -81,12 +72,7 @@ export async function leaveTournament(userId: string, tournamentId: string) {
   await prisma.tournamentEntry.deleteMany({ where: { tournamentId, userId } });
 }
 
-export async function setStartggUrl(
-  userId: string,
-  tournamentId: string,
-  url: string,
-  role: "USER" | "MOD" | "ADMIN",
-) {
+export async function setStartggUrl(userId: string, tournamentId: string, url: string, role: "USER" | "MOD" | "ADMIN") {
   await requireHostOrMod(tournamentId, userId, role);
   await prisma.tournament.update({
     where: { id: tournamentId },
@@ -96,11 +82,7 @@ export async function setStartggUrl(
 
 // The bracket itself runs on start.gg — these just move our own lifecycle
 // label along so the tournament list reads accurately.
-export async function markInProgress(
-  userId: string,
-  tournamentId: string,
-  role: "USER" | "MOD" | "ADMIN",
-) {
+export async function markInProgress(userId: string, tournamentId: string, role: "USER" | "MOD" | "ADMIN") {
   const tournament = await requireHostOrMod(tournamentId, userId, role);
   await prisma.tournament.update({
     where: { id: tournamentId },
@@ -118,11 +100,7 @@ export async function markInProgress(
   after(() => sendDiscordDMsSequentially(recipients, message));
 }
 
-export async function markCompleted(
-  userId: string,
-  tournamentId: string,
-  role: "USER" | "MOD" | "ADMIN",
-) {
+export async function markCompleted(userId: string, tournamentId: string, role: "USER" | "MOD" | "ADMIN") {
   await requireHostOrMod(tournamentId, userId, role);
   await prisma.tournament.update({
     where: { id: tournamentId },
@@ -130,11 +108,7 @@ export async function markCompleted(
   });
 }
 
-export async function cancelTournament(
-  userId: string,
-  tournamentId: string,
-  role: "USER" | "MOD" | "ADMIN",
-) {
+export async function cancelTournament(userId: string, tournamentId: string, role: "USER" | "MOD" | "ADMIN") {
   await requireHostOrMod(tournamentId, userId, role);
   await prisma.tournament.update({
     where: { id: tournamentId },

@@ -25,11 +25,7 @@ const STATUS_LABEL_ES: Record<string, string> = {
   CANCELLED: "cancelado",
 };
 
-export default async function TournamentDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function TournamentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [session, tournament, lang] = await Promise.all([auth(), getTournament(id), getLang()]);
   if (!tournament) notFound();
@@ -40,7 +36,7 @@ export default async function TournamentDetailPage({
   const myEntry = tournament.entries.find((e) => e.userId === userId);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">{tournament.name}</h1>
@@ -48,9 +44,7 @@ export default async function TournamentDetailPage({
           {lang === "es" ? STATUS_LABEL_ES[tournament.status] : tournament.status.toLowerCase()}
         </Badge>
       </div>
-      {tournament.description && (
-        <p className="mt-2 text-sm text-muted-foreground">{tournament.description}</p>
-      )}
+      {tournament.description && <p className="mt-2 text-sm text-muted-foreground">{tournament.description}</p>}
       <p className="mt-1 text-xs text-muted-foreground">
         {lang === "es" ? (
           <>Organizado por {tournament.host.username} · Doble eliminación en start.gg</>
@@ -82,20 +76,13 @@ export default async function TournamentDetailPage({
       <Card className="mt-6">
         <CardContent className="pt-4">
           <p className="text-sm font-medium">
-            {lang === "es" ? "Participantes del ladder" : "Entrants from the ladder"} (
-            {tournament.entries.length})
+            {lang === "es" ? "Participantes del ladder" : "Entrants from the ladder"} ({tournament.entries.length})
           </p>
           <ul className="mt-2 flex flex-col gap-1.5">
             {tournament.entries.map((e) => (
               <li key={e.id} className="flex items-center gap-2 text-sm">
                 {e.user.avatarUrl && (
-                  <Image
-                    src={e.user.avatarUrl}
-                    alt={e.user.username}
-                    width={20}
-                    height={20}
-                    className="rounded-full"
-                  />
+                  <Image src={e.user.avatarUrl} alt={e.user.username} width={20} height={20} className="rounded-full" />
                 )}
                 {e.user.username}
               </li>

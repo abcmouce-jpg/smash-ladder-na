@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { liftExpiredSuspension } from "@/lib/account";
+import { getActiveSeason } from "@/lib/seasons";
 import { startOfDayInTimeZone } from "@/lib/timezone";
 
 export async function getPlayerProfile(userId: string) {
@@ -12,6 +13,8 @@ export async function getPlayerProfile(userId: string) {
       username: true,
       discordUsername: true,
       avatarUrl: true,
+      role: true,
+      isSupporter: true,
       rating: true,
       gamesPlayed: true,
       practiceRating: true,
@@ -425,6 +428,70 @@ export async function getCareerStats(userId: string) {
   };
 }
 
+// The active season's record/peak/streak for the season card on the profile
+// — same shape as getCareerStats but scoped to the current season's matches,
+// so these reset along with rating/gamesPlayed at season rollover. Returns
+// null if no season is active (nothing to scope the stats to).
+export async function getSeasonStats(userId: string) {
+  const activeSeason = await getActiveSeason();
+  if (!activeSeason) return null;
+
+  const [wins, losses, peakRating, resultsInOrder] = await Promise.all([
+    prisma.ratingMatch.count({
+      where: {
+        status: MatchStatus.CONFIRMED,
+        seasonId: activeSeason.id,
+        reportedWinnerId: userId,
+        OR: notPracticingFor(userId),
+      },
+    }),
+    prisma.ratingMatch.count({
+      where: {
+        status: MatchStatus.CONFIRMED,
+        seasonId: activeSeason.id,
+        OR: notPracticingFor(userId),
+        NOT: { reportedWinnerId: userId },
+      },
+    }),
+    // Highest rating reached this season — RatingHistory has no seasonId, so
+    // scope it through the match the entry belongs to. A player with no
+    // matches yet this season has no rows, hence the null/"—" fallback.
+    prisma.ratingHistory.aggregate({
+      where: { userId, match: { seasonId: activeSeason.id } },
+      _max: { ratingAfter: true },
+    }),
+    prisma.ratingMatch.findMany({
+      where: {
+        status: MatchStatus.CONFIRMED,
+        seasonId: activeSeason.id,
+        reportedWinnerId: { not: null },
+        OR: notPracticingFor(userId),
+      },
+      orderBy: { confirmedAt: "asc" },
+      select: { reportedWinnerId: true },
+    }),
+  ]);
+
+  let bestWinStreak = 0;
+  let running = 0;
+  for (const m of resultsInOrder) {
+    if (m.reportedWinnerId === userId) {
+      running++;
+      bestWinStreak = Math.max(bestWinStreak, running);
+    } else {
+      running = 0;
+    }
+  }
+
+  return {
+    seasonName: activeSeason.name,
+    totalWins: wins,
+    totalLosses: losses,
+    peakRating: peakRating._max.ratingAfter,
+    bestWinStreak,
+  };
+}
+
 // Top opponents by games played against them, with the head-to-head record.
 export async function getTopRivals(userId: string, limit = 3) {
   const matches = await prisma.ratingMatch.findMany({
@@ -441,9 +508,7 @@ export async function getTopRivals(userId: string, limit = 3) {
     record.set(opponentId, entry);
   }
 
-  const topIds = [...record.entries()]
-    .sort(([, a], [, b]) => b.wins + b.losses - (a.wins + a.losses))
-    .slice(0, limit);
+  const topIds = [...record.entries()].sort(([, a], [, b]) => b.wins + b.losses - (a.wins + a.losses)).slice(0, limit);
   if (topIds.length === 0) return [];
 
   const opponents = await prisma.user.findMany({

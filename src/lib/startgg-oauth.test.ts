@@ -9,9 +9,7 @@ describe("startggProfileUrl", () => {
 
 describe("supermajorProfileUrl", () => {
   it("builds a supermajor.gg profile URL from a player id", () => {
-    expect(supermajorProfileUrl("987654")).toBe(
-      "https://www.supermajor.gg/ultimate/player/_?id=S987654",
-    );
+    expect(supermajorProfileUrl("987654")).toBe("https://www.supermajor.gg/ultimate/player/_?id=S987654");
   });
 });
 
@@ -36,8 +34,6 @@ describe("buildStartggAuthorizeUrl", () => {
   it("throws when OAuth credentials aren't configured", () => {
     vi.stubEnv("STARTGG_OAUTH_CLIENT_ID", "");
     vi.stubEnv("STARTGG_OAUTH_CLIENT_SECRET", "");
-    expect(() => buildStartggAuthorizeUrl("https://example.com/callback", "state")).toThrow(
-      /isn't configured/i,
-    );
+    expect(() => buildStartggAuthorizeUrl("https://example.com/callback", "state")).toThrow(/isn't configured/i);
   });
 });

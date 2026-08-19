@@ -1,19 +1,19 @@
-export type Theme = "light" | "dark";
+export type Theme = "light" | "dark" | "auto";
 
-// No "system" option — only an explicit light/dark stays stored. A
-// first-time visitor (nothing in localStorage yet) still gets the OS
-// preference as the initial pick, matching the inline anti-FOUC script in
-// layout.tsx.
+// Explicit light/dark/auto stays stored. Nothing stored (a first-time
+// visitor) defaults to "auto" — follow the OS preference — matching the
+// inline anti-FOUC script in layout.tsx.
 export function getStoredTheme(): Theme {
   try {
     const v = localStorage.getItem("theme");
-    if (v === "light" || v === "dark") return v;
+    if (v === "light" || v === "dark" || v === "auto") return v;
   } catch {
     /* localStorage unavailable */
   }
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "auto";
 }
 
 export function applyTheme(theme: Theme) {
-  document.documentElement.classList.toggle("dark", theme === "dark");
+  const dark = theme === "dark" || (theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.classList.toggle("dark", dark);
 }

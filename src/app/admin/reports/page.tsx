@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { banReportedUser, dismiss, reinstateUser, suspendReportedUser } from "./actions";
 
 const SUSPENSION_DURATION_OPTIONS = [
+  { label: "1 hour", value: "1" },
+  { label: "6 hours", value: "6" },
   { label: "1 day", value: "24" },
   { label: "3 days", value: "72" },
   { label: "7 days", value: "168" },
@@ -36,11 +38,9 @@ export default async function ReportsPage() {
 
   if (!session?.user?.id || (role !== "MOD" && role !== "ADMIN")) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You don&apos;t have access to this page.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">You don&apos;t have access to this page.</p>
       </main>
     );
   }
@@ -48,15 +48,13 @@ export default async function ReportsPage() {
   const reports = await listOpenReports();
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Flag className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
       </div>
 
-      {reports.length === 0 && (
-        <p className="mt-4 text-sm text-muted-foreground">No open reports.</p>
-      )}
+      {reports.length === 0 && <p className="mt-4 text-sm text-muted-foreground">No open reports.</p>}
 
       <ul className="mt-6 flex flex-col gap-4">
         {reports.map((report) => {
@@ -94,9 +92,7 @@ export default async function ReportsPage() {
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{report.reason}</p>
-                  {report.match && (
-                    <p className="mt-1 text-xs text-muted-foreground">Match: {report.match.id}</p>
-                  )}
+                  {report.match && <p className="mt-1 text-xs text-muted-foreground">Match: {report.match.id}</p>}
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <form action={dismiss.bind(null, report.id)}>
@@ -117,6 +113,13 @@ export default async function ReportsPage() {
                           </option>
                         ))}
                       </select>
+                      <input
+                        type="number"
+                        name="customHours"
+                        min={1}
+                        placeholder="or custom hrs"
+                        className="h-7 w-24 rounded-lg border border-border bg-background px-1.5 text-xs text-foreground outline-none focus-visible:border-ring"
+                      />
                       <Button type="submit" variant="secondary" size="sm">
                         Suspend
                       </Button>

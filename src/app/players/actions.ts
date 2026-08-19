@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { auth, signOut } from "@/auth";
 import { deleteMyAccount } from "@/lib/account";
 import { blockUser } from "@/lib/blocks";
-import { adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches";
-import { adminCancelMatch } from "@/lib/disputes";
+import { adminCorrectOldMatchResult, adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches";
+import { adminCancelMatch, adminUndoOldMatch } from "@/lib/disputes";
 import { moderateUserDirectly } from "@/lib/reports";
 import { banIp } from "@/lib/ip-bans";
 import { listMatchComments, listMatchCommentsAsMod } from "@/lib/match-comments";
@@ -19,9 +19,12 @@ async function requireModerator() {
   return session.user.id;
 }
 
-function parseSuspensionHours(raw: FormDataEntryValue | null) {
-  if (raw === "indefinite" || raw === null) return null;
-  const hours = Number(raw);
+function parseSuspensionHours(customRaw: FormDataEntryValue | null, presetRaw: FormDataEntryValue | null) {
+  const custom = Number(customRaw);
+  if (customRaw && Number.isFinite(custom) && custom > 0) return custom;
+
+  if (presetRaw === "indefinite" || presetRaw === null) return null;
+  const hours = Number(presetRaw);
   return Number.isFinite(hours) ? hours : null;
 }
 
@@ -94,7 +97,7 @@ export async function moderateUserAction(
 ): Promise<ModerationState> {
   const modId = await requireModerator();
   const action = String(formData.get("action") ?? "") as "SUSPEND" | "BAN" | "REINSTATE";
-  const suspensionHours = parseSuspensionHours(formData.get("suspensionHours"));
+  const suspensionHours = parseSuspensionHours(formData.get("customHours"), formData.get("suspensionHours"));
   const reason = String(formData.get("reason") ?? "");
   try {
     await moderateUserDirectly(modId, targetUserId, action, { suspensionHours, reason });
@@ -163,6 +166,43 @@ export async function adminUndoMatchAction(
   await requireModerator();
   try {
     await adminCancelMatch(matchId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath(`/players/${viewedPlayerId}`);
+  return { error: null };
+}
+
+// Counterparts to the two actions above for a match that's no longer each
+// player's most recent confirmed one — e.g. the player kept queueing
+// overnight before a mod got to a bad result. See adminCorrectOldMatchResult
+// / adminUndoOldMatch for the relative-delta approach this uses instead.
+export async function adminCorrectOldResultAction(
+  matchId: string,
+  viewedPlayerId: string,
+  winnerId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: AdminOverrideState,
+): Promise<AdminOverrideState> {
+  await requireModerator();
+  try {
+    await adminCorrectOldMatchResult(matchId, winnerId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath(`/players/${viewedPlayerId}`);
+  return { error: null };
+}
+
+export async function adminUndoOldMatchAction(
+  matchId: string,
+  viewedPlayerId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: AdminOverrideState,
+): Promise<AdminOverrideState> {
+  await requireModerator();
+  try {
+    await adminUndoOldMatch(matchId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }

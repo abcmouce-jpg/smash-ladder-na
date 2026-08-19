@@ -3,11 +3,12 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Activity, Coffee, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
-import { getPublicStats } from "@/lib/public-stats";
+import { getMatchesPerDay, getPublicStats, getTopGrinders } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
+import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
@@ -23,7 +24,7 @@ export default async function Home() {
   const session = await auth();
   const user = session?.user;
 
-  const [me, stats, lang, topRecruiters] = await Promise.all([
+  const [me, stats, lang, topRecruiters, topGrinders, matchTimestamps] = await Promise.all([
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
@@ -33,10 +34,12 @@ export default async function Home() {
     getPublicStats(),
     getLang(),
     getTopRecruiters(3),
+    getTopGrinders(3),
+    getMatchesPerDay(30),
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-20">
+    <main className="mx-auto w-full max-w-3xl px-6 py-20">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="border-primary/30 text-primary">
           {lang === "es" ? "Norteamérica" : "North America"}
@@ -84,8 +87,8 @@ export default async function Home() {
             </>
           ) : (
             <>
-              You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated across{" "}
-              {me.gamesPlayed} sets.
+              You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated across {me.gamesPlayed}{" "}
+              sets.
             </>
           )}
         </p>
@@ -124,9 +127,7 @@ export default async function Home() {
               <Link key={p.id} href={`/players/${p.id}`}>
                 <Card className="h-full py-0 transition-colors hover:border-foreground/30">
                   <CardContent className="flex items-center gap-3 py-3">
-                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">
-                      {["🥇", "🥈", "🥉"][i]}
-                    </span>
+                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">{["🥇", "🥈", "🥉"][i]}</span>
                     {p.avatarUrl && (
                       <Image
                         src={p.avatarUrl}
@@ -144,6 +145,52 @@ export default async function Home() {
                         </p>
                         <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-10">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {lang === "es" ? "Partidas por día" : "Matches per day"}
+        </h2>
+        <Card className="mt-3">
+          <CardContent className="pt-4">
+            <MatchesPerDayChart timestamps={matchTimestamps} lang={lang} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {topGrinders.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {lang === "es" ? "Los que más juegan" : "Top grinders"}
+          </h2>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {topGrinders.map((g) => (
+              <Link key={g.id} href={`/players/${g.id}`}>
+                <Card className="h-full py-0 transition-colors hover:border-foreground/30">
+                  <CardContent className="flex items-center gap-3 py-3">
+                    {g.avatarUrl && (
+                      <Image
+                        src={g.avatarUrl}
+                        alt={g.username}
+                        width={32}
+                        height={32}
+                        className="shrink-0 rounded-full"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{g.username}</p>
+                      <p className="text-xs tabular-nums text-muted-foreground">
+                        {lang === "es"
+                          ? `${g.gamesPlayed} ${g.gamesPlayed === 1 ? "partida jugada" : "partidas jugadas"}`
+                          : `${g.gamesPlayed} ${g.gamesPlayed === 1 ? "set" : "sets"} played`}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -207,16 +254,13 @@ export default async function Home() {
             <CardHeader>
               <Trophy className="size-5 text-muted-foreground" />
               <CardTitle className="text-base">{lang === "es" ? "Tabla de clasificación" : "Leaderboard"}</CardTitle>
-              <CardDescription>{lang === "es" ? "Mira en qué posición estás." : "See where you stack up."}</CardDescription>
+              <CardDescription>
+                {lang === "es" ? "Mira en qué posición estás." : "See where you stack up."}
+              </CardDescription>
             </CardHeader>
           </Card>
         </Link>
-        <a
-          href={DISCORD_SERVER_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="h-full"
-        >
+        <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="h-full">
           <Card className="h-full transition-colors hover:border-foreground/30">
             <CardHeader>
               <DiscordIcon className="size-5 text-muted-foreground" />

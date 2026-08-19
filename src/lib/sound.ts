@@ -1,43 +1,89 @@
 "use client";
 
-// Synthesized rather than an audio file — no asset to ship, and this is a
-// tiny two-note chime, not something worth a licensed sound effect for.
-// Best-effort only: browsers can block autoplay audio outside a direct user
-// gesture, so a rejected play() must never throw into the caller.
+// Synthesized rather than audio files — no asset to ship, and these are
+// tiny chimes, not worth a licensed sound effect for. The one exception is
+// the match-found announcer clips further down, which plays supplied voice
+// clips instead. Best-effort only either way: browsers can block autoplay
+// audio outside a direct user gesture, so a rejected play() must never
+// throw into the caller.
 
 // A fresh AudioContext created outside a user gesture starts (and stays)
-// "suspended" in Chrome/Safari — exactly what happens when the match-found
-// chime fires from a polling-triggered router.refresh(), not a click. A
-// context resumed during a REAL gesture stays usable for later programmatic
-// sounds too, so this keeps one shared context alive instead of making a
-// fresh (potentially permanently-suspended) one per chime.
+// "suspended" in Chrome/Safari — exactly what happens when a chime fires
+// from a polling-triggered router.refresh() (e.g. the victory/tier-up
+// chimes below), not a click. A context resumed during a REAL gesture stays
+// usable for later programmatic sounds too, so this keeps one shared
+// context alive instead of making a fresh (potentially
+// permanently-suspended) one per chime.
 let sharedCtx: AudioContext | null = null;
 
 function getContext(): AudioContext | null {
   try {
-    if (!sharedCtx) sharedCtx = new AudioContext();
-    if (sharedCtx.state === "suspended") void sharedCtx.resume();
+    if (!sharedCtx) {
+      // Older iOS Safari (<14.5) only exposes the prefixed constructor —
+      // without it, mobile silently gets no chime at all.
+      const Ctor =
+        window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return null;
+      sharedCtx = new Ctor();
+    }
+    if (sharedCtx.state === "suspended") {
+      // resume() outside a user gesture rejects on iOS (and can reject on
+      // Android after the tab was backgrounded) — the rejection must never
+      // surface as an unhandled promise error. The attempt itself is still
+      // worth making: on desktop and Android Chrome it often succeeds, which
+      // is how a previously-unlocked context keeps working across refreshes.
+      sharedCtx.resume().catch(() => {});
+    }
     return sharedCtx;
   } catch {
     return null;
   }
 }
 
+// Which sound plays when a match is found — the player's pick in Settings
+// (User.matchFoundSound). Values match the Prisma enum of the same name.
+export type MatchFoundSound = "CHIME" | "ANNOUNCER";
+
+// Real voice clips for the match-found moment specifically (the exception
+// noted above) — picked at random in playMatchFoundSound so repeat queues
+// don't all sound the same.
+const MATCH_FOUND_CLIPS = [
+  "/sounds/vc_menu_narration_enterring.wav",
+  "/sounds/vc_menu_narration_challengersapproach.wav",
+  "/sounds/vc_menu_narration_enterring_JP.wav",
+  "/sounds/vc_menu_narration_ready2.wav",
+];
+
 if (typeof window !== "undefined") {
-  const unlock = () => getContext();
+  const unlock = () => {
+    getContext();
+    // HTMLAudioElement.play() is gated by the same autoplay-gesture policy
+    // as AudioContext but isn't unlocked by resuming one — each clip needs
+    // its own silent play+pause on this same first gesture. Doing that here
+    // also warms the browser's cache for all the clips ahead of the real play.
+    MATCH_FOUND_CLIPS.forEach((src) => {
+      const audio = new Audio(src);
+      audio
+        .play()
+        .then(() => audio.pause())
+        .catch(() => {});
+    });
+  };
   // Any of these count as a user gesture — first one wins, then this is done.
   ["pointerdown", "keydown", "touchstart"].forEach((event) =>
     window.addEventListener(event, unlock, { once: true, passive: true }),
   );
+  // Browsers suspend audio output for hidden tabs; on return the context can
+  // still be suspended. Retry the resume when the tab becomes visible again
+  // (same gesture-less attempt as above — it's a best-effort recovery, and
+  // where the platform allows it, this is exactly when a missed match-found
+  // chime gets replayed by LobbyPoller).
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") getContext();
+  });
 }
 
-function playTone(
-  ctx: AudioContext,
-  frequency: number,
-  startTime: number,
-  duration: number,
-  volume = 0.2,
-) {
+function playTone(ctx: AudioContext, frequency: number, startTime: number, duration: number, volume = 0.2) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
   oscillator.type = "sine";
@@ -63,7 +109,11 @@ export function playVictoryChime() {
   }
 }
 
-export function playMatchFoundChime() {
+// The original match-found sound, restored for players who preferred it to
+// the announcer clips: a short two-note chime, synthesized so it needs no
+// asset. Kept as a module-private helper — playMatchFoundSound dispatches
+// to it for the "CHIME" setting.
+function playMatchFoundChime() {
   const ctx = getContext();
   if (!ctx) return;
   try {
@@ -73,6 +123,17 @@ export function playMatchFoundChime() {
   } catch {
     // Autoplay restrictions, unsupported browser, etc. — silently skip.
   }
+}
+
+export function playMatchFoundSound(style: MatchFoundSound) {
+  if (style === "CHIME") {
+    playMatchFoundChime();
+    return;
+  }
+  const clip = MATCH_FOUND_CLIPS[Math.floor(Math.random() * MATCH_FOUND_CLIPS.length)];
+  new Audio(clip).play().catch(() => {
+    // Autoplay restrictions, unsupported browser, etc. — silently skip.
+  });
 }
 
 // A single short blip — for a value updating on screen (e.g. the room code

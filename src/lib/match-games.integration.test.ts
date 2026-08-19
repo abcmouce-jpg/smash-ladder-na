@@ -37,7 +37,7 @@ describe("auto-forfeit for a stale character pick", () => {
     expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
   });
 
-  it("forfeits the game to whoever locked in once CHARACTER_TIMEOUT_MS has elapsed", async () => {
+  it("forfeits the whole match to whoever locked in once CHARACTER_TIMEOUT_MS has elapsed", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -53,6 +53,12 @@ describe("auto-forfeit for a stale character pick", () => {
     const games = await getMatchGames(match.id);
     const resolved = games.find((g) => g.gameNumber === 1);
     expect(resolved?.winnerId).toBe(game.actorAId);
+    // A ghost who never locked in isn't coming back for game 2 either — the
+    // whole match is forfeited, not just this one game.
+    expect(games.find((g) => g.gameNumber === 2)).toBeUndefined();
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe("CONFIRMED");
+    expect(updatedMatch.reportedWinnerId).toBe(game.actorAId);
 
     const opponent = await prisma.user.findUniqueOrThrow({
       where: { id: game.actorAId === p1.id ? p2.id : p1.id },
@@ -155,7 +161,7 @@ describe("auto-confirm for a stale game report", () => {
     expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
   });
 
-  it("auto-confirms a lone hanging report once REPORT_TIMEOUT_MS has elapsed, charging the silent side a no-show", async () => {
+  it("auto-confirms a lone hanging report once REPORT_TIMEOUT_MS has elapsed, forfeiting the whole set and charging the silent side a no-show", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -177,11 +183,13 @@ describe("auto-confirm for a stale game report", () => {
     const resolved = games.find((g) => g.gameNumber === 1);
     expect(resolved?.winnerId).toBe(p1.id);
 
-    // The set isn't decided, so game 2 gets created and the match gets a fresh
-    // deadline rather than expiring mid-set on the original one.
-    expect(games.find((g) => g.gameNumber === 2)).toBeDefined();
+    // A ghost who won't confirm isn't coming back for the rest of the set
+    // either — the whole match is forfeited to the present player instead of
+    // just this one game, so no game 2 ever gets created.
+    expect(games.find((g) => g.gameNumber === 2)).toBeUndefined();
     const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
-    expect(updatedMatch.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    expect(updatedMatch.status).toBe("CONFIRMED");
+    expect(updatedMatch.reportedWinnerId).toBe(p1.id);
 
     const ghost = await prisma.user.findUniqueOrThrow({ where: { id: p2.id } });
     expect(ghost.noShowCount).toBe(1);
@@ -244,9 +252,7 @@ describe("character lock-in gates stage striking", () => {
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
 
-    await expect(
-      strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0]),
-    ).rejects.toThrow(/character/i);
+    await expect(strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0])).rejects.toThrow(/character/i);
   });
 
   it("still rejects a strike when only the striking player has locked in (opponent hasn't)", async () => {
@@ -259,9 +265,7 @@ describe("character lock-in gates stage striking", () => {
 
     await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
 
-    await expect(
-      strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0]),
-    ).rejects.toThrow(/character/i);
+    await expect(strikeGameStage(game.actorAId, match.id, 1, GAME_ONE_STAGES[0])).rejects.toThrow(/character/i);
   });
 
   it("allows a strike once both players have locked in a character", async () => {
@@ -296,9 +300,7 @@ describe("character lock-in gates stage striking", () => {
     await pickGameCharacter(opponentId, match.id, 1, "Luigi");
     const afterSecondPick = await getCurrentGame(match.id);
 
-    expect(afterSecondPick!.turnStartedAt.getTime()).toBeGreaterThan(
-      afterFirstPick!.turnStartedAt.getTime(),
-    );
+    expect(afterSecondPick!.turnStartedAt.getTime()).toBeGreaterThan(afterFirstPick!.turnStartedAt.getTime());
   });
 
   it("rejects the final stage pick from a player who hasn't locked in a character yet", async () => {
@@ -320,9 +322,7 @@ describe("character lock-in gates stage striking", () => {
       },
     });
 
-    await expect(
-      pickGameStage(p2.id, match.id, 2, "Final Destination"),
-    ).rejects.toThrow(/character/i);
+    await expect(pickGameStage(p2.id, match.id, 2, "Final Destination")).rejects.toThrow(/character/i);
   });
 
   it("allows the final stage pick once both players have locked in a character", async () => {
@@ -517,7 +517,16 @@ describe("pickSameStage", () => {
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await prisma.matchGame.create({
-      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [],
+        finalStage: COUNTERPICK_STAGES[0],
+      },
     });
     await prisma.matchGame.create({
       data: {
@@ -547,7 +556,16 @@ describe("pickSameStage", () => {
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await prisma.matchGame.create({
-      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [],
+        finalStage: COUNTERPICK_STAGES[0],
+      },
     });
     await prisma.matchGame.create({
       data: {
@@ -594,7 +612,16 @@ describe("pickSameStage", () => {
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await prisma.matchGame.create({
-      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [],
+        finalStage: COUNTERPICK_STAGES[0],
+      },
     });
     await prisma.matchGame.create({
       data: {

@@ -162,7 +162,7 @@ const REGION_COORDINATES: Record<string, [number, number]> = {
   "Europe East": [52.2, 21.0],
   "East Asia": [35.7, 139.7],
   "Southeast Asia": [1.3, 103.8],
-  "Oceania": [-33.9, 151.2],
+  Oceania: [-33.9, 151.2],
 
   // USA states — anchored on each state's largest metro area.
   Alabama: [33.52, -86.8],
@@ -256,7 +256,7 @@ export const REGION_REFERENCE_CITY: Partial<Record<MatchRegion, string>> = {
   "Europe East": "Warsaw",
   "East Asia": "Tokyo",
   "Southeast Asia": "Singapore",
-  "Oceania": "Sydney",
+  Oceania: "Sydney",
 };
 
 // Great-circle distance between two regions' representative points, in km.
@@ -268,9 +268,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const sinLat = Math.sin(dLat / 2);
   const sinLon = Math.sin(dLon / 2);
-  const h =
-    sinLat * sinLat +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * sinLon * sinLon;
+  const h = sinLat * sinLat + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * sinLon * sinLon;
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 

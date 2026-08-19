@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { eloDelta, expectedScore, kFactor, MAX_RATING_DELTA } from "@/lib/matches";
+import { eloDelta, expectedScore, getRoomHostId, kFactor, MAX_RATING_DELTA } from "@/lib/matches";
 
 describe("Elo helpers", () => {
   describe("kFactor", () => {
@@ -83,5 +83,49 @@ describe("Elo helpers", () => {
       expect(raw).toBeLessThan(MAX_RATING_DELTA);
       expect(eloDelta(30, 1, e)).toBeCloseTo(raw);
     });
+
+    it("floors a heavily-favored win at +1 instead of letting it round down to +0", () => {
+      const e = expectedScore(2200, 1200); // huge favorite, raw swing rounds to ~0
+      const raw = kFactor(30) * (1 - e);
+      expect(raw).toBeLessThan(0.5);
+      expect(eloDelta(30, 1, e)).toBe(1);
+    });
+
+    it("does not floor an all-but-certain loss — the win-only floor leaves it near-zero", () => {
+      const underdogExpected = expectedScore(1200, 2200); // near-zero chance of winning
+      expect(Math.abs(eloDelta(30, 0, underdogExpected))).toBeLessThan(1);
+    });
+  });
+});
+
+describe("getRoomHostId", () => {
+  it("always returns one of the two players", () => {
+    const host = getRoomHostId({ id: "match1", player1Id: "player1", player2Id: "player2", roomCodeSetById: null });
+    expect(["player1", "player2"]).toContain(host);
+  });
+
+  it("is stable across repeated calls for the same match", () => {
+    const match = { id: "clabc123", player1Id: "p1", player2Id: "p2", roomCodeSetById: null };
+    expect(getRoomHostId(match)).toBe(getRoomHostId(match));
+  });
+
+  it("picks different hosts for at least one pair across many match ids", () => {
+    const hosts = new Set<string>();
+    for (let i = 0; i < 50; i++) {
+      hosts.add(getRoomHostId({ id: `match-${i}`, player1Id: "p1", player2Id: "p2", roomCodeSetById: null }));
+    }
+    expect(hosts.size).toBe(2);
+  });
+
+  it("returns roomCodeSetById directly when already set, regardless of the hash", () => {
+    // match1/player1/player2 hashes to "player1" per the first test above —
+    // an explicit roomCodeSetById of "player2" must still win.
+    const host = getRoomHostId({
+      id: "match1",
+      player1Id: "player1",
+      player2Id: "player2",
+      roomCodeSetById: "player2",
+    });
+    expect(host).toBe("player2");
   });
 });

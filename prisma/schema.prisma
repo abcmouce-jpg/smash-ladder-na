@@ -81,6 +81,17 @@ enum ReportStatus {
   ACTIONED
 }
 
+// What a mod actually decided when moving a report (or a whole batch of a
+// player's open reports — see actionReport's "close out every other open
+// report too") to ACTIONED. Recorded verbatim as the mod's choice at the
+// time, even in the rare case the player's live status didn't actually
+// change (e.g. already BANNED and a new report is actioned as SUSPENDED) —
+// this is a history of decisions, not a live-derived value.
+enum ConductAction {
+  SUSPENDED
+  BANNED
+}
+
 enum TournamentStatus {
   SIGNUPS
   IN_PROGRESS
@@ -111,6 +122,11 @@ enum PostStatus {
   MATCHED
   CLOSED
   EXPIRED
+}
+
+enum MatchFoundSound {
+  CHIME // the original synthesized two-note chime (playMatchFoundChime in lib/sound.ts)
+  ANNOUNCER // the Smash announcer voice clips (the match-found sound as of PR #94)
 }
 
 // One-directional: A blocking B doesn't imply B blocked A. Matchmaking treats
@@ -161,7 +177,8 @@ model User {
   practiceGamesPlayed     Int     @default(0)
   avoidPracticeOpponents  Boolean @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
   zenMode                Boolean @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
-  audioPingOnMatch        Boolean @default(true) // self-declared; LobbyPoller's playMatchFoundChime (lib/sound.ts) only fires while this is on. Defaults true — matches the chime's original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
+  audioPingOnMatch        Boolean @default(true) // self-declared master switch; LobbyPoller's playMatchFoundSound (lib/sound.ts) only fires while this is on. Defaults true — matches the original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
+  matchFoundSound         MatchFoundSound @default(CHIME) // which sound the ping above plays: the original synthesized chime or the announcer voice clips. Defaults CHIME — the original match-found sound before PR #94 replaced it with announcer clips.
   startggUserId        String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
   startggPlayerId      String? // start.gg's player id (currentUser.player.id) — distinct from the user id above; supermajor.gg profile links (?id=S...) key off this one
   startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
@@ -190,6 +207,7 @@ model User {
   matchComments             MatchComment[]
   reportsFiled              ConductReport[]    @relation("ReportsFiled")
   reportsReceived           ConductReport[]    @relation("ReportsReceived")
+  reportsActioned           ConductReport[]    @relation("ReportsActioned")
   seasonStandings           SeasonStanding[]
   tournamentsHosted         Tournament[]
   tournamentEntries         TournamentEntry[]
@@ -198,6 +216,7 @@ model User {
   connectionReportsFiled    ConnectionReport[] @relation("ConnectionReportsFiled")
   connectionReportsReceived ConnectionReport[] @relation("ConnectionReportsReceived")
   referrals                 User[]             @relation("Referrals")
+  pushSubscriptions         PushSubscription[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -206,20 +225,21 @@ model User {
 }
 
 model RatingLobbyEntry {
-  id            String            @id @default(cuid())
-  userId        String
-  user          User              @relation(fields: [userId], references: [id])
-  status        LobbyEntryStatus  @default(WAITING)
-  pairingMethod PairingMethod     @default(MANUAL)
-  pairedEntryId String?           @unique
-  pairedEntry   RatingLobbyEntry? @relation("EntryPairing", fields: [pairedEntryId], references: [id])
-  pairedByEntry RatingLobbyEntry? @relation("EntryPairing")
-  matchId       String?           @unique
-  match         RatingMatch?      @relation(fields: [matchId], references: [id])
-  joinedAt      DateTime          @default(now())
-  expiresAt     DateTime
-  cancelledAt   DateTime?
-  isPracticing  Boolean           @default(false) // this join only — carried onto the created match as player{1,2}IsPracticing
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  status           LobbyEntryStatus  @default(WAITING)
+  pairingMethod    PairingMethod     @default(MANUAL)
+  pairedEntryId    String?           @unique
+  pairedEntry      RatingLobbyEntry? @relation("EntryPairing", fields: [pairedEntryId], references: [id])
+  pairedByEntry    RatingLobbyEntry? @relation("EntryPairing")
+  matchId          String?           @unique
+  match            RatingMatch?      @relation(fields: [matchId], references: [id])
+  joinedAt         DateTime          @default(now())
+  expiresAt        DateTime
+  cancelledAt      DateTime?
+  isPracticing     Boolean           @default(false) // this join only — carried onto the created match as player{1,2}IsPracticing
+  existingRoomCode String? // this join only — if exactly one side of a pairing has one, they become host and it's written straight to RatingMatch.roomCode
 
   @@index([status, expiresAt])
   @@index([userId, joinedAt])
@@ -351,10 +371,10 @@ model MatchGame {
 // MatchComment) — isOpponentTyping treats anything older than
 // TYPING_TIMEOUT_MS as stale, which is enough for correctness.
 model MatchTypingStatus {
-  id          String      @id @default(cuid())
-  matchId     String
-  match       RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  userId      String
+  id           String      @id @default(cuid())
+  matchId      String
+  match        RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId       String
   lastTypingAt DateTime    @default(now())
 
   @@unique([matchId, userId])
@@ -362,14 +382,14 @@ model MatchTypingStatus {
 }
 
 model MatchComment {
-  id            String                  @id @default(cuid())
-  matchId       String
-  match         RatingMatch             @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  authorId      String
-  author        User                    @relation(fields: [authorId], references: [id])
-  body          String
-  createdAt     DateTime                @default(now())
-  translations  MatchCommentTranslation[]
+  id           String                    @id @default(cuid())
+  matchId      String
+  match        RatingMatch               @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User                      @relation(fields: [authorId], references: [id])
+  body         String
+  createdAt    DateTime                  @default(now())
+  translations MatchCommentTranslation[]
 
   @@index([matchId, createdAt])
 }
@@ -399,6 +419,14 @@ model ConductReport {
   reason         String
   status         ReportStatus @default(OPEN)
   createdAt      DateTime     @default(now())
+
+  // Disposition — set together, only once status moves to ACTIONED (see
+  // actionReport/moderateUserDirectly). Null for OPEN/DISMISSED reports.
+  actionTaken           ConductAction?
+  actionedById          String?
+  actionedBy            User?          @relation("ReportsActioned", fields: [actionedById], references: [id], onDelete: SetNull)
+  actionedAt            DateTime?
+  actionSuspensionHours Int? // only meaningful when actionTaken = SUSPENDED; null means indefinite
 
   @@index([reportedUserId])
   @@index([status])
@@ -528,6 +556,25 @@ model FreeBattlePost {
 // row per donation/subscription-payment event Ko-fi sends us. Displayed on
 // /supporters. kofiTransactionId dedupes Ko-fi's documented at-least-once
 // delivery (they retry on any non-200 response).
+// One browser's web-push subscription (see src/lib/push-server.ts and
+// public/sw.js) — presence of a row for this browser is what the Settings
+// "push notifications when matched" toggle is ON for, so enabling/disabling
+// subscribes/unsubscribes and creates/deletes rows rather than flipping a
+// boolean. endpoint is globally unique because it's the push service's own
+// per-browser handle, which is also what we use to look a row up for removal.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique // the push service's per-browser endpoint (e.g. fcm.googleapis.com, web.push.apple.com)
+  p256dh    String // P-256 public key, base64url — used to encrypt the payload
+  auth      String // auth secret, base64url — used to encrypt the payload
+  userAgent String? // what browser registered it, for debugging stale subscriptions
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
 model KofiDonation {
   id                String   @id @default(cuid())
   kofiTransactionId String   @unique

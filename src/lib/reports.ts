@@ -1,12 +1,8 @@
 import { prisma } from "@/lib/db";
-import { ReportStatus, UserStatus } from "@/generated/prisma/enums";
+import { ConductAction, ReportStatus, UserStatus } from "@/generated/prisma/enums";
 import { isWiredClaimDisputedByOpponents, liftExpiredSuspension } from "@/lib/account";
 
-export async function fileMatchReport(
-  reporterId: string,
-  matchId: string,
-  reason: string,
-) {
+export async function fileMatchReport(reporterId: string, matchId: string, reason: string) {
   const trimmed = reason.trim().slice(0, 1000);
   if (!trimmed) throw new Error("Please describe what happened");
 
@@ -85,7 +81,10 @@ export async function listReportsForUser(userId: string) {
   return prisma.conductReport.findMany({
     where: { reportedUserId: userId },
     orderBy: { createdAt: "desc" },
-    include: { reporter: { select: { id: true, username: true } } },
+    include: {
+      reporter: { select: { id: true, username: true } },
+      actionedBy: { select: { id: true, username: true } },
+    },
   });
 }
 
@@ -126,6 +125,7 @@ const STATUS_RANK: Record<UserStatus, number> = {
 // immediately rather than waiting for more reports to pile up.
 export async function actionReport(
   reportId: string,
+  modId: string,
   newStatus: "SUSPENDED" | "BANNED",
   options: { suspensionHours?: number | null; skipThreshold?: boolean } = {},
 ) {
@@ -174,10 +174,18 @@ export async function actionReport(
       : []),
     // This user's standing has now been decided — close out every other
     // open report against them too, not just the one clicked, so the mod
-    // queue doesn't keep resurfacing an already-actioned player.
+    // queue doesn't keep resurfacing an already-actioned player. Every one
+    // of them gets the same disposition recorded, since they're all being
+    // resolved by this single decision.
     prisma.conductReport.updateMany({
       where: { reportedUserId: report.reportedUserId, status: ReportStatus.OPEN },
-      data: { status: ReportStatus.ACTIONED },
+      data: {
+        status: ReportStatus.ACTIONED,
+        actionTaken: newStatus === "SUSPENDED" ? ConductAction.SUSPENDED : ConductAction.BANNED,
+        actionedById: modId,
+        actionedAt: new Date(),
+        actionSuspensionHours: newStatus === "SUSPENDED" ? (options.suspensionHours ?? null) : null,
+      },
     }),
   ]);
 }
@@ -226,7 +234,16 @@ export async function moderateUserDirectly(
       data: { status: newStatus, suspendedUntil, misconductScore: { increment: MISCONDUCT_POINTS[pointsKey] } },
     }),
     prisma.conductReport.create({
-      data: { reporterId: modId, reportedUserId: userId, reason, status: ReportStatus.ACTIONED },
+      data: {
+        reporterId: modId,
+        reportedUserId: userId,
+        reason,
+        status: ReportStatus.ACTIONED,
+        actionTaken: newStatus === UserStatus.SUSPENDED ? ConductAction.SUSPENDED : ConductAction.BANNED,
+        actionedById: modId,
+        actionedAt: new Date(),
+        actionSuspensionHours: newStatus === UserStatus.SUSPENDED ? (options.suspensionHours ?? null) : null,
+      },
     }),
   ]);
 }

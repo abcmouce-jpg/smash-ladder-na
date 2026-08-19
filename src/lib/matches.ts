@@ -13,15 +13,39 @@ import { recomputeCharacterUsage } from "@/lib/character-stats";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 
+// Free cancel is blocked for this long after a match is created, giving the
+// opponent a moment to actually show up before the other side can bail —
+// otherwise a fast-fingered player could cancel before the other side's
+// client has even rendered the match, making pairing feel like a coin flip.
+// Doesn't apply once the opponent has engaged (hasOpponentEngaged already
+// forces Surrender by then) or once the deadline itself has passed.
+export const CANCEL_GRACE_PERIOD_SECONDS = 20;
+
 // Used as `include`, which already returns every scalar column (leftAt,
 // rematchRequestedAt, etc.) by default — no need to list them here, and
 // doing so breaks the query since `include` only accepts relation fields.
 export const matchWithPlayers = {
   player1: {
-    select: { id: true, username: true, avatarUrl: true, rating: true, region: true, arenaPassword: true },
+    select: {
+      id: true,
+      username: true,
+      avatarUrl: true,
+      rating: true,
+      region: true,
+      arenaPassword: true,
+      zenMode: true,
+    },
   },
   player2: {
-    select: { id: true, username: true, avatarUrl: true, rating: true, region: true, arenaPassword: true },
+    select: {
+      id: true,
+      username: true,
+      avatarUrl: true,
+      rating: true,
+      region: true,
+      arenaPassword: true,
+      zenMode: true,
+    },
   },
 } as const;
 
@@ -32,7 +56,10 @@ export async function getUnresolvedMatchForUser(userId: string) {
       status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
     },
     orderBy: { createdAt: "desc" },
-    include: matchWithPlayers,
+    include: {
+      ...matchWithPlayers,
+      connectionReports: { where: { reporterId: userId }, select: { id: true } },
+    },
   });
 }
 
@@ -40,8 +67,34 @@ export async function getLatestMatchForUser(userId: string) {
   return prisma.ratingMatch.findFirst({
     where: { OR: [{ player1Id: userId }, { player2Id: userId }] },
     orderBy: { createdAt: "desc" },
-    include: matchWithPlayers,
+    include: {
+      ...matchWithPlayers,
+      connectionReports: { where: { reporterId: userId }, select: { id: true } },
+    },
   });
+}
+
+// Decides which player creates the in-game room. roomCodeSetById wins when
+// present — set at creation time when exactly one side of a pairing already
+// had a room ready (see joinLobbyAndTryPair/sweepLobbyPairing) — since that
+// player is host regardless of what the fallback below would've picked.
+// Otherwise falls back to a hash of the match id, without persisting
+// anything: the same id always hashes to the same player, so every read
+// (page load, poll, admin view) agrees without a stored column. matchId is
+// an unpredictable cuid, so this is effectively a random per-match coin
+// flip, just recomputed instead of remembered.
+export function getRoomHostId(match: {
+  id: string;
+  player1Id: string;
+  player2Id: string;
+  roomCodeSetById: string | null;
+}): string {
+  if (match.roomCodeSetById) return match.roomCodeSetById;
+  let hash = 0;
+  for (let i = 0; i < match.id.length; i++) {
+    hash = (hash * 31 + match.id.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % 2 === 0 ? match.player1Id : match.player2Id;
 }
 
 // Distinguishes a genuinely-empty match (opponent hasn't shown up at all —
@@ -66,9 +119,7 @@ export async function hasOpponentEngaged(
   if (!game) return false;
 
   const opponentIsActorA = game.actorAId === opponentId;
-  const opponentCharacterLocked = opponentIsActorA
-    ? game.actorACharacter !== null
-    : game.actorBCharacter !== null;
+  const opponentCharacterLocked = opponentIsActorA ? game.actorACharacter !== null : game.actorBCharacter !== null;
   if (opponentCharacterLocked) return true;
 
   // actorA always strikes first (see actorForStrike in lib/match-games.ts) —
@@ -109,9 +160,7 @@ export async function cancelMatch(userId: string, matchId: string) {
     where: { matchId, OR: [{ winnerId: { not: null } }, { reportedById: { not: null } }] },
   });
   if (gameInProgress) {
-    throw new Error(
-      "Can't cancel once a game has been decided or reported — report the result or dispute it instead.",
-    );
+    throw new Error("Can't cancel once a game has been decided or reported — report the result or dispute it instead.");
   }
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
@@ -119,6 +168,11 @@ export async function cancelMatch(userId: string, matchId: string) {
     throw new Error(
       "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
     );
+  }
+
+  const cancelReadyAt = match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000;
+  if (Date.now() < cancelReadyAt) {
+    throw new Error("Give your opponent a moment to show up — you can cancel in a few seconds.");
   }
 
   const [, updatedUser] = await prisma.$transaction([
@@ -301,18 +355,14 @@ export async function requestRematch(userId: string, matchId: string) {
     prisma.$transaction(async (tx) => {
       await tx.ratingMatch.update({
         where: { id: matchId },
-        data: isPlayer1
-          ? { player1RematchRequestedAt: new Date() }
-          : { player2RematchRequestedAt: new Date() },
+        data: isPlayer1 ? { player1RematchRequestedAt: new Date() } : { player2RematchRequestedAt: new Date() },
       });
 
       // Re-read within the transaction so a since-committed opponent request
       // (the common case — their click happened earlier, not concurrently)
       // is picked up even though the initial read above predates it.
       const fresh = await tx.ratingMatch.findUniqueOrThrow({ where: { id: matchId } });
-      const opponentRequestedAt = isPlayer1
-        ? fresh.player2RematchRequestedAt
-        : fresh.player1RematchRequestedAt;
+      const opponentRequestedAt = isPlayer1 ? fresh.player2RematchRequestedAt : fresh.player1RematchRequestedAt;
       const opponentLeftAt = isPlayer1 ? fresh.player2LeftAt : fresh.player1LeftAt;
       if (!opponentRequestedAt || opponentLeftAt) return;
 
@@ -372,7 +422,13 @@ export const MAX_RATING_DELTA = 30;
 
 export function eloDelta(games: number, score: number, expected: number): number {
   const raw = kFactor(games) * (score - expected);
-  return Math.max(-MAX_RATING_DELTA, Math.min(MAX_RATING_DELTA, raw));
+  const clamped = Math.max(-MAX_RATING_DELTA, Math.min(MAX_RATING_DELTA, raw));
+  // A win against a much lower-rated opponent can have `raw` round all the
+  // way down to +0 — mathematically correct, but the victory screen ends up
+  // announcing "+0 rating" on a win, which reads as broken. score is always
+  // exactly 1 (win) or 0 (loss), never a draw, so this only ever floors the
+  // winning side; a loss is left exactly as computed.
+  return score === 1 ? Math.max(1, clamped) : clamped;
 }
 
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.
@@ -385,15 +441,16 @@ export async function applyEloAndConfirm(
   confirmationMethod: ConfirmationMethod,
   secondReport: { winnerId: string; reporterId: string } | null,
 ) {
-  const [p1, p2, season, matchRow] = await Promise.all([
-    tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
-    tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
-    tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } }),
-    tx.ratingMatch.findUniqueOrThrow({
-      where: { id: match.id },
-      select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true },
-    }),
-  ]);
+  // Sequential, not Promise.all: tx pins these to a single reserved
+  // connection, so concurrent queries on it just queue behind each other
+  // anyway — and pg deprecated overlapping query() calls on one client.
+  const p1 = await tx.user.findUniqueOrThrow({ where: { id: match.player1Id } });
+  const p2 = await tx.user.findUniqueOrThrow({ where: { id: match.player2Id } });
+  const season = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  const matchRow = await tx.ratingMatch.findUniqueOrThrow({
+    where: { id: match.id },
+    select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true },
+  });
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
   const seasonId = season?.id ?? (await tx.season.create({ data: { name: "Season 1" } })).id;
@@ -456,10 +513,14 @@ export async function applyEloAndConfirm(
   const historyRows = [
     ...(matchRow.player1IsPracticing
       ? []
-      : [{ userId: p1.id, matchId: match.id, ratingBefore: p1Rating, ratingAfter: p1After, delta: p1After - p1Rating }]),
+      : [
+          { userId: p1.id, matchId: match.id, ratingBefore: p1Rating, ratingAfter: p1After, delta: p1After - p1Rating },
+        ]),
     ...(matchRow.player2IsPracticing
       ? []
-      : [{ userId: p2.id, matchId: match.id, ratingBefore: p2Rating, ratingAfter: p2After, delta: p2After - p2Rating }]),
+      : [
+          { userId: p2.id, matchId: match.id, ratingBefore: p2Rating, ratingAfter: p2After, delta: p2After - p2Rating },
+        ]),
   ];
   if (historyRows.length > 0) {
     await tx.ratingHistory.createMany({ data: historyRows });
@@ -504,10 +565,8 @@ export async function applyCorrection(
   },
   winnerId: string,
 ) {
-  const [p1, p2] = await Promise.all([
-    tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
-    tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
-  ]);
+  const p1 = await tx.user.findUniqueOrThrow({ where: { id: match.player1Id } });
+  const p2 = await tx.user.findUniqueOrThrow({ where: { id: match.player2Id } });
   // gamesPlayed already carries this match's own +1 from the original
   // confirmation — subtract it back out to match the kFactor tier the
   // original calculation used.
@@ -568,22 +627,20 @@ export async function isMostRecentConfirmedMatch(
   match: { id: string; player1Id: string; player2Id: string; confirmedAt: Date | null; seasonId: string | null },
 ) {
   if (!match.confirmedAt) return false;
-  const [newer, activeSeason] = await Promise.all([
-    tx.ratingMatch.findFirst({
-      where: {
-        id: { not: match.id },
-        status: MatchStatus.CONFIRMED,
-        confirmedAt: { gt: match.confirmedAt },
-        OR: [
-          { player1Id: match.player1Id },
-          { player2Id: match.player1Id },
-          { player1Id: match.player2Id },
-          { player2Id: match.player2Id },
-        ],
-      },
-    }),
-    tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } }),
-  ]);
+  const newer = await tx.ratingMatch.findFirst({
+    where: {
+      id: { not: match.id },
+      status: MatchStatus.CONFIRMED,
+      confirmedAt: { gt: match.confirmedAt },
+      OR: [
+        { player1Id: match.player1Id },
+        { player2Id: match.player1Id },
+        { player1Id: match.player2Id },
+        { player2Id: match.player2Id },
+      ],
+    },
+  });
+  const activeSeason = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
   return newer === null && match.seasonId !== null && match.seasonId === activeSeason?.id;
 }
 
@@ -677,6 +734,104 @@ export async function adminOverrideMatchResult(matchId: string, winnerId: string
     }
     await assertCorrectable(tx, match, winnerId);
     await applyCorrection(tx, match, winnerId);
+  });
+}
+
+// Escape hatch for a CONFIRMED match that fails assertCorrectable's recency
+// check — i.e. one or both players have already had a newer match confirmed
+// since, so a full reverse-and-reapply (applyCorrection) can't run without
+// rippling through every match built on top of this one's rating change,
+// which nothing here attempts. Instead of a true replay, this applies a
+// one-time relative adjustment: this match's original rating delta for each
+// player (from its own stored before/after) gets negated twice — once to
+// undo it, once more to apply the opposite outcome — and that combined
+// delta is applied against each player's CURRENT rating rather than
+// overwriting it outright. This is an approximation (doesn't correct the
+// K-factor tier or expected-score baseline any match since would have used
+// under the corrected history) but is deliberately simple, and never
+// discards rating progress from matches since the way a naive replay of
+// applyCorrection's stored before/after would.
+export async function adminCorrectOldMatchResult(matchId: string, winnerId: string) {
+  await prisma.$transaction(async (tx) => {
+    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+    if (!match) throw new Error("Match not found");
+    if (match.status !== MatchStatus.CONFIRMED) {
+      throw new Error("Only a confirmed match's result can be corrected");
+    }
+    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+      throw new Error("Winner must be one of the two players");
+    }
+    if (winnerId === match.reportedWinnerId) {
+      throw new Error("This match already has that winner recorded");
+    }
+    if (
+      match.player1RatingBefore === null ||
+      match.player1RatingAfter === null ||
+      match.player2RatingBefore === null ||
+      match.player2RatingAfter === null
+    ) {
+      throw new Error("This match has no recorded rating change to reverse");
+    }
+
+    const p1OriginalDelta = match.player1RatingAfter - match.player1RatingBefore;
+    const p2OriginalDelta = match.player2RatingAfter - match.player2RatingBefore;
+
+    const [p1, p2] = await Promise.all([
+      tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
+      tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
+    ]);
+    const p1NewRating = Math.round(p1.rating - 2 * p1OriginalDelta);
+    const p2NewRating = Math.round(p2.rating - 2 * p2OriginalDelta);
+
+    await tx.ratingMatch.update({
+      where: { id: matchId },
+      data: {
+        reportedWinnerId: winnerId,
+        secondReportWinnerId: winnerId,
+        confirmationMethod: ConfirmationMethod.CORRECTED,
+      },
+    });
+    // Keeps the per-game log consistent with the new overall winner — every
+    // game's recorded winner flips to the other player, same as reversing
+    // the outcome of each individual game this set was made of. IDs are
+    // snapshotted before either write so the two updateManys below don't
+    // see (and re-flip) rows the other one just touched.
+    const games = await tx.matchGame.findMany({
+      where: { matchId, winnerId: { in: [match.player1Id, match.player2Id] } },
+      select: { id: true, winnerId: true },
+    });
+    const p1WonGameIds = games.filter((g) => g.winnerId === match.player1Id).map((g) => g.id);
+    const p2WonGameIds = games.filter((g) => g.winnerId === match.player2Id).map((g) => g.id);
+    await tx.matchGame.updateMany({
+      where: { id: { in: p1WonGameIds } },
+      data: { winnerId: match.player2Id },
+    });
+    await tx.matchGame.updateMany({
+      where: { id: { in: p2WonGameIds } },
+      data: { winnerId: match.player1Id },
+    });
+
+    await tx.user.update({ where: { id: p1.id }, data: { rating: p1NewRating } });
+    await tx.user.update({ where: { id: p2.id }, data: { rating: p2NewRating } });
+
+    await tx.ratingHistory.createMany({
+      data: [
+        {
+          userId: p1.id,
+          matchId: match.id,
+          ratingBefore: p1.rating,
+          ratingAfter: p1NewRating,
+          delta: p1NewRating - p1.rating,
+        },
+        {
+          userId: p2.id,
+          matchId: match.id,
+          ratingBefore: p2.rating,
+          ratingAfter: p2NewRating,
+          delta: p2NewRating - p2.rating,
+        },
+      ],
+    });
   });
 }
 

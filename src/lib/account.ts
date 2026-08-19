@@ -160,11 +160,17 @@ export async function setZenMode(userId: string, zenMode: boolean) {
   await prisma.user.update({ where: { id: userId }, data: { zenMode } });
 }
 
-// Gates LobbyPoller's playMatchFoundChime (lib/sound.ts) — a player can turn
+// Gates LobbyPoller's playMatchFoundSound (lib/sound.ts) — a player can turn
 // off the audio cue that fires when they're paired, e.g. if they find it
 // jarring, without losing the background-tab polling itself.
 export async function setAudioPingOnMatch(userId: string, audioPingOnMatch: boolean) {
   await prisma.user.update({ where: { id: userId }, data: { audioPingOnMatch } });
+}
+
+// Which sound that ping plays while audioPingOnMatch is on — the original
+// synthesized chime or the announcer voice clips. See User.matchFoundSound.
+export async function setMatchFoundSound(userId: string, matchFoundSound: "CHIME" | "ANNOUNCER") {
+  await prisma.user.update({ where: { id: userId }, data: { matchFoundSound } });
 }
 
 // Only controls which landing page ("/" vs "/es") a signed-in visit to "/"
@@ -262,4 +268,8 @@ export async function deleteMyAccount(userId: string) {
       wiredConnection: false,
     },
   });
+  // The row is kept (anonymized), so the subscription rows' onDelete: Cascade
+  // never fires — drop them explicitly so the ghost account can't keep
+  // receiving match-found pushes nobody asked for.
+  await prisma.pushSubscription.deleteMany({ where: { userId } });
 }

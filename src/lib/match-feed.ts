@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { getLiveTwitchUsernames } from "@/lib/twitch-helix";
+import { startOfDayInTimeZone } from "@/lib/timezone";
 
 // "Recent" here means the public feed's finished-match tail, not the mod
 // live-matches page's week-long "did anyone miss reporting this" window
@@ -21,7 +22,52 @@ const feedPlayerSelect = {
   region: true,
 } as const;
 
+const matchFeedSelect = {
+  id: true,
+  status: true,
+  createdAt: true,
+  confirmedAt: true,
+  reportedWinnerId: true,
+  player1: { select: feedPlayerSelect },
+  player2: { select: feedPlayerSelect },
+  games: {
+    select: {
+      gameNumber: true,
+      winnerId: true,
+      actorAId: true,
+      actorACharacter: true,
+      actorBId: true,
+      actorBCharacter: true,
+    },
+  },
+} as const;
+
 export type MatchFeedEntry = Awaited<ReturnType<typeof getMatchFeed>>[number];
+
+// Character shown next to a player's name on the feed: the one they're
+// playing (or last played) in THIS set, taken from the newest game with a
+// locked pick — not the all-time mainCharacter on their profile. Falls back
+// to the profile main only while game 1's blind picks are still pending and
+// no character has been recorded yet.
+function characterForPlayer(
+  games: {
+    gameNumber: number;
+    actorAId: string;
+    actorACharacter: string | null;
+    actorBId: string;
+    actorBCharacter: string | null;
+  }[],
+  playerId: string,
+  fallback: string | null,
+) {
+  const newestFirst = [...games].sort((a, b) => b.gameNumber - a.gameNumber);
+  for (const game of newestFirst) {
+    const character =
+      game.actorAId === playerId ? game.actorACharacter : game.actorBId === playerId ? game.actorBCharacter : null;
+    if (character) return character;
+  }
+  return fallback;
+}
 
 // Public-safe feed of in-progress and recently-finished sets — no room
 // codes or arena passwords (see roomCode's own "never rendered outside the
@@ -33,29 +79,31 @@ export type MatchFeedEntry = Awaited<ReturnType<typeof getMatchFeed>>[number];
 export async function getMatchFeed() {
   const since = new Date(Date.now() - RECENT_FINISHED_WINDOW_MS);
 
-  const matches = await prisma.ratingMatch.findMany({
-    where: {
-      OR: [
-        { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
-        {
-          status: { in: [MatchStatus.CONFIRMED, MatchStatus.CANCELLED, MatchStatus.EXPIRED] },
-          createdAt: { gte: since },
-        },
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-    take: FEED_LIMIT,
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-      confirmedAt: true,
-      reportedWinnerId: true,
-      player1: { select: feedPlayerSelect },
-      player2: { select: feedPlayerSelect },
-      games: { select: { winnerId: true } },
-    },
-  });
+  // In-progress matches are fetched with no LIMIT, separately from finished
+  // ones, and always kept in full — a single combined query with one flat
+  // `take: FEED_LIMIT` (sorted by createdAt across every status) let a burst
+  // of newly-finished matches push an older still-in-progress match (with a
+  // live stream on it) out of the top 40 entirely, even though it was the
+  // one thing actually worth surfacing (#129). In-progress sets don't pile
+  // up the way finished ones do — every one auto-resolves within a bounded
+  // window — so this is never unbounded in practice.
+  const [inProgressMatches, finishedMatches] = await Promise.all([
+    prisma.ratingMatch.findMany({
+      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
+      orderBy: { createdAt: "desc" },
+      select: matchFeedSelect,
+    }),
+    prisma.ratingMatch.findMany({
+      where: {
+        status: { in: [MatchStatus.CONFIRMED, MatchStatus.CANCELLED, MatchStatus.EXPIRED] },
+        createdAt: { gte: since },
+      },
+      orderBy: { createdAt: "desc" },
+      take: Math.max(0, FEED_LIMIT - 1), // -1: worst case leaves room for at least one in-progress match
+      select: matchFeedSelect,
+    }),
+  ]);
+  const matches = [...inProgressMatches, ...finishedMatches];
 
   const twitchUsernames = matches.flatMap((m) =>
     [m.player1.twitchUsername, m.player2.twitchUsername].filter((u): u is string => !!u),
@@ -80,10 +128,42 @@ export async function getMatchFeed() {
     const player2Live =
       isInProgress && !!match.player2.twitchUsername && liveUsernames.has(match.player2.twitchUsername.toLowerCase());
 
-    return { ...match, wins, player1Live, player2Live, hasLiveStreamer: player1Live || player2Live };
+    return {
+      ...match,
+      player1: {
+        ...match.player1,
+        currentCharacter: characterForPlayer(match.games, match.player1.id, match.player1.mainCharacter),
+      },
+      player2: {
+        ...match.player2,
+        currentCharacter: characterForPlayer(match.games, match.player2.id, match.player2.mainCharacter),
+      },
+      wins,
+      player1Live,
+      player2Live,
+      hasLiveStreamer: player1Live || player2Live,
+    };
   });
 
   entries.sort((a, b) => Number(b.hasLiveStreamer) - Number(a.hasLiveStreamer));
 
   return entries;
+}
+
+// Feed-header stats. "In progress" mirrors the feed's own notion of a
+// current (non-terminal) set, and "matches today" counts sets started on
+// the current calendar day in the ladder's reference timezone (see
+// LADDER_TIME_ZONE) — a server- or viewer-relative day would flip which
+// sets count as "today" between visitors.
+export async function getMatchFeedStats() {
+  const todayStart = startOfDayInTimeZone(new Date());
+  const [inProgress, matchesToday] = await Promise.all([
+    prisma.ratingMatch.count({
+      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
+    }),
+    prisma.ratingMatch.count({
+      where: { createdAt: { gte: todayStart } },
+    }),
+  ]);
+  return { inProgress, matchesToday };
 }
