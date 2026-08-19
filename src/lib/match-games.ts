@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ConfirmationMethod, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
-import { SMASH_CHARACTERS } from "@/lib/characters";
+import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
 
@@ -479,7 +479,13 @@ export function lastPlayedStage(
   return games.find((g) => g.gameNumber === currentGameNumber - 1)?.finalStage ?? null;
 }
 
-export async function pickGameCharacter(userId: string, matchId: string, gameNumber: number, character: string) {
+export async function pickGameCharacter(
+  userId: string,
+  matchId: string,
+  gameNumber: number,
+  character: string,
+  moveset?: string | null,
+) {
   const game = await requireGame(matchId, gameNumber);
   if (userId !== game.actorAId && userId !== game.actorBId) {
     throw new Error("Not a participant in this game");
@@ -487,6 +493,11 @@ export async function pickGameCharacter(userId: string, matchId: string, gameNum
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
     throw new Error("Not a recognized character");
   }
+  const isMii = isMiiCharacter(character);
+  if (isMii && !MOVESET_PATTERN.test(moveset ?? "")) {
+    throw new Error("Moveset must be 4 digits, each 1-4");
+  }
+  const storedMoveset = isMii ? moveset! : null;
 
   const { canPickNow, yourCharacter } = characterPickState(game, userId);
   if (yourCharacter !== null) throw new Error("You already picked your character for this game");
@@ -501,7 +512,9 @@ export async function pickGameCharacter(userId: string, matchId: string, gameNum
       ...(isActorA ? { actorACharacter: null } : { actorBCharacter: null }),
     },
     data: {
-      ...(isActorA ? { actorACharacter: character } : { actorBCharacter: character }),
+      ...(isActorA
+        ? { actorACharacter: character, actorAMoveset: storedMoveset }
+        : { actorBCharacter: character, actorBMoveset: storedMoveset }),
       // This pick is the second lock-in — start the stage-strike clock now
       // rather than from whenever the game row was created, which could've
       // been arbitrarily long ago if character selection itself took a while.
