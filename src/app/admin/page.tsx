@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, AlertTriangle, Ban, Flag, Gauge, Radio, Shield, Swords, Users } from "lucide-react";
+import { Activity, AlertTriangle, Ban, Flag, Gauge, Radio, Shield, Swords, Timer, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { getAdminOverview } from "@/lib/admin-stats";
 import { getSuspendWatchlist } from "@/lib/admin-watchlist";
@@ -108,6 +108,7 @@ export default async function AdminOverviewPage() {
           href="/admin/watchlist"
           tone={watchlist.suspendThreshold.length > 0 ? "destructive" : undefined}
         />
+        <StatCard icon={Timer} label="Active cooldowns" value={stats.activeCooldowns} href="/admin/cooldowns" />
       </div>
 
       <div className="mt-8 flex flex-wrap gap-2">
@@ -131,6 +132,9 @@ export default async function AdminOverviewPage() {
         </Link>
         <Link href="/admin/watchlist" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Watchlist →
+        </Link>
+        <Link href="/admin/cooldowns" className="text-muted-foreground hover:text-foreground hover:underline">
+          Go to Cooldowns →
         </Link>
         <Link href="/admin/seasons" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Seasons →

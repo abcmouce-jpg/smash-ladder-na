@@ -15,6 +15,7 @@ export async function getAdminOverview() {
     openReports,
     lobbyWaiting,
     matchesInProgress,
+    activeCooldowns,
   ] = await Promise.all([
     // lastSignInAt, not updatedAt — updatedAt is bumped by any write to the
     // row at all (a rating change, an admin backfill, anything), so it was
@@ -68,6 +69,7 @@ export async function getAdminOverview() {
     prisma.ratingMatch.count({
       where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
     }),
+    prisma.user.count({ where: { queueCooldownUntil: { gt: new Date() } } }),
   ]);
 
   const openDisputes = disputedGameCandidates.filter((g) => g.reportedWinnerId !== g.secondReportWinnerId).length;
@@ -83,5 +85,6 @@ export async function getAdminOverview() {
     openReports,
     lobbyWaiting,
     matchesInProgress,
+    activeCooldowns,
   };
 }
