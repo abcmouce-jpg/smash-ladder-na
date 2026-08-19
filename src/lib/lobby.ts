@@ -369,6 +369,26 @@ export async function joinLobbyAndTryPair(
   return entry;
 }
 
+// Lets a player already sitting in the queue set or clear the room code they
+// brought with them, without having to cancel and rejoin. Same validation as
+// join time — the next pairing attempt (retryPairForWaitingUser, the sweep
+// cron, or a fresh join-time check) reads existingRoomCode off the live
+// entry, so the change is picked up on the very next candidate pass.
+export async function updateLobbyRoomCode(userId: string, roomCode: string | null) {
+  const entry = await prisma.ratingLobbyEntry.findFirst({
+    where: { userId, status: LobbyEntryStatus.WAITING },
+    orderBy: { joinedAt: "desc" },
+  });
+  if (!entry) throw new Error("You're not in the queue.");
+  if (roomCode && !ROOM_CODE_PATTERN.test(roomCode)) {
+    throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
+  }
+  await prisma.ratingLobbyEntry.update({
+    where: { id: entry.id },
+    data: { existingRoomCode: roomCode },
+  });
+}
+
 // The lobby page's client poller (LobbyPoller, 5s interval, kept alive in
 // the background specifically while WAITING) re-renders the page constantly
 // but previously only re-read status — a candidate who wasn't there at join

@@ -43,6 +43,7 @@ import { CharacterPickForm } from "@/components/character-pick";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RoomCodeForm } from "@/components/room-code-form";
+import { QueueRoomCodeForm } from "@/components/queue-room-code-form";
 import { FlashOnChange } from "@/components/flash-on-change";
 import { Countdown } from "@/components/countdown";
 import { QueueTimer } from "@/components/queue-timer";
@@ -84,6 +85,7 @@ import {
   surrenderMatchAction,
   unstrikeStage,
   updateAvoidPracticeOpponents,
+  updateLobbyRoomCodeAction,
   updateMaxMatchDistance,
   updateMaxRatingGap,
   updateRegion,
@@ -212,6 +214,13 @@ export default async function LobbyPage() {
                 {lang === "es" ? "Cancelar" : "Cancel"}
               </Button>
             </form>
+          </CardContent>
+          <CardContent className="border-t border-border pt-3">
+            <QueueRoomCodeForm
+              initialValue={entry.existingRoomCode ?? ""}
+              action={updateLobbyRoomCodeAction}
+              lang={lang}
+            />
           </CardContent>
           <CardContent className="border-t border-border pt-3">
             <p className="text-xs text-muted-foreground">

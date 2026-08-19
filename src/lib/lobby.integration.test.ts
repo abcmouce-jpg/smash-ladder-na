@@ -7,6 +7,7 @@ import {
   retryPairForWaitingUser,
   setMatchRoomCode,
   sweepLobbyPairing,
+  updateLobbyRoomCode,
 } from "@/lib/lobby";
 import { LobbyEntryStatus } from "@/generated/prisma/enums";
 import { getRoomHostId } from "@/lib/matches";
@@ -457,6 +458,44 @@ describe("setMatchRoomCode", () => {
     const nonHostId = hostId === a.id ? b.id : a.id;
 
     await expect(setMatchRoomCode(nonHostId, match.id, "AB123")).rejects.toThrow(/assigned host/i);
+  });
+});
+
+describe("updateLobbyRoomCode", () => {
+  it("sets the room code on the waiting entry", async () => {
+    const a = await createTestUser();
+    await createWaitingEntry(a.id, null);
+
+    await updateLobbyRoomCode(a.id, "AB123");
+
+    const entry = await prisma.ratingLobbyEntry.findFirstOrThrow({ where: { userId: a.id } });
+    expect(entry.existingRoomCode).toBe("AB123");
+  });
+
+  it("clears a previously set room code when given empty", async () => {
+    const a = await createTestUser();
+    await createWaitingEntry(a.id, "AB123");
+
+    await updateLobbyRoomCode(a.id, null);
+
+    const entry = await prisma.ratingLobbyEntry.findFirstOrThrow({ where: { userId: a.id } });
+    expect(entry.existingRoomCode).toBeNull();
+  });
+
+  it("rejects a malformed room code", async () => {
+    const a = await createTestUser();
+    await createWaitingEntry(a.id, null);
+
+    await expect(updateLobbyRoomCode(a.id, "AB12")).rejects.toThrow(/5 characters/i);
+
+    const entry = await prisma.ratingLobbyEntry.findFirstOrThrow({ where: { userId: a.id } });
+    expect(entry.existingRoomCode).toBeNull();
+  });
+
+  it("throws for a user who isn't in the queue", async () => {
+    const a = await createTestUser();
+
+    await expect(updateLobbyRoomCode(a.id, "AB123")).rejects.toThrow(/not in the queue/i);
   });
 });
 
