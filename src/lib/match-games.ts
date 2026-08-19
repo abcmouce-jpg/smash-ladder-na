@@ -361,30 +361,42 @@ export type CharacterPickGame = {
   actorAId: string;
   actorBId: string;
   actorACharacter: string | null;
+  actorAMoveset: string | null;
   actorBCharacter: string | null;
+  actorBMoveset: string | null;
 };
 
 // Game 1 is a blind pick — neither side sees the other's character until
 // both have locked one in. Games 2+ mirror the stage-strike order: actorA
 // (the previous game's winner) must lock in first, then actorB picks with
 // actorA's choice visible, so the loser gets to react.
+//
+// A Mii's moveset always reveals in lockstep with the character it's
+// attached to — same gating, just carried alongside — so it's never
+// visible to an opponent before the character itself would be.
 export function characterPickState(
   game: CharacterPickGame,
   userId: string,
 ): {
   yourCharacter: string | null;
+  yourMoveset: string | null;
   opponentCharacter: string | null;
+  opponentMoveset: string | null;
   canPickNow: boolean;
 } {
   const isActorA = userId === game.actorAId;
   const yourCharacter = isActorA ? game.actorACharacter : game.actorBCharacter;
+  const yourMoveset = isActorA ? game.actorAMoveset : game.actorBMoveset;
   const theirCharacter = isActorA ? game.actorBCharacter : game.actorACharacter;
+  const theirMoveset = isActorA ? game.actorBMoveset : game.actorAMoveset;
 
   if (game.gameNumber === 1) {
     const bothPicked = game.actorACharacter !== null && game.actorBCharacter !== null;
     return {
       yourCharacter,
+      yourMoveset,
       opponentCharacter: bothPicked ? theirCharacter : null,
+      opponentMoveset: bothPicked ? theirMoveset : null,
       canPickNow: yourCharacter === null,
     };
   }
@@ -392,7 +404,9 @@ export function characterPickState(
   const actorALockedIn = game.actorACharacter !== null;
   return {
     yourCharacter,
+    yourMoveset,
     opponentCharacter: theirCharacter,
+    opponentMoveset: theirMoveset,
     canPickNow: yourCharacter === null && (isActorA || actorALockedIn),
   };
 }
