@@ -65,7 +65,6 @@ export function MovesetDialog({
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="1221"
           maxLength={4}
           className="mt-3 h-8 w-24 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
