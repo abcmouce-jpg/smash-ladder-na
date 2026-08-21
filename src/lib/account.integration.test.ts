@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { requireActiveUser, setWiredConnection } from "@/lib/account";
+import { requireActiveUser, setWiredConnection, setQuickMessages } from "@/lib/account";
 import { UserStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
@@ -77,5 +77,33 @@ describe("setWiredConnection", () => {
     await expect(setWiredConnection(user.id, false)).resolves.toBeUndefined();
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(updated.wiredConnection).toBe(false);
+  });
+});
+
+describe("setQuickMessages", () => {
+  it("saves trimmed, slot-preserving values", async () => {
+    const user = await createTestUser();
+    await setQuickMessages(user.id, ["  yo  ", "", "nice game"]);
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.quickMessages).toEqual(["yo", "", "nice game"]);
+  });
+
+  it("collapses an all-blank submission back to [] (the fully-default state)", async () => {
+    const user = await createTestUser({ quickMessages: ["yo", "gg"] });
+    await setQuickMessages(user.id, ["", "  ", ""]);
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.quickMessages).toEqual([]);
+  });
+
+  it("rejects a message longer than the max length", async () => {
+    const user = await createTestUser();
+    await expect(setQuickMessages(user.id, ["a".repeat(21)])).rejects.toThrow(/longer than/i);
+  });
+
+  it("ignores slots beyond the max count instead of erroring", async () => {
+    const user = await createTestUser();
+    await setQuickMessages(user.id, ["a", "b", "c", "d", "e"]);
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.quickMessages).toEqual(["a", "b", "c", "d"]);
   });
 });

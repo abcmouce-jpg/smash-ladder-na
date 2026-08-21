@@ -12,6 +12,7 @@ import {
   hasOpponentEngaged,
 } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
+import { resolveQuickMessages } from "@/lib/quick-messages";
 import { currentStreak, getHeadToHead, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
@@ -1776,6 +1777,11 @@ async function CommentsSection({
 }) {
   const rawComments = await listMatchComments(userId, match.id);
   const opponentTyping = await isOpponentTyping(match.id, userId);
+  const myQuickMessagesRaw = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { quickMessages: true },
+  });
+  const myQuickMessages = resolveQuickMessages(myQuickMessagesRaw?.quickMessages ?? []);
 
   // Determine opponent's user id for zen mode — replace their name in chat
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
@@ -1815,6 +1821,7 @@ async function CommentsSection({
         <CommentForm
           action={sendMatchCommentAction.bind(null, match.id)}
           onTyping={signalTypingAction.bind(null, match.id)}
+          quickMessages={myQuickMessages}
           lang={lang}
         />
       </CardContent>
