@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { setAudioPingOnMatch, setAvoidPracticeOpponents, setMatchFoundSound, setUsername } from "@/lib/account";
+import {
+  setAudioPingOnMatch,
+  setAvoidPracticeOpponents,
+  setMatchFoundSound,
+  setQuickMessages,
+  setUsername,
+} from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
 import { sendTestPushToUser } from "@/lib/push-server";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
@@ -109,6 +115,24 @@ export async function updateArenaPassword(
   const userId = await requireUserId();
   try {
     await setArenaPassword(userId, String(formData.get("arenaPassword") ?? ""));
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath("/settings");
+  revalidatePath("/lobby");
+  return { error: null };
+}
+
+export type QuickMessagesState = { error: string | null };
+
+export async function updateQuickMessagesAction(
+  _prevState: QuickMessagesState,
+  formData: FormData,
+): Promise<QuickMessagesState> {
+  const userId = await requireUserId();
+  const messages = formData.getAll("quickMessage").map((m) => String(m));
+  try {
+    await setQuickMessages(userId, messages);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }

@@ -1,38 +1,46 @@
 import { prisma } from "@/lib/db";
-import { LobbyEntryStatus, MatchStatus } from "@/generated/prisma/enums";
+import { MatchStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
+import { startOfDayInTimeZone } from "@/lib/timezone";
+
+// Single definition of "matches today" shared by the homepage, the Sets
+// feed, and the admin overview — those three used to disagree (rolling 24h
+// + CONFIRMED-only vs. calendar day + any status), which just meant three
+// different numbers next to the same words on different pages. Calendar day
+// in the ladder's reference timezone (not server- or viewer-relative, so it
+// doesn't flip which matches count as "today" between visitors), any
+// status — a match someone's mid-set in right now is still a match today.
+export async function getMatchesTodayCount() {
+  const todayStart = startOfDayInTimeZone(new Date());
+  return prisma.ratingMatch.count({ where: { createdAt: { gte: todayStart } } });
+}
 
 // Deliberately narrower than admin-stats.ts — no dispute/report/ban counts
 // here, since this feeds the public homepage, not the mod dashboard.
 export async function getPublicStats() {
-  const now = new Date();
-  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-  const [totalPlayers, matchesToday, topPlayers, waitingCount, activeMatchCount] = await Promise.all([
+  const [totalPlayers, matchesToday, topPlayers, activeMatchCount] = await Promise.all([
     prisma.user.count(),
-    prisma.ratingMatch.count({
-      where: { status: MatchStatus.CONFIRMED, confirmedAt: { gte: dayAgo } },
-    }),
+    getMatchesTodayCount(),
     prisma.user.findMany({
       where: { gamesPlayed: { gte: LEADERBOARD_MIN_GAMES } },
       orderBy: { rating: "desc" },
       take: 3,
       select: { id: true, username: true, avatarUrl: true, rating: true, gamesPlayed: true },
     }),
-    // WAITING entries are a reliable "currently queued" count, but PAIRED
-    // entries never get cleaned up once a match resolves (they just sit
-    // there forever) — so "currently in a match" is counted through
-    // RatingMatch.status instead, not RatingLobbyEntry.status, to avoid
-    // wildly overcounting from stale PAIRED rows.
-    prisma.ratingLobbyEntry.count({
-      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
-    }),
+    // "currently in a match" is counted through RatingMatch.status, not
+    // RatingLobbyEntry — PAIRED lobby entries never get cleaned up once a
+    // match resolves (they just sit there forever), so counting those would
+    // wildly overcount. Same definition as getLobbyActivityStats' inMatch —
+    // this used to also add in queued-but-not-yet-matched players, which
+    // inflated "playing now" with people who weren't actually playing yet
+    // and made it disagree with the Lobby page's own "currently playing"
+    // count for the same real-time state.
     prisma.ratingMatch.count({
       where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] } },
     }),
   ]);
 
-  const playingNow = waitingCount + activeMatchCount * 2;
+  const playingNow = activeMatchCount * 2;
 
   return { totalPlayers, matchesToday, topPlayers, playingNow };
 }

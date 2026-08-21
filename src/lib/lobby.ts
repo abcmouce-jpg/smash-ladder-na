@@ -173,6 +173,22 @@ async function attemptPairing(params: {
   const { userId, myEntry, myRegion, me, myReach, myEffectiveGap, blockedIds, recentOpponents } = params;
   return withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
+      // Claim myEntry alone first, atomically, before even looking for a
+      // candidate. retryPairForWaitingUser can run concurrently for the
+      // same entry (multiple tabs, or overlapping 5s polls), and each
+      // concurrent call reads its own snapshot of the candidate pool — two
+      // calls could each find a *different* still-WAITING candidate and
+      // both succeed, leaving this user double-booked into two live
+      // matches at once (this happened in prod: a player paired against
+      // two different opponents 1.1s apart). A single-row conditional
+      // update is unambiguous — count 0 means another concurrent attempt
+      // already claimed this entry, so bail before touching anything else.
+      const selfClaim = await tx.ratingLobbyEntry.updateMany({
+        where: { id: myEntry.id, status: LobbyEntryStatus.WAITING },
+        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+      });
+      if (selfClaim.count === 0) return null;
+
       // Candidates within MY reach on both region and rating — the other half
       // (their own settings covering me back) is checked in JS below, since it
       // depends on each candidate's own values rather than a single filterable
@@ -219,14 +235,32 @@ async function attemptPairing(params: {
             { isPracticing: c.isPracticing, avoidPracticeOpponents: c.user.avoidPracticeOpponents },
           ),
       );
-      if (!candidate) return null;
+      // No one to pair with this tick — release the self-claim above so
+      // this entry goes back to WAITING instead of getting stuck PAIRED
+      // with no match to show for it.
+      if (!candidate) {
+        await tx.ratingLobbyEntry.update({
+          where: { id: myEntry.id },
+          data: { status: LobbyEntryStatus.WAITING, pairingMethod: PairingMethod.MANUAL },
+        });
+        return null;
+      }
 
-      // Atomically claim the candidate so two concurrent joins can't pair with the same entry.
+      // Atomically claim the candidate the same way — if someone else
+      // (another concurrent attemptPairing call, from any user) claimed it
+      // first, release our own self-claim and bail rather than leaving
+      // myEntry stuck PAIRED with nothing to show for it.
       const claim = await tx.ratingLobbyEntry.updateMany({
         where: { id: candidate.id, status: LobbyEntryStatus.WAITING },
         data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
       });
-      if (claim.count === 0) return null;
+      if (claim.count === 0) {
+        await tx.ratingLobbyEntry.update({
+          where: { id: myEntry.id },
+          data: { status: LobbyEntryStatus.WAITING, pairingMethod: PairingMethod.MANUAL },
+        });
+        return null;
+      }
 
       const match = await tx.ratingMatch.create({
         data: {
@@ -247,10 +281,6 @@ async function attemptPairing(params: {
       await tx.ratingLobbyEntry.update({
         where: { id: candidate.id },
         data: { matchId: match.id, pairedEntryId: myEntry.id },
-      });
-      await tx.ratingLobbyEntry.update({
-        where: { id: myEntry.id },
-        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
       });
 
       return match;

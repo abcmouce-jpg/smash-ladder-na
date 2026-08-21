@@ -31,6 +31,11 @@ export const matchWithPlayers = {
       username: true,
       avatarUrl: true,
       rating: true,
+      // Shown instead of `rating` on the lobby match view when this side is
+      // isPracticing — that's the number actually feeding this match's Elo
+      // math (see applyEloAndConfirm), and showing the main rating instead
+      // was confusing the opponent about why so little rating moved.
+      practiceRating: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -42,6 +47,7 @@ export const matchWithPlayers = {
       username: true,
       avatarUrl: true,
       rating: true,
+      practiceRating: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -422,7 +428,13 @@ export const MAX_RATING_DELTA = 30;
 
 export function eloDelta(games: number, score: number, expected: number): number {
   const raw = kFactor(games) * (score - expected);
-  return Math.max(-MAX_RATING_DELTA, Math.min(MAX_RATING_DELTA, raw));
+  const clamped = Math.max(-MAX_RATING_DELTA, Math.min(MAX_RATING_DELTA, raw));
+  // A win against a much lower-rated opponent can have `raw` round all the
+  // way down to +0 — mathematically correct, but the victory screen ends up
+  // announcing "+0 rating" on a win, which reads as broken. score is always
+  // exactly 1 (win) or 0 (loss), never a draw, so this only ever floors the
+  // winning side; a loss is left exactly as computed.
+  return score === 1 ? Math.max(1, clamped) : clamped;
 }
 
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.

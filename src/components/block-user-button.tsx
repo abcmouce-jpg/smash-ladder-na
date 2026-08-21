@@ -30,6 +30,10 @@ export function BlockUserButton({
             return;
           }
           e.preventDefault();
+          // Captured now, not read off `e` in the .then() below — React nulls
+          // out a SyntheticEvent's currentTarget once the synchronous handler
+          // dispatch finishes, and confirm() resolves asynchronously.
+          const form = e.currentTarget;
           confirm(
             lang === "es"
               ? `¿Bloquear a ${username}? Esto es permanente y no se puede deshacer — nunca volverás a emparejarte con esta persona en la cola rankeada.`
@@ -37,7 +41,7 @@ export function BlockUserButton({
           ).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
-              e.currentTarget.requestSubmit();
+              form.requestSubmit();
             }
           });
         }}

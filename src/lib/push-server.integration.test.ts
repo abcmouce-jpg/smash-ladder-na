@@ -67,7 +67,7 @@ describe("notifyMatchFoundToUsers", () => {
     const payload = JSON.parse(String(sendNotificationMock.mock.calls[0][1]));
     expect(payload).toMatchObject({ title: "Match found!", url: "/lobby" });
     expect(payload.body).toMatch(/paired/i);
-    expect(sendNotificationMock.mock.calls[0][2]).toMatchObject({ TTL: 120 });
+    expect(sendNotificationMock.mock.calls[0][2]).toMatchObject({ TTL: 300 });
   });
 
   it("uses Spanish copy for players with preferredLanguage es", async () => {

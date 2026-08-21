@@ -318,6 +318,50 @@ describe("retryPairForWaitingUser", () => {
     expect(entries).toBe(0);
   });
 
+  // Regression test for a real prod incident: a player ended up in two
+  // simultaneous live matches (1.1s apart), caused by two concurrent
+  // retryPairForWaitingUser calls for the same entry (e.g. two open tabs)
+  // each finding a different still-WAITING candidate and both succeeding.
+  //
+  // Best-effort: a plain Promise.all of two real calls against a fast local
+  // Postgres with no network latency isn't guaranteed to actually overlap —
+  // one call's transaction can complete before the other starts, so this
+  // won't reliably fail even without the fix. The real guarantee is
+  // structural (see attemptPairing's comment: a single-row conditional
+  // UPDATE can only ever be won by one concurrent transaction, by Postgres's
+  // own row-locking — not something a timing-dependent test can prove
+  // either way). Kept as a smoke test and as documentation of the scenario.
+  it("never double-books the same waiting user across two concurrent retries", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+    const c = await createTestUser({ region: "USA East" });
+
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: a.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: b.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: c.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+
+    await Promise.all([retryPairForWaitingUser(a.id), retryPairForWaitingUser(a.id)]);
+
+    const aUnresolvedMatches = await prisma.ratingMatch.count({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }], status: "PENDING_REPORT" },
+    });
+    expect(aUnresolvedMatches).toBe(1);
+
+    // Whichever of b/c didn't get matched must still be cleanly WAITING —
+    // not stranded PAIRED with no match (the partial-claim leak a naive
+    // "claim both ids in one updateMany" fix would produce).
+    const bEntry = await prisma.ratingLobbyEntry.findFirst({ where: { userId: b.id } });
+    const cEntry = await prisma.ratingLobbyEntry.findFirst({ where: { userId: c.id } });
+    const statuses = [bEntry?.status, cEntry?.status].sort();
+    expect(statuses).toEqual(["PAIRED", "WAITING"]);
+  });
+
   it("never throws — this runs on every 5s lobby-page poll, so a failure here must not break the page", async () => {
     const a = await createTestUser({ region: "USA East" });
     await prisma.ratingLobbyEntry.create({

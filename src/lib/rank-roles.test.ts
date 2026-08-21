@@ -116,6 +116,28 @@ describe("applyTierChange", () => {
     expect(sendDiscordWebhookEmbed).not.toHaveBeenCalled();
   });
 
+  it("adds the landing tier's role on a rank-down without ever removing the old one — tier roles are permanent badges", async () => {
+    process.env.DISCORD_TIER_ROLE_IDS = JSON.stringify({ Elite: "role-elite", Master: "role-master" });
+    const { applyTierChange } = await import("./rank-roles");
+    const { syncDiscordGuildMemberRole, sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
+
+    await applyTierChange({
+      userId: "u1",
+      discordId: "d1",
+      username: "Player",
+      matchId: "m3",
+      oldTier: "Master",
+      newTier: "Elite", // a losing streak dropped them back down
+    });
+
+    // Only ever adds the tier just landed on (a harmless no-op here, since
+    // they'd already have Elite's role from climbing through it earlier) —
+    // never passes a removeRoleId for the tier they dropped out of.
+    expect(syncDiscordGuildMemberRole).toHaveBeenCalledWith("guild1", "d1", "role-elite", null);
+    expect(syncDiscordGuildMemberRole).toHaveBeenCalledTimes(1);
+    expect(sendDiscordWebhookEmbed).not.toHaveBeenCalled();
+  });
+
   it("announces a new personal-best tier even if a lower tier was reached before", async () => {
     const { prisma } = await import("@/lib/db");
     // Past peak only clears Elite's floor (1600), not Master's (1750) — this

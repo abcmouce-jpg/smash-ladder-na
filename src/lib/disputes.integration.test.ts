@@ -665,8 +665,18 @@ describe("adminUndoOldMatch", () => {
     expect(updatedP2.rating).toBe(1500);
     expect(updatedP2.gamesPlayed).toBe(3);
 
-    const history = await prisma.ratingHistory.findMany({ where: { matchId: match.id } });
-    expect(history).toHaveLength(0);
+    // The original confirmation's history row is gone (the match no longer
+    // counts, so the chart shouldn't show it), but the undo's own actual
+    // effect on each player's rating is now recorded — this used to leave
+    // zero trace, which is exactly what made a real prod incident (a
+    // player's rating moving with no audit trail to explain why) so hard
+    // to diagnose.
+    const history = await prisma.ratingHistory.findMany({ where: { matchId: match.id }, orderBy: { userId: "asc" } });
+    expect(history).toHaveLength(2);
+    const p1History = history.find((h) => h.userId === p1.id);
+    const p2History = history.find((h) => h.userId === p2.id);
+    expect(p1History).toMatchObject({ ratingBefore: 1540, ratingAfter: 1520, delta: -20 });
+    expect(p2History).toMatchObject({ ratingBefore: 1480, ratingAfter: 1500, delta: 20 });
   });
 
   it("throws for a match that doesn't exist", async () => {

@@ -97,10 +97,14 @@ export function BanIpButton({
             return;
           }
           e.preventDefault();
+          // Captured now, not read off `e` in the .then() below — React nulls
+          // out a SyntheticEvent's currentTarget once the synchronous handler
+          // dispatch finishes, and confirm() resolves asynchronously.
+          const form = e.currentTarget;
           confirm(`Ban IP ${ip}? This blocks sign-in from this address, not just this account.`).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
-              e.currentTarget.requestSubmit();
+              form.requestSubmit();
             }
           });
         }}
@@ -168,13 +172,17 @@ export function AdminMatchOverride({
               return;
             }
             e.preventDefault();
+            // Captured now, not read off `e` in the .then() below — React nulls
+            // out a SyntheticEvent's currentTarget once the synchronous handler
+            // dispatch finishes, and confirm() resolves asynchronously.
+            const form = e.currentTarget;
             confirm(
               "Undo this match? Reverts both players' rating back to right before it and cancels it outright — can't be undone.",
               { confirmLabel: "Undo match", variant: "destructive" },
             ).then((ok) => {
               if (ok) {
                 undoReadyRef.current = true;
-                e.currentTarget.requestSubmit();
+                form.requestSubmit();
               }
             });
           }}
