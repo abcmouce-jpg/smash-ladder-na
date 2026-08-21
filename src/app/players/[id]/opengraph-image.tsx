@@ -19,11 +19,11 @@ const ICON_URI = `data:image/png;base64,${readFileSync(
 // separate from RANK_TIERS' Tailwind className strings — ImageResponse
 // (Satori) doesn't run Tailwind, so each tier needs its own literal hex.
 const TIER_COLORS: Record<string, string> = {
-  Legend: "#fb7185",
+  Legend: "#f87171",
   Grandmaster: "#facc15",
   Master: "#a78bfa",
   Elite: "#60a5fa",
-  Fighter: "#38bdf8",
+  Fighter: "#4ade80",
   Challenger: "#fb923c",
 };
 

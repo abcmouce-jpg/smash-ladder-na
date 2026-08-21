@@ -43,7 +43,7 @@ export const RANK_TIERS: readonly RankTier[] = [
   {
     name: "Legend",
     minRating: 2100,
-    className: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-400",
+    className: "bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-400",
     description: "The peak of the ladder. Reserved for the players who define the meta at the very top of competition.",
   },
   {
@@ -68,7 +68,7 @@ export const RANK_TIERS: readonly RankTier[] = [
   {
     name: "Fighter",
     minRating: 1450,
-    className: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-400",
+    className: "bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-400",
     description: "The band the 1500 starting rating sits in, and where most players land once their rating settles.",
   },
   {

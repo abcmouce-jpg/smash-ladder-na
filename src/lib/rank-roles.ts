@@ -10,11 +10,11 @@ const SITE_URL = "https://smash-ladder-na.vercel.app";
 // embed colors are decimal, not hex, so this is the same palette
 // re-expressed for this API instead of a shared hex constant.
 const TIER_COLORS: Record<string, number> = {
-  Legend: 0xfb7185,
+  Legend: 0xf87171,
   Grandmaster: 0xfacc15,
   Master: 0xa78bfa,
   Elite: 0x60a5fa,
-  Fighter: 0x38bdf8,
+  Fighter: 0x4ade80,
   Challenger: 0xfb923c,
 };
 
