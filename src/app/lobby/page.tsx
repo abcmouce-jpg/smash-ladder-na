@@ -531,7 +531,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
   const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { zenMode: true, rating: true, region: true },
+    select: { zenMode: true, rating: true, practiceRating: true, region: true },
   });
   const zenMode = me?.zenMode ?? false;
   const displayName = zenMode ? (lang === "es" ? "Rival" : "Opponent") : opponent.username;
@@ -540,6 +540,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
   // it on, so they're not confused if you're less chatty/less findable.
   const opponentInZenMode = opponent.zenMode;
   const opponentIsPracticing = isPlayer1 ? match.player2IsPracticing : match.player1IsPracticing;
+  const myIsPracticing = isPlayer1 ? match.player1IsPracticing : match.player2IsPracticing;
 
   if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
     // Opponent may have queued into (and already be playing) a new match since
@@ -653,8 +654,26 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
           <p className="text-xs text-muted-foreground tabular-nums">
             <span>
               {lang === "es" ? "Tú:" : "You:"}
-              {!zenMode && (lang === "es" ? ` ${me?.rating} de clasificación` : ` ${me?.rating} rating`)}
+              {!zenMode &&
+                (() => {
+                  // Mirrors opponentIsPracticing's displayRating below — a
+                  // practice set is rated off practiceRating, so showing the
+                  // main rating here is what made players think they were
+                  // still on the main ladder (see #115).
+                  const myDisplayRating = myIsPracticing ? me?.practiceRating : me?.rating;
+                  return (
+                    <>
+                      {lang === "es" ? ` ${myDisplayRating} de clasificación` : ` ${myDisplayRating} rating`}
+                      {myIsPracticing && (lang === "es" ? " (práctica)" : " (practice)")}
+                    </>
+                  );
+                })()}
             </span>
+            {myIsPracticing && (
+              <Badge variant="outline" className="ml-2">
+                {lang === "es" ? "🧪 Modo práctica" : "🧪 Practice Mode"}
+              </Badge>
+            )}
             {me?.region && (
               <span className="ml-2 inline-flex items-center gap-1">
                 <MapPin className="size-3" />
