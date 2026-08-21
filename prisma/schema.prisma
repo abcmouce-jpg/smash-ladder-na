@@ -240,7 +240,7 @@ model RatingLobbyEntry {
   expiresAt        DateTime
   cancelledAt      DateTime?
   isPracticing     Boolean           @default(false) // this join only — carried onto the created match as player{1,2}IsPracticing
-  existingRoomCode String? // this join only — if exactly one side of a pairing has one, they become host and it's written straight to RatingMatch.roomCode
+  existingRoomCode String? // this join only — if both sides of a pairing have one, the last joiner's is used; if only one side has one, they become host. Either way it's written straight to RatingMatch.roomCode
 
   @@index([status, expiresAt])
   @@index([userId, joinedAt])

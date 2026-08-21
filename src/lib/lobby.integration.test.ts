@@ -7,6 +7,7 @@ import {
   retryPairForWaitingUser,
   setMatchRoomCode,
   sweepLobbyPairing,
+  updateLobbyRoomCode,
 } from "@/lib/lobby";
 import { LobbyEntryStatus } from "@/generated/prisma/enums";
 import { getRoomHostId } from "@/lib/matches";
@@ -271,7 +272,7 @@ describe("joinLobbyAndTryPair", () => {
     expect(match.roomCodeSetById).toBe(b.id);
   });
 
-  it("leaves the room code unset when both sides have an existing one", async () => {
+  it("uses the last joiner's code when both sides have an existing one", async () => {
     const a = await createTestUser({ region: "USA East" });
     const b = await createTestUser({ region: "USA East" });
 
@@ -281,8 +282,8 @@ describe("joinLobbyAndTryPair", () => {
     const match = await prisma.ratingMatch.findFirstOrThrow({
       where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
     });
-    expect(match.roomCode).toBeNull();
-    expect(match.roomCodeSetById).toBeNull();
+    expect(match.roomCode).toBe("CD456");
+    expect(match.roomCodeSetById).toBe(b.id);
   });
 });
 
@@ -460,6 +461,44 @@ describe("setMatchRoomCode", () => {
   });
 });
 
+describe("updateLobbyRoomCode", () => {
+  it("sets the room code on the waiting entry", async () => {
+    const a = await createTestUser();
+    await createWaitingEntry(a.id, null);
+
+    await updateLobbyRoomCode(a.id, "AB123");
+
+    const entry = await prisma.ratingLobbyEntry.findFirstOrThrow({ where: { userId: a.id } });
+    expect(entry.existingRoomCode).toBe("AB123");
+  });
+
+  it("clears a previously set room code when given empty", async () => {
+    const a = await createTestUser();
+    await createWaitingEntry(a.id, "AB123");
+
+    await updateLobbyRoomCode(a.id, null);
+
+    const entry = await prisma.ratingLobbyEntry.findFirstOrThrow({ where: { userId: a.id } });
+    expect(entry.existingRoomCode).toBeNull();
+  });
+
+  it("rejects a malformed room code", async () => {
+    const a = await createTestUser();
+    await createWaitingEntry(a.id, null);
+
+    await expect(updateLobbyRoomCode(a.id, "AB12")).rejects.toThrow(/5 characters/i);
+
+    const entry = await prisma.ratingLobbyEntry.findFirstOrThrow({ where: { userId: a.id } });
+    expect(entry.existingRoomCode).toBeNull();
+  });
+
+  it("throws for a user who isn't in the queue", async () => {
+    const a = await createTestUser();
+
+    await expect(updateLobbyRoomCode(a.id, "AB123")).rejects.toThrow(/not in the queue/i);
+  });
+});
+
 function createWaitingEntry(userId: string, existingRoomCode: string | null = null) {
   return prisma.ratingLobbyEntry.create({
     data: {
@@ -486,6 +525,22 @@ describe("sweepLobbyPairing", () => {
     });
     expect(match.roomCode).toBe("AB123");
     expect(match.roomCodeSetById).toBe(a.id);
+  });
+
+  it("uses the last joiner's code when both waiting entries have one", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+    await createWaitingEntry(a.id, "AB123");
+    await createWaitingEntry(b.id, "CD456");
+
+    const paired = await sweepLobbyPairing();
+
+    expect(paired).toBe(1);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match.roomCode).toBe("CD456");
+    expect(match.roomCodeSetById).toBe(b.id);
   });
 
   it("leaves the room code unset when neither waiting entry has an existing one", async () => {

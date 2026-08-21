@@ -90,17 +90,28 @@ export const ROOM_CODE_PATTERN = /^[A-Z0-9]{5}$/;
 
 // If exactly one side of a pairing already had a room set up before
 // queueing, they become host and their code is written straight to the
-// match — no "waiting for host" step needed. Both or neither set defers to
-// the usual (hash-based) host assignment, so returns null for the caller to
+// match — no "waiting for host" step needed. When both sides brought one,
+// the player who joined the queue last keeps theirs; the other side joins
+// that room instead of hosting. Only when neither set one do we defer to
+// the usual (hash-based) host assignment, returning null for the caller to
 // leave roomCode/roomCodeSetById unset.
 function resolvePrefilledRoom(
-  aId: string,
-  aCode: string | null,
-  bId: string,
-  bCode: string | null,
+  a: { userId: string; existingRoomCode: string | null; joinedAt: Date },
+  b: { userId: string; existingRoomCode: string | null; joinedAt: Date },
 ): { roomCode: string; roomCodeSetById: string } | null {
-  if (aCode && !bCode) return { roomCode: aCode, roomCodeSetById: aId };
-  if (bCode && !aCode) return { roomCode: bCode, roomCodeSetById: bId };
+  if (a.existingRoomCode && !b.existingRoomCode) {
+    return { roomCode: a.existingRoomCode, roomCodeSetById: a.userId };
+  }
+  if (b.existingRoomCode && !a.existingRoomCode) {
+    return { roomCode: b.existingRoomCode, roomCodeSetById: b.userId };
+  }
+  // Both sides brought a ready room — the last to join hosts with their own
+  // code. Equal joinedAt (same-millisecond joins) deterministically falls to a.
+  if (a.existingRoomCode && b.existingRoomCode) {
+    return b.joinedAt > a.joinedAt
+      ? { roomCode: b.existingRoomCode, roomCodeSetById: b.userId }
+      : { roomCode: a.existingRoomCode, roomCodeSetById: a.userId };
+  }
   return null;
 }
 
@@ -156,7 +167,7 @@ export async function getActiveLobbyEntry(userId: string) {
 // differing only in whether the entry was just created or already existed.
 async function attemptPairing(params: {
   userId: string;
-  myEntry: { id: string; isPracticing: boolean; existingRoomCode: string | null };
+  myEntry: { id: string; userId: string; isPracticing: boolean; existingRoomCode: string | null; joinedAt: Date };
   myRegion: string;
   me: {
     rating: number;
@@ -271,7 +282,7 @@ async function attemptPairing(params: {
           expiresAt: new Date(Date.now() + MATCH_TTL_MS),
           player1IsPracticing: candidate.isPracticing,
           player2IsPracticing: myEntry.isPracticing,
-          ...resolvePrefilledRoom(candidate.userId, candidate.existingRoomCode, userId, myEntry.existingRoomCode),
+          ...resolvePrefilledRoom(candidate, myEntry),
         },
       });
 
@@ -352,7 +363,7 @@ export async function joinLobbyAndTryPair(
 
   const paired = await attemptPairing({
     userId,
-    myEntry: { id: newEntry.id, isPracticing, existingRoomCode },
+    myEntry: { id: newEntry.id, userId, isPracticing, existingRoomCode, joinedAt: newEntry.joinedAt },
     myRegion,
     me,
     myReach,
@@ -367,6 +378,26 @@ export async function joinLobbyAndTryPair(
   const entry = await getActiveLobbyEntry(userId);
   await notifyMatchFoundToUsers(paired.player1Id, paired.player2Id);
   return entry;
+}
+
+// Lets a player already sitting in the queue set or clear the room code they
+// brought with them, without having to cancel and rejoin. Same validation as
+// join time — the next pairing attempt (retryPairForWaitingUser, the sweep
+// cron, or a fresh join-time check) reads existingRoomCode off the live
+// entry, so the change is picked up on the very next candidate pass.
+export async function updateLobbyRoomCode(userId: string, roomCode: string | null) {
+  const entry = await prisma.ratingLobbyEntry.findFirst({
+    where: { userId, status: LobbyEntryStatus.WAITING },
+    orderBy: { joinedAt: "desc" },
+  });
+  if (!entry) throw new Error("You're not in the queue.");
+  if (roomCode && !ROOM_CODE_PATTERN.test(roomCode)) {
+    throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
+  }
+  await prisma.ratingLobbyEntry.update({
+    where: { id: entry.id },
+    data: { existingRoomCode: roomCode },
+  });
 }
 
 // The lobby page's client poller (LobbyPoller, 5s interval, kept alive in
@@ -421,7 +452,13 @@ export async function retryPairForWaitingUser(userId: string) {
 
     const paired = await attemptPairing({
       userId,
-      myEntry: { id: entry.id, isPracticing: entry.isPracticing, existingRoomCode: entry.existingRoomCode },
+      myEntry: {
+        id: entry.id,
+        userId,
+        isPracticing: entry.isPracticing,
+        existingRoomCode: entry.existingRoomCode,
+        joinedAt: entry.joinedAt,
+      },
       myRegion: me.region,
       me,
       myReach,
@@ -588,7 +625,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
               expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
               player1IsPracticing: a.isPracticing,
               player2IsPracticing: b.isPracticing,
-              ...resolvePrefilledRoom(a.userId, a.existingRoomCode, b.userId, b.existingRoomCode),
+              ...resolvePrefilledRoom(a, b),
             },
           });
           // Only one side records matchId/pairedEntryId — see the join-time
