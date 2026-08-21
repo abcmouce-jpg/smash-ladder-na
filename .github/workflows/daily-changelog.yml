@@ -38,5 +38,6 @@ jobs:
           jq -n \
             --arg title "📋 What changed today" \
             --arg desc "$DESCRIPTION" \
-            '{embeds: [{title: $title, description: $desc, color: 3447003}]}' \
+            --arg mention "<@&1532383558486724788>" \
+            '{content: $mention, embeds: [{title: $title, description: $desc, color: 3447003}], allowed_mentions: {roles: ["1532383558486724788"]}}' \
             | curl -sf -X POST -H "Content-Type: application/json" -d @- "$DISCORD_LADDER_UPDATES_WEBHOOK_URL"
