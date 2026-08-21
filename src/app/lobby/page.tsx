@@ -103,13 +103,7 @@ export default async function LobbyPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
-        <ActivityLine
-          inMatch={activity.inMatch}
-          matched={false}
-          isWaiting={false}
-          poll={false}
-          lang={lang}
-        />
+        <ActivityLine inMatch={activity.inMatch} matched={false} isWaiting={false} poll={false} lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
           {lang === "es"
             ? "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento."
