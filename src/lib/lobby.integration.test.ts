@@ -272,7 +272,7 @@ describe("joinLobbyAndTryPair", () => {
     expect(match.roomCodeSetById).toBe(b.id);
   });
 
-  it("leaves the room code unset when both sides have an existing one", async () => {
+  it("uses the last joiner's code when both sides have an existing one", async () => {
     const a = await createTestUser({ region: "USA East" });
     const b = await createTestUser({ region: "USA East" });
 
@@ -282,8 +282,8 @@ describe("joinLobbyAndTryPair", () => {
     const match = await prisma.ratingMatch.findFirstOrThrow({
       where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
     });
-    expect(match.roomCode).toBeNull();
-    expect(match.roomCodeSetById).toBeNull();
+    expect(match.roomCode).toBe("CD456");
+    expect(match.roomCodeSetById).toBe(b.id);
   });
 });
 
@@ -525,6 +525,22 @@ describe("sweepLobbyPairing", () => {
     });
     expect(match.roomCode).toBe("AB123");
     expect(match.roomCodeSetById).toBe(a.id);
+  });
+
+  it("uses the last joiner's code when both waiting entries have one", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+    await createWaitingEntry(a.id, "AB123");
+    await createWaitingEntry(b.id, "CD456");
+
+    const paired = await sweepLobbyPairing();
+
+    expect(paired).toBe(1);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match.roomCode).toBe("CD456");
+    expect(match.roomCodeSetById).toBe(b.id);
   });
 
   it("leaves the room code unset when neither waiting entry has an existing one", async () => {
