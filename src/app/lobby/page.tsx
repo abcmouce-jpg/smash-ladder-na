@@ -288,7 +288,7 @@ function ActivityLine({
           </>
         ) : (
           <>
-            <span className="font-medium text-foreground">{inMatch}</span> currently playing
+            <span className="font-medium text-foreground">{inMatch}</span> playing now
           </>
         )}
       </span>
