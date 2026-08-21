@@ -550,6 +550,7 @@ model FreeBattlePost {
   createdAt     DateTime   @default(now())
   expiresAt     DateTime // 24h TTL, same lazy-read/external-cron finalizer as RatingMatch
   matchedAt     DateTime?
+  discordMessageId String? // id of the announcement message posted to DISCORD_FREE_BATTLE_WEBHOOK_URL on creation, if any — lets us delete it once the post is no longer available (closed, claimed, or expired)
 
   @@index([status, createdAt])
   @@index([authorId])

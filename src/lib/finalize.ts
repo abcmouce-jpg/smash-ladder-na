@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PostStatus, UserRole } from "@/generated/prisma/enums";
 import { autoConfirmStaleGameReport, closeOutUnansweredLead } from "@/lib/match-games";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { deletePostAnnouncement } from "@/lib/free-battle";
 
 export async function finalizeExpiredLobbyEntries(now = new Date()) {
   const result = await prisma.ratingLobbyEntry.updateMany({
@@ -98,9 +99,22 @@ export async function finalizeExpiredMatches(now = new Date()) {
 }
 
 export async function finalizeExpiredFreeBattlePosts(now = new Date()) {
+  // Fetched before the bulk update — updateMany can't return which rows it
+  // touched, and each one's Discord announcement (if any) needs its own
+  // delete call afterward.
+  const expiring = await prisma.freeBattlePost.findMany({
+    where: { status: PostStatus.OPEN, expiresAt: { lt: now } },
+    select: { discordMessageId: true },
+  });
+
   const result = await prisma.freeBattlePost.updateMany({
     where: { status: PostStatus.OPEN, expiresAt: { lt: now } },
     data: { status: PostStatus.EXPIRED },
   });
+
+  for (const post of expiring) {
+    await deletePostAnnouncement(post.discordMessageId);
+  }
+
   return result.count;
 }

@@ -1,6 +1,16 @@
 import { prisma } from "@/lib/db";
 import { PostStatus } from "@/generated/prisma/enums";
-import { sendDiscordDM, sendDiscordWebhookMessage } from "@/lib/discord-bot";
+import { sendDiscordDM, sendDiscordWebhookMessage, deleteDiscordWebhookMessage } from "@/lib/discord-bot";
+
+// Best-effort teardown of a post's Discord announcement, if it has one and
+// the webhook is still configured — shared by closePost, claimPost, and the
+// expiry finalizer so a post's Discord footprint never outlives it.
+export async function deletePostAnnouncement(discordMessageId: string | null) {
+  const webhookUrl = process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL;
+  if (webhookUrl && discordMessageId) {
+    await deleteDiscordWebhookMessage(webhookUrl, discordMessageId);
+  }
+}
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -60,23 +70,34 @@ export async function createPost(userId: string, comment: string) {
   // now" signal that drives return visits.
   const webhookUrl = process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL;
   if (webhookUrl) {
-    await sendDiscordWebhookMessage(
+    const messageId = await sendDiscordWebhookMessage(
       webhookUrl,
       `🎮 **${author.username}** is looking for a free battle${author.region ? ` (${author.region})` : ""}: "${trimmed}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
     );
+    // Recorded after the fact rather than in the initial create — the
+    // message doesn't exist (so has no id) until after the post row does.
+    // Best-effort: a missing id here just means deletePostAnnouncement has
+    // nothing to delete later, not a broken post.
+    if (messageId) {
+      await prisma.freeBattlePost.update({ where: { id: post.id }, data: { discordMessageId: messageId } });
+    }
   }
 
   return post;
 }
 
 export async function closePost(userId: string, postId: string) {
-  await prisma.freeBattlePost.updateMany({
+  const closed = await prisma.freeBattlePost.updateMany({
     // MATCHED must be closable too, not just OPEN — otherwise a claimed
     // post counts as "active" forever (per getOwnActivePost) and the
     // author can never post again.
     where: { id: postId, authorId: userId, status: { in: [PostStatus.OPEN, PostStatus.MATCHED] } },
     data: { status: PostStatus.CLOSED },
   });
+  if (closed.count > 0) {
+    const post = await prisma.freeBattlePost.findUnique({ where: { id: postId }, select: { discordMessageId: true } });
+    await deletePostAnnouncement(post?.discordMessageId ?? null);
+  }
 }
 
 // matchedWithId has no Prisma relation defined on it, so it's looked up separately.
@@ -98,6 +119,8 @@ export async function claimPost(userId: string, postId: string) {
     data: { status: PostStatus.MATCHED, matchedWithId: userId, matchedAt: new Date() },
   });
   if (claim.count === 0) throw new Error("This post was just claimed by someone else");
+
+  await deletePostAnnouncement(post.discordMessageId);
 
   const [author, claimer] = await Promise.all([
     prisma.user.findUnique({ where: { id: post.authorId }, select: { discordId: true } }),

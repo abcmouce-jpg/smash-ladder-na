@@ -53,13 +53,34 @@ export async function sendDiscordDM(discordId: string, content: string) {
 // gets these without granting the bot broader access than DMs already need.
 // Silently no-ops when unconfigured, same reasoning as sendDiscordDM: this
 // is a growth nice-to-have, never something the calling flow depends on.
-export async function sendDiscordWebhookMessage(webhookUrl: string, content: string) {
+// `?wait=true` makes Discord return the created message (id included)
+// instead of an empty 204 — callers that need to delete it later (see
+// deleteDiscordWebhookMessage) can't do that without capturing the id here.
+export async function sendDiscordWebhookMessage(webhookUrl: string, content: string): Promise<string | null> {
   try {
-    await fetch(webhookUrl, {
+    const res = await fetch(`${webhookUrl}?wait=true`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: content.slice(0, 1900) }),
     });
+    if (!res.ok) return null;
+    const message = (await res.json()) as { id: string };
+    return message.id;
+  } catch {
+    // Best-effort, same reasoning as sendDiscordDM.
+    return null;
+  }
+}
+
+// Deletes a message this webhook itself posted (see sendDiscordWebhookMessage's
+// returned id) — used to take down an announcement once whatever it was
+// advertising (e.g. a free battle post) is no longer available. A webhook can
+// only delete its own messages, no separate permission needed. Best-effort,
+// same reasoning as sendDiscordDM: a message that outlives its post by a few
+// minutes is a stale ping, not a broken flow.
+export async function deleteDiscordWebhookMessage(webhookUrl: string, messageId: string) {
+  try {
+    await fetch(`${webhookUrl}/messages/${messageId}`, { method: "DELETE" });
   } catch {
     // Best-effort, same reasoning as sendDiscordDM.
   }
