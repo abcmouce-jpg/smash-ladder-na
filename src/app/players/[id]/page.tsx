@@ -19,6 +19,7 @@ import {
 } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
+import { getLeaderboardRank } from "@/lib/leaderboard";
 import { getPlayerSeasonAchievements } from "@/lib/seasons";
 import { achievementComparator, computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
@@ -129,6 +130,7 @@ export default async function PlayerProfilePage({
     seasonAchievements,
     streak,
     headToHead,
+    leaderboardRank,
   ] = await Promise.all([
     // Fixed to the true most-recent matches regardless of which page of
     // history is being viewed — the win-rate/streak badges near the rating
@@ -150,6 +152,7 @@ export default async function PlayerProfilePage({
     getPlayerSeasonAchievements(id),
     getCurrentStreak(id),
     session?.user?.id && !isOwnProfile ? getHeadToHead(session.user.id, id) : Promise.resolve(null),
+    getLeaderboardRank(id),
   ]);
   const inMatch = currentMatch !== null;
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
@@ -356,7 +359,22 @@ export default async function PlayerProfilePage({
             <p className="mt-1 text-xs text-muted-foreground">
               {lang === "es" ? "Se reinicia al terminar la temporada." : "Resets when the season ends."}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <p className="text-lg font-semibold tabular-nums">
+                  {leaderboardRank.rank ? (
+                    <>
+                      #{leaderboardRank.rank}
+                      <span className="text-sm">/{leaderboardRank.totalPlayers}</span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Posición en el ladder" : "Leaderboard rank"}
+                </p>
+              </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">
                   {seasonStats.totalWins}-{seasonStats.totalLosses}

@@ -11,6 +11,28 @@ export interface LeaderboardFilters {
   country?: MatchCountry | null;
 }
 
+// The base "who counts as a ranked player" population shared by the
+// leaderboard query and the rank computation so neither can drift from the
+// other. A banned account still has its old rating on record, but it has no
+// business showing up on the public leaderboard anymore. Discord username
+// shows as this literal string once someone deletes their Discord account —
+// happens independently of any ban, so an otherwise-ACTIVE account can still
+// be stuck showing this. Nothing useful to link to at that point either way.
+function leaderboardEligibility(query?: string | null) {
+  return {
+    gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
+    status: { not: UserStatus.BANNED },
+    // Combined into one filter object with the search query below — a second
+    // `username` key would just silently clobber this exclusion whenever a
+    // search term is also present, since object spread overwrites same-name
+    // keys.
+    username: {
+      not: "Deleted User",
+      ...(query ? { contains: query, mode: "insensitive" as const } : {}),
+    },
+  };
+}
+
 // Shared by the interactive /leaderboard page and the /stream broadcast
 // overlay so both agree on what counts as "ranked" and rank the same way.
 export async function getLeaderboardPlayers(
@@ -18,21 +40,7 @@ export async function getLeaderboardPlayers(
   pagination: { skip?: number; take?: number } = {},
 ) {
   const where = {
-    gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
-    // A banned account still has its old rating on record, but it has no
-    // business showing up on the public leaderboard anymore.
-    status: { not: UserStatus.BANNED },
-    // Discord username shows as this literal string once someone deletes
-    // their Discord account — happens independently of any ban, so an
-    // otherwise-ACTIVE account can still be stuck showing this. Nothing
-    // useful to link to at that point either way. Combined into one filter
-    // object with the search query below — a second `username` key here
-    // would just silently clobber this exclusion whenever a search term is
-    // also present, since object spread overwrites same-name keys.
-    username: {
-      not: "Deleted User",
-      ...(filters.query ? { contains: filters.query, mode: "insensitive" as const } : {}),
-    },
+    ...leaderboardEligibility(filters.query),
     // A character's leaderboard shows its mains and anyone with it as a
     // secondary. Auto-derived secondaries already require >=30% of a
     // player's games to exist at all (see recomputeCharacterUsage), so this
@@ -80,4 +88,39 @@ export async function getLeaderboardPlayers(
     }),
   ]);
   return { players, totalCount };
+}
+
+// 1-based rank on the public leaderboard for a player, plus how many players
+// qualify for it, or null rank when they don't qualify yet (under the games
+// floor, banned, or the Discord self-deletion placeholder). Shared by the
+// profile's season card and the stream overlay so the `#X/Y` everyone sees
+// agrees. Uses the same eligible population as getLeaderboardPlayers but
+// standard competition ranking: tied players all get the same rank (count of
+// strictly-higher ratings + 1), with the next rank skipped.
+export async function getLeaderboardRank(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { rating: true, gamesPlayed: true, status: true, username: true },
+  });
+
+  const eligible = leaderboardEligibility();
+  const [totalPlayers, above] = await Promise.all([
+    prisma.user.count({ where: eligible }),
+    user
+      ? prisma.user.count({
+          where: {
+            ...eligible,
+            rating: { gt: user.rating },
+          },
+        })
+      : Promise.resolve(0),
+  ]);
+
+  const qualifies =
+    user !== null &&
+    user.status !== UserStatus.BANNED &&
+    user.username !== "Deleted User" &&
+    user.gamesPlayed >= LEADERBOARD_MIN_GAMES;
+
+  return { rank: qualifies ? above + 1 : null, totalPlayers };
 }

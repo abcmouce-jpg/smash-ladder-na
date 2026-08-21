@@ -18,12 +18,16 @@ export function EndSeasonButton({ action, seasonName }: { action: () => Promise<
             return;
           }
           e.preventDefault();
+          // Captured now, not read off `e` in the .then() below — React nulls
+          // out a SyntheticEvent's currentTarget once the synchronous handler
+          // dispatch finishes, and confirm() resolves asynchronously.
+          const form = e.currentTarget;
           confirm(
             `End "${seasonName}" and start the next one? This resets EVERYONE's rating to 1500 and sets played to 0. This can't be undone.`,
           ).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
-              e.currentTarget.requestSubmit();
+              form.requestSubmit();
             }
           });
         }}

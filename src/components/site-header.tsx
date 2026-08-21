@@ -9,6 +9,7 @@ import {
   Flag,
   Gamepad2,
   Gauge,
+  Handshake,
   Languages,
   LogOut,
   Radio,
@@ -158,6 +159,10 @@ export async function SiteHeader() {
             <Link href="/lobby" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
               <Swords className="size-3.5" />
               {lang === "es" ? "Sala" : "Lobby"}
+            </Link>
+            <Link href="/free-battle" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
+              <Handshake className="size-3.5" />
+              {lang === "es" ? "Free Battle" : "Free Battle"}
             </Link>
             <Link href="/sets" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
               <Radio className="size-3.5" />

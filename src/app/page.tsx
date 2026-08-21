@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Activity, Coffee, Swords, Trophy, Users } from "lucide-react";
+import { Activity, Coffee, Handshake, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getMatchesPerDay, getPublicStats, getTopGrinders } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
@@ -245,6 +245,19 @@ export default async function Home() {
                 {lang === "es"
                   ? "Ponte en cola y te emparejamos automáticamente para una partida clasificatoria."
                   : "Queue up and get auto-paired for a rated match."}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link href="/free-battle">
+          <Card className="h-full transition-colors hover:border-foreground/30">
+            <CardHeader>
+              <Handshake className="size-5 text-muted-foreground" />
+              <CardTitle className="text-base">{lang === "es" ? "Free Battle" : "Free Battle"}</CardTitle>
+              <CardDescription>
+                {lang === "es"
+                  ? "Amistosos casuales sin afectar tu clasificación — ni región, ni cola automática, tú eliges con quién jugar."
+                  : "Casual, unranked friendlies — no region needed, no auto-matching, you pick who to play."}
               </CardDescription>
             </CardHeader>
           </Card>

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Activity, Swords, Trophy, Users } from "lucide-react";
+import { Activity, Handshake, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getPublicStats } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
@@ -144,6 +144,18 @@ export default async function HomeEs() {
               <CardTitle className="text-base">Sala clasificatoria</CardTitle>
               <CardDescription>
                 Ponte en cola y te emparejamos automáticamente para una partida clasificatoria.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link href="/free-battle">
+          <Card className="h-full transition-colors hover:border-foreground/30">
+            <CardHeader>
+              <Handshake className="size-5 text-muted-foreground" />
+              <CardTitle className="text-base">Free Battle</CardTitle>
+              <CardDescription>
+                Amistosos casuales sin afectar tu clasificación — ni región, ni cola automática, tú eliges con quién
+                jugar.
               </CardDescription>
             </CardHeader>
           </Card>

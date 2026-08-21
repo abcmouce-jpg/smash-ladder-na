@@ -31,6 +31,11 @@ export const matchWithPlayers = {
       username: true,
       avatarUrl: true,
       rating: true,
+      // Shown instead of `rating` on the lobby match view when this side is
+      // isPracticing — that's the number actually feeding this match's Elo
+      // math (see applyEloAndConfirm), and showing the main rating instead
+      // was confusing the opponent about why so little rating moved.
+      practiceRating: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -42,6 +47,7 @@ export const matchWithPlayers = {
       username: true,
       avatarUrl: true,
       rating: true,
+      practiceRating: true,
       region: true,
       arenaPassword: true,
       zenMode: true,

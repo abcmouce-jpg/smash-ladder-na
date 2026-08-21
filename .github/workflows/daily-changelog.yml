@@ -1,0 +1,43 @@
+name: Daily changelog to Discord
+
+# Posts one digest per day to #⚙️-na-ladder-updates listing every commit
+# merged to main in the last 24h — no manual approval needed, unlike
+# notify-deploy.yml's per-commit post (which requires an Actions reviewer
+# to approve each one, and as of 2026-08-21 has never actually been
+# approved once since it shipped on 2026-08-15). Skips posting entirely on
+# a quiet day rather than sending an empty "nothing changed" message.
+on:
+  schedule:
+    # Fixed UTC time, so this drifts an hour with DST — 5pm ET in summer
+    # (EDT, UTC-4), 4pm ET in winter (EST, UTC-5). Either way it lands
+    # before the evening activity peak (see matches-per-day analysis).
+    - cron: "0 21 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  post-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and post digest
+        env:
+          DISCORD_LADDER_UPDATES_WEBHOOK_URL: ${{ secrets.DISCORD_LADDER_UPDATES_WEBHOOK_URL }}
+        run: |
+          COMMITS=$(git log --since="24 hours ago" --pretty=format:"- %s" main)
+
+          if [ -z "$COMMITS" ]; then
+            echo "No commits in the last 24h — skipping post."
+            exit 0
+          fi
+
+          DESCRIPTION=$(printf '%s' "$COMMITS" | head -c 3800)
+
+          jq -n \
+            --arg title "📋 What changed today" \
+            --arg desc "$DESCRIPTION" \
+            --arg mention "<@&1532383558486724788>" \
+            '{content: $mention, embeds: [{title: $title, description: $desc, color: 3447003}], allowed_mentions: {roles: ["1532383558486724788"]}}' \
+            | curl -sf -X POST -H "Content-Type: application/json" -d @- "$DISCORD_LADDER_UPDATES_WEBHOOK_URL"
