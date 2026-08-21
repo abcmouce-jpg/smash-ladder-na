@@ -26,10 +26,14 @@ export function CancelMatchButton({
             return;
           }
           e.preventDefault();
+          // Captured now, not read off `e` in the .then() below — React nulls
+          // out a SyntheticEvent's currentTarget once the synchronous handler
+          // dispatch finishes, and confirm() resolves asynchronously.
+          const form = e.currentTarget;
           confirm("Cancel this match? This can't be undone.", { cancelLabel: "Go back" }).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
-              e.currentTarget.requestSubmit();
+              form.requestSubmit();
             }
           });
         }}

@@ -12,6 +12,7 @@ import {
   hasOpponentEngaged,
 } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
+import { resolveQuickMessages } from "@/lib/quick-messages";
 import { currentStreak, getHeadToHead, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
@@ -104,13 +105,7 @@ export default async function LobbyPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
-        <ActivityLine
-          inMatch={activity.inMatch}
-          matched={false}
-          isWaiting={false}
-          poll={false}
-          lang={lang}
-        />
+        <ActivityLine inMatch={activity.inMatch} matched={false} isWaiting={false} poll={false} lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
           {lang === "es"
             ? "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento."
@@ -297,7 +292,7 @@ function ActivityLine({
           </>
         ) : (
           <>
-            <span className="font-medium text-foreground">{inMatch}</span> currently playing
+            <span className="font-medium text-foreground">{inMatch}</span> playing now
           </>
         )}
       </span>
@@ -540,7 +535,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
   const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { zenMode: true, rating: true, region: true },
+    select: { zenMode: true, rating: true, practiceRating: true, region: true },
   });
   const zenMode = me?.zenMode ?? false;
   const displayName = zenMode ? (lang === "es" ? "Rival" : "Opponent") : opponent.username;
@@ -549,6 +544,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
   // it on, so they're not confused if you're less chatty/less findable.
   const opponentInZenMode = opponent.zenMode;
   const opponentIsPracticing = isPlayer1 ? match.player2IsPracticing : match.player1IsPracticing;
+  const myIsPracticing = isPlayer1 ? match.player1IsPracticing : match.player2IsPracticing;
 
   if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
     // Opponent may have queued into (and already be playing) a new match since
@@ -662,8 +658,26 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
           <p className="text-xs text-muted-foreground tabular-nums">
             <span>
               {lang === "es" ? "Tú:" : "You:"}
-              {!zenMode && (lang === "es" ? ` ${me?.rating} de clasificación` : ` ${me?.rating} rating`)}
+              {!zenMode &&
+                (() => {
+                  // Mirrors opponentIsPracticing's displayRating below — a
+                  // practice set is rated off practiceRating, so showing the
+                  // main rating here is what made players think they were
+                  // still on the main ladder (see #115).
+                  const myDisplayRating = myIsPracticing ? me?.practiceRating : me?.rating;
+                  return (
+                    <>
+                      {lang === "es" ? ` ${myDisplayRating} de clasificación` : ` ${myDisplayRating} rating`}
+                      {myIsPracticing && (lang === "es" ? " (práctica)" : " (practice)")}
+                    </>
+                  );
+                })()}
             </span>
+            {myIsPracticing && (
+              <Badge variant="outline" className="ml-2">
+                {lang === "es" ? "🧪 Modo práctica" : "🧪 Practice Mode"}
+              </Badge>
+            )}
             {me?.region && (
               <span className="ml-2 inline-flex items-center gap-1">
                 <MapPin className="size-3" />
@@ -696,9 +710,22 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
               </p>
               {(!zenMode || opponent.region) && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
-                  {!zenMode && (
-                    <span>{lang === "es" ? `${opponent.rating} de clasificación` : `${opponent.rating} rating`}</span>
-                  )}
+                  {!zenMode &&
+                    (() => {
+                      // Practice sets are rated off practiceRating, not the
+                      // main rating shown everywhere else — showing the main
+                      // number here made the Elo swing after the set look
+                      // wrong (a big rating gap that wasn't actually being
+                      // used for this particular match).
+                      const displayRating = opponentIsPracticing ? opponent.practiceRating : opponent.rating;
+                      return (
+                        <span>
+                          {lang === "es" ? `${displayRating} de clasificación` : `${displayRating} rating`}
+                          {opponentIsPracticing &&
+                            (lang === "es" ? " (práctica)" : " (practice)")}
+                        </span>
+                      );
+                    })()}
                   {opponent.region && (
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="size-3" />
@@ -1144,7 +1171,10 @@ function GameSection({
       ? lastSameBans(games, userId)
       : null;
 
-  const runItBackStage = turn.phase === "picking" ? lastPlayedStage(games, current.gameNumber) : null;
+  // myTurn, not just phase — "picking" is a property of the game state, not
+  // per-player, so without this the side who just finished striking (and
+  // can never run it back themselves) saw the button too, just disabled.
+  const runItBackStage = turn.phase === "picking" && myTurn ? lastPlayedStage(games, current.gameNumber) : null;
   const canRunItBack = runItBackStage !== null && current.stagesRemaining.includes(runItBackStage);
 
   return (
@@ -1750,6 +1780,11 @@ async function CommentsSection({
 }) {
   const rawComments = await listMatchComments(userId, match.id);
   const opponentTyping = await isOpponentTyping(match.id, userId);
+  const myQuickMessagesRaw = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { quickMessages: true },
+  });
+  const myQuickMessages = resolveQuickMessages(myQuickMessagesRaw?.quickMessages ?? []);
 
   // Determine opponent's user id for zen mode — replace their name in chat
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
@@ -1789,6 +1824,7 @@ async function CommentsSection({
         <CommentForm
           action={sendMatchCommentAction.bind(null, match.id)}
           onTyping={signalTypingAction.bind(null, match.id)}
+          quickMessages={myQuickMessages}
           lang={lang}
         />
       </CardContent>
