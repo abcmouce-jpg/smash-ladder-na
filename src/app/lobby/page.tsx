@@ -687,9 +687,22 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
               </p>
               {(!zenMode || opponent.region) && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
-                  {!zenMode && (
-                    <span>{lang === "es" ? `${opponent.rating} de clasificación` : `${opponent.rating} rating`}</span>
-                  )}
+                  {!zenMode &&
+                    (() => {
+                      // Practice sets are rated off practiceRating, not the
+                      // main rating shown everywhere else — showing the main
+                      // number here made the Elo swing after the set look
+                      // wrong (a big rating gap that wasn't actually being
+                      // used for this particular match).
+                      const displayRating = opponentIsPracticing ? opponent.practiceRating : opponent.rating;
+                      return (
+                        <span>
+                          {lang === "es" ? `${displayRating} de clasificación` : `${displayRating} rating`}
+                          {opponentIsPracticing &&
+                            (lang === "es" ? " (práctica)" : " (practice)")}
+                        </span>
+                      );
+                    })()}
                   {opponent.region && (
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="size-3" />
@@ -1135,7 +1148,10 @@ function GameSection({
       ? lastSameBans(games, userId)
       : null;
 
-  const runItBackStage = turn.phase === "picking" ? lastPlayedStage(games, current.gameNumber) : null;
+  // myTurn, not just phase — "picking" is a property of the game state, not
+  // per-player, so without this the side who just finished striking (and
+  // can never run it back themselves) saw the button too, just disabled.
+  const runItBackStage = turn.phase === "picking" && myTurn ? lastPlayedStage(games, current.gameNumber) : null;
   const canRunItBack = runItBackStage !== null && current.stagesRemaining.includes(runItBackStage);
 
   return (
