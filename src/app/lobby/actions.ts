@@ -184,7 +184,8 @@ export async function pickCharacter(matchId: string, gameNumber: number, formDat
   const userId = await requireUserId();
   await requireNotBanned(userId);
   const character = String(formData.get("character") ?? "");
-  await ignoringStaleGameRaces(() => pickGameCharacter(userId, matchId, gameNumber, character));
+  const moveset = String(formData.get("moveset") ?? "");
+  await ignoringStaleGameRaces(() => pickGameCharacter(userId, matchId, gameNumber, character, moveset));
   revalidatePath("/lobby");
 }
 

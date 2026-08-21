@@ -47,5 +47,11 @@ next-env.d.ts
 # local one-off data backups/exports — never user-facing, never committed
 *.csv
 
+# subagent-driven-development scratch workspace (ledgers, briefs, reports)
+/.superpowers/
+
+# spec/plan docs — kept locally only, never committed
+/docs/superpowers/
+
 # per-machine MCP server config, not shared across contributors
 .mcp.json

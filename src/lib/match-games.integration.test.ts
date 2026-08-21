@@ -111,6 +111,69 @@ describe("auto-forfeit for a stale character pick", () => {
   });
 });
 
+describe("pickGameCharacter with a Mii moveset", () => {
+  it("stores a valid moveset alongside a Mii pick", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mii Brawler", "1221");
+
+    const games = await getMatchGames(match.id);
+    const current = games.find((g) => g.gameNumber === 1);
+    const isActorA = game.actorAId === current?.actorAId;
+    expect(isActorA ? current?.actorAMoveset : current?.actorBMoveset).toBe("1221");
+  });
+
+  it("rejects a Mii pick with a missing moveset", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+
+    await expect(pickGameCharacter(game.actorAId, match.id, 1, "Mii Gunner")).rejects.toThrow(
+      "Moveset must be 4 digits, each 1-4",
+    );
+  });
+
+  it("rejects a Mii pick with an invalid moveset", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+
+    await expect(pickGameCharacter(game.actorAId, match.id, 1, "Mii Gunner", "9999")).rejects.toThrow(
+      "Moveset must be 4 digits, each 1-4",
+    );
+    await expect(pickGameCharacter(game.actorAId, match.id, 1, "Mii Gunner", "123")).rejects.toThrow(
+      "Moveset must be 4 digits, each 1-4",
+    );
+  });
+
+  it("ignores a submitted moveset for a non-Mii pick and stores null", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario", "1221");
+
+    const games = await getMatchGames(match.id);
+    const current = games.find((g) => g.gameNumber === 1);
+    const isActorA = game.actorAId === current?.actorAId;
+    expect(isActorA ? current?.actorAMoveset : current?.actorBMoveset).toBeNull();
+  });
+});
+
 describe("auto-confirm for a stale game report", () => {
   it("does nothing before REPORT_TIMEOUT_MS has elapsed since the report came in", async () => {
     const p1 = await createTestUser();

@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ConfirmationMethod, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
-import { SMASH_CHARACTERS } from "@/lib/characters";
+import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
 
@@ -361,30 +361,42 @@ export type CharacterPickGame = {
   actorAId: string;
   actorBId: string;
   actorACharacter: string | null;
+  actorAMoveset: string | null;
   actorBCharacter: string | null;
+  actorBMoveset: string | null;
 };
 
 // Game 1 is a blind pick — neither side sees the other's character until
 // both have locked one in. Games 2+ mirror the stage-strike order: actorA
 // (the previous game's winner) must lock in first, then actorB picks with
 // actorA's choice visible, so the loser gets to react.
+//
+// A Mii's moveset always reveals in lockstep with the character it's
+// attached to — same gating, just carried alongside — so it's never
+// visible to an opponent before the character itself would be.
 export function characterPickState(
   game: CharacterPickGame,
   userId: string,
 ): {
   yourCharacter: string | null;
+  yourMoveset: string | null;
   opponentCharacter: string | null;
+  opponentMoveset: string | null;
   canPickNow: boolean;
 } {
   const isActorA = userId === game.actorAId;
   const yourCharacter = isActorA ? game.actorACharacter : game.actorBCharacter;
+  const yourMoveset = isActorA ? game.actorAMoveset : game.actorBMoveset;
   const theirCharacter = isActorA ? game.actorBCharacter : game.actorACharacter;
+  const theirMoveset = isActorA ? game.actorBMoveset : game.actorAMoveset;
 
   if (game.gameNumber === 1) {
     const bothPicked = game.actorACharacter !== null && game.actorBCharacter !== null;
     return {
       yourCharacter,
+      yourMoveset,
       opponentCharacter: bothPicked ? theirCharacter : null,
+      opponentMoveset: bothPicked ? theirMoveset : null,
       canPickNow: yourCharacter === null,
     };
   }
@@ -392,7 +404,9 @@ export function characterPickState(
   const actorALockedIn = game.actorACharacter !== null;
   return {
     yourCharacter,
+    yourMoveset,
     opponentCharacter: theirCharacter,
+    opponentMoveset: theirMoveset,
     canPickNow: yourCharacter === null && (isActorA || actorALockedIn),
   };
 }
@@ -407,6 +421,29 @@ export function lastUsedCharacter(games: CharacterPickGame[], userId: string): s
     const character =
       game.actorAId === userId ? game.actorACharacter : game.actorBId === userId ? game.actorBCharacter : null;
     if (character) return character;
+  }
+  return null;
+}
+
+// Mirrors lastUsedCharacter, but for the moveset attached to a Mii pick —
+// most recent game first, falling through to null if the player's most
+// recent locked-in pick in this match wasn't a Mii (or they have none).
+export function lastUsedMoveset(
+  games: {
+    gameNumber: number;
+    actorAId: string;
+    actorBId: string;
+    actorACharacter: string | null;
+    actorAMoveset: string | null;
+    actorBCharacter: string | null;
+    actorBMoveset: string | null;
+  }[],
+  userId: string,
+): string | null {
+  const sorted = [...games].sort((a, b) => b.gameNumber - a.gameNumber);
+  for (const game of sorted) {
+    if (game.actorAId === userId && game.actorACharacter) return game.actorAMoveset;
+    if (game.actorBId === userId && game.actorBCharacter) return game.actorBMoveset;
   }
   return null;
 }
@@ -442,7 +479,13 @@ export function lastPlayedStage(
   return games.find((g) => g.gameNumber === currentGameNumber - 1)?.finalStage ?? null;
 }
 
-export async function pickGameCharacter(userId: string, matchId: string, gameNumber: number, character: string) {
+export async function pickGameCharacter(
+  userId: string,
+  matchId: string,
+  gameNumber: number,
+  character: string,
+  moveset?: string | null,
+) {
   const game = await requireGame(matchId, gameNumber);
   if (userId !== game.actorAId && userId !== game.actorBId) {
     throw new Error("Not a participant in this game");
@@ -450,6 +493,11 @@ export async function pickGameCharacter(userId: string, matchId: string, gameNum
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
     throw new Error("Not a recognized character");
   }
+  const isMii = isMiiCharacter(character);
+  if (isMii && !MOVESET_PATTERN.test(moveset ?? "")) {
+    throw new Error("Moveset must be 4 digits, each 1-4");
+  }
+  const storedMoveset = isMii ? moveset! : null;
 
   const { canPickNow, yourCharacter } = characterPickState(game, userId);
   if (yourCharacter !== null) throw new Error("You already picked your character for this game");
@@ -464,7 +512,9 @@ export async function pickGameCharacter(userId: string, matchId: string, gameNum
       ...(isActorA ? { actorACharacter: null } : { actorBCharacter: null }),
     },
     data: {
-      ...(isActorA ? { actorACharacter: character } : { actorBCharacter: character }),
+      ...(isActorA
+        ? { actorACharacter: character, actorAMoveset: storedMoveset }
+        : { actorBCharacter: character, actorBMoveset: storedMoveset }),
       // This pick is the second lock-in — start the stage-strike clock now
       // rather than from whenever the game row was created, which could've
       // been arbitrarily long ago if character selection itself took a while.

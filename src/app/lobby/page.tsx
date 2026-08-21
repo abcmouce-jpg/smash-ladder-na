@@ -25,6 +25,7 @@ import {
   lastPlayedStage,
   lastSameBans,
   lastUsedCharacter,
+  lastUsedMoveset,
   secondsUntil,
 } from "@/lib/match-games";
 import { stageImagePath, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
@@ -1081,6 +1082,7 @@ function GameSection({
   // every later game already has a locked-in character from the prior game,
   // so this fallback is effectively game-1-only.
   const defaultCharacter = lastUsedCharacter(games, userId) ?? myTopCharacters[0] ?? null;
+  const defaultMoveset = lastUsedMoveset(games, userId) ?? "";
   const characterSection = (
     <CharacterPickSection
       userId={userId}
@@ -1089,6 +1091,7 @@ function GameSection({
       opponentName={opponentName}
       isPracticing={isPracticing}
       defaultCharacter={defaultCharacter}
+      defaultMoveset={defaultMoveset}
       topCharacters={myTopCharacters}
       lang={lang}
     />
@@ -1281,6 +1284,10 @@ function GameSection({
   );
 }
 
+function characterLabel(character: string, moveset: string | null) {
+  return moveset ? `${character} (${moveset})` : character;
+}
+
 function CharacterPickSection({
   userId,
   matchId,
@@ -1288,6 +1295,7 @@ function CharacterPickSection({
   opponentName,
   isPracticing,
   defaultCharacter,
+  defaultMoveset,
   topCharacters,
   lang,
 }: {
@@ -1298,16 +1306,22 @@ function CharacterPickSection({
     actorAId: string;
     actorBId: string;
     actorACharacter: string | null;
+    actorAMoveset: string | null;
     actorBCharacter: string | null;
+    actorBMoveset: string | null;
     createdAt: Date;
   };
   opponentName: string;
   defaultCharacter: string | null;
+  defaultMoveset: string;
   topCharacters: string[];
   isPracticing: boolean;
   lang: Lang;
 }) {
-  const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(game, userId);
+  const { yourCharacter, yourMoveset, opponentCharacter, opponentMoveset, canPickNow } = characterPickState(
+    game,
+    userId,
+  );
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
   // forfeits the whole game to whoever's opponent never locked in within this
   // window, measured from the game's creation, so it needs to be visible here.
@@ -1324,12 +1338,12 @@ function CharacterPickSection({
               Personajes del juego {game.gameNumber} — tú:{" "}
               <span className="font-medium text-foreground">
                 <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {yourCharacter}
+                {characterLabel(yourCharacter, yourMoveset)}
               </span>
               , {opponentName}:{" "}
               <span className="font-medium text-foreground">
                 <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {opponentCharacter}
+                {characterLabel(opponentCharacter, opponentMoveset)}
               </span>
             </>
           ) : (
@@ -1337,12 +1351,12 @@ function CharacterPickSection({
               Game {game.gameNumber} characters — you:{" "}
               <span className="font-medium text-foreground">
                 <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {yourCharacter}
+                {characterLabel(yourCharacter, yourMoveset)}
               </span>
               , {opponentName}:{" "}
               <span className="font-medium text-foreground">
                 <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {opponentCharacter}
+                {characterLabel(opponentCharacter, opponentMoveset)}
               </span>
             </>
           )}
@@ -1360,7 +1374,7 @@ function CharacterPickSection({
               Juego {game.gameNumber} — elegiste{" "}
               <span className="font-medium text-foreground">
                 <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {yourCharacter}
+                {characterLabel(yourCharacter, yourMoveset)}
               </span>
               . Esperando a que {opponentName} elija…{" "}
               {secondsLeft > 0 ? (
@@ -1377,7 +1391,7 @@ function CharacterPickSection({
               Game {game.gameNumber} — you locked in{" "}
               <span className="font-medium text-foreground">
                 <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {yourCharacter}
+                {characterLabel(yourCharacter, yourMoveset)}
               </span>
               . Waiting for {opponentName} to pick…{" "}
               {secondsLeft > 0 ? (
@@ -1415,12 +1429,12 @@ function CharacterPickSection({
           ? game.gameNumber === 1
             ? "elige tu personaje (a ciegas — oculto hasta que ambos hayan elegido)."
             : opponentCharacter
-              ? `${opponentName} eligió ${opponentCharacter}. Tu elección:`
+              ? `${opponentName} eligió ${characterLabel(opponentCharacter, opponentMoveset)}. Tu elección:`
               : "elige tu personaje — vas primero, esto se fija antes de que tu rival elija."
           : game.gameNumber === 1
             ? "pick your character (blind — hidden until you're both locked in)."
             : opponentCharacter
-              ? `${opponentName} locked in ${opponentCharacter}. Your pick:`
+              ? `${opponentName} locked in ${characterLabel(opponentCharacter, opponentMoveset)}. Your pick:`
               : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
         {secondsLeft > 0 ? (
           <span className="font-medium text-foreground">
@@ -1452,6 +1466,7 @@ function CharacterPickSection({
       <CharacterPickForm
         key={game.gameNumber}
         defaultCharacter={defaultCharacter}
+        defaultMoveset={defaultMoveset}
         topCharacters={topCharacters}
         action={pickCharacter.bind(null, matchId, game.gameNumber)}
         lang={lang}

@@ -11,6 +11,7 @@ import {
   gameTurnState,
   lastSameBans,
   lastUsedCharacter,
+  lastUsedMoveset,
   tallySetWins,
   GAMES_TO_WIN,
 } from "./match-games";
@@ -94,61 +95,231 @@ describe("characterPickState", () => {
   const game1Base = { gameNumber: 1, actorAId: "p1", actorBId: "p2" };
 
   it("game 1: neither pick is visible until both have locked in", () => {
-    const state = characterPickState({ ...game1Base, actorACharacter: "Mario", actorBCharacter: null }, "p1");
-    expect(state).toEqual({ yourCharacter: "Mario", opponentCharacter: null, canPickNow: false });
+    const state = characterPickState(
+      { ...game1Base, actorACharacter: "Mario", actorAMoveset: null, actorBCharacter: null, actorBMoveset: null },
+      "p1",
+    );
+    expect(state).toEqual({
+      yourCharacter: "Mario",
+      yourMoveset: null,
+      opponentCharacter: null,
+      opponentMoveset: null,
+      canPickNow: false,
+    });
   });
 
   it("game 1: the other side sees no hint either, and can still pick", () => {
-    const state = characterPickState({ ...game1Base, actorACharacter: "Mario", actorBCharacter: null }, "p2");
-    expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
+    const state = characterPickState(
+      { ...game1Base, actorACharacter: "Mario", actorAMoveset: null, actorBCharacter: null, actorBMoveset: null },
+      "p2",
+    );
+    expect(state).toEqual({
+      yourCharacter: null,
+      yourMoveset: null,
+      opponentCharacter: null,
+      opponentMoveset: null,
+      canPickNow: true,
+    });
   });
 
   it("game 1: both picks reveal once both are locked in", () => {
-    const state = characterPickState({ ...game1Base, actorACharacter: "Mario", actorBCharacter: "Luigi" }, "p1");
-    expect(state).toEqual({ yourCharacter: "Mario", opponentCharacter: "Luigi", canPickNow: false });
+    const state = characterPickState(
+      { ...game1Base, actorACharacter: "Mario", actorAMoveset: null, actorBCharacter: "Luigi", actorBMoveset: null },
+      "p1",
+    );
+    expect(state).toEqual({
+      yourCharacter: "Mario",
+      yourMoveset: null,
+      opponentCharacter: "Luigi",
+      opponentMoveset: null,
+      canPickNow: false,
+    });
   });
 
   it("game 1: nobody has picked yet — both can pick", () => {
-    const state = characterPickState({ ...game1Base, actorACharacter: null, actorBCharacter: null }, "p1");
-    expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
+    const state = characterPickState(
+      { ...game1Base, actorACharacter: null, actorAMoveset: null, actorBCharacter: null, actorBMoveset: null },
+      "p1",
+    );
+    expect(state).toEqual({
+      yourCharacter: null,
+      yourMoveset: null,
+      opponentCharacter: null,
+      opponentMoveset: null,
+      canPickNow: true,
+    });
+  });
+
+  it("game 1: your own moveset is visible even before the opponent locks in, theirs is not", () => {
+    const state = characterPickState(
+      {
+        ...game1Base,
+        actorACharacter: "Mii Brawler",
+        actorAMoveset: "1221",
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+      "p1",
+    );
+    expect(state).toEqual({
+      yourCharacter: "Mii Brawler",
+      yourMoveset: "1221",
+      opponentCharacter: null,
+      opponentMoveset: null,
+      canPickNow: false,
+    });
+  });
+
+  it("game 1: both movesets reveal once both characters are locked in", () => {
+    const state = characterPickState(
+      {
+        ...game1Base,
+        actorACharacter: "Mii Brawler",
+        actorAMoveset: "1221",
+        actorBCharacter: "Mii Gunner",
+        actorBMoveset: "3213",
+      },
+      "p2",
+    );
+    expect(state).toEqual({
+      yourCharacter: "Mii Gunner",
+      yourMoveset: "3213",
+      opponentCharacter: "Mii Brawler",
+      opponentMoveset: "1221",
+      canPickNow: false,
+    });
+  });
+
+  it("is null for a non-Mii pick", () => {
+    const state = characterPickState(
+      {
+        ...game1Base,
+        actorACharacter: "Mario",
+        actorAMoveset: null,
+        actorBCharacter: "Luigi",
+        actorBMoveset: null,
+      },
+      "p1",
+    );
+    expect(state.yourMoveset).toBeNull();
+    expect(state.opponentMoveset).toBeNull();
   });
 
   const counterpickBase = { gameNumber: 2, actorAId: "winner", actorBId: "loser" };
 
   it("games 2+: actorA (previous winner) can pick first, before actorB does anything", () => {
-    const state = characterPickState({ ...counterpickBase, actorACharacter: null, actorBCharacter: null }, "winner");
-    expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
+    const state = characterPickState(
+      { ...counterpickBase, actorACharacter: null, actorAMoveset: null, actorBCharacter: null, actorBMoveset: null },
+      "winner",
+    );
+    expect(state).toEqual({
+      yourCharacter: null,
+      yourMoveset: null,
+      opponentCharacter: null,
+      opponentMoveset: null,
+      canPickNow: true,
+    });
   });
 
   it("games 2+: actorB is blocked until actorA locks in", () => {
-    const state = characterPickState({ ...counterpickBase, actorACharacter: null, actorBCharacter: null }, "loser");
-    expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: false });
+    const state = characterPickState(
+      { ...counterpickBase, actorACharacter: null, actorAMoveset: null, actorBCharacter: null, actorBMoveset: null },
+      "loser",
+    );
+    expect(state).toEqual({
+      yourCharacter: null,
+      yourMoveset: null,
+      opponentCharacter: null,
+      opponentMoveset: null,
+      canPickNow: false,
+    });
   });
 
   it("games 2+: once actorA locks in, actorB sees it immediately and can react", () => {
-    const state = characterPickState({ ...counterpickBase, actorACharacter: "Fox", actorBCharacter: null }, "loser");
-    expect(state).toEqual({ yourCharacter: null, opponentCharacter: "Fox", canPickNow: true });
+    const state = characterPickState(
+      { ...counterpickBase, actorACharacter: "Fox", actorAMoveset: null, actorBCharacter: null, actorBMoveset: null },
+      "loser",
+    );
+    expect(state).toEqual({
+      yourCharacter: null,
+      yourMoveset: null,
+      opponentCharacter: "Fox",
+      opponentMoveset: null,
+      canPickNow: true,
+    });
   });
 
   it("games 2+: actorA sees actorB's counterpick once it's in, though it's moot by then", () => {
     const state = characterPickState(
-      { ...counterpickBase, actorACharacter: "Fox", actorBCharacter: "Falco" },
+      { ...counterpickBase, actorACharacter: "Fox", actorAMoveset: null, actorBCharacter: "Falco", actorBMoveset: null },
       "winner",
     );
-    expect(state).toEqual({ yourCharacter: "Fox", opponentCharacter: "Falco", canPickNow: false });
+    expect(state).toEqual({
+      yourCharacter: "Fox",
+      yourMoveset: null,
+      opponentCharacter: "Falco",
+      opponentMoveset: null,
+      canPickNow: false,
+    });
+  });
+
+  it("games 2+: opponent's moveset reveals in lockstep with their character", () => {
+    const state = characterPickState(
+      {
+        ...counterpickBase,
+        actorACharacter: "Mii Swordfighter",
+        actorAMoveset: "4321",
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+      "loser",
+    );
+    expect(state).toEqual({
+      yourCharacter: null,
+      yourMoveset: null,
+      opponentCharacter: "Mii Swordfighter",
+      opponentMoveset: "4321",
+      canPickNow: true,
+    });
   });
 });
 
 describe("lastUsedCharacter", () => {
   it("returns null for game 1 — no prior game to draw from", () => {
-    const games = [{ gameNumber: 1, actorAId: "p1", actorBId: "p2", actorACharacter: null, actorBCharacter: null }];
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+    ];
     expect(lastUsedCharacter(games, "p1")).toBeNull();
   });
 
   it("picks up the character from the most recently finished game", () => {
     const games = [
-      { gameNumber: 1, actorAId: "p1", actorBId: "p2", actorACharacter: "Fox", actorBCharacter: "Falco" },
-      { gameNumber: 2, actorAId: "p2", actorBId: "p1", actorACharacter: null, actorBCharacter: null },
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Fox",
+        actorAMoveset: null,
+        actorBCharacter: "Falco",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
     ];
     expect(lastUsedCharacter(games, "p1")).toBe("Fox");
     expect(lastUsedCharacter(games, "p2")).toBe("Falco");
@@ -156,17 +327,57 @@ describe("lastUsedCharacter", () => {
 
   it("prefers the more recent game when the player counterpicked", () => {
     const games = [
-      { gameNumber: 1, actorAId: "p1", actorBId: "p2", actorACharacter: "Fox", actorBCharacter: "Falco" },
-      { gameNumber: 2, actorAId: "p2", actorBId: "p1", actorACharacter: "Marth", actorBCharacter: "Wolf" },
-      { gameNumber: 3, actorAId: "p1", actorBId: "p2", actorACharacter: null, actorBCharacter: null },
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Fox",
+        actorAMoveset: null,
+        actorBCharacter: "Falco",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: "Marth",
+        actorAMoveset: null,
+        actorBCharacter: "Wolf",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 3,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
     ];
     expect(lastUsedCharacter(games, "p1")).toBe("Wolf");
   });
 
   it("skips a game the player hasn't locked in yet and falls back further", () => {
     const games = [
-      { gameNumber: 1, actorAId: "p1", actorBId: "p2", actorACharacter: "Fox", actorBCharacter: "Falco" },
-      { gameNumber: 2, actorAId: "p2", actorBId: "p1", actorACharacter: null, actorBCharacter: null },
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Fox",
+        actorAMoveset: null,
+        actorBCharacter: "Falco",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
     ];
     // p1 hasn't picked game 2 yet — falls back to game 1's pick.
     expect(lastUsedCharacter(games, "p1")).toBe("Fox");
@@ -174,6 +385,100 @@ describe("lastUsedCharacter", () => {
 
   it("returns null if the player has no games at all", () => {
     expect(lastUsedCharacter([], "p1")).toBeNull();
+  });
+});
+
+describe("lastUsedMoveset", () => {
+  it("returns null for game 1 — no prior game to draw from", () => {
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+    ];
+    expect(lastUsedMoveset(games, "p1")).toBeNull();
+  });
+
+  it("picks up the moveset from the most recent Mii pick", () => {
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Mii Brawler",
+        actorAMoveset: "1221",
+        actorBCharacter: "Fox",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+    ];
+    expect(lastUsedMoveset(games, "p1")).toBe("1221");
+  });
+
+  it("is null when the player's most recent pick wasn't a Mii", () => {
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Mii Brawler",
+        actorAMoveset: "1221",
+        actorBCharacter: "Falco",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: "Mario",
+        actorBMoveset: null,
+      },
+    ];
+    expect(lastUsedMoveset(games, "p1")).toBeNull();
+  });
+
+  it("skips a game the player hasn't locked in yet and falls back further", () => {
+    const games = [
+      {
+        gameNumber: 1,
+        actorAId: "p1",
+        actorBId: "p2",
+        actorACharacter: "Mii Gunner",
+        actorAMoveset: "3213",
+        actorBCharacter: "Falco",
+        actorBMoveset: null,
+      },
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorBId: "p1",
+        actorACharacter: null,
+        actorAMoveset: null,
+        actorBCharacter: null,
+        actorBMoveset: null,
+      },
+    ];
+    // p1 hasn't picked game 2 yet — falls back to game 1's moveset.
+    expect(lastUsedMoveset(games, "p1")).toBe("3213");
+  });
+
+  it("returns null if the player has no games at all", () => {
+    expect(lastUsedMoveset([], "p1")).toBeNull();
   });
 });
 

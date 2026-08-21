@@ -136,3 +136,19 @@ export function echoGroupCanonical(character: SmashCharacter): SmashCharacter {
 export function echoGroupLabel(character: SmashCharacter): string {
   return echoGroupMembers(character).join(" / ");
 }
+
+// The 3 Mii fighters — the only characters that take a user-entered
+// moveset string (see MOVESET_PATTERN) alongside the pick itself.
+export const MII_CHARACTERS: readonly SmashCharacter[] = [
+  "Mii Brawler",
+  "Mii Swordfighter",
+  "Mii Gunner",
+];
+
+export function isMiiCharacter(character: string): boolean {
+  return (MII_CHARACTERS as readonly string[]).includes(character);
+}
+
+// A Mii's custom moveset: 4 special moves, each customized to one of 4
+// variants, entered as a 4-digit string like "1221".
+export const MOVESET_PATTERN = /^[1-4]{4}$/;

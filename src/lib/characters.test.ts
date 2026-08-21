@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { ECHO_FIGHTER_GROUPS, echoGroupCanonical, echoGroupLabel, echoGroupMembers } from "./characters";
+import {
+  ECHO_FIGHTER_GROUPS,
+  echoGroupCanonical,
+  echoGroupLabel,
+  echoGroupMembers,
+  MII_CHARACTERS,
+  MOVESET_PATTERN,
+  isMiiCharacter,
+} from "./characters";
 
 describe("echoGroupMembers", () => {
   it("returns both sides of an echo pair, regardless of which one you start from", () => {
@@ -50,5 +58,53 @@ describe("ECHO_FIGHTER_GROUPS", () => {
         seen.add(member);
       }
     }
+  });
+});
+
+describe("MII_CHARACTERS", () => {
+  it("is exactly the three Mii fighters", () => {
+    expect(MII_CHARACTERS).toEqual(["Mii Brawler", "Mii Swordfighter", "Mii Gunner"]);
+  });
+});
+
+describe("isMiiCharacter", () => {
+  it("is true for all three Mii fighters", () => {
+    expect(isMiiCharacter("Mii Brawler")).toBe(true);
+    expect(isMiiCharacter("Mii Swordfighter")).toBe(true);
+    expect(isMiiCharacter("Mii Gunner")).toBe(true);
+  });
+
+  it("is false for a non-Mii character", () => {
+    expect(isMiiCharacter("Mario")).toBe(false);
+  });
+
+  it("is false for an unrecognized string", () => {
+    expect(isMiiCharacter("Not A Character")).toBe(false);
+  });
+});
+
+describe("MOVESET_PATTERN", () => {
+  it("matches 4 digits, each 1-4", () => {
+    expect(MOVESET_PATTERN.test("1221")).toBe(true);
+    expect(MOVESET_PATTERN.test("3213")).toBe(true);
+    expect(MOVESET_PATTERN.test("1111")).toBe(true);
+    expect(MOVESET_PATTERN.test("4444")).toBe(true);
+  });
+
+  it("rejects the wrong length", () => {
+    expect(MOVESET_PATTERN.test("123")).toBe(false);
+    expect(MOVESET_PATTERN.test("12345")).toBe(false);
+    expect(MOVESET_PATTERN.test("")).toBe(false);
+  });
+
+  it("rejects digits outside 1-4", () => {
+    expect(MOVESET_PATTERN.test("1250")).toBe(false);
+    expect(MOVESET_PATTERN.test("9999")).toBe(false);
+    expect(MOVESET_PATTERN.test("0123")).toBe(false);
+  });
+
+  it("rejects non-digit characters", () => {
+    expect(MOVESET_PATTERN.test("12a1")).toBe(false);
+    expect(MOVESET_PATTERN.test("12 1")).toBe(false);
   });
 });

@@ -326,9 +326,11 @@ model MatchGame {
   actorAId        String
   actorAStrikes   Int
   actorACharacter String? // game 1: blind pick, hidden until both are in. Games 2-5: actorA (previous winner) must lock in first.
+  actorAMoveset   String? // 4 digits, each 1-4 — set only when actorACharacter is a Mii; ignored/null otherwise
   actorBId        String
   actorBStrikes   Int
   actorBCharacter String?
+  actorBMoveset   String?
   stagesRemaining String[]    @default([])
   struckStages    String[]    @default([])
   finalStage      String?
