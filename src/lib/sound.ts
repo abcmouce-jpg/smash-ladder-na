@@ -2,7 +2,7 @@
 
 // Synthesized rather than audio files — no asset to ship, and these are
 // tiny chimes, not worth a licensed sound effect for. The one exception is
-// the match-found announcer clips further down, which plays supplied voice
+// the match-found announcer clips further down, which play supplied voice
 // clips instead. Best-effort only either way: browsers can block autoplay
 // audio outside a direct user gesture, so a rejected play() must never
 // throw into the caller.
@@ -54,20 +54,41 @@ const MATCH_FOUND_CLIPS = [
   "/sounds/vc_menu_narration_ready2.wav",
 ];
 
+// The announcer clips decoded for the shared context, ready by match time.
+// They play through Web Audio instead of an <audio> element on purpose: on
+// mobile the element claims the device's audio session and pauses whatever
+// music the player has going (Spotify, etc.), while the audio graph mixes
+// alongside it. decodeAudioData is async, so they're prefetched on the first
+// user gesture — the join-lobby click — which is always long before a match
+// can actually be found.
+const clipBuffers = new Map<string, AudioBuffer>();
+
+function preloadClips() {
+  MATCH_FOUND_CLIPS.forEach((src) => {
+    fetch(src)
+      .then((response) => response.arrayBuffer())
+      .then((data) => {
+        const ctx = getContext();
+        if (!ctx) return;
+        // Callback form — the promise overload isn't available on the oldest
+        // iOS Safari this supports (the same webkitAudioContext range).
+        ctx.decodeAudioData(
+          data,
+          (buffer) => clipBuffers.set(src, buffer),
+          () => {},
+        );
+      })
+      .catch(() => {
+        // Network or decode failure — playMatchFoundClip falls back to the
+        // element, which can still play from a direct click.
+      });
+  });
+}
+
 if (typeof window !== "undefined") {
   const unlock = () => {
     getContext();
-    // HTMLAudioElement.play() is gated by the same autoplay-gesture policy
-    // as AudioContext but isn't unlocked by resuming one — each clip needs
-    // its own silent play+pause on this same first gesture. Doing that here
-    // also warms the browser's cache for all the clips ahead of the real play.
-    MATCH_FOUND_CLIPS.forEach((src) => {
-      const audio = new Audio(src);
-      audio
-        .play()
-        .then(() => audio.pause())
-        .catch(() => {});
-    });
+    preloadClips();
   };
   // Any of these count as a user gesture — first one wins, then this is done.
   ["pointerdown", "keydown", "touchstart"].forEach((event) =>
@@ -112,28 +133,59 @@ export function playVictoryChime() {
 // The original match-found sound, restored for players who preferred it to
 // the announcer clips: a short two-note chime, synthesized so it needs no
 // asset. Kept as a module-private helper — playMatchFoundSound dispatches
-// to it for the "CHIME" setting.
-function playMatchFoundChime() {
+// to it for the "CHIME" setting. Returns whether the cue was audible (see
+// playMatchFoundSound).
+function playMatchFoundChime(): boolean {
   const ctx = getContext();
-  if (!ctx) return;
+  if (!ctx) return false;
   try {
     const now = ctx.currentTime;
     playTone(ctx, 587, now, 0.12, 0.5);
     playTone(ctx, 740, now + 0.1, 0.2, 0.5);
+    // A suspended context renders nothing (hidden/mobile tabs), and the
+    // caller needs to know the cue was actually heard.
+    return ctx.state === "running";
   } catch {
     // Autoplay restrictions, unsupported browser, etc. — silently skip.
+    return false;
   }
 }
 
-export function playMatchFoundSound(style: MatchFoundSound) {
-  if (style === "CHIME") {
-    playMatchFoundChime();
-    return;
-  }
+// Plays the match-found cue for the chosen style. Returns whether the sound
+// was expected to have been audible: false when there's no context to play
+// through, or when the context is suspended (e.g. a fully-suspended mobile
+// tab). LobbyPoller uses that to queue the replay-on-return fallback instead
+// of double-playing a cue that was actually heard from a backgrounded tab.
+export function playMatchFoundSound(style: MatchFoundSound): boolean {
+  if (style === "CHIME") return playMatchFoundChime();
+  return playMatchFoundClip();
+}
+
+function playMatchFoundClip(): boolean {
+  const ctx = getContext();
+  if (!ctx) return false;
   const clip = MATCH_FOUND_CLIPS[Math.floor(Math.random() * MATCH_FOUND_CLIPS.length)];
-  new Audio(clip).play().catch(() => {
+  const buffer = clipBuffers.get(clip);
+  if (!buffer) {
+    // Matched before the first-gesture prefetch decoded the clip — the
+    // element is the fallback of last resort (it still plays within a direct
+    // click, e.g. the settings preview, and keeps playing in a backgrounded
+    // desktop tab).
+    new Audio(clip).play().catch(() => {
+      // Autoplay restrictions, unsupported browser, etc. — silently skip.
+    });
+    return true;
+  }
+  try {
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start();
+    return ctx.state === "running";
+  } catch {
     // Autoplay restrictions, unsupported browser, etc. — silently skip.
-  });
+    return false;
+  }
 }
 
 // A single short blip — for a value updating on screen (e.g. the room code

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, ReportStatus, UserStatus } from "@/generated/prisma/enums";
+import { getMatchesTodayCount } from "@/lib/public-stats";
 
 export async function getAdminOverview() {
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -15,6 +16,7 @@ export async function getAdminOverview() {
     openReports,
     lobbyWaiting,
     matchesInProgress,
+    activeCooldowns,
   ] = await Promise.all([
     // lastSignInAt, not updatedAt — updatedAt is bumped by any write to the
     // row at all (a rating change, an admin backfill, anything), so it was
@@ -25,16 +27,11 @@ export async function getAdminOverview() {
     prisma.user.count(),
     prisma.user.count({ where: { status: UserStatus.SUSPENDED } }),
     prisma.user.count({ where: { status: UserStatus.BANNED } }),
-    // CONFIRMED + confirmedAt, not createdAt — matches getPublicStats's
-    // definition on the homepage. This used to count every match *created*
-    // in the window regardless of status (including still-in-progress or
-    // cancelled ones), which gave a different number than the public
-    // "matches today" stat for the same rolling 24h window.
-    prisma.ratingMatch.count({
-      where: { status: MatchStatus.CONFIRMED, confirmedAt: { gte: dayAgo } },
-    }),
+    // Shared definition (see getMatchesTodayCount) — same number shown on
+    // the homepage and the Sets feed, not a fourth slightly-different one.
+    getMatchesTodayCount(),
     // Every match ever created, any status — includes CANCELLED/EXPIRED
-    // ones too, unlike matchesToday's rolling window above.
+    // ones too, unlike matchesToday's calendar-day window above.
     prisma.ratingMatch.count(),
     // A disputed game no longer flips the whole match to a blocking status
     // — "disputed" now lives at the game level (winnerId still null, but
@@ -68,6 +65,7 @@ export async function getAdminOverview() {
     prisma.ratingMatch.count({
       where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
     }),
+    prisma.user.count({ where: { queueCooldownUntil: { gt: new Date() } } }),
   ]);
 
   const openDisputes = disputedGameCandidates.filter((g) => g.reportedWinnerId !== g.secondReportWinnerId).length;
@@ -83,5 +81,6 @@ export async function getAdminOverview() {
     openReports,
     lobbyWaiting,
     matchesInProgress,
+    activeCooldowns,
   };
 }

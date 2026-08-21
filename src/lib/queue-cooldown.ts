@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 
 // Escalates 5 minutes per consecutive timeout — 1st: 5 min, 2nd: 10 min,
@@ -49,4 +50,43 @@ export async function applyTimeoutCooldown(
   });
 
   return cooldownUntil;
+}
+
+export type ActiveCooldown = {
+  id: string;
+  username: string;
+  queueCooldownUntil: Date;
+  recentTimeoutCount: number;
+  noShowCount: number;
+  lastTimeoutAt: Date | null;
+};
+
+// For the mod-facing /admin/cooldowns page — before this existed, waiving
+// one required someone with DB access running a one-off query (see the
+// Augustdoggy request this was built for). Longest-remaining first, since
+// that's what a mod deciding whether to intervene cares about most.
+export async function listActiveCooldowns(now: Date = new Date()): Promise<ActiveCooldown[]> {
+  const users = await prisma.user.findMany({
+    where: { queueCooldownUntil: { gt: now } },
+    select: {
+      id: true,
+      username: true,
+      queueCooldownUntil: true,
+      recentTimeoutCount: true,
+      noShowCount: true,
+      lastTimeoutAt: true,
+    },
+    orderBy: { queueCooldownUntil: "desc" },
+  });
+  // The where filter guarantees queueCooldownUntil is set for every row —
+  // Prisma's generated type just can't express that.
+  return users.map((u) => ({ ...u, queueCooldownUntil: u.queueCooldownUntil! }));
+}
+
+// Waives the active cooldown only — recentTimeoutCount/noShowCount are left
+// alone (they're the historical record, not the active penalty), so the
+// escalation streak still continues from where it was if this player times
+// out again.
+export async function clearQueueCooldown(userId: string): Promise<void> {
+  await prisma.user.update({ where: { id: userId }, data: { queueCooldownUntil: null } });
 }

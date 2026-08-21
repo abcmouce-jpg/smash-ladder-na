@@ -31,6 +31,11 @@ export const matchWithPlayers = {
       username: true,
       avatarUrl: true,
       rating: true,
+      // Shown instead of `rating` on the lobby match view when this side is
+      // isPracticing — that's the number actually feeding this match's Elo
+      // math (see applyEloAndConfirm), and showing the main rating instead
+      // was confusing the opponent about why so little rating moved.
+      practiceRating: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -42,6 +47,7 @@ export const matchWithPlayers = {
       username: true,
       avatarUrl: true,
       rating: true,
+      practiceRating: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -75,9 +81,10 @@ export async function getLatestMatchForUser(userId: string) {
 }
 
 // Decides which player creates the in-game room. roomCodeSetById wins when
-// present — set at creation time when exactly one side of a pairing already
-// had a room ready (see joinLobbyAndTryPair/sweepLobbyPairing) — since that
-// player is host regardless of what the fallback below would've picked.
+// present — set at creation time when either side (or both, in which case
+// the last joiner's) of a pairing already had a room ready (see
+// joinLobbyAndTryPair/sweepLobbyPairing) — since that player is host
+// regardless of what the fallback below would've picked.
 // Otherwise falls back to a hash of the match id, without persisting
 // anything: the same id always hashes to the same player, so every read
 // (page load, poll, admin view) agrees without a stored column. matchId is

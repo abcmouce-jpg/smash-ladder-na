@@ -33,10 +33,11 @@ export function LobbyPoller({
 }) {
   const router = useRouter();
   const wasMatched = useRef(matched);
-  // Browsers mute audio for hidden tabs (and mobile browsers can suspend it
-  // entirely), so the one-shot match-found chime can fire and get dropped
-  // while the player is tabbed away. Remember it and replay on return — a
-  // chime you never heard is worse than one that plays twice.
+  // A match-found cue attempted while hidden can still be inaudible — mobile
+  // browsers suspend the whole page, and some platforms suspend the
+  // AudioContext with it. playMatchFoundSound reports whether the attempt was
+  // actually audible, and when it wasn't we replay on return to the tab (a
+  // chime you never heard is worse than one that plays twice).
   const missedChimeWhileHidden = useRef(false);
 
   useEffect(() => {
@@ -60,8 +61,13 @@ export function LobbyPoller({
     if (matched && !wasMatched.current) {
       toast.success("Opponent found!", { description: "Get ready — your match is starting." });
       if (audioPingOnMatch) {
-        if (document.visibilityState === "hidden") missedChimeWhileHidden.current = true;
-        else playMatchFoundSound(matchFoundSound);
+        // Play even in a backgrounded tab — on desktop a running AudioContext
+        // keeps playing while hidden, which is the whole point of the
+        // keep-polling-in-background flag above. Only fall back to the
+        // replay-on-return path when the attempt couldn't have been heard
+        // (e.g. a fully-suspended mobile tab).
+        const played = playMatchFoundSound(matchFoundSound);
+        if (document.visibilityState === "hidden" && !played) missedChimeWhileHidden.current = true;
       }
     }
     wasMatched.current = matched;

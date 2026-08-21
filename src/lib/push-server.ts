@@ -17,10 +17,20 @@ if (pushConfigured) {
   webpush.setVapidDetails(VAPID_SUBJECT!, VAPID_PUBLIC_KEY!, VAPID_PRIVATE_KEY!);
 }
 
-// A short TTL: a "match found" alert that lands 10 minutes later is worse than
-// none — the match is already expiring, and the player who actually made it
-// back is on the lobby page anyway.
-const PUSH_TTL_SECONDS = 120;
+// TTL tells the push SERVICE (FCM/APNs/etc.) how long to keep retrying
+// delivery to a sleeping/backgrounded device before giving up and silently
+// discarding the message — it does not delay delivery on our end. The
+// original 120s was too short to matter for exactly the devices that need
+// it most: a phone locked or a laptop backgrounded rarely wakes for a push
+// within 2 minutes, so the message was getting dropped before ever
+// reaching them, not delivered-but-late. Real incident: a player waiting
+// live on stream missed their match entirely and only found out by
+// manually checking back — no notification ever showed. Raised to cover
+// both per-game auto-forfeit windows (CHARACTER_TIMEOUT_MS 3min,
+// REPORT_TIMEOUT_MS 5min in match-games.ts) with room for the push service
+// to actually wake the device, not just match how long we'd want the
+// message to remain relevant.
+const PUSH_TTL_SECONDS = 5 * 60;
 
 const MATCH_FOUND_MESSAGES = {
   en: { title: "Match found!", body: "You've been paired — head to the Lobby." },
@@ -58,6 +68,13 @@ async function sendPushPayload(subscriptions: StoredSubscription[], payload: str
     } catch (err) {
       if (err instanceof webpush.WebPushError && (err.statusCode === 404 || err.statusCode === 410)) {
         await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+      } else {
+        // Anything else (rate limits, malformed keys, push service errors)
+        // was previously silent — no way to tell "delivery is unreliable"
+        // from "nobody's subscribed" after the fact. Logged, not thrown:
+        // this must still never break match creation for the rest of the
+        // pairing flow.
+        console.error("push send failed:", err instanceof Error ? err.message : err);
       }
     }
   }

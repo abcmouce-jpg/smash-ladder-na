@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode } from "@/lib/lobby";
+import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode, updateLobbyRoomCode } from "@/lib/lobby";
 import {
   requireActiveUser,
   requireNotBanned,
@@ -121,6 +121,21 @@ export async function submitRoomCode(
   }
   revalidatePath("/lobby");
   return { error: null, savedValue: roomCode };
+}
+
+// Same (prevState, formData) shape as joinLobby — lets a player already in
+// the queue set or clear the room code they'll host with, without cancelling
+// and rejoining. Empty clears it back to "bring one at pair time".
+export async function updateLobbyRoomCodeAction(_prevState: RoomCodeState, formData: FormData): Promise<RoomCodeState> {
+  const userId = await requireUserId();
+  const roomCode = String(formData.get("existingRoomCode") ?? "").trim() || null;
+  try {
+    await updateLobbyRoomCode(userId, roomCode);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", savedValue: null };
+  }
+  revalidatePath("/lobby");
+  return { error: null, savedValue: roomCode ?? "" };
 }
 
 export async function beginFirstGame(matchId: string) {
