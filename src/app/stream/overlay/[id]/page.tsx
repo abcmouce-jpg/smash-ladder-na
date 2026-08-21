@@ -2,8 +2,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Flame, MapPin, Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getCurrentStreak, getDailyStats, getPlayerMatchHistory } from "@/lib/players";
+import { getLeaderboardRank } from "@/lib/leaderboard";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { RankBadge } from "@/components/rank-badge";
 import { CharacterIcon } from "@/components/character-icon";
@@ -79,19 +79,10 @@ export default async function StreamOverlayPage({
     notFound();
   }
 
-  // Leaderboard rank and total player count
-  const totalPlayers = await prisma.user.count({
-    where: { gamesPlayed: { gte: LEADERBOARD_MIN_GAMES } },
-  });
-  const rank =
-    user.gamesPlayed >= LEADERBOARD_MIN_GAMES && totalPlayers > 0
-      ? (await prisma.user.count({
-          where: {
-            gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
-            rating: { gt: user.rating },
-          },
-        })) + 1
-      : null;
+  // Leaderboard rank and total player count — same shared computation as the
+  // profile's season card (banned/deleted players excluded, tied ratings
+  // share a rank).
+  const { rank, totalPlayers } = await getLeaderboardRank(id);
 
   const [recentMatchesRaw, currentMatch, dailyStats, streak] = await Promise.all([
     getPlayerMatchHistory(user.id, { limit: 5 }),

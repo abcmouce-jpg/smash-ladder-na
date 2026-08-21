@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { getLiveTwitchUsernames } from "@/lib/twitch-helix";
-import { startOfDayInTimeZone } from "@/lib/timezone";
+import { getMatchesTodayCount } from "@/lib/public-stats";
 
 // "Recent" here means the public feed's finished-match tail, not the mod
 // live-matches page's week-long "did anyone miss reporting this" window
@@ -151,19 +151,14 @@ export async function getMatchFeed() {
 }
 
 // Feed-header stats. "In progress" mirrors the feed's own notion of a
-// current (non-terminal) set, and "matches today" counts sets started on
-// the current calendar day in the ladder's reference timezone (see
-// LADDER_TIME_ZONE) — a server- or viewer-relative day would flip which
-// sets count as "today" between visitors.
+// current (non-terminal) set; matchesToday is the same shared definition
+// getMatchesTodayCount uses everywhere else it's shown.
 export async function getMatchFeedStats() {
-  const todayStart = startOfDayInTimeZone(new Date());
   const [inProgress, matchesToday] = await Promise.all([
     prisma.ratingMatch.count({
       where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
     }),
-    prisma.ratingMatch.count({
-      where: { createdAt: { gte: todayStart } },
-    }),
+    getMatchesTodayCount(),
   ]);
   return { inProgress, matchesToday };
 }

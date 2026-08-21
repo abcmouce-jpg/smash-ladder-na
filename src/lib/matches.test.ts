@@ -83,6 +83,18 @@ describe("Elo helpers", () => {
       expect(raw).toBeLessThan(MAX_RATING_DELTA);
       expect(eloDelta(30, 1, e)).toBeCloseTo(raw);
     });
+
+    it("floors a heavily-favored win at +1 instead of letting it round down to +0", () => {
+      const e = expectedScore(2200, 1200); // huge favorite, raw swing rounds to ~0
+      const raw = kFactor(30) * (1 - e);
+      expect(raw).toBeLessThan(0.5);
+      expect(eloDelta(30, 1, e)).toBe(1);
+    });
+
+    it("does not floor an all-but-certain loss — the win-only floor leaves it near-zero", () => {
+      const underdogExpected = expectedScore(1200, 2200); // near-zero chance of winning
+      expect(Math.abs(eloDelta(30, 0, underdogExpected))).toBeLessThan(1);
+    });
   });
 });
 

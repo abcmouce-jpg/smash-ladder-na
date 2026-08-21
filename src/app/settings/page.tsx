@@ -11,10 +11,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { UsernameForm } from "@/components/username-form";
 import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
+import { QuickMessagesForm } from "@/components/quick-messages-form";
 import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
 import { listBlockedUsers } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
+import { MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
 import {
   disconnectStartggAction,
@@ -23,6 +25,7 @@ import {
   updateAudioPingOnMatchSetting,
   updateAvoidPracticeOpponentsSetting,
   updateMatchFoundSoundSetting,
+  updateQuickMessagesAction,
   updateUsernameAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
@@ -72,6 +75,7 @@ export default async function SettingsPage({
         avoidPracticeOpponents: true,
         audioPingOnMatch: true,
         matchFoundSound: true,
+        quickMessages: true,
         _count: { select: { pushSubscriptions: true } },
       },
     }),
@@ -167,6 +171,17 @@ export default async function SettingsPage({
             action={updateArenaPassword}
             defaultValue={me?.arenaPassword ?? ""}
             fallback={DEFAULT_ARENA_PASSWORD}
+            lang={lang}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <QuickMessagesForm
+            action={updateQuickMessagesAction}
+            defaultValues={me?.quickMessages ?? []}
+            maxLength={MAX_QUICK_MESSAGE_LENGTH}
             lang={lang}
           />
         </CardContent>

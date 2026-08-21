@@ -37,7 +37,7 @@ describe("auto-forfeit for a stale character pick", () => {
     expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
   });
 
-  it("forfeits the game to whoever locked in once CHARACTER_TIMEOUT_MS has elapsed", async () => {
+  it("forfeits the whole match to whoever locked in once CHARACTER_TIMEOUT_MS has elapsed", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -53,6 +53,12 @@ describe("auto-forfeit for a stale character pick", () => {
     const games = await getMatchGames(match.id);
     const resolved = games.find((g) => g.gameNumber === 1);
     expect(resolved?.winnerId).toBe(game.actorAId);
+    // A ghost who never locked in isn't coming back for game 2 either — the
+    // whole match is forfeited, not just this one game.
+    expect(games.find((g) => g.gameNumber === 2)).toBeUndefined();
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe("CONFIRMED");
+    expect(updatedMatch.reportedWinnerId).toBe(game.actorAId);
 
     const opponent = await prisma.user.findUniqueOrThrow({
       where: { id: game.actorAId === p1.id ? p2.id : p1.id },
@@ -155,7 +161,7 @@ describe("auto-confirm for a stale game report", () => {
     expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
   });
 
-  it("auto-confirms a lone hanging report once REPORT_TIMEOUT_MS has elapsed, charging the silent side a no-show", async () => {
+  it("auto-confirms a lone hanging report once REPORT_TIMEOUT_MS has elapsed, forfeiting the whole set and charging the silent side a no-show", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -177,11 +183,13 @@ describe("auto-confirm for a stale game report", () => {
     const resolved = games.find((g) => g.gameNumber === 1);
     expect(resolved?.winnerId).toBe(p1.id);
 
-    // The set isn't decided, so game 2 gets created and the match gets a fresh
-    // deadline rather than expiring mid-set on the original one.
-    expect(games.find((g) => g.gameNumber === 2)).toBeDefined();
+    // A ghost who won't confirm isn't coming back for the rest of the set
+    // either — the whole match is forfeited to the present player instead of
+    // just this one game, so no game 2 ever gets created.
+    expect(games.find((g) => g.gameNumber === 2)).toBeUndefined();
     const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
-    expect(updatedMatch.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    expect(updatedMatch.status).toBe("CONFIRMED");
+    expect(updatedMatch.reportedWinnerId).toBe(p1.id);
 
     const ghost = await prisma.user.findUniqueOrThrow({ where: { id: p2.id } });
     expect(ghost.noShowCount).toBe(1);

@@ -3,6 +3,7 @@ import { UserStatus } from "@/generated/prisma/enums";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
+import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -171,6 +172,20 @@ export async function setAudioPingOnMatch(userId: string, audioPingOnMatch: bool
 // synthesized chime or the announcer voice clips. See User.matchFoundSound.
 export async function setMatchFoundSound(userId: string, matchFoundSound: "CHIME" | "ANNOUNCER") {
   await prisma.user.update({ where: { id: userId }, data: { matchFoundSound } });
+}
+
+// Slot-preserving: a blank at index i means "use the site default for slot
+// i", not "skip it" — filtering blanks out entirely would shift a
+// deliberately-blank slot 2 into position 2, silently changing slot 3's
+// content. Only an all-blank submission collapses to [] (reset to fully
+// default), matching arenaPassword's "blank means fall back" convention.
+export async function setQuickMessages(userId: string, messages: string[]) {
+  const trimmed = messages.slice(0, DEFAULT_QUICK_MESSAGES.length).map((m) => m.trim());
+  if (trimmed.some((m) => m.length > MAX_QUICK_MESSAGE_LENGTH)) {
+    throw new Error(`Each quick message can't be longer than ${MAX_QUICK_MESSAGE_LENGTH} characters`);
+  }
+  const allBlank = trimmed.every((m) => m.length === 0);
+  await prisma.user.update({ where: { id: userId }, data: { quickMessages: allBlank ? [] : trimmed } });
 }
 
 // Only controls which landing page ("/" vs "/es") a signed-in visit to "/"

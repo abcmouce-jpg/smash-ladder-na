@@ -2,21 +2,24 @@
 
 import { useActionState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_QUICK_MESSAGES } from "@/lib/quick-messages";
 
 type SendCommentState = { error: string | null };
 
 const TYPING_DEBOUNCE_MS = 2_000;
 
-// Common one-liners a player wants to send without typing — pre- and
-// post-set etiquette mostly, the same handful anyone would type anyway.
-const QUICK_MESSAGES = ["Hey!", "glhf!", "gg!", "ggs!"];
 export function CommentForm({
   action,
   onTyping,
+  quickMessages = DEFAULT_QUICK_MESSAGES,
   lang = "en",
 }: {
   action: (prevState: SendCommentState, formData: FormData) => Promise<SendCommentState>;
   onTyping?: () => void | Promise<void>;
+  // Already resolved (defaults merged in per-slot) by the caller — see
+  // resolveQuickMessages in lib/quick-messages.ts. Falls back to the site
+  // default here too so callers that haven't been updated still work.
+  quickMessages?: string[];
   lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
@@ -42,7 +45,7 @@ export function CommentForm({
   return (
     <div className="mt-3 flex flex-col gap-1">
       <div className="flex flex-wrap gap-1">
-        {QUICK_MESSAGES.map((message) => (
+        {quickMessages.map((message) => (
           <Button
             key={message}
             type="button"
