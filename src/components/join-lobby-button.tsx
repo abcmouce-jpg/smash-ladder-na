@@ -1,9 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { JoinLobbyState } from "@/app/lobby/actions";
+
+// This form fully remounts every time the lobby page re-renders around it —
+// e.g. cancel a match then requeue — so without this the checkbox silently
+// resets to unchecked and a player who meant to stay in practice mode ends
+// up queueing a rated set instead. Persisted client-side since it's a
+// per-player queueing preference, not tied to any one match.
+const PRACTICING_KEY = "smashLadderPracticing";
 
 export function JoinLobbyForm({
   action,
@@ -16,11 +23,35 @@ export function JoinLobbyForm({
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const [existingRoomCode, setExistingRoomCode] = useState("");
+  const [isPracticing, setIsPracticing] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(PRACTICING_KEY) === "1") setIsPracticing(true);
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, []);
+
+  function updatePracticing(checked: boolean) {
+    setIsPracticing(checked);
+    try {
+      localStorage.setItem(PRACTICING_KEY, checked ? "1" : "0");
+    } catch {
+      /* localStorage unavailable */
+    }
+  }
 
   return (
     <form action={formAction} className={className}>
       <label className="flex items-start gap-1.5 text-sm text-muted-foreground">
-        <input type="checkbox" name="isPracticing" className="mt-0.5 size-3.5" />
+        <input
+          type="checkbox"
+          name="isPracticing"
+          checked={isPracticing}
+          onChange={(e) => updatePracticing(e.target.checked)}
+          className="mt-0.5 size-3.5"
+        />
         <span>
           {lang === "es" ? "Practicando esta sesión" : "Practicing this session"}
           <span className="block text-xs">
