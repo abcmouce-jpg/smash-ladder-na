@@ -4,15 +4,29 @@ import { Users } from "lucide-react";
 import { auth } from "@/auth";
 import { getAchievedFreeBattleTiers, getOwnActivePost, getUserBrief, listOpenPosts } from "@/lib/free-battle";
 import { FREE_BATTLE_TIERS, type FreeBattleTier } from "@/lib/rank-tier";
+import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
+import { MATCH_REGIONS, MATCH_REGION_GROUPS } from "@/lib/regions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdSlot } from "@/components/ad-slot";
+import { CharacterFilterSelect } from "@/components/character-filter-select";
+import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { claimFreeBattlePost, closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 
-export default async function FreeBattlePage() {
-  const [session, lang] = await Promise.all([auth(), getLang()]);
+const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group) =>
+  group.regions.map((r) => ({ value: r, label: r, group: group.label })),
+);
+
+export default async function FreeBattlePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ character?: string; region?: string }>;
+}) {
+  const [session, lang, { character, region }] = await Promise.all([auth(), getLang(), searchParams]);
+  const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
+  const isValidRegion = region && (MATCH_REGIONS as readonly string[]).includes(region);
 
   if (!session?.user?.id) {
     return (
@@ -30,7 +44,10 @@ export default async function FreeBattlePage() {
   const userId = session.user.id;
   const [ownPost, openPosts, achievedTiers] = await Promise.all([
     getOwnActivePost(userId),
-    listOpenPosts(userId),
+    listOpenPosts(userId, {
+      character: isValidCharacter ? character : null,
+      region: isValidRegion ? region : null,
+    }),
     getAchievedFreeBattleTiers(userId),
   ]);
 
@@ -97,10 +114,42 @@ export default async function FreeBattlePage() {
       <div className="mt-10">
         <h2 className="text-sm font-medium text-muted-foreground">
           {lang === "es" ? "Publicaciones abiertas" : "Open posts"}
+          {isValidCharacter &&
+            (lang === "es"
+              ? ` — jugadores de ${echoGroupLabel(character as SmashCharacter)}`
+              : ` — ${echoGroupLabel(character as SmashCharacter)} players`)}
+          {isValidRegion && ` (${region})`}
         </h2>
+        <form method="get" className="mt-3 flex flex-wrap items-end gap-2">
+          <CharacterFilterSelect defaultValue={isValidCharacter ? character : ""} lang={lang} className="w-full md:w-40" />
+          <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
+            {lang === "es" ? "Región" : "Region"}
+            <OptionSelect
+              key={isValidRegion ? region : ""}
+              name="region"
+              defaultValue={isValidRegion ? region : ""}
+              placeholder={lang === "es" ? "Todas las regiones" : "All regions"}
+              clearLabel={lang === "es" ? "Todas las regiones" : "All regions"}
+              className="w-full md:w-40"
+              searchable
+              searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
+              options={REGION_OPTIONS}
+              autoSubmit
+            />
+          </label>
+          <Button type="submit" size="sm" variant="outline" className="h-8 w-full md:w-auto">
+            {lang === "es" ? "Filtrar" : "Filter"}
+          </Button>
+        </form>
         {openPosts.length === 0 && (
           <p className="mt-4 text-sm text-muted-foreground">
-            {lang === "es" ? "No hay publicaciones abiertas por ahora." : "No open posts right now."}
+            {isValidCharacter || isValidRegion
+              ? lang === "es"
+                ? "Ninguna publicación abierta coincide con estos filtros."
+                : "No open posts match those filters."
+              : lang === "es"
+                ? "No hay publicaciones abiertas por ahora."
+                : "No open posts right now."}
           </p>
         )}
         <ul className="mt-4 flex flex-col gap-3">

@@ -4,6 +4,8 @@ import { sendDiscordDM, sendDiscordWebhookMessage, deleteDiscordWebhookMessage }
 import { FREE_BATTLE_TIERS, hasReachedTier, type FreeBattleTier } from "@/lib/rank-tier";
 import { tierRoleId } from "@/lib/rank-roles";
 import { getPeakRating } from "@/lib/players";
+import { echoGroupMembers, type SmashCharacter } from "@/lib/characters";
+import { expandRegionForSearch } from "@/lib/regions";
 
 // One #<tier>-grind channel per restricted tier, each with its own webhook
 // (Channel Settings → Integrations → Webhooks) so a restricted post only
@@ -40,12 +42,36 @@ const authorSelect = {
   author: { select: { id: true, username: true, avatarUrl: true, rating: true } },
 } as const;
 
-export async function listOpenPosts(excludeUserId: string) {
+export interface FreeBattleFilters {
+  character?: string | null;
+  region?: string | null;
+}
+
+export async function listOpenPosts(excludeUserId: string, filters: FreeBattleFilters = {}) {
   return prisma.freeBattlePost.findMany({
     where: {
       status: PostStatus.OPEN,
       expiresAt: { gt: new Date() },
       authorId: { not: excludeUserId },
+      // Same echo-group treatment as the leaderboard's character filter
+      // (see getLeaderboardPlayers) — filtering by either side of an echo
+      // pair (Lucina/Marth, Daisy/Peach, etc.) pulls in both, and mains +
+      // auto-derived secondaries both count as "plays this character".
+      ...(filters.character
+        ? {
+            author: {
+              OR: echoGroupMembers(filters.character as SmashCharacter).flatMap((c) => [
+                { mainCharacter: c },
+                { secondaryCharacters: { has: c } },
+              ]),
+            },
+          }
+        : {}),
+      // Post's own region, copied from the author's profile at creation
+      // time — expanded the same way the leaderboard does, so a broad
+      // region filter (e.g. "USA East") also catches posts from a specific
+      // state within it.
+      ...(filters.region ? { region: { in: expandRegionForSearch(filters.region) } } : {}),
     },
     orderBy: { createdAt: "desc" },
     include: authorSelect,

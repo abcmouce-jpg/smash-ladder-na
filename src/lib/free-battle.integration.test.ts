@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { MatchStatus, PostStatus } from "@/generated/prisma/enums";
-import { createPost, closePost, claimPost } from "@/lib/free-battle";
+import { createPost, closePost, claimPost, listOpenPosts } from "@/lib/free-battle";
 import { finalizeExpiredFreeBattlePosts } from "@/lib/finalize";
 import { createTestUser } from "@/test/factories";
 import * as discordBot from "@/lib/discord-bot";
@@ -296,5 +296,56 @@ describe("finalizeExpiredFreeBattlePosts", () => {
 
     expect(count).toBe(1);
     expect(deleteSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("listOpenPosts filters", () => {
+  it("filters by the author's main or secondary character", async () => {
+    const viewer = await createTestUser();
+    const foxMain = await createTestUser({ mainCharacter: "Fox" });
+    const foxSecondary = await createTestUser({ mainCharacter: "Marth", secondaryCharacters: ["Fox"] });
+    const falco = await createTestUser({ mainCharacter: "Falco" });
+    await prisma.freeBattlePost.createMany({
+      data: [foxMain, foxSecondary, falco].map((author) => ({
+        authorId: author.id,
+        comment: "gg",
+        expiresAt: new Date(Date.now() + 60_000),
+      })),
+    });
+
+    const posts = await listOpenPosts(viewer.id, { character: "Fox" });
+
+    expect(posts.map((p) => p.authorId).sort()).toEqual([foxMain.id, foxSecondary.id].sort());
+  });
+
+  it("treats echo fighters as the same character", async () => {
+    const viewer = await createTestUser();
+    const peach = await createTestUser({ mainCharacter: "Peach" });
+    await prisma.freeBattlePost.create({
+      data: { authorId: peach.id, comment: "gg", expiresAt: new Date(Date.now() + 60_000) },
+    });
+
+    const posts = await listOpenPosts(viewer.id, { character: "Daisy" });
+
+    expect(posts.map((p) => p.authorId)).toEqual([peach.id]);
+  });
+
+  it("filters by region, expanding a broad region to its states", async () => {
+    const viewer = await createTestUser();
+    const author = await createTestUser({ region: "USA East" });
+    const stateAuthor = await createTestUser({ region: "New York" });
+    const other = await createTestUser({ region: "USA Pacific" });
+    await prisma.freeBattlePost.createMany({
+      data: [author, stateAuthor, other].map((a) => ({
+        authorId: a.id,
+        comment: "gg",
+        region: a.region,
+        expiresAt: new Date(Date.now() + 60_000),
+      })),
+    });
+
+    const posts = await listOpenPosts(viewer.id, { region: "USA East" });
+
+    expect(posts.map((p) => p.authorId).sort()).toEqual([author.id, stateAuthor.id].sort());
   });
 });
