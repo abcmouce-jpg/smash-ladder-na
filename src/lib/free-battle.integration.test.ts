@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { MatchStatus, PostStatus } from "@/generated/prisma/enums";
 import { createPost, closePost, claimPost, listOpenPosts } from "@/lib/free-battle";
-import { MAX_FREE_BATTLE_CHARACTERS } from "@/lib/characters";
 import { finalizeExpiredFreeBattlePosts } from "@/lib/finalize";
 import { createTestUser } from "@/test/factories";
 import * as discordBot from "@/lib/discord-bot";
@@ -114,6 +113,15 @@ describe("createPost", () => {
     expect(post.minTier).toBe("Elite");
   });
 
+  it("allows Fighter as a rank restriction", async () => {
+    const author = await createTestUser();
+    await givePeakRating(author.id, 1450); // Fighter's floor exactly
+
+    const post = await createPost(author.id, "fighter only", "Fighter");
+
+    expect(post.minTier).toBe("Fighter");
+  });
+
   it("routes the announcement to that tier's own webhook, not the general one", async () => {
     process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL = "https://discord.com/api/webhooks/general";
     process.env.DISCORD_FREE_BATTLE_ELITE_WEBHOOK_URL = "https://discord.com/api/webhooks/elite";
@@ -137,19 +145,32 @@ describe("createPost", () => {
     expect(post.characters).toEqual(["Fox"]);
   });
 
-  it("caps the number of character tags", async () => {
+  it("allows tagging with any number of characters, no cap", async () => {
+    const author = await createTestUser();
+    const many = ["Mario", "Luigi", "Peach", "Bowser", "Yoshi", "Donkey Kong"];
+
+    const post = await createPost(author.id, "so many mains", null, many);
+
+    expect(post.characters).toEqual(many);
+  });
+
+  it("stores a self-declared distance preference", async () => {
     const author = await createTestUser();
 
-    const post = await createPost(author.id, "too many", null, [
-      "Mario",
-      "Luigi",
-      "Peach",
-      "Bowser",
-      "Yoshi",
-      "Donkey Kong",
-    ]);
+    const post = await createPost(author.id, "close by only", null, [], 640);
 
-    expect(post.characters).toHaveLength(MAX_FREE_BATTLE_CHARACTERS);
+    expect(post.maxDistanceKm).toBe(640);
+  });
+
+  it("includes the distance preference's label in the Discord announcement", async () => {
+    process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL = "https://discord.com/api/webhooks/test";
+    const webhookSpy = vi.spyOn(discordBot, "sendDiscordWebhookMessage").mockResolvedValue(null);
+    const author = await createTestUser();
+
+    await createPost(author.id, "close by only", null, [], 640);
+
+    const [, content] = webhookSpy.mock.calls[0];
+    expect(content).toContain("Close (~400 mi)");
   });
 });
 

@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Search, Check, ChevronDown, X } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
-import { SMASH_CHARACTERS, MAX_FREE_BATTLE_CHARACTERS } from "@/lib/characters";
+import { SMASH_CHARACTERS } from "@/lib/characters";
 
 /**
  * Multi-value sibling of CharacterSelect — same searchable dropdown, but
@@ -11,7 +11,9 @@ import { SMASH_CHARACTERS, MAX_FREE_BATTLE_CHARACTERS } from "@/lib/characters";
  * the dropdown stays open across picks. Selected characters submit as
  * repeated `name` entries (read with `formData.getAll(name)`), one hidden
  * checkbox per selection rather than a single hidden multi-`<select>`, since
- * that's simpler to keep in sync with an array of strings.
+ * that's simpler to keep in sync with an array of strings. No cap on how
+ * many can be selected — purely descriptive tags, so there's nothing to
+ * bound them against.
  */
 export function CharacterMultiSelect({
   name,
@@ -32,7 +34,6 @@ export function CharacterMultiSelect({
 
   const roster = SMASH_CHARACTERS;
   const filtered = query ? roster.filter((c) => c.toLowerCase().includes(query.toLowerCase())) : roster;
-  const atLimit = selected.length >= MAX_FREE_BATTLE_CHARACTERS;
 
   useEffect(() => {
     if (!open) return;
@@ -53,11 +54,7 @@ export function CharacterMultiSelect({
   }, [open]);
 
   const toggle = useCallback((char: string) => {
-    setSelected((prev) => {
-      if (prev.includes(char)) return prev.filter((c) => c !== char);
-      if (prev.length >= MAX_FREE_BATTLE_CHARACTERS) return prev;
-      return [...prev, char];
-    });
+    setSelected((prev) => (prev.includes(char) ? prev.filter((c) => c !== char) : [...prev, char]));
   }, []);
 
   return (
@@ -104,12 +101,6 @@ export function CharacterMultiSelect({
             />
           </div>
 
-          {atLimit && (
-            <p className="border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-              Up to {MAX_FREE_BATTLE_CHARACTERS} — remove one to add another.
-            </p>
-          )}
-
           <ul className="max-h-60 overflow-y-auto py-1">
             {filtered.length === 0 ? (
               <li className="px-3 py-3 text-center text-xs text-muted-foreground">
@@ -118,14 +109,12 @@ export function CharacterMultiSelect({
             ) : (
               filtered.map((char) => {
                 const isSelected = selected.includes(char);
-                const disabled = !isSelected && atLimit;
                 return (
                   <li key={char}>
                     <button
                       type="button"
-                      disabled={disabled}
                       onClick={() => toggle(char)}
-                      className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-1.5 text-left text-sm outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
+                      className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-1.5 text-left text-sm outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground ${
                         isSelected ? "bg-primary/10 font-medium text-primary" : "text-foreground"
                       }`}
                     >

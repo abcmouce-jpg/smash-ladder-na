@@ -4,8 +4,8 @@ import { sendDiscordDM, sendDiscordWebhookMessage, deleteDiscordWebhookMessage }
 import { FREE_BATTLE_TIERS, hasReachedTier, type FreeBattleTier } from "@/lib/rank-tier";
 import { tierRoleId } from "@/lib/rank-roles";
 import { getPeakRating } from "@/lib/players";
-import { SMASH_CHARACTERS, MAX_FREE_BATTLE_CHARACTERS, echoGroupMembers, type SmashCharacter } from "@/lib/characters";
-import { getRegionsWithinDistance } from "@/lib/regions";
+import { SMASH_CHARACTERS, echoGroupMembers, type SmashCharacter } from "@/lib/characters";
+import { getRegionsWithinDistance, MATCH_DISTANCE_PRESETS } from "@/lib/regions";
 
 // One #<tier>-grind channel per restricted tier, each with its own webhook
 // (Channel Settings → Integrations → Webhooks) so a restricted post only
@@ -95,11 +95,21 @@ export async function getOwnActivePost(userId: string) {
   });
 }
 
+// Label for a self-declared distance preference, matching the Lobby's own
+// MATCH_DISTANCE_PRESETS wording — undefined/null both read as "no
+// preference stated" (falls out of the Discord tags entirely) rather than
+// a preset with no matching label.
+function distanceLabel(maxDistanceKm: number | null | undefined): string | null {
+  if (maxDistanceKm == null) return null;
+  return MATCH_DISTANCE_PRESETS.find((p) => p.km === maxDistanceKm)?.label ?? `Within ${maxDistanceKm}km`;
+}
+
 export async function createPost(
   userId: string,
   comment: string,
   minTier: FreeBattleTier | null = null,
   characters: string[] = [],
+  maxDistanceKm: number | null = null,
 ) {
   const existing = await getOwnActivePost(userId);
   if (existing) throw new Error("You already have an active post");
@@ -112,11 +122,11 @@ export async function createPost(
 
   // Deduped and validated against the real roster rather than trusted as
   // typed — this is form input, not a value the UI can guarantee. Silently
-  // drops anything invalid/excess rather than erroring, since these are
-  // just descriptive tags with nothing to get "wrong" about them.
-  const dedupedCharacters = [...new Set(characters)]
-    .filter((c) => (SMASH_CHARACTERS as readonly string[]).includes(c))
-    .slice(0, MAX_FREE_BATTLE_CHARACTERS);
+  // drops anything invalid rather than erroring, since these are just
+  // descriptive tags with nothing to get "wrong" about them.
+  const dedupedCharacters = [...new Set(characters)].filter((c) =>
+    (SMASH_CHARACTERS as readonly string[]).includes(c),
+  );
 
   // Region comes from the player's own profile (set on the Lobby page) so
   // it stays consistent with the structured MATCH_REGIONS list used for
@@ -133,6 +143,7 @@ export async function createPost(
       region: author.region,
       minTier,
       characters: dedupedCharacters,
+      maxDistanceKm,
       expiresAt: new Date(Date.now() + POST_TTL_MS),
     },
   });
@@ -151,7 +162,12 @@ export async function createPost(
   if (webhookUrl) {
     const roleId = minTier ? tierRoleId(minTier) : null;
     const rolePrefix = roleId ? `<@&${roleId}> ` : "";
-    const tags = [minTier ? `${minTier}+` : null, dedupedCharacters.join("/") || null, author.region]
+    const tags = [
+      minTier ? `${minTier}+` : null,
+      dedupedCharacters.join("/") || null,
+      author.region,
+      distanceLabel(maxDistanceKm),
+    ]
       .filter(Boolean)
       .join(", ");
     const tagSuffix = tags ? ` (${tags})` : "";

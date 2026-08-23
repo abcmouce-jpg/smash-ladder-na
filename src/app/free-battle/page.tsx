@@ -2,46 +2,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { auth } from "@/auth";
-import { getAchievedFreeBattleTiers, getOwnActivePost, getUserBrief, listOpenPosts } from "@/lib/free-battle";
-import { getUserRegion } from "@/lib/players";
+import { getAchievedFreeBattleTiers, getOwnActivePost, getUserBrief } from "@/lib/free-battle";
 import { FREE_BATTLE_TIERS, type FreeBattleTier } from "@/lib/rank-tier";
-import { SMASH_CHARACTERS, MAX_FREE_BATTLE_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import { MATCH_DISTANCE_PRESETS } from "@/lib/regions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdSlot } from "@/components/ad-slot";
-import { CharacterFilterSelect } from "@/components/character-filter-select";
 import { CharacterMultiSelect } from "@/components/character-multi-select";
 import { CharacterIcon } from "@/components/character-icon";
-import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
-import { claimFreeBattlePost, closeFreeBattlePost, postFreeBattle } from "./actions";
+import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 
-const DISTANCE_OPTIONS: OptionSelectOption[] = MATCH_DISTANCE_PRESETS.map((p) => ({
-  value: p.km === null ? "worldwide" : String(p.km),
-  label: p.label,
-}));
-
-// undefined means "no distance filter" (param missing/unrecognized); null
-// means the "Worldwide" preset, which is also unfiltered but explicitly
-// chosen — both end up not touching the query, see listOpenPosts.
-function parseDistanceParam(raw: string | undefined): number | null | undefined {
-  if (!raw) return undefined;
-  if (raw === "worldwide") return null;
-  const km = Number(raw);
-  return Number.isFinite(km) ? km : undefined;
-}
-
-export default async function FreeBattlePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ character?: string; distance?: string }>;
-}) {
-  const [session, lang, { character, distance }] = await Promise.all([auth(), getLang(), searchParams]);
-  const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
-  const maxDistanceKm = parseDistanceParam(distance);
-  const distanceLabel = DISTANCE_OPTIONS.find((o) => o.value === distance)?.label;
+export default async function FreeBattlePage() {
+  const [session, lang] = await Promise.all([auth(), getLang()]);
 
   if (!session?.user?.id) {
     return (
@@ -57,16 +31,7 @@ export default async function FreeBattlePage({
   }
 
   const userId = session.user.id;
-  const [ownPost, achievedTiers, viewerRegion] = await Promise.all([
-    getOwnActivePost(userId),
-    getAchievedFreeBattleTiers(userId),
-    getUserRegion(userId),
-  ]);
-  const openPosts = await listOpenPosts(userId, {
-    character: isValidCharacter ? character : null,
-    viewerRegion,
-    maxDistanceKm,
-  });
+  const [ownPost, achievedTiers] = await Promise.all([getOwnActivePost(userId), getAchievedFreeBattleTiers(userId)]);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -79,7 +44,7 @@ export default async function FreeBattlePage({
             <Link href="/lobby" className="underline hover:text-foreground">
               Sala
             </Link>
-            : aquí publicas lo que buscas y eliges con quién jugar, en vez de que te emparejen automáticamente.
+            : aquí publicas lo que buscas y quien vea tu publicación en Discord te contacta directamente.
           </>
         ) : (
           <>
@@ -88,8 +53,8 @@ export default async function FreeBattlePage({
             <Link href="/lobby" className="underline hover:text-foreground">
               Lobby
             </Link>
-            &apos;s ranked queue: here, you post what you want and pick who to play, instead of being paired
-            automatically.
+            &apos;s ranked queue: here, you post what you want and whoever sees it on Discord reaches out to you
+            directly.
           </>
         )}
       </p>
@@ -97,14 +62,10 @@ export default async function FreeBattlePage({
         {lang === "es" ? (
           <>
             <li>1. Publica un comentario diciendo qué buscas (matchup, disponibilidad, etc).</li>
+            <li>2. Tu publicación se anuncia en el Discord de la comunidad.</li>
             <li>
-              2. Cualquiera puede ver las publicaciones abiertas y presionar &quot;Voy&quot; para reclamar la tuya —
-              recibirás un DM de Discord en cuanto alguien lo haga.
-            </li>
-            <li>
-              3. Una vez emparejados, coordinen la partida ustedes mismos (código de sala, horario) — Free Battle solo
-              hace la presentación, no lleva registro de los juegos ni afecta tu clasificación como las partidas
-              rankeadas.
+              3. Quien esté interesado te contacta por Discord — Free Battle solo hace la presentación, no lleva
+              registro de los juegos ni afecta tu clasificación como las partidas rankeadas.
             </li>
             <li>
               4. Las publicaciones expiran solas después de 24 horas; ciérrala y vuelve a publicar cuando quieras.
@@ -113,13 +74,10 @@ export default async function FreeBattlePage({
         ) : (
           <>
             <li>1. Post a comment saying what you&apos;re looking for (matchup, availability, etc).</li>
+            <li>2. Your post gets announced in the community Discord.</li>
             <li>
-              2. Anyone can browse open posts and hit &quot;I&apos;m in&quot; to claim yours — you&apos;ll get a Discord
-              DM the moment someone does.
-            </li>
-            <li>
-              3. Once matched, coordinate the actual set yourselves (room code, timing) — Free Battle just makes the
-              introduction, it doesn&apos;t track games or affect your rating like ranked matches do.
+              3. Whoever&apos;s interested reaches out to you on Discord — Free Battle just makes the introduction, it
+              doesn&apos;t track games or affect your rating like ranked matches do.
             </li>
             <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
           </>
@@ -127,105 +85,6 @@ export default async function FreeBattlePage({
       </ul>
 
       {ownPost ? <OwnPostCard post={ownPost} lang={lang} /> : <PostForm lang={lang} achievedTiers={achievedTiers} />}
-
-      <div className="mt-10">
-        <h2 className="text-sm font-medium text-muted-foreground">
-          {lang === "es" ? "Publicaciones abiertas" : "Open posts"}
-          {isValidCharacter &&
-            (lang === "es"
-              ? ` — jugadores de ${echoGroupLabel(character as SmashCharacter)}`
-              : ` — ${echoGroupLabel(character as SmashCharacter)} players`)}
-          {distanceLabel && ` (${distanceLabel})`}
-        </h2>
-        <form method="get" className="mt-3 flex flex-wrap items-end gap-2">
-          <CharacterFilterSelect defaultValue={isValidCharacter ? character : ""} lang={lang} className="w-full md:w-40" />
-          <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-            {lang === "es" ? "Distancia" : "Distance"}
-            <OptionSelect
-              key={distanceLabel ? distance : ""}
-              name="distance"
-              defaultValue={distanceLabel ? distance : ""}
-              placeholder={lang === "es" ? "Cualquier distancia" : "Any distance"}
-              clearLabel={lang === "es" ? "Cualquier distancia" : "Any distance"}
-              className="w-full md:w-48"
-              options={DISTANCE_OPTIONS}
-              autoSubmit
-            />
-          </label>
-          <Button type="submit" size="sm" variant="outline" className="h-8 w-full md:w-auto">
-            {lang === "es" ? "Filtrar" : "Filter"}
-          </Button>
-        </form>
-        {!viewerRegion && typeof maxDistanceKm === "number" && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {lang === "es"
-              ? "Configura tu región en la página de Sala para usar el filtro de distancia."
-              : "Set your region on the Lobby page to use the distance filter."}
-          </p>
-        )}
-        {openPosts.length === 0 && (
-          <p className="mt-4 text-sm text-muted-foreground">
-            {isValidCharacter || maxDistanceKm !== undefined
-              ? lang === "es"
-                ? "Ninguna publicación abierta coincide con estos filtros."
-                : "No open posts match those filters."
-              : lang === "es"
-                ? "No hay publicaciones abiertas por ahora."
-                : "No open posts right now."}
-          </p>
-        )}
-        <ul className="mt-4 flex flex-col gap-3">
-          {openPosts.map((post) => {
-            const minTier = post.minTier as FreeBattleTier | null;
-            const canClaim = !minTier || achievedTiers.includes(minTier);
-            return (
-              <li key={post.id}>
-                <Card>
-                  <CardContent className="flex items-start justify-between gap-4 pt-4">
-                    <div className="flex items-start gap-3">
-                      {post.author.avatarUrl && (
-                        <Image
-                          src={post.author.avatarUrl}
-                          alt={post.author.username}
-                          width={32}
-                          height={32}
-                          className="rounded-full"
-                        />
-                      )}
-                      <div>
-                        <p className="flex items-center gap-2 text-sm font-medium">
-                          {post.author.username}
-                          {minTier && <Badge>{minTier}+</Badge>}
-                          {post.region && <Badge variant="outline">{post.region}</Badge>}
-                        </p>
-                        {post.characters.length > 0 && (
-                          <div className="mt-1 flex items-center gap-1">
-                            {post.characters.map((c) => (
-                              <CharacterIcon key={c} name={c} size={16} />
-                            ))}
-                          </div>
-                        )}
-                        <p className="mt-0.5 text-sm text-muted-foreground">{post.comment}</p>
-                      </div>
-                    </div>
-                    {canClaim ? (
-                      <form action={claimFreeBattlePost.bind(null, post.id)}>
-                        <Button type="submit" size="sm">
-                          {lang === "es" ? "Voy" : "I'm in"}
-                        </Button>
-                      </form>
-                    ) : (
-                      <Button type="button" size="sm" disabled title={`${minTier}+ only`}>
-                        {lang === "es" ? "Voy" : "I'm in"}
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
 
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_FREE_BATTLE} />
     </main>
@@ -248,7 +107,10 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
     const rawMinTier = String(formData.get("minTier") ?? "");
     const minTier = FREE_BATTLE_TIERS.includes(rawMinTier as FreeBattleTier) ? (rawMinTier as FreeBattleTier) : null;
     const characters = formData.getAll("characters").map(String);
-    await postFreeBattle(comment, minTier, characters);
+    const rawDistance = String(formData.get("maxDistanceKm") ?? "");
+    const maxDistanceKm =
+      rawDistance && rawDistance !== "worldwide" && Number.isFinite(Number(rawDistance)) ? Number(rawDistance) : null;
+    await postFreeBattle(comment, minTier, characters, maxDistanceKm);
   }
 
   // FREE_BATTLE_TIERS is ordered highest to lowest; the form should offer
@@ -305,8 +167,28 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
             />
             <span className="text-xs text-muted-foreground">
               {lang === "es"
-                ? `Solo para etiquetar tu publicación (hasta ${MAX_FREE_BATTLE_CHARACTERS}) — cualquiera puede unirse igual; ayuda a que te encuentren en el filtro de abajo.`
-                : `Just tags the post (up to ${MAX_FREE_BATTLE_CHARACTERS}) — anyone can still join, this only helps people find it via the filter below.`}
+                ? "Solo para etiquetar tu publicación — cualquiera puede unirse igual."
+                : "Just tags the post — anyone can still join."}
+            </span>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            {lang === "es" ? "Distancia (opcional)" : "Distance (optional)"}
+            <select
+              name="maxDistanceKm"
+              defaultValue=""
+              className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
+            >
+              <option value="">{lang === "es" ? "Sin preferencia" : "No preference"}</option>
+              {MATCH_DISTANCE_PRESETS.map((preset) => (
+                <option key={preset.label} value={preset.km === null ? "worldwide" : String(preset.km)}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-muted-foreground">
+              {lang === "es"
+                ? "Qué tan lejos estás dispuesto a jugar — se muestra en el anuncio de Discord."
+                : "How far you're willing to play — shown in the Discord announcement."}
             </span>
           </label>
           <p className="text-xs text-muted-foreground">
