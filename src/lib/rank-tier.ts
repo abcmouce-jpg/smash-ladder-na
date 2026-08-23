@@ -87,11 +87,13 @@ export const RANK_TIERS: readonly RankTier[] = [
 // separate rating-math decision — collapsing them would silently couple two
 // unrelated rules together.
 // Tiers a Free Battle post can be restricted to — a deliberate subset of
-// RANK_TIERS (no Fighter/Challenger, since those are the default "anyone"
-// case already; no Legend, since there's no #legend-grind equivalent
-// channel to route its notification to). Ordered highest to lowest to
-// match RANK_TIERS, so callers can find each one's minRating there.
-export const FREE_BATTLE_TIERS = ["Grandmaster", "Master", "Elite"] as const;
+// RANK_TIERS (no Challenger, since that's the default "anyone" case
+// already; no Legend, since there's no #legend-grind equivalent channel to
+// route its notification to). Fighter has no #fighter-grind channel either
+// — webhookUrlForTier in free-battle.ts just skips the Discord mirror for
+// it, same as any tier whose webhook env var isn't set. Ordered highest to
+// lowest to match RANK_TIERS, so callers can find each one's minRating there.
+export const FREE_BATTLE_TIERS = ["Grandmaster", "Master", "Elite", "Fighter"] as const;
 export type FreeBattleTier = (typeof FREE_BATTLE_TIERS)[number];
 
 export const PROVISIONAL_MIN_GAMES = 10;
