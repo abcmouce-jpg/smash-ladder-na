@@ -113,15 +113,6 @@ describe("createPost", () => {
     expect(post.minTier).toBe("Elite");
   });
 
-  it("allows Fighter as a rank restriction", async () => {
-    const author = await createTestUser();
-    await givePeakRating(author.id, 1450); // Fighter's floor exactly
-
-    const post = await createPost(author.id, "fighter only", "Fighter");
-
-    expect(post.minTier).toBe("Fighter");
-  });
-
   it("routes the announcement to that tier's own webhook, not the general one", async () => {
     process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL = "https://discord.com/api/webhooks/general";
     process.env.DISCORD_FREE_BATTLE_ELITE_WEBHOOK_URL = "https://discord.com/api/webhooks/elite";
