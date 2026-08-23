@@ -18,7 +18,7 @@ const TIER_COLORS: Record<string, number> = {
   Challenger: 0xfb923c,
 };
 
-function tierRoleId(tierName: string): string | null {
+export function tierRoleId(tierName: string): string | null {
   // JSON blob of { "Legend": "<role id>", ... } — set once when the tier
   // roles are created on the community Discord server (see project notes;
   // there's no in-app role-creation flow, this just maps to whatever

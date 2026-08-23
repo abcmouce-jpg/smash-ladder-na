@@ -86,6 +86,14 @@ export const RANK_TIERS: readonly RankTier[] = [
 // kFactor in matches.ts, which happens to use the same 10 today but is a
 // separate rating-math decision — collapsing them would silently couple two
 // unrelated rules together.
+// Tiers a Free Battle post can be restricted to — a deliberate subset of
+// RANK_TIERS (no Fighter/Challenger, since those are the default "anyone"
+// case already; no Legend, since there's no #legend-grind equivalent
+// channel to route its notification to). Ordered highest to lowest to
+// match RANK_TIERS, so callers can find each one's minRating there.
+export const FREE_BATTLE_TIERS = ["Grandmaster", "Master", "Elite"] as const;
+export type FreeBattleTier = (typeof FREE_BATTLE_TIERS)[number];
+
 export const PROVISIONAL_MIN_GAMES = 10;
 
 // Rating is noisy under this many games (the K-factor tapering matches this
@@ -146,8 +154,15 @@ export function didTierUp(ratingBefore: number, ratingAfter: number, gamesPlayed
   return RANK_TIERS.indexOf(after) < RANK_TIERS.indexOf(before);
 }
 
-function minRatingFor(tierName: string) {
+export function minRatingFor(tierName: string) {
   return RANK_TIERS.find((t) => t.name === tierName)!.minRating;
+}
+
+// Peak-rating "achieved" check shared by anything gating on a rank someone
+// has ever reached rather than their current one (see getPeakRating in
+// players.ts for why peak, not current, is the right basis).
+export function hasReachedTier(peakRating: number | null, tierName: string): boolean {
+  return peakRating != null && peakRating >= minRatingFor(tierName);
 }
 
 export type Achievement = { id: string; label: string; description: string; achieved: boolean };

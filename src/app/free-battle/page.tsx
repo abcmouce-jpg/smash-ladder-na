@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { auth } from "@/auth";
-import { getOwnActivePost, getUserBrief, listOpenPosts } from "@/lib/free-battle";
+import { getAchievedFreeBattleTiers, getOwnActivePost, getUserBrief, listOpenPosts } from "@/lib/free-battle";
+import { FREE_BATTLE_TIERS, type FreeBattleTier } from "@/lib/rank-tier";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,11 @@ export default async function FreeBattlePage() {
   }
 
   const userId = session.user.id;
-  const [ownPost, openPosts] = await Promise.all([getOwnActivePost(userId), listOpenPosts(userId)]);
+  const [ownPost, openPosts, achievedTiers] = await Promise.all([
+    getOwnActivePost(userId),
+    listOpenPosts(userId),
+    getAchievedFreeBattleTiers(userId),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -87,7 +92,7 @@ export default async function FreeBattlePage() {
         )}
       </ul>
 
-      {ownPost ? <OwnPostCard post={ownPost} lang={lang} /> : <PostForm lang={lang} />}
+      {ownPost ? <OwnPostCard post={ownPost} lang={lang} /> : <PostForm lang={lang} achievedTiers={achievedTiers} />}
 
       <div className="mt-10">
         <h2 className="text-sm font-medium text-muted-foreground">
@@ -99,37 +104,48 @@ export default async function FreeBattlePage() {
           </p>
         )}
         <ul className="mt-4 flex flex-col gap-3">
-          {openPosts.map((post) => (
-            <li key={post.id}>
-              <Card>
-                <CardContent className="flex items-start justify-between gap-4 pt-4">
-                  <div className="flex items-start gap-3">
-                    {post.author.avatarUrl && (
-                      <Image
-                        src={post.author.avatarUrl}
-                        alt={post.author.username}
-                        width={32}
-                        height={32}
-                        className="rounded-full"
-                      />
-                    )}
-                    <div>
-                      <p className="flex items-center gap-2 text-sm font-medium">
-                        {post.author.username}
-                        {post.region && <Badge variant="outline">{post.region}</Badge>}
-                      </p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">{post.comment}</p>
+          {openPosts.map((post) => {
+            const minTier = post.minTier as FreeBattleTier | null;
+            const canClaim = !minTier || achievedTiers.includes(minTier);
+            return (
+              <li key={post.id}>
+                <Card>
+                  <CardContent className="flex items-start justify-between gap-4 pt-4">
+                    <div className="flex items-start gap-3">
+                      {post.author.avatarUrl && (
+                        <Image
+                          src={post.author.avatarUrl}
+                          alt={post.author.username}
+                          width={32}
+                          height={32}
+                          className="rounded-full"
+                        />
+                      )}
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-medium">
+                          {post.author.username}
+                          {minTier && <Badge>{minTier}+</Badge>}
+                          {post.region && <Badge variant="outline">{post.region}</Badge>}
+                        </p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">{post.comment}</p>
+                      </div>
                     </div>
-                  </div>
-                  <form action={claimFreeBattlePost.bind(null, post.id)}>
-                    <Button type="submit" size="sm">
-                      {lang === "es" ? "Voy" : "I'm in"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
+                    {canClaim ? (
+                      <form action={claimFreeBattlePost.bind(null, post.id)}>
+                        <Button type="submit" size="sm">
+                          {lang === "es" ? "Voy" : "I'm in"}
+                        </Button>
+                      </form>
+                    ) : (
+                      <Button type="button" size="sm" disabled title={`${minTier}+ only`}>
+                        {lang === "es" ? "Voy" : "I'm in"}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
@@ -147,12 +163,19 @@ function PageTitle() {
   );
 }
 
-function PostForm({ lang }: { lang: Lang }) {
+function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBattleTier[] }) {
   async function action(formData: FormData) {
     "use server";
     const comment = String(formData.get("comment") ?? "");
-    await postFreeBattle(comment);
+    const rawMinTier = String(formData.get("minTier") ?? "");
+    const minTier = FREE_BATTLE_TIERS.includes(rawMinTier as FreeBattleTier) ? (rawMinTier as FreeBattleTier) : null;
+    await postFreeBattle(comment, minTier);
   }
+
+  // FREE_BATTLE_TIERS is ordered highest to lowest; the form should offer
+  // them the other way round (Elite before Grandmaster) so restricting to
+  // your own rank is the first, most obvious option below "Anyone".
+  const selectableTiers = [...FREE_BATTLE_TIERS].reverse().filter((tier) => achievedTiers.includes(tier));
 
   return (
     <Card className="mt-8">
@@ -172,6 +195,28 @@ function PostForm({ lang }: { lang: Lang }) {
               className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
             />
           </label>
+          {selectableTiers.length > 0 && (
+            <label className="flex flex-col gap-1 text-sm">
+              {lang === "es" ? "¿Quién puede unirse?" : "Who can join?"}
+              <select
+                name="minTier"
+                defaultValue=""
+                className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
+              >
+                <option value="">{lang === "es" ? "Cualquiera" : "Anyone"}</option>
+                {selectableTiers.map((tier) => (
+                  <option key={tier} value={tier}>
+                    {tier}+
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse — y se anuncia en el canal de Discord de ese rango en vez del general."
+                  : "Everyone sees the post, but only players who've reached that rank can join — and it announces in that rank's Discord channel instead of the general one."}
+              </span>
+            </label>
+          )}
           <p className="text-xs text-muted-foreground">
             {lang === "es"
               ? "La región se toma de tu perfil — configúrala en la página de Sala."
@@ -197,10 +242,11 @@ async function OwnPostCard({
     return (
       <Card className="mt-8">
         <CardContent className="pt-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
             {lang === "es"
               ? "Tu publicación está activa. Esperando a que alguien se una…"
               : "Your post is live. Waiting for someone to join…"}
+            {post.minTier && <Badge>{post.minTier}+</Badge>}
           </p>
           <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
             <Button type="submit" variant="outline" size="sm">

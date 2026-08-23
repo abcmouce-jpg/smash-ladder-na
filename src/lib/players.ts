@@ -5,6 +5,16 @@ import { liftExpiredSuspension } from "@/lib/account";
 import { getActiveSeason } from "@/lib/seasons";
 import { startOfDayInTimeZone } from "@/lib/timezone";
 
+// The rating a player has ever reached, not their current one — same
+// "achieved" semantics as computeAchievements' peak-based badges and
+// hasPreviouslyReachedTier in rank-roles.ts. Used to gate tier-restricted
+// actions (e.g. posting/claiming a Free Battle post above a rank) so a
+// dip after reaching a tier doesn't take away access already earned.
+export async function getPeakRating(userId: string): Promise<number | null> {
+  const peak = await prisma.ratingHistory.aggregate({ where: { userId }, _max: { ratingAfter: true } });
+  return peak._max.ratingAfter;
+}
+
 export async function getPlayerProfile(userId: string) {
   const player = await prisma.user.findUnique({
     where: { id: userId },

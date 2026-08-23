@@ -1,12 +1,34 @@
 import { prisma } from "@/lib/db";
 import { PostStatus } from "@/generated/prisma/enums";
 import { sendDiscordDM, sendDiscordWebhookMessage, deleteDiscordWebhookMessage } from "@/lib/discord-bot";
+import { FREE_BATTLE_TIERS, hasReachedTier, type FreeBattleTier } from "@/lib/rank-tier";
+import { tierRoleId } from "@/lib/rank-roles";
+import { getPeakRating } from "@/lib/players";
+
+// One #<tier>-grind channel per restricted tier, each with its own webhook
+// (Channel Settings → Integrations → Webhooks) so a restricted post only
+// pings the players who can actually claim it — same "unset = skip
+// silently" pattern as DISCORD_FREE_BATTLE_WEBHOOK_URL below.
+function webhookUrlForTier(minTier: FreeBattleTier | null): string | undefined {
+  if (!minTier) return process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL;
+  return process.env[`DISCORD_FREE_BATTLE_${minTier.toUpperCase()}_WEBHOOK_URL`];
+}
+
+async function requireReachedTier(userId: string, minTier: FreeBattleTier) {
+  const peak = await getPeakRating(userId);
+  if (!hasReachedTier(peak, minTier)) {
+    throw new Error(`You need to have reached ${minTier} at least once to post this`);
+  }
+}
 
 // Best-effort teardown of a post's Discord announcement, if it has one and
 // the webhook is still configured — shared by closePost, claimPost, and the
-// expiry finalizer so a post's Discord footprint never outlives it.
-export async function deletePostAnnouncement(discordMessageId: string | null) {
-  const webhookUrl = process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL;
+// expiry finalizer so a post's Discord footprint never outlives it. Needs
+// the same minTier the post was created with — a webhook can only delete
+// its own messages, so deleting a tier-channel announcement through the
+// general webhook (or vice versa) would silently fail and leave it stuck.
+export async function deletePostAnnouncement(discordMessageId: string | null, minTier: FreeBattleTier | null = null) {
+  const webhookUrl = webhookUrlForTier(minTier);
   if (webhookUrl && discordMessageId) {
     await deleteDiscordWebhookMessage(webhookUrl, discordMessageId);
   }
@@ -30,6 +52,14 @@ export async function listOpenPosts(excludeUserId: string) {
   });
 }
 
+// Which of FREE_BATTLE_TIERS this player can actually restrict a post to —
+// drives which options the post form offers, and (via hasReachedTier) which
+// open posts they're allowed to claim.
+export async function getAchievedFreeBattleTiers(userId: string): Promise<FreeBattleTier[]> {
+  const peak = await getPeakRating(userId);
+  return FREE_BATTLE_TIERS.filter((tier) => hasReachedTier(peak, tier));
+}
+
 export async function getOwnActivePost(userId: string) {
   return prisma.freeBattlePost.findFirst({
     where: { authorId: userId, status: { in: [PostStatus.OPEN, PostStatus.MATCHED] } },
@@ -38,12 +68,15 @@ export async function getOwnActivePost(userId: string) {
   });
 }
 
-export async function createPost(userId: string, comment: string) {
+export async function createPost(userId: string, comment: string, minTier: FreeBattleTier | null = null) {
   const existing = await getOwnActivePost(userId);
   if (existing) throw new Error("You already have an active post");
 
   const trimmed = comment.trim();
   if (!trimmed) throw new Error("Comment is required");
+
+  if (minTier && !FREE_BATTLE_TIERS.includes(minTier)) throw new Error("Invalid rank restriction");
+  if (minTier) await requireReachedTier(userId, minTier);
 
   // Region comes from the player's own profile (set on the Lobby page) so
   // it stays consistent with the structured MATCH_REGIONS list used for
@@ -58,6 +91,7 @@ export async function createPost(userId: string, comment: string) {
       authorId: userId,
       comment: trimmed,
       region: author.region,
+      minTier,
       expiresAt: new Date(Date.now() + POST_TTL_MS),
     },
   });
@@ -67,12 +101,20 @@ export async function createPost(userId: string, comment: string) {
   // post the moment it goes up. Mirroring it into Discord (where the
   // community already hangs out) turns "browse the site to find a game"
   // into "see a ping, jump in" — the exact "someone else is playing right
-  // now" signal that drives return visits.
-  const webhookUrl = process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL;
+  // now" signal that drives return visits. A tier-restricted post mirrors
+  // into that tier's own #<tier>-grind channel instead of the general one,
+  // pinging that channel's rank role so it reaches players who can actually
+  // claim it (see rank-roles.ts — same role IDs the tier-up announcement
+  // and the "@Elite ping in here" channel convention already use).
+  const webhookUrl = webhookUrlForTier(minTier);
   if (webhookUrl) {
+    const roleId = minTier ? tierRoleId(minTier) : null;
+    const rolePrefix = roleId ? `<@&${roleId}> ` : "";
+    const tags = [minTier ? `${minTier}+` : null, author.region].filter(Boolean).join(", ");
+    const tagSuffix = tags ? ` (${tags})` : "";
     const messageId = await sendDiscordWebhookMessage(
       webhookUrl,
-      `🎮 **${author.username}** is looking for a free battle${author.region ? ` (${author.region})` : ""}: "${trimmed}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
+      `${rolePrefix}🎮 **${author.username}** is looking for a free battle${tagSuffix}: "${trimmed}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
     );
     // Recorded after the fact rather than in the initial create — the
     // message doesn't exist (so has no id) until after the post row does.
@@ -95,8 +137,11 @@ export async function closePost(userId: string, postId: string) {
     data: { status: PostStatus.CLOSED },
   });
   if (closed.count > 0) {
-    const post = await prisma.freeBattlePost.findUnique({ where: { id: postId }, select: { discordMessageId: true } });
-    await deletePostAnnouncement(post?.discordMessageId ?? null);
+    const post = await prisma.freeBattlePost.findUnique({
+      where: { id: postId },
+      select: { discordMessageId: true, minTier: true },
+    });
+    await deletePostAnnouncement(post?.discordMessageId ?? null, post?.minTier as FreeBattleTier | null);
   }
 }
 
@@ -112,6 +157,9 @@ export async function claimPost(userId: string, postId: string) {
   const post = await prisma.freeBattlePost.findUnique({ where: { id: postId } });
   if (!post) throw new Error("Post not found");
   if (post.authorId === userId) throw new Error("You can't claim your own post");
+  // Belt-and-suspenders alongside the disabled "I'm in" button in the UI —
+  // that's just a display hint, this is the actual gate.
+  if (post.minTier) await requireReachedTier(userId, post.minTier as FreeBattleTier);
 
   // Conditional update so two claimants racing for the same post can't both win.
   const claim = await prisma.freeBattlePost.updateMany({
@@ -120,7 +168,7 @@ export async function claimPost(userId: string, postId: string) {
   });
   if (claim.count === 0) throw new Error("This post was just claimed by someone else");
 
-  await deletePostAnnouncement(post.discordMessageId);
+  await deletePostAnnouncement(post.discordMessageId, post.minTier as FreeBattleTier | null);
 
   const [author, claimer] = await Promise.all([
     prisma.user.findUnique({ where: { id: post.authorId }, select: { discordId: true } }),

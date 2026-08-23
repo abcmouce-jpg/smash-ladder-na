@@ -545,6 +545,12 @@ model FreeBattlePost {
   author        User       @relation(fields: [authorId], references: [id])
   comment       String
   region        String?
+  // Gates visibility/claiming to players who've ever peaked at this rank tier
+  // (see getPeakRating) — null means anyone can claim it. One of
+  // FREE_BATTLE_TIERS in rank-tier.ts; stored as a plain string rather than
+  // a Prisma enum since it must line up with RANK_TIERS, which already
+  // isn't a DB enum.
+  minTier       String?
   status        PostStatus @default(OPEN)
   matchedWithId String?
   createdAt     DateTime   @default(now())

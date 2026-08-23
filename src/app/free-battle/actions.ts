@@ -6,6 +6,7 @@ import { claimPost, closePost, createPost } from "@/lib/free-battle";
 import { requireActiveUser } from "@/lib/account";
 import { prisma } from "@/lib/db";
 import { enforceRateLimit, minutesAgo } from "@/lib/rate-limit";
+import type { FreeBattleTier } from "@/lib/rank-tier";
 
 async function requireUserId() {
   const session = await auth();
@@ -13,7 +14,7 @@ async function requireUserId() {
   return session.user.id;
 }
 
-export async function postFreeBattle(comment: string) {
+export async function postFreeBattle(comment: string, minTier: FreeBattleTier | null = null) {
   const userId = await requireUserId();
   await requireActiveUser(userId);
   await enforceRateLimit({
@@ -21,7 +22,7 @@ export async function postFreeBattle(comment: string) {
     limit: 5,
     windowLabel: "5 minutes",
   });
-  await createPost(userId, comment);
+  await createPost(userId, comment, minTier);
   revalidatePath("/free-battle");
 }
 

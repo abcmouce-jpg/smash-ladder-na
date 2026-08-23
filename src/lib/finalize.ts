@@ -3,6 +3,7 @@ import { LobbyEntryStatus, MatchStatus, PostStatus, UserRole } from "@/generated
 import { autoConfirmStaleGameReport, closeOutUnansweredLead } from "@/lib/match-games";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { deletePostAnnouncement } from "@/lib/free-battle";
+import type { FreeBattleTier } from "@/lib/rank-tier";
 
 export async function finalizeExpiredLobbyEntries(now = new Date()) {
   const result = await prisma.ratingLobbyEntry.updateMany({
@@ -104,7 +105,7 @@ export async function finalizeExpiredFreeBattlePosts(now = new Date()) {
   // delete call afterward.
   const expiring = await prisma.freeBattlePost.findMany({
     where: { status: PostStatus.OPEN, expiresAt: { lt: now } },
-    select: { discordMessageId: true },
+    select: { discordMessageId: true, minTier: true },
   });
 
   const result = await prisma.freeBattlePost.updateMany({
@@ -113,7 +114,7 @@ export async function finalizeExpiredFreeBattlePosts(now = new Date()) {
   });
 
   for (const post of expiring) {
-    await deletePostAnnouncement(post.discordMessageId);
+    await deletePostAnnouncement(post.discordMessageId, post.minTier as FreeBattleTier | null);
   }
 
   return result.count;
