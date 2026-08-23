@@ -26,11 +26,17 @@ export function JoinLobbyForm({
   const [isPracticing, setIsPracticing] = useState(false);
 
   useEffect(() => {
-    try {
-      if (localStorage.getItem(PRACTICING_KEY) === "1") setIsPracticing(true);
-    } catch {
-      /* localStorage unavailable */
-    }
+    // Deferred a tick (rather than reading localStorage and calling
+    // setIsPracticing directly in the effect body) so this doesn't trigger
+    // react-hooks/set-state-in-effect's cascading-render warning — same
+    // async-callback shape as push-nudge-banner's mount check.
+    queueMicrotask(() => {
+      try {
+        if (localStorage.getItem(PRACTICING_KEY) === "1") setIsPracticing(true);
+      } catch {
+        /* localStorage unavailable */
+      }
+    });
   }, []);
 
   function updatePracticing(checked: boolean) {
