@@ -545,6 +545,10 @@ model FreeBattlePost {
   author        User       @relation(fields: [authorId], references: [id])
   comment       String
   region        String?
+  // Purely descriptive tags the author picks at post time — not a
+  // restriction like minTier below, just what the "Open posts" character
+  // filter matches against. Empty means the author didn't tag any.
+  characters    String[]   @default([])
   // Gates visibility/claiming to players who've ever peaked at this rank tier
   // (see getPeakRating) — null means anyone can claim it. One of
   // FREE_BATTLE_TIERS in rank-tier.ts; stored as a plain string rather than

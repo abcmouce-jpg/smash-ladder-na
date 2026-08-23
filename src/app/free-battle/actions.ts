@@ -14,7 +14,7 @@ async function requireUserId() {
   return session.user.id;
 }
 
-export async function postFreeBattle(comment: string, minTier: FreeBattleTier | null = null) {
+export async function postFreeBattle(comment: string, minTier: FreeBattleTier | null = null, characters: string[] = []) {
   const userId = await requireUserId();
   await requireActiveUser(userId);
   await enforceRateLimit({
@@ -22,7 +22,7 @@ export async function postFreeBattle(comment: string, minTier: FreeBattleTier | 
     limit: 5,
     windowLabel: "5 minutes",
   });
-  await createPost(userId, comment, minTier);
+  await createPost(userId, comment, minTier, characters);
   revalidatePath("/free-battle");
 }
 

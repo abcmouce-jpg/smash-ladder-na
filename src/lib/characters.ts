@@ -152,3 +152,10 @@ export function isMiiCharacter(character: string): boolean {
 // A Mii's custom moveset: 4 special moves, each customized to one of 4
 // variants, entered as a 4-digit string like "1221".
 export const MOVESET_PATTERN = /^[1-4]{4}$/;
+
+// Caps how many characters a Free Battle post can self-tag with — keeps the
+// (purely descriptive, unrestricted) tag list from becoming an unbounded
+// free-text stand-in, and the post-form/filter trigger from overflowing.
+// Same spirit as the block-list cap elsewhere in this codebase, just for a
+// self-declared string array instead of a relation.
+export const MAX_FREE_BATTLE_CHARACTERS = 5;

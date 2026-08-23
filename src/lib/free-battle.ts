@@ -4,8 +4,8 @@ import { sendDiscordDM, sendDiscordWebhookMessage, deleteDiscordWebhookMessage }
 import { FREE_BATTLE_TIERS, hasReachedTier, type FreeBattleTier } from "@/lib/rank-tier";
 import { tierRoleId } from "@/lib/rank-roles";
 import { getPeakRating } from "@/lib/players";
-import { echoGroupMembers, type SmashCharacter } from "@/lib/characters";
-import { expandRegionForSearch } from "@/lib/regions";
+import { SMASH_CHARACTERS, MAX_FREE_BATTLE_CHARACTERS, echoGroupMembers, type SmashCharacter } from "@/lib/characters";
+import { getRegionsWithinDistance } from "@/lib/regions";
 
 // One #<tier>-grind channel per restricted tier, each with its own webhook
 // (Channel Settings → Integrations → Webhooks) so a restricted post only
@@ -44,7 +44,12 @@ const authorSelect = {
 
 export interface FreeBattleFilters {
   character?: string | null;
-  region?: string | null;
+  // The viewer's own region and how far from it to search — mirrors the
+  // ranked Lobby's own distance-based matching (see MATCH_DISTANCE_PRESETS)
+  // rather than an exact/broad region string match. null/undefined maxKm
+  // (as opposed to a real number, including 0) means "no distance filter".
+  viewerRegion?: string | null;
+  maxDistanceKm?: number | null;
 }
 
 export async function listOpenPosts(excludeUserId: string, filters: FreeBattleFilters = {}) {
@@ -53,25 +58,21 @@ export async function listOpenPosts(excludeUserId: string, filters: FreeBattleFi
       status: PostStatus.OPEN,
       expiresAt: { gt: new Date() },
       authorId: { not: excludeUserId },
-      // Same echo-group treatment as the leaderboard's character filter
-      // (see getLeaderboardPlayers) — filtering by either side of an echo
-      // pair (Lucina/Marth, Daisy/Peach, etc.) pulls in both, and mains +
-      // auto-derived secondaries both count as "plays this character".
+      // Matches the post's own self-declared tags (see createPost), not the
+      // author's profile character — a post's tags are what it's actually
+      // about, which can differ from what the author mains overall. Echo
+      // fighters (Lucina/Marth is NOT one — see ECHO_FIGHTER_GROUPS —  but
+      // Peach/Daisy etc. are) still count as the same character either way.
       ...(filters.character
-        ? {
-            author: {
-              OR: echoGroupMembers(filters.character as SmashCharacter).flatMap((c) => [
-                { mainCharacter: c },
-                { secondaryCharacters: { has: c } },
-              ]),
-            },
-          }
+        ? { characters: { hasSome: echoGroupMembers(filters.character as SmashCharacter) as string[] } }
         : {}),
-      // Post's own region, copied from the author's profile at creation
-      // time — expanded the same way the leaderboard does, so a broad
-      // region filter (e.g. "USA East") also catches posts from a specific
-      // state within it.
-      ...(filters.region ? { region: { in: expandRegionForSearch(filters.region) } } : {}),
+      // Distance from the viewer's own region, using the same coordinate
+      // math the ranked Lobby's matching uses — a real number (including 0,
+      // "same region only") filters; null/undefined leaves posts unfiltered
+      // by region entirely.
+      ...(typeof filters.maxDistanceKm === "number"
+        ? { region: { in: getRegionsWithinDistance(filters.viewerRegion ?? null, filters.maxDistanceKm) } }
+        : {}),
     },
     orderBy: { createdAt: "desc" },
     include: authorSelect,
@@ -94,7 +95,12 @@ export async function getOwnActivePost(userId: string) {
   });
 }
 
-export async function createPost(userId: string, comment: string, minTier: FreeBattleTier | null = null) {
+export async function createPost(
+  userId: string,
+  comment: string,
+  minTier: FreeBattleTier | null = null,
+  characters: string[] = [],
+) {
   const existing = await getOwnActivePost(userId);
   if (existing) throw new Error("You already have an active post");
 
@@ -103,6 +109,14 @@ export async function createPost(userId: string, comment: string, minTier: FreeB
 
   if (minTier && !FREE_BATTLE_TIERS.includes(minTier)) throw new Error("Invalid rank restriction");
   if (minTier) await requireReachedTier(userId, minTier);
+
+  // Deduped and validated against the real roster rather than trusted as
+  // typed — this is form input, not a value the UI can guarantee. Silently
+  // drops anything invalid/excess rather than erroring, since these are
+  // just descriptive tags with nothing to get "wrong" about them.
+  const dedupedCharacters = [...new Set(characters)]
+    .filter((c) => (SMASH_CHARACTERS as readonly string[]).includes(c))
+    .slice(0, MAX_FREE_BATTLE_CHARACTERS);
 
   // Region comes from the player's own profile (set on the Lobby page) so
   // it stays consistent with the structured MATCH_REGIONS list used for
@@ -118,6 +132,7 @@ export async function createPost(userId: string, comment: string, minTier: FreeB
       comment: trimmed,
       region: author.region,
       minTier,
+      characters: dedupedCharacters,
       expiresAt: new Date(Date.now() + POST_TTL_MS),
     },
   });
@@ -136,7 +151,9 @@ export async function createPost(userId: string, comment: string, minTier: FreeB
   if (webhookUrl) {
     const roleId = minTier ? tierRoleId(minTier) : null;
     const rolePrefix = roleId ? `<@&${roleId}> ` : "";
-    const tags = [minTier ? `${minTier}+` : null, author.region].filter(Boolean).join(", ");
+    const tags = [minTier ? `${minTier}+` : null, dedupedCharacters.join("/") || null, author.region]
+      .filter(Boolean)
+      .join(", ");
     const tagSuffix = tags ? ` (${tags})` : "";
     const messageId = await sendDiscordWebhookMessage(
       webhookUrl,

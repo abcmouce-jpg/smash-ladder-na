@@ -3,30 +3,45 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import { auth } from "@/auth";
 import { getAchievedFreeBattleTiers, getOwnActivePost, getUserBrief, listOpenPosts } from "@/lib/free-battle";
+import { getUserRegion } from "@/lib/players";
 import { FREE_BATTLE_TIERS, type FreeBattleTier } from "@/lib/rank-tier";
-import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
-import { MATCH_REGIONS, MATCH_REGION_GROUPS } from "@/lib/regions";
+import { SMASH_CHARACTERS, MAX_FREE_BATTLE_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
+import { MATCH_DISTANCE_PRESETS } from "@/lib/regions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdSlot } from "@/components/ad-slot";
 import { CharacterFilterSelect } from "@/components/character-filter-select";
+import { CharacterMultiSelect } from "@/components/character-multi-select";
+import { CharacterIcon } from "@/components/character-icon";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { claimFreeBattlePost, closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 
-const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group) =>
-  group.regions.map((r) => ({ value: r, label: r, group: group.label })),
-);
+const DISTANCE_OPTIONS: OptionSelectOption[] = MATCH_DISTANCE_PRESETS.map((p) => ({
+  value: p.km === null ? "worldwide" : String(p.km),
+  label: p.label,
+}));
+
+// undefined means "no distance filter" (param missing/unrecognized); null
+// means the "Worldwide" preset, which is also unfiltered but explicitly
+// chosen — both end up not touching the query, see listOpenPosts.
+function parseDistanceParam(raw: string | undefined): number | null | undefined {
+  if (!raw) return undefined;
+  if (raw === "worldwide") return null;
+  const km = Number(raw);
+  return Number.isFinite(km) ? km : undefined;
+}
 
 export default async function FreeBattlePage({
   searchParams,
 }: {
-  searchParams: Promise<{ character?: string; region?: string }>;
+  searchParams: Promise<{ character?: string; distance?: string }>;
 }) {
-  const [session, lang, { character, region }] = await Promise.all([auth(), getLang(), searchParams]);
+  const [session, lang, { character, distance }] = await Promise.all([auth(), getLang(), searchParams]);
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
-  const isValidRegion = region && (MATCH_REGIONS as readonly string[]).includes(region);
+  const maxDistanceKm = parseDistanceParam(distance);
+  const distanceLabel = DISTANCE_OPTIONS.find((o) => o.value === distance)?.label;
 
   if (!session?.user?.id) {
     return (
@@ -42,14 +57,16 @@ export default async function FreeBattlePage({
   }
 
   const userId = session.user.id;
-  const [ownPost, openPosts, achievedTiers] = await Promise.all([
+  const [ownPost, achievedTiers, viewerRegion] = await Promise.all([
     getOwnActivePost(userId),
-    listOpenPosts(userId, {
-      character: isValidCharacter ? character : null,
-      region: isValidRegion ? region : null,
-    }),
     getAchievedFreeBattleTiers(userId),
+    getUserRegion(userId),
   ]);
+  const openPosts = await listOpenPosts(userId, {
+    character: isValidCharacter ? character : null,
+    viewerRegion,
+    maxDistanceKm,
+  });
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -118,22 +135,20 @@ export default async function FreeBattlePage({
             (lang === "es"
               ? ` — jugadores de ${echoGroupLabel(character as SmashCharacter)}`
               : ` — ${echoGroupLabel(character as SmashCharacter)} players`)}
-          {isValidRegion && ` (${region})`}
+          {distanceLabel && ` (${distanceLabel})`}
         </h2>
         <form method="get" className="mt-3 flex flex-wrap items-end gap-2">
           <CharacterFilterSelect defaultValue={isValidCharacter ? character : ""} lang={lang} className="w-full md:w-40" />
           <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-            {lang === "es" ? "Región" : "Region"}
+            {lang === "es" ? "Distancia" : "Distance"}
             <OptionSelect
-              key={isValidRegion ? region : ""}
-              name="region"
-              defaultValue={isValidRegion ? region : ""}
-              placeholder={lang === "es" ? "Todas las regiones" : "All regions"}
-              clearLabel={lang === "es" ? "Todas las regiones" : "All regions"}
-              className="w-full md:w-40"
-              searchable
-              searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
-              options={REGION_OPTIONS}
+              key={distanceLabel ? distance : ""}
+              name="distance"
+              defaultValue={distanceLabel ? distance : ""}
+              placeholder={lang === "es" ? "Cualquier distancia" : "Any distance"}
+              clearLabel={lang === "es" ? "Cualquier distancia" : "Any distance"}
+              className="w-full md:w-48"
+              options={DISTANCE_OPTIONS}
               autoSubmit
             />
           </label>
@@ -141,9 +156,16 @@ export default async function FreeBattlePage({
             {lang === "es" ? "Filtrar" : "Filter"}
           </Button>
         </form>
+        {!viewerRegion && typeof maxDistanceKm === "number" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {lang === "es"
+              ? "Configura tu región en la página de Sala para usar el filtro de distancia."
+              : "Set your region on the Lobby page to use the distance filter."}
+          </p>
+        )}
         {openPosts.length === 0 && (
           <p className="mt-4 text-sm text-muted-foreground">
-            {isValidCharacter || isValidRegion
+            {isValidCharacter || maxDistanceKm !== undefined
               ? lang === "es"
                 ? "Ninguna publicación abierta coincide con estos filtros."
                 : "No open posts match those filters."
@@ -176,6 +198,13 @@ export default async function FreeBattlePage({
                           {minTier && <Badge>{minTier}+</Badge>}
                           {post.region && <Badge variant="outline">{post.region}</Badge>}
                         </p>
+                        {post.characters.length > 0 && (
+                          <div className="mt-1 flex items-center gap-1">
+                            {post.characters.map((c) => (
+                              <CharacterIcon key={c} name={c} size={16} />
+                            ))}
+                          </div>
+                        )}
                         <p className="mt-0.5 text-sm text-muted-foreground">{post.comment}</p>
                       </div>
                     </div>
@@ -218,7 +247,8 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
     const comment = String(formData.get("comment") ?? "");
     const rawMinTier = String(formData.get("minTier") ?? "");
     const minTier = FREE_BATTLE_TIERS.includes(rawMinTier as FreeBattleTier) ? (rawMinTier as FreeBattleTier) : null;
-    await postFreeBattle(comment, minTier);
+    const characters = formData.getAll("characters").map(String);
+    await postFreeBattle(comment, minTier, characters);
   }
 
   // FREE_BATTLE_TIERS is ordered highest to lowest; the form should offer
@@ -266,6 +296,19 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
               </span>
             </label>
           )}
+          <label className="flex flex-col gap-1 text-sm">
+            {lang === "es" ? "¿Qué personajes? (opcional)" : "Which characters? (optional)"}
+            <CharacterMultiSelect
+              name="characters"
+              placeholder={lang === "es" ? "Sin especificar" : "Not specified"}
+              className="w-full"
+            />
+            <span className="text-xs text-muted-foreground">
+              {lang === "es"
+                ? `Solo para etiquetar tu publicación (hasta ${MAX_FREE_BATTLE_CHARACTERS}) — cualquiera puede unirse igual; ayuda a que te encuentren en el filtro de abajo.`
+                : `Just tags the post (up to ${MAX_FREE_BATTLE_CHARACTERS}) — anyone can still join, this only helps people find it via the filter below.`}
+            </span>
+          </label>
           <p className="text-xs text-muted-foreground">
             {lang === "es"
               ? "La región se toma de tu perfil — configúrala en la página de Sala."
@@ -297,6 +340,13 @@ async function OwnPostCard({
               : "Your post is live. Waiting for someone to join…"}
             {post.minTier && <Badge>{post.minTier}+</Badge>}
           </p>
+          {post.characters.length > 0 && (
+            <div className="mt-2 flex items-center gap-1">
+              {post.characters.map((c) => (
+                <CharacterIcon key={c} name={c} size={16} />
+              ))}
+            </div>
+          )}
           <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
             <Button type="submit" variant="outline" size="sm">
               {lang === "es" ? "Cerrar publicación" : "Close post"}

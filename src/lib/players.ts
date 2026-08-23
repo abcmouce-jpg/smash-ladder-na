@@ -15,6 +15,14 @@ export async function getPeakRating(userId: string): Promise<number | null> {
   return peak._max.ratingAfter;
 }
 
+// Single-field lookup for callers that just need the region (e.g. Free
+// Battle's distance filter) without pulling in getPlayerProfile's much
+// heavier full-profile query.
+export async function getUserRegion(userId: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { region: true } });
+  return user?.region ?? null;
+}
+
 export async function getPlayerProfile(userId: string) {
   const player = await prisma.user.findUnique({
     where: { id: userId },
