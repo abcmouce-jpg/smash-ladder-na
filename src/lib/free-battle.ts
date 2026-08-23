@@ -1,6 +1,13 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
-import { PostStatus } from "@/generated/prisma/enums";
-import { sendDiscordDM, sendDiscordWebhookMessage, deleteDiscordWebhookMessage } from "@/lib/discord-bot";
+import { PostStatus, UserStatus } from "@/generated/prisma/enums";
+import {
+  sendDiscordDM,
+  sendDiscordDMsSequentially,
+  sendDiscordWebhookMessage,
+  deleteDiscordWebhookMessage,
+  getGuildMemberRoles,
+} from "@/lib/discord-bot";
 import { FREE_BATTLE_TIERS, hasReachedTier, type FreeBattleTier } from "@/lib/rank-tier";
 import { tierRoleId } from "@/lib/rank-roles";
 import { getPeakRating } from "@/lib/players";
@@ -104,6 +111,99 @@ function distanceLabel(maxDistanceKm: number | null | undefined): string | null 
   return MATCH_DISTANCE_PRESETS.find((p) => p.km === maxDistanceKm)?.label ?? `Within ${maxDistanceKm}km`;
 }
 
+// DMs players who've self-assigned the community server's @Matchmaking
+// role and whose own profile (character, distance tolerance) matches this
+// post — the site's own "someone's looking for a game like the one you
+// want" ping, on top of the Discord channel announcement above. Exported
+// (rather than only reachable via deferMatchmakingNotification below) so
+// integration tests can call it directly — after() throws outside a real
+// request scope, which would otherwise make this untestable.
+export async function notifyMatchmakingSubscribers(
+  post: { comment: string; region: string | null; minTier: string | null; characters: string[] },
+  author: { id: string; username: string },
+) {
+  const guildId = process.env.DISCORD_COMMUNITY_GUILD_ID;
+  const matchmakingRoleId = process.env.DISCORD_MATCHMAKING_ROLE_ID;
+  if (!guildId || !matchmakingRoleId) return;
+
+  const candidates = await prisma.user.findMany({
+    where: {
+      id: { not: author.id },
+      status: { not: UserStatus.BANNED },
+      // No tag on the post means no character preference to match against
+      // — everyone's a candidate on that axis. Echo fighters count as the
+      // same character either way (see echoGroupMembers).
+      ...(post.characters.length > 0
+        ? {
+            OR: post.characters.flatMap((c) =>
+              echoGroupMembers(c as SmashCharacter).flatMap((echo) => [
+                { mainCharacter: echo },
+                { secondaryCharacters: { has: echo } },
+              ]),
+            ),
+          }
+        : {}),
+    },
+    select: { id: true, discordId: true, region: true, maxMatchDistanceKm: true },
+  });
+
+  // Distance is gated by each candidate's OWN self-declared tolerance (the
+  // same maxMatchDistanceKm the ranked Lobby uses), not a preference stated
+  // on the post — reusing getRegionsWithinDistance from the candidate's
+  // region sidesteps needing raw coordinate math here. Skipped entirely
+  // (treated as a match) whenever either side has no region on file, same
+  // "missing = unconstrained" default the rest of this feature uses.
+  const withinDistance = candidates.filter((c) => {
+    if (!post.region || !c.region) return true;
+    return getRegionsWithinDistance(c.region, c.maxMatchDistanceKm).includes(post.region);
+  });
+
+  // A tier-restricted post is something these candidates couldn't actually
+  // join even if they wanted to (no on-site claim flow anymore — see the
+  // post form's "Who can join?" — so pinging them about it would just be a
+  // dead end). Peak-rating based, same as every other minTier check here.
+  const eligible = post.minTier
+    ? (
+        await Promise.all(
+          withinDistance.map(async (c) => ({ c, peak: await getPeakRating(c.id) })),
+        )
+      )
+        .filter(({ peak }) => hasReachedTier(peak, post.minTier as FreeBattleTier))
+        .map(({ c }) => c)
+    : withinDistance;
+
+  const recipients: { discordId: string }[] = [];
+  for (const candidate of eligible) {
+    const roles = await getGuildMemberRoles(guildId, candidate.discordId);
+    if (roles?.includes(matchmakingRoleId)) recipients.push({ discordId: candidate.discordId });
+  }
+
+  if (recipients.length === 0) return;
+  await sendDiscordDMsSequentially(
+    recipients,
+    `🔔 New free battle matching your interests — **${author.username}**: "${post.comment}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
+  );
+}
+
+// Defers notifyMatchmakingSubscribers to run once the creating request has
+// committed — role-checking and DMing a whole candidate list can take a
+// while (one Discord lookup per candidate, one second between each DM —
+// see sendDiscordDMsSequentially), and none of it should hold up the
+// response to whoever just posted. Outside a request scope (integration
+// tests, one-off scripts) after() throws with nothing to defer past — a
+// deliberate no-op there, same reasoning as deferTierChange in
+// rank-roles.ts.
+function deferMatchmakingNotification(
+  post: Parameters<typeof notifyMatchmakingSubscribers>[0],
+  author: Parameters<typeof notifyMatchmakingSubscribers>[1],
+) {
+  try {
+    after(() => notifyMatchmakingSubscribers(post, author));
+  } catch {
+    // See comment above.
+  }
+}
+
 export async function createPost(
   userId: string,
   comment: string,
@@ -183,6 +283,8 @@ export async function createPost(
       await prisma.freeBattlePost.update({ where: { id: post.id }, data: { discordMessageId: messageId } });
     }
   }
+
+  deferMatchmakingNotification(post, { id: userId, username: author.username });
 
   return post;
 }

@@ -115,6 +115,24 @@ export async function sendDiscordWebhookEmbed(
   }
 }
 
+// The role ids a specific guild member currently holds, or null if they
+// can't be looked up (not in the guild, bot not configured, etc.) — used to
+// check live role membership (e.g. the self-assignable @Matchmaking role)
+// right before notifying someone, rather than caching it and risking a
+// stale "yes" for someone who removed the role. Getting a single member by
+// id doesn't need the privileged Server Members Intent that listing the
+// whole membership would.
+export async function getGuildMemberRoles(guildId: string, discordId: string): Promise<string[] | null> {
+  try {
+    const res = await discordRequest(`/guilds/${guildId}/members/${discordId}`, { method: "GET" });
+    if (!res?.ok) return null;
+    const member = (await res.json()) as { roles: string[] };
+    return member.roles;
+  } catch {
+    return null;
+  }
+}
+
 // Idempotent: safe to call even if the member already has exactly this
 // role, or no role at all to remove. Both requests are fired regardless of
 // whether either one 404s (e.g. the member left the server, or never had

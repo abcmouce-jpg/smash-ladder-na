@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { MatchStatus, PostStatus } from "@/generated/prisma/enums";
-import { createPost, closePost, claimPost, listOpenPosts } from "@/lib/free-battle";
+import { createPost, closePost, claimPost, listOpenPosts, notifyMatchmakingSubscribers } from "@/lib/free-battle";
 import { finalizeExpiredFreeBattlePosts } from "@/lib/finalize";
 import { createTestUser } from "@/test/factories";
 import * as discordBot from "@/lib/discord-bot";
@@ -392,5 +392,95 @@ describe("listOpenPosts filters", () => {
     const posts = await listOpenPosts(viewer.id, { character: "Daisy" });
 
     expect(posts.map((p) => p.authorId)).toEqual([author.id]);
+  });
+});
+
+describe("notifyMatchmakingSubscribers", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.DISCORD_COMMUNITY_GUILD_ID;
+    delete process.env.DISCORD_MATCHMAKING_ROLE_ID;
+  });
+
+  function configureDiscord() {
+    process.env.DISCORD_COMMUNITY_GUILD_ID = "guild-1";
+    process.env.DISCORD_MATCHMAKING_ROLE_ID = "role-mm";
+  }
+
+  it("does nothing when unconfigured", async () => {
+    const author = await createTestUser();
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially");
+
+    await notifyMatchmakingSubscribers(
+      { comment: "gg", region: null, minTier: null, characters: [] },
+      { id: author.id, username: author.username },
+    );
+
+    expect(dmSpy).not.toHaveBeenCalled();
+  });
+
+  it("DMs a matchmaking-role candidate whose character matches the post's tags", async () => {
+    configureDiscord();
+    const author = await createTestUser();
+    const candidate = await createTestUser({ mainCharacter: "Fox" });
+    await createTestUser({ mainCharacter: "Falco" }); // control: no character overlap, shouldn't be DMed
+    vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue(["role-mm"]);
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
+
+    await notifyMatchmakingSubscribers(
+      { comment: "fox dittos", region: null, minTier: null, characters: ["Fox"] },
+      { id: author.id, username: author.username },
+    );
+
+    expect(dmSpy).toHaveBeenCalledTimes(1);
+    expect(dmSpy.mock.calls[0][0]).toEqual([{ discordId: candidate.discordId }]);
+  });
+
+  it("skips a character-matching candidate who doesn't hold the matchmaking role", async () => {
+    configureDiscord();
+    const author = await createTestUser();
+    await createTestUser({ mainCharacter: "Fox" });
+    vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue([]);
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
+
+    await notifyMatchmakingSubscribers(
+      { comment: "fox dittos", region: null, minTier: null, characters: ["Fox"] },
+      { id: author.id, username: author.username },
+    );
+
+    expect(dmSpy).not.toHaveBeenCalled();
+  });
+
+  it("respects each candidate's own distance tolerance, not a preference on the post", async () => {
+    configureDiscord();
+    const author = await createTestUser({ region: "USA East" });
+    const near = await createTestUser({ region: "New York", maxMatchDistanceKm: 640 });
+    await createTestUser({ region: "USA Pacific", maxMatchDistanceKm: 640 }); // control: too far
+    vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue(["role-mm"]);
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
+
+    await notifyMatchmakingSubscribers(
+      { comment: "gg", region: "USA East", minTier: null, characters: [] },
+      { id: author.id, username: author.username },
+    );
+
+    expect(dmSpy.mock.calls[0][0]).toEqual([{ discordId: near.discordId }]);
+  });
+
+  it("skips candidates who haven't reached a tier-restricted post's minTier", async () => {
+    configureDiscord();
+    const author = await createTestUser();
+    const qualifies = await createTestUser();
+    await givePeakRating(qualifies.id, 1650);
+    await createTestUser(); // control: never reached Elite
+    vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue(["role-mm"]);
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
+
+    await notifyMatchmakingSubscribers(
+      { comment: "elite only", region: null, minTier: "Elite", characters: [] },
+      { id: author.id, username: author.username },
+    );
+
+    expect(dmSpy.mock.calls[0][0]).toEqual([{ discordId: qualifies.discordId }]);
   });
 });
