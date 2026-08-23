@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { MatchStatus, PostStatus } from "@/generated/prisma/enums";
-import { createPost, closePost, claimPost, listOpenPosts, notifyMatchmakingSubscribers } from "@/lib/free-battle";
+import { createPost, closePost, claimPost, notifyMatchmakingSubscribers } from "@/lib/free-battle";
 import { finalizeExpiredFreeBattlePosts } from "@/lib/finalize";
 import { createTestUser } from "@/test/factories";
 import * as discordBot from "@/lib/discord-bot";
@@ -128,41 +128,6 @@ describe("createPost", () => {
     expect(content).toContain("Elite+");
   });
 
-  it("stores deduped, validated character tags", async () => {
-    const author = await createTestUser();
-
-    const post = await createPost(author.id, "fox dittos", null, ["Fox", "Fox", "Not A Character"]);
-
-    expect(post.characters).toEqual(["Fox"]);
-  });
-
-  it("allows tagging with any number of characters, no cap", async () => {
-    const author = await createTestUser();
-    const many = ["Mario", "Luigi", "Peach", "Bowser", "Yoshi", "Donkey Kong"];
-
-    const post = await createPost(author.id, "so many mains", null, many);
-
-    expect(post.characters).toEqual(many);
-  });
-
-  it("stores a self-declared distance preference", async () => {
-    const author = await createTestUser();
-
-    const post = await createPost(author.id, "close by only", null, [], 640);
-
-    expect(post.maxDistanceKm).toBe(640);
-  });
-
-  it("includes the distance preference's label in the Discord announcement", async () => {
-    process.env.DISCORD_FREE_BATTLE_WEBHOOK_URL = "https://discord.com/api/webhooks/test";
-    const webhookSpy = vi.spyOn(discordBot, "sendDiscordWebhookMessage").mockResolvedValue(null);
-    const author = await createTestUser();
-
-    await createPost(author.id, "close by only", null, [], 640);
-
-    const [, content] = webhookSpy.mock.calls[0];
-    expect(content).toContain("Close (~400 mi)");
-  });
 });
 
 describe("closePost", () => {
@@ -335,66 +300,6 @@ describe("finalizeExpiredFreeBattlePosts", () => {
   });
 });
 
-describe("listOpenPosts filters", () => {
-  it("filters by distance from the viewer's own region", async () => {
-    const viewer = await createTestUser();
-    const nearby = await createTestUser({ region: "New York" }); // ~330km from USA East
-    const far = await createTestUser({ region: "USA Pacific" });
-    await prisma.freeBattlePost.createMany({
-      data: [nearby, far].map((a) => ({
-        authorId: a.id,
-        comment: "gg",
-        region: a.region,
-        expiresAt: new Date(Date.now() + 60_000),
-      })),
-    });
-
-    const posts = await listOpenPosts(viewer.id, { viewerRegion: "USA East", maxDistanceKm: 640 });
-
-    expect(posts.map((p) => p.authorId)).toEqual([nearby.id]);
-  });
-
-  it("does not filter by distance when maxDistanceKm is omitted", async () => {
-    const viewer = await createTestUser();
-    const far = await createTestUser({ region: "USA Pacific" });
-    await prisma.freeBattlePost.create({
-      data: { authorId: far.id, comment: "gg", region: far.region, expiresAt: new Date(Date.now() + 60_000) },
-    });
-
-    const posts = await listOpenPosts(viewer.id, { viewerRegion: "USA East" });
-
-    expect(posts.map((p) => p.authorId)).toEqual([far.id]);
-  });
-
-  it("filters by the post's own character tags, not the author's profile character", async () => {
-    const viewer = await createTestUser();
-    const author = await createTestUser({ mainCharacter: "Falco" }); // profile main differs from the tag
-    await prisma.freeBattlePost.create({
-      data: {
-        authorId: author.id,
-        comment: "gg",
-        characters: ["Fox"],
-        expiresAt: new Date(Date.now() + 60_000),
-      },
-    });
-
-    expect((await listOpenPosts(viewer.id, { character: "Fox" })).map((p) => p.authorId)).toEqual([author.id]);
-    expect(await listOpenPosts(viewer.id, { character: "Falco" })).toEqual([]);
-  });
-
-  it("treats echo fighters as the same character tag", async () => {
-    const viewer = await createTestUser();
-    const author = await createTestUser();
-    await prisma.freeBattlePost.create({
-      data: { authorId: author.id, comment: "gg", characters: ["Peach"], expiresAt: new Date(Date.now() + 60_000) },
-    });
-
-    const posts = await listOpenPosts(viewer.id, { character: "Daisy" });
-
-    expect(posts.map((p) => p.authorId)).toEqual([author.id]);
-  });
-});
-
 describe("notifyMatchmakingSubscribers", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -412,23 +317,22 @@ describe("notifyMatchmakingSubscribers", () => {
     const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially");
 
     await notifyMatchmakingSubscribers(
-      { comment: "gg", region: null, minTier: null, characters: [] },
+      { comment: "gg", region: null, minTier: null },
       { id: author.id, username: author.username },
     );
 
     expect(dmSpy).not.toHaveBeenCalled();
   });
 
-  it("DMs a matchmaking-role candidate whose character matches the post's tags", async () => {
+  it("DMs a matchmaking-role candidate", async () => {
     configureDiscord();
     const author = await createTestUser();
-    const candidate = await createTestUser({ mainCharacter: "Fox" });
-    await createTestUser({ mainCharacter: "Falco" }); // control: no character overlap, shouldn't be DMed
+    const candidate = await createTestUser();
     vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue(["role-mm"]);
     const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
 
     await notifyMatchmakingSubscribers(
-      { comment: "fox dittos", region: null, minTier: null, characters: ["Fox"] },
+      { comment: "anyone up?", region: null, minTier: null },
       { id: author.id, username: author.username },
     );
 
@@ -436,15 +340,15 @@ describe("notifyMatchmakingSubscribers", () => {
     expect(dmSpy.mock.calls[0][0]).toEqual([{ discordId: candidate.discordId }]);
   });
 
-  it("skips a character-matching candidate who doesn't hold the matchmaking role", async () => {
+  it("skips a candidate who doesn't hold the matchmaking role", async () => {
     configureDiscord();
     const author = await createTestUser();
-    await createTestUser({ mainCharacter: "Fox" });
+    await createTestUser();
     vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue([]);
     const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
 
     await notifyMatchmakingSubscribers(
-      { comment: "fox dittos", region: null, minTier: null, characters: ["Fox"] },
+      { comment: "anyone up?", region: null, minTier: null },
       { id: author.id, username: author.username },
     );
 
@@ -460,7 +364,7 @@ describe("notifyMatchmakingSubscribers", () => {
     const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
 
     await notifyMatchmakingSubscribers(
-      { comment: "gg", region: "USA East", minTier: null, characters: [] },
+      { comment: "gg", region: "USA East", minTier: null },
       { id: author.id, username: author.username },
     );
 
@@ -477,7 +381,7 @@ describe("notifyMatchmakingSubscribers", () => {
     const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
 
     await notifyMatchmakingSubscribers(
-      { comment: "elite only", region: null, minTier: "Elite", characters: [] },
+      { comment: "elite only", region: null, minTier: "Elite" },
       { id: author.id, username: author.username },
     );
 

@@ -11,8 +11,7 @@ import {
 import { FREE_BATTLE_TIERS, hasReachedTier, type FreeBattleTier } from "@/lib/rank-tier";
 import { tierRoleId } from "@/lib/rank-roles";
 import { getPeakRating } from "@/lib/players";
-import { SMASH_CHARACTERS, echoGroupMembers, type SmashCharacter } from "@/lib/characters";
-import { getRegionsWithinDistance, MATCH_DISTANCE_PRESETS } from "@/lib/regions";
+import { getRegionsWithinDistance } from "@/lib/regions";
 
 // One #<tier>-grind channel per restricted tier, each with its own webhook
 // (Channel Settings → Integrations → Webhooks) so a restricted post only
@@ -49,43 +48,6 @@ const authorSelect = {
   author: { select: { id: true, username: true, avatarUrl: true, rating: true } },
 } as const;
 
-export interface FreeBattleFilters {
-  character?: string | null;
-  // The viewer's own region and how far from it to search — mirrors the
-  // ranked Lobby's own distance-based matching (see MATCH_DISTANCE_PRESETS)
-  // rather than an exact/broad region string match. null/undefined maxKm
-  // (as opposed to a real number, including 0) means "no distance filter".
-  viewerRegion?: string | null;
-  maxDistanceKm?: number | null;
-}
-
-export async function listOpenPosts(excludeUserId: string, filters: FreeBattleFilters = {}) {
-  return prisma.freeBattlePost.findMany({
-    where: {
-      status: PostStatus.OPEN,
-      expiresAt: { gt: new Date() },
-      authorId: { not: excludeUserId },
-      // Matches the post's own self-declared tags (see createPost), not the
-      // author's profile character — a post's tags are what it's actually
-      // about, which can differ from what the author mains overall. Echo
-      // fighters (Lucina/Marth is NOT one — see ECHO_FIGHTER_GROUPS —  but
-      // Peach/Daisy etc. are) still count as the same character either way.
-      ...(filters.character
-        ? { characters: { hasSome: echoGroupMembers(filters.character as SmashCharacter) as string[] } }
-        : {}),
-      // Distance from the viewer's own region, using the same coordinate
-      // math the ranked Lobby's matching uses — a real number (including 0,
-      // "same region only") filters; null/undefined leaves posts unfiltered
-      // by region entirely.
-      ...(typeof filters.maxDistanceKm === "number"
-        ? { region: { in: getRegionsWithinDistance(filters.viewerRegion ?? null, filters.maxDistanceKm) } }
-        : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    include: authorSelect,
-  });
-}
-
 // Which of FREE_BATTLE_TIERS this player can actually restrict a post to —
 // drives which options the post form offers, and (via hasReachedTier) which
 // open posts they're allowed to claim.
@@ -102,24 +64,15 @@ export async function getOwnActivePost(userId: string) {
   });
 }
 
-// Label for a self-declared distance preference, matching the Lobby's own
-// MATCH_DISTANCE_PRESETS wording — undefined/null both read as "no
-// preference stated" (falls out of the Discord tags entirely) rather than
-// a preset with no matching label.
-function distanceLabel(maxDistanceKm: number | null | undefined): string | null {
-  if (maxDistanceKm == null) return null;
-  return MATCH_DISTANCE_PRESETS.find((p) => p.km === maxDistanceKm)?.label ?? `Within ${maxDistanceKm}km`;
-}
-
 // DMs players who've self-assigned the community server's @Matchmaking
-// role and whose own profile (character, distance tolerance) matches this
-// post — the site's own "someone's looking for a game like the one you
-// want" ping, on top of the Discord channel announcement above. Exported
-// (rather than only reachable via deferMatchmakingNotification below) so
-// integration tests can call it directly — after() throws outside a real
-// request scope, which would otherwise make this untestable.
+// role and whose own profile (distance tolerance) matches this post — the
+// site's own "someone's looking for a game like the one you want" ping, on
+// top of the Discord channel announcement above. Exported (rather than
+// only reachable via deferMatchmakingNotification below) so integration
+// tests can call it directly — after() throws outside a real request
+// scope, which would otherwise make this untestable.
 export async function notifyMatchmakingSubscribers(
-  post: { comment: string; region: string | null; minTier: string | null; characters: string[] },
+  post: { comment: string; region: string | null; minTier: string | null },
   author: { id: string; username: string },
 ) {
   const guildId = process.env.DISCORD_COMMUNITY_GUILD_ID;
@@ -127,23 +80,7 @@ export async function notifyMatchmakingSubscribers(
   if (!guildId || !matchmakingRoleId) return;
 
   const candidates = await prisma.user.findMany({
-    where: {
-      id: { not: author.id },
-      status: { not: UserStatus.BANNED },
-      // No tag on the post means no character preference to match against
-      // — everyone's a candidate on that axis. Echo fighters count as the
-      // same character either way (see echoGroupMembers).
-      ...(post.characters.length > 0
-        ? {
-            OR: post.characters.flatMap((c) =>
-              echoGroupMembers(c as SmashCharacter).flatMap((echo) => [
-                { mainCharacter: echo },
-                { secondaryCharacters: { has: echo } },
-              ]),
-            ),
-          }
-        : {}),
-    },
+    where: { id: { not: author.id }, status: { not: UserStatus.BANNED } },
     select: { id: true, discordId: true, region: true, maxMatchDistanceKm: true },
   });
 
@@ -204,13 +141,7 @@ function deferMatchmakingNotification(
   }
 }
 
-export async function createPost(
-  userId: string,
-  comment: string,
-  minTier: FreeBattleTier | null = null,
-  characters: string[] = [],
-  maxDistanceKm: number | null = null,
-) {
+export async function createPost(userId: string, comment: string, minTier: FreeBattleTier | null = null) {
   const existing = await getOwnActivePost(userId);
   if (existing) throw new Error("You already have an active post");
 
@@ -219,14 +150,6 @@ export async function createPost(
 
   if (minTier && !FREE_BATTLE_TIERS.includes(minTier)) throw new Error("Invalid rank restriction");
   if (minTier) await requireReachedTier(userId, minTier);
-
-  // Deduped and validated against the real roster rather than trusted as
-  // typed — this is form input, not a value the UI can guarantee. Silently
-  // drops anything invalid rather than erroring, since these are just
-  // descriptive tags with nothing to get "wrong" about them.
-  const dedupedCharacters = [...new Set(characters)].filter((c) =>
-    (SMASH_CHARACTERS as readonly string[]).includes(c),
-  );
 
   // Region comes from the player's own profile (set on the Lobby page) so
   // it stays consistent with the structured MATCH_REGIONS list used for
@@ -242,8 +165,6 @@ export async function createPost(
       comment: trimmed,
       region: author.region,
       minTier,
-      characters: dedupedCharacters,
-      maxDistanceKm,
       expiresAt: new Date(Date.now() + POST_TTL_MS),
     },
   });
@@ -262,14 +183,7 @@ export async function createPost(
   if (webhookUrl) {
     const roleId = minTier ? tierRoleId(minTier) : null;
     const rolePrefix = roleId ? `<@&${roleId}> ` : "";
-    const tags = [
-      minTier ? `${minTier}+` : null,
-      dedupedCharacters.join("/") || null,
-      author.region,
-      distanceLabel(maxDistanceKm),
-    ]
-      .filter(Boolean)
-      .join(", ");
+    const tags = [minTier ? `${minTier}+` : null, author.region].filter(Boolean).join(", ");
     const tagSuffix = tags ? ` (${tags})` : "";
     const messageId = await sendDiscordWebhookMessage(
       webhookUrl,

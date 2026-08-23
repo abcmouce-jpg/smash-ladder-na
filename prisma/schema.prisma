@@ -545,14 +545,6 @@ model FreeBattlePost {
   author        User       @relation(fields: [authorId], references: [id])
   comment       String
   region        String?
-  // Purely descriptive tags the author picks at post time — not a
-  // restriction like minTier below. Empty means the author didn't tag any.
-  characters    String[]   @default([])
-  // Self-declared "how far are you willing to play" preference, shown in
-  // the Discord announcement — one of MATCH_DISTANCE_PRESETS' km values in
-  // regions.ts, same preset set the ranked Lobby's own distance matching
-  // uses. Null means the author didn't state one.
-  maxDistanceKm Int?
   // Gates visibility/claiming to players who've ever peaked at this rank tier
   // (see getPeakRating) — null means anyone can claim it. One of
   // FREE_BATTLE_TIERS in rank-tier.ts; stored as a plain string rather than

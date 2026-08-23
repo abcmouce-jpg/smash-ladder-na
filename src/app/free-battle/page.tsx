@@ -4,13 +4,10 @@ import { Users } from "lucide-react";
 import { auth } from "@/auth";
 import { getAchievedFreeBattleTiers, getOwnActivePost, getUserBrief } from "@/lib/free-battle";
 import { FREE_BATTLE_TIERS, type FreeBattleTier } from "@/lib/rank-tier";
-import { MATCH_DISTANCE_PRESETS } from "@/lib/regions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdSlot } from "@/components/ad-slot";
-import { CharacterMultiSelect } from "@/components/character-multi-select";
-import { CharacterIcon } from "@/components/character-icon";
 import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 
@@ -106,11 +103,7 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
     const comment = String(formData.get("comment") ?? "");
     const rawMinTier = String(formData.get("minTier") ?? "");
     const minTier = FREE_BATTLE_TIERS.includes(rawMinTier as FreeBattleTier) ? (rawMinTier as FreeBattleTier) : null;
-    const characters = formData.getAll("characters").map(String);
-    const rawDistance = String(formData.get("maxDistanceKm") ?? "");
-    const maxDistanceKm =
-      rawDistance && rawDistance !== "worldwide" && Number.isFinite(Number(rawDistance)) ? Number(rawDistance) : null;
-    await postFreeBattle(comment, minTier, characters, maxDistanceKm);
+    await postFreeBattle(comment, minTier);
   }
 
   // FREE_BATTLE_TIERS is ordered highest to lowest; the form should offer
@@ -158,39 +151,6 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
               </span>
             </label>
           )}
-          <label className="flex flex-col gap-1 text-sm">
-            {lang === "es" ? "¿Qué personajes? (opcional)" : "Which characters? (optional)"}
-            <CharacterMultiSelect
-              name="characters"
-              placeholder={lang === "es" ? "Sin especificar" : "Not specified"}
-              className="w-full"
-            />
-            <span className="text-xs text-muted-foreground">
-              {lang === "es"
-                ? "Solo para etiquetar tu publicación — cualquiera puede unirse igual."
-                : "Just tags the post — anyone can still join."}
-            </span>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            {lang === "es" ? "Distancia (opcional)" : "Distance (optional)"}
-            <select
-              name="maxDistanceKm"
-              defaultValue=""
-              className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
-            >
-              <option value="">{lang === "es" ? "Sin preferencia" : "No preference"}</option>
-              {MATCH_DISTANCE_PRESETS.map((preset) => (
-                <option key={preset.label} value={preset.km === null ? "worldwide" : String(preset.km)}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
-            <span className="text-xs text-muted-foreground">
-              {lang === "es"
-                ? "Qué tan lejos estás dispuesto a jugar — se muestra en el anuncio de Discord."
-                : "How far you're willing to play — shown in the Discord announcement."}
-            </span>
-          </label>
           <p className="text-xs text-muted-foreground">
             {lang === "es"
               ? "La región se toma de tu perfil — configúrala en la página de Sala."
@@ -222,13 +182,6 @@ async function OwnPostCard({
               : "Your post is live. Waiting for someone to join…"}
             {post.minTier && <Badge>{post.minTier}+</Badge>}
           </p>
-          {post.characters.length > 0 && (
-            <div className="mt-2 flex items-center gap-1">
-              {post.characters.map((c) => (
-                <CharacterIcon key={c} name={c} size={16} />
-              ))}
-            </div>
-          )}
           <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
             <Button type="submit" variant="outline" size="sm">
               {lang === "es" ? "Cerrar publicación" : "Close post"}
