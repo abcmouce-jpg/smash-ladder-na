@@ -30,8 +30,21 @@ export function CancelOrSurrenderButton({
   lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
-  const [confirm, confirmDialog] = useConfirm();
+  const [confirm, confirmDialog, closeConfirm] = useConfirm();
   const confirmReadyRef = useRef(false);
+  const prevModeRef = useRef(mode);
+
+  // The lobby poller refreshes the page every few seconds, which can flip
+  // `mode` (opponent went from not-shown-up to engaged) while the confirm
+  // dialog is already open showing the old copy — see confirm-dialog.tsx's
+  // `close`. Dismiss it so a stale "free cancel" prompt can't be confirmed
+  // into what the server will now correctly reject as a surrender.
+  useEffect(() => {
+    if (prevModeRef.current !== mode) {
+      closeConfirm();
+    }
+    prevModeRef.current = mode;
+  }, [mode, closeConfirm]);
 
   const cancelReadyAtMs = mode === "cancel" && cancelReadyAt ? new Date(cancelReadyAt).getTime() : null;
   const [secondsLeft, setSecondsLeft] = useState(() => (cancelReadyAtMs ? secondsUntil(cancelReadyAtMs) : 0));

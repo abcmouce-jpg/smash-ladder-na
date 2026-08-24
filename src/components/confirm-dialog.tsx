@@ -71,6 +71,16 @@ export function useConfirm() {
     setState(null);
   }, [state]);
 
+  // For callers whose confirm copy can go stale while the dialog is open
+  // (e.g. a poll flips what the pending action would actually do) — lets
+  // them dismiss it out from under the user rather than leave a promise
+  // that resolves against outdated copy. No-ops if nothing's open.
+  const close = useCallback(() => {
+    resolveRef.current?.(false);
+    resolveRef.current = null;
+    setState(null);
+  }, []);
+
   // Close on Escape.
   useEffect(() => {
     if (!state) return;
@@ -111,5 +121,5 @@ export function useConfirm() {
         )
       : null;
 
-  return [confirm, dialog] as const;
+  return [confirm, dialog, close] as const;
 }
