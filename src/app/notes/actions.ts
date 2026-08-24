@@ -68,32 +68,60 @@ export async function editGuideAction(
   return { error: null };
 }
 
-export async function deleteGuideAction(guideId: string) {
-  const userId = await requireUserId();
-  await deleteCharacterGuide(userId, guideId);
+// These four return { error } rather than throwing — they're invoked as
+// plain async calls from onClick/startTransition (not a <form action>), so
+// an uncaught throw here would surface as an unhandled server-action
+// rejection instead of the inline message every other mutation on this page
+// gets (e.g. a non-owner somehow reaching deleteGuideAction, or a double-click
+// racing two votes into a unique-constraint violation).
+export type GuideActionState = { error: string | null };
+
+export async function deleteGuideAction(guideId: string): Promise<GuideActionState> {
+  try {
+    const userId = await requireUserId();
+    await deleteCharacterGuide(userId, guideId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath("/notes");
+  return { error: null };
 }
 
-export async function voteOnGuideAction(guideId: string, value: 1 | -1) {
-  const userId = await requireUserId();
-  await voteOnGuide(userId, guideId, value);
+export async function voteOnGuideAction(guideId: string, value: 1 | -1): Promise<GuideActionState> {
+  try {
+    const userId = await requireUserId();
+    await voteOnGuide(userId, guideId, value);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath("/notes");
+  return { error: null };
 }
 
-export async function flagGuideAction(guideId: string) {
-  const userId = await requireUserId();
-  await flagGuide(userId, guideId);
+export async function flagGuideAction(guideId: string): Promise<GuideActionState> {
+  try {
+    const userId = await requireUserId();
+    await flagGuide(userId, guideId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath("/notes");
+  return { error: null };
 }
 
 // Overwrites the caller's private note for the guide's character — the
 // confirm-before-overwrite prompt is the client's job (matchup-notes-list.tsx),
 // this just does the copy once confirmed.
-export async function importGuideAction(guideId: string) {
-  const userId = await requireUserId();
-  const guide = await prisma.characterGuide.findUnique({ where: { id: guideId } });
-  if (!guide || guide.hiddenAt) throw new Error("Guide not found");
-  await upsertMatchupNote(userId, guide.character, guide.content);
+export async function importGuideAction(guideId: string): Promise<GuideActionState> {
+  try {
+    const userId = await requireUserId();
+    const guide = await prisma.characterGuide.findUnique({ where: { id: guideId } });
+    if (!guide || guide.hiddenAt) throw new Error("Guide not found");
+    await upsertMatchupNote(userId, guide.character, guide.content);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath("/notes");
   revalidatePath("/lobby");
+  return { error: null };
 }

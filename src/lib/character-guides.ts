@@ -77,6 +77,10 @@ export async function deleteCharacterGuide(authorId: string, guideId: string) {
 // in place, so it can't drift out of sync under concurrent votes.
 export async function voteOnGuide(userId: string, guideId: string, value: 1 | -1) {
   await prisma.$transaction(async (tx) => {
+    const guide = await tx.characterGuide.findUnique({ where: { id: guideId }, select: { authorId: true } });
+    if (!guide) throw new Error("Guide not found");
+    if (guide.authorId === userId) throw new Error("You can't vote on your own guide");
+
     const existing = await tx.characterGuideVote.findUnique({
       where: { guideId_userId: { guideId, userId } },
     });
@@ -101,6 +105,10 @@ export async function voteOnGuide(userId: string, guideId: string, value: 1 | -1
 // the guide is (or was already) reported.
 export async function flagGuide(userId: string, guideId: string) {
   await prisma.$transaction(async (tx) => {
+    const guide = await tx.characterGuide.findUnique({ where: { id: guideId }, select: { authorId: true } });
+    if (!guide) throw new Error("Guide not found");
+    if (guide.authorId === userId) throw new Error("You can't flag your own guide");
+
     const existing = await tx.characterGuideFlag.findUnique({
       where: { guideId_userId: { guideId, userId } },
     });
@@ -126,9 +134,17 @@ export async function getHiddenGuidesForModeration() {
   });
 }
 
+// Both writes run in one transaction — if only the first committed, the
+// guide would come back visible with flagCount reset to 0 while the old
+// CharacterGuideFlag rows survived, and the (guideId, userId) unique
+// constraint would then silently block those same users from ever
+// re-flagging it (flagGuide's `if (existing) return` no-ops on their next
+// report), permanently weakening moderation for that guide.
 export async function unhideGuide(guideId: string) {
-  await prisma.characterGuide.update({ where: { id: guideId }, data: { hiddenAt: null, flagCount: 0 } });
-  await prisma.characterGuideFlag.deleteMany({ where: { guideId } });
+  await prisma.$transaction([
+    prisma.characterGuide.update({ where: { id: guideId }, data: { hiddenAt: null, flagCount: 0 } }),
+    prisma.characterGuideFlag.deleteMany({ where: { guideId } }),
+  ]);
 }
 
 export async function removeGuide(guideId: string) {

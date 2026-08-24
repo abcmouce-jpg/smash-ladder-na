@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, Flag, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import type { Lang } from "@/lib/i18n";
-import type { GuideFormState } from "@/app/notes/actions";
+import type { GuideActionState, GuideFormState } from "@/app/notes/actions";
 
 export type Guide = {
   id: string;
@@ -38,10 +38,10 @@ export function CharacterGuideSection({
   maxLength: number;
   createAction: (character: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   editAction: (guideId: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
-  deleteGuide: (guideId: string) => Promise<void>;
-  voteOnGuide: (guideId: string, value: 1 | -1) => Promise<void>;
-  flagGuideAction: (guideId: string) => Promise<void>;
-  importGuide: (guideId: string) => Promise<void>;
+  deleteGuide: (guideId: string) => Promise<GuideActionState>;
+  voteOnGuide: (guideId: string, value: 1 | -1) => Promise<GuideActionState>;
+  flagGuideAction: (guideId: string) => Promise<GuideActionState>;
+  importGuide: (guideId: string) => Promise<GuideActionState>;
   lang: Lang;
 }) {
   const [writing, setWriting] = useState(false);
@@ -139,10 +139,10 @@ function GuideCard({
   hasOwnNote: boolean;
   maxLength: number;
   editAction: (guideId: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
-  deleteGuide: (guideId: string) => Promise<void>;
-  voteOnGuide: (guideId: string, value: 1 | -1) => Promise<void>;
-  flagGuideAction: (guideId: string) => Promise<void>;
-  importGuide: (guideId: string) => Promise<void>;
+  deleteGuide: (guideId: string) => Promise<GuideActionState>;
+  voteOnGuide: (guideId: string, value: 1 | -1) => Promise<GuideActionState>;
+  flagGuideAction: (guideId: string) => Promise<GuideActionState>;
+  importGuide: (guideId: string) => Promise<GuideActionState>;
   lang: Lang;
 }) {
   const [editing, setEditing] = useState(false);
@@ -152,6 +152,19 @@ function GuideCard({
   const [editState, editFormAction, editPending] = useActionState(boundEdit, { error: null });
   const editSubmittedRef = useRef(false);
   const isOwn = userId === guide.authorId;
+  // vote/flag/delete/import aren't <form action>s (they're plain onClick
+  // handlers behind useTransition), so unlike the create/edit forms above
+  // they have no useActionState to surface a failure through — this fills
+  // that gap so a denied/raced request shows a message instead of silently
+  // doing nothing.
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  function runAction(action: () => Promise<GuideActionState>) {
+    startTransition(async () => {
+      const result = await action();
+      setActionError(result.error);
+    });
+  }
 
   // Same "only close on actual success" reasoning as the composer above —
   // closing on submit would hide a validation error along with the form.
@@ -172,7 +185,7 @@ function GuideCard({
         )
       : true;
     if (!ok) return;
-    startTransition(() => importGuide(guide.id));
+    runAction(() => importGuide(guide.id));
   }
 
   return (
@@ -206,8 +219,8 @@ function GuideCard({
             <span className="ml-auto flex items-center gap-0.5">
               <button
                 type="button"
-                disabled={!userId || isPending}
-                onClick={() => startTransition(() => voteOnGuide(guide.id, 1))}
+                disabled={!userId || isOwn || isPending}
+                onClick={() => runAction(() => voteOnGuide(guide.id, 1))}
                 aria-label={lang === "es" ? "Votar a favor" : "Upvote"}
                 className={`rounded p-1 hover:bg-muted ${guide.myVote === 1 ? "text-primary" : ""}`}
               >
@@ -216,8 +229,8 @@ function GuideCard({
               <span className="tabular-nums">{guide.score}</span>
               <button
                 type="button"
-                disabled={!userId || isPending}
-                onClick={() => startTransition(() => voteOnGuide(guide.id, -1))}
+                disabled={!userId || isOwn || isPending}
+                onClick={() => runAction(() => voteOnGuide(guide.id, -1))}
                 aria-label={lang === "es" ? "Votar en contra" : "Downvote"}
                 className={`rounded p-1 hover:bg-muted ${guide.myVote === -1 ? "text-destructive" : ""}`}
               >
@@ -237,7 +250,7 @@ function GuideCard({
                 <button
                   type="button"
                   disabled={isPending}
-                  onClick={() => startTransition(() => deleteGuide(guide.id))}
+                  onClick={() => runAction(() => deleteGuide(guide.id))}
                   aria-label={lang === "es" ? "Eliminar" : "Delete"}
                   className="rounded p-1 hover:bg-muted hover:text-destructive"
                 >
@@ -249,7 +262,7 @@ function GuideCard({
                 <button
                   type="button"
                   disabled={isPending}
-                  onClick={() => startTransition(() => flagGuideAction(guide.id))}
+                  onClick={() => runAction(() => flagGuideAction(guide.id))}
                   aria-label={lang === "es" ? "Reportar" : "Flag"}
                   className="rounded p-1 hover:bg-muted hover:text-destructive"
                 >
@@ -258,6 +271,7 @@ function GuideCard({
               )
             )}
           </div>
+          {actionError && <p className="mt-1 text-xs text-destructive">{actionError}</p>}
         </>
       )}
       {confirmDialog}

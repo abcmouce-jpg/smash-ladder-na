@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CharacterGuideSection, type Guide } from "@/components/character-guide-section";
 import type { Lang } from "@/lib/i18n";
-import type { GuideFormState, UpdateMatchupNoteState } from "@/app/notes/actions";
+import type { GuideActionState, GuideFormState, UpdateMatchupNoteState } from "@/app/notes/actions";
 
 type Note = { character: string; note: string };
 
@@ -40,10 +40,10 @@ export function MatchupNotesList({
   userId: string | null;
   createGuideAction: (character: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   editGuideAction: (guideId: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
-  deleteGuideAction: (guideId: string) => Promise<void>;
-  voteOnGuideAction: (guideId: string, value: 1 | -1) => Promise<void>;
-  flagGuideAction: (guideId: string) => Promise<void>;
-  importGuideAction: (guideId: string) => Promise<void>;
+  deleteGuideAction: (guideId: string) => Promise<GuideActionState>;
+  voteOnGuideAction: (guideId: string, value: 1 | -1) => Promise<GuideActionState>;
+  flagGuideAction: (guideId: string) => Promise<GuideActionState>;
+  importGuideAction: (guideId: string) => Promise<GuideActionState>;
   lang: Lang;
 }) {
   const [search, setSearch] = useState("");
@@ -133,10 +133,10 @@ function MatchupNoteRow({
   userId: string | null;
   createGuideAction: (character: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   editGuideAction: (guideId: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
-  deleteGuideAction: (guideId: string) => Promise<void>;
-  voteOnGuideAction: (guideId: string, value: 1 | -1) => Promise<void>;
-  flagGuideAction: (guideId: string) => Promise<void>;
-  importGuideAction: (guideId: string) => Promise<void>;
+  deleteGuideAction: (guideId: string) => Promise<GuideActionState>;
+  voteOnGuideAction: (guideId: string, value: 1 | -1) => Promise<GuideActionState>;
+  flagGuideAction: (guideId: string) => Promise<GuideActionState>;
+  importGuideAction: (guideId: string) => Promise<GuideActionState>;
   lang: Lang;
 }) {
   const boundAction = action.bind(null, character);
