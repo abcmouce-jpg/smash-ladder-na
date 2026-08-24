@@ -2,7 +2,7 @@ import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 import { applyEloAndConfirm, applyCorrection, isMostRecentConfirmedMatch } from "@/lib/matches";
-import { tallySetWins, GAMES_TO_WIN } from "@/lib/match-games";
+import { realignNextGameActors, tallySetWins, GAMES_TO_WIN } from "@/lib/match-games";
 import { GAME_ONE_STAGES } from "@/lib/stages";
 import { sendDiscordDM } from "@/lib/discord-bot";
 
@@ -94,6 +94,12 @@ async function applyDisputeRuling(
       secondReporterConfirmedAt: null,
     },
   });
+
+  // The next game was already created off the first reporter's working
+  // assumption while this game sat contested; now that the real winner is
+  // known, re-seat it (if it's still untouched) so the right player strikes
+  // first and picks their character first.
+  await realignNextGameActors(tx, match, gameNumber, winnerId);
 
   const games = await tx.matchGame.findMany({ where: { matchId: match.id } });
   const wins = tallySetWins(games);
