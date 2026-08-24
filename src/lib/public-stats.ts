@@ -15,6 +15,31 @@ export async function getMatchesTodayCount() {
   return prisma.ratingMatch.count({ where: { createdAt: { gte: todayStart } } });
 }
 
+// Distinct donors, not raw donation rows — a recurring Ko-fi subscription
+// creates one KofiDonation per billing cycle, which would otherwise inflate
+// the headcount shown in the footer/lobby banner. Counts every donor
+// regardless of isPublic: a headcount alone doesn't reveal who they are, so
+// this doesn't need to respect the same opt-out as the /supporters list.
+//
+// fromName is the only donor identity Ko-fi's webhook gives us (no email or
+// stable donor id in the payload — see the kofi webhook route), and it
+// defaults to "Anonymous" when a donor doesn't set one. Deduping on it
+// naively would collapse every distinct anonymous donor into a single
+// "supporter", so only named rows get deduped against each other; each
+// "Anonymous" row counts as its own supporter instead.
+export async function getSupporterCount() {
+  const donors = await prisma.kofiDonation.findMany({ select: { fromName: true } });
+  const namedSeen = new Set<string>();
+  let count = 0;
+  for (const { fromName } of donors) {
+    if (fromName === "Anonymous" || !namedSeen.has(fromName)) {
+      if (fromName !== "Anonymous") namedSeen.add(fromName);
+      count++;
+    }
+  }
+  return count;
+}
+
 // Deliberately narrower than admin-stats.ts — no dispute/report/ban counts
 // here, since this feeds the public homepage, not the mod dashboard.
 export async function getPublicStats() {

@@ -3,6 +3,7 @@ import { Coffee, Heart } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { getSupporterCount } from "@/lib/public-stats";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -11,10 +12,12 @@ export const metadata: Metadata = {
 };
 
 export default async function SupportersPage() {
-  const lang = await getLang();
+  const [lang, supporterCount] = await Promise.all([getLang(), getSupporterCount()]);
 
   // Only donors who left is_public: true on Ko-fi's end are shown here — see
-  // the isPublic comment on the KofiDonation model.
+  // the isPublic comment on the KofiDonation model. supporterCount above
+  // counts everyone (including opted-out donors), so it can run ahead of
+  // how many actually show up in the list below.
   const donations = await prisma.kofiDonation.findMany({
     where: { isPublic: true },
     orderBy: { createdAt: "desc" },
@@ -32,6 +35,15 @@ export default async function SupportersPage() {
           ? "Hosting y dominio se pagan de nuestro bolsillo — estas son las personas que ayudan a cubrirlo."
           : "Hosting and domain costs come out of pocket — these are the people who help cover that."}
       </p>
+      {supporterCount > 0 && (
+        <p className="mt-1 text-sm font-medium text-foreground">
+          {lang === "es"
+            ? supporterCount === 1
+              ? "1 persona ha colaborado hasta ahora."
+              : `${supporterCount} personas han colaborado hasta ahora.`
+            : `${supporterCount} ${supporterCount === 1 ? "person has" : "people have"} chipped in so far.`}
+        </p>
+      )}
 
       <a href={KOFI_URL} target="_blank" rel="noreferrer" className="mt-6 block">
         <Card className="transition-colors hover:border-foreground/30">
