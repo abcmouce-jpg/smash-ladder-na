@@ -6,6 +6,8 @@ import { getMatchupNote } from "@/lib/matchup-notes";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser } from "@/lib/lobby";
 import { PushNudgeBanner } from "@/components/push-nudge-banner";
+import { SupporterBanner } from "@/components/supporter-banner";
+import { getSupporterCount } from "@/lib/public-stats";
 import {
   CANCEL_GRACE_PERIOD_SECONDS,
   getRoomHostId,
@@ -101,7 +103,12 @@ import {
 type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
 
 export default async function LobbyPage() {
-  const [session, activity, lang] = await Promise.all([auth(), getLobbyActivityStats(), getLang()]);
+  const [session, activity, lang, supporterCount] = await Promise.all([
+    auth(),
+    getLobbyActivityStats(),
+    getLang(),
+    getSupporterCount(),
+  ]);
 
   if (!session?.user?.id) {
     return (
@@ -167,6 +174,7 @@ export default async function LobbyPage() {
         lang={lang}
       />
       <PushNudgeBanner lang={lang} />
+      <SupporterBanner supporterCount={supporterCount} lang={lang} />
 
       {matchJustEnded && (
         <Card className="mt-4 border-primary/30">

@@ -499,12 +499,17 @@ describe("updateLobbyRoomCode", () => {
   });
 });
 
-function createWaitingEntry(userId: string, existingRoomCode: string | null = null) {
+function createWaitingEntry(
+  userId: string,
+  existingRoomCode: string | null = null,
+  joinedAt: Date = new Date(),
+) {
   return prisma.ratingLobbyEntry.create({
     data: {
       userId,
       status: LobbyEntryStatus.WAITING,
       existingRoomCode,
+      joinedAt,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     },
   });
@@ -530,8 +535,13 @@ describe("sweepLobbyPairing", () => {
   it("uses the last joiner's code when both waiting entries have one", async () => {
     const a = await createTestUser({ region: "USA East" });
     const b = await createTestUser({ region: "USA East" });
-    await createWaitingEntry(a.id, "AB123");
-    await createWaitingEntry(b.id, "CD456");
+    const now = Date.now();
+    // Explicit, distinct joinedAt values — two awaited creates can land in
+    // the same millisecond on fast hardware, which would otherwise hit the
+    // "equal joinedAt falls to a" tie-break in resolvePrefilledRoom and mask
+    // what this test is actually asserting.
+    await createWaitingEntry(a.id, "AB123", new Date(now));
+    await createWaitingEntry(b.id, "CD456", new Date(now + 1));
 
     const paired = await sweepLobbyPairing();
 
