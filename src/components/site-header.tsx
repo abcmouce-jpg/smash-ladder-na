@@ -75,9 +75,10 @@ export async function SiteHeader() {
               href="/supporters"
               prefetch={false}
               title={lang === "es" ? "Apóyanos" : "Support us"}
-              className="text-muted-foreground hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
             >
-              <Coffee className="size-4" />
+              <Coffee className="size-3.5" />
+              <span className="hidden sm:inline">{lang === "es" ? "Apóyanos" : "Support"}</span>
             </Link>
 
             {user ? (

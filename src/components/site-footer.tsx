@@ -2,9 +2,10 @@ import Link from "next/link";
 import { Coffee } from "lucide-react";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { getSupporterCount } from "@/lib/public-stats";
 
 export async function SiteFooter() {
-  const lang = await getLang();
+  const [lang, supporterCount] = await Promise.all([getLang(), getSupporterCount()]);
 
   return (
     <footer className="mt-auto border-t border-border">
@@ -45,6 +46,7 @@ export async function SiteFooter() {
           >
             <Coffee className="size-3.5" />
             {lang === "es" ? "Apóyanos" : "Support us"}
+            {supporterCount > 0 && ` · ${supporterCount}`}
           </Link>
         </nav>
       </div>
