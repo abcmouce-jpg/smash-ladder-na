@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/db";
 import { ReportStatus, UserStatus } from "@/generated/prisma/enums";
 import {
+  CANCEL_SUSPEND_DURATION_HOURS,
   CANCEL_SUSPEND_MIN_CANCELS,
   CANCEL_WARNING_MIN_CANCELS,
   isCancelSuspendThreshold,
   isCancelWarningThreshold,
 } from "@/lib/account";
+import { sendDiscordDM } from "@/lib/discord-bot";
 
 export type WatchlistPlayer = {
   id: string;
@@ -68,4 +70,34 @@ export async function getSuspendWatchlist(): Promise<{
   }
 
   return { suspendThreshold, warningThreshold };
+}
+
+// The cron-driven version of clicking "Suspend" on every row in the
+// suspendThreshold list — same status/suspendedUntil/DM as cancelMatch's
+// live auto-suspend (see matches.ts), just re-run on a schedule instead of
+// only at the moment a qualifying cancel happens. getSuspendWatchlist's
+// `status: ACTIVE` filter already keeps this idempotent: once suspended, a
+// player drops out of the candidate list until the suspension lifts, so
+// re-running this doesn't re-suspend anyone already caught.
+export async function autoSuspendWatchlistViolators() {
+  const { suspendThreshold } = await getSuspendWatchlist();
+  const suspendedUsernames: string[] = [];
+
+  for (const player of suspendThreshold) {
+    const user = await prisma.user.update({
+      where: { id: player.id },
+      data: {
+        status: UserStatus.SUSPENDED,
+        suspendedUntil: new Date(Date.now() + CANCEL_SUSPEND_DURATION_HOURS * 60 * 60 * 1000),
+      },
+      select: { discordId: true, username: true, cancelCount: true },
+    });
+    await sendDiscordDM(
+      user.discordId,
+      `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — an automated patrol found your cancel count (${user.cancelCount}) still crosses the threshold for a cancel-abuse pattern. Free battle and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
+    );
+    suspendedUsernames.push(user.username);
+  }
+
+  return suspendedUsernames;
 }

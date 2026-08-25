@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { finalizeExpiredFreeBattlePosts, finalizeExpiredLobbyEntries, finalizeExpiredMatches } from "@/lib/finalize";
 import { sweepLobbyPairing } from "@/lib/lobby";
+import { autoSuspendWatchlistViolators } from "@/lib/admin-watchlist";
 
 function isAuthorized(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -24,6 +25,10 @@ async function handle(request: Request) {
   const expiredLobbyEntries = await finalizeExpiredLobbyEntries();
   const { expiredNoReport, autoConfirmed, closedOutOnLead } = await finalizeExpiredMatches();
   const expiredFreeBattlePosts = await finalizeExpiredFreeBattlePosts();
+  // Re-checks the same cancel-abuse thresholds cancelMatch enforces live,
+  // catching anyone whose auto-suspend already lapsed and who's sat ACTIVE
+  // since — see autoSuspendWatchlistViolators' comment.
+  const patrolSuspended = await autoSuspendWatchlistViolators();
 
   return NextResponse.json({
     sweepPaired,
@@ -32,6 +37,7 @@ async function handle(request: Request) {
     autoConfirmed,
     closedOutOnLead,
     expiredFreeBattlePosts,
+    patrolSuspended,
   });
 }
 
