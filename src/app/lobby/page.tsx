@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Loader2, MapPin, Swords, Users } from "lucide-react";
+import { Check, Loader2, MapPin, NotebookPen, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
+import { getMatchupNote } from "@/lib/matchup-notes";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser } from "@/lib/lobby";
 import { PushNudgeBanner } from "@/components/push-nudge-banner";
@@ -1296,7 +1297,7 @@ function characterLabel(character: string, moveset: string | null) {
   return moveset ? `${character} (${moveset})` : character;
 }
 
-function CharacterPickSection({
+async function CharacterPickSection({
   userId,
   matchId,
   game,
@@ -1338,8 +1339,20 @@ function CharacterPickSection({
   const deadline = pickDeadline.toISOString();
 
   if (yourCharacter && opponentCharacter) {
+    const matchupNote = await getMatchupNote(userId, opponentCharacter);
     return (
       <CardContent className="border-t border-border pt-4">
+        {matchupNote && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <NotebookPen className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-primary">
+                {lang === "es" ? `Tu nota sobre ${opponentCharacter}` : `Your note on ${opponentCharacter}`}
+              </p>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">{matchupNote}</p>
+            </div>
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">
           {lang === "es" ? (
             <>

@@ -218,6 +218,10 @@ model User {
   connectionReportsReceived ConnectionReport[] @relation("ConnectionReportsReceived")
   referrals                 User[]             @relation("Referrals")
   pushSubscriptions         PushSubscription[]
+  matchupNotes              MatchupNote[]
+  characterGuides           CharacterGuide[]
+  characterGuideVotes       CharacterGuideVote[]
+  characterGuideFlags       CharacterGuideFlag[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -583,6 +587,64 @@ model PushSubscription {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model MatchupNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character String // one of SMASH_CHARACTERS — validated at the app layer, not DB-level, same as MatchGame's actor*Character
+  note      String // free text; capped at 1000 chars in the app layer (see upsertMatchupNote)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, character])
+}
+
+// Crowdsourced per-character write-ups — anyone can submit one, sorted by
+// score so the best rises without a mod having to hand-pick "official"
+// authors. hiddenAt is set automatically once flagCount crosses the
+// moderation threshold (see FLAG_HIDE_THRESHOLD in character-guides.ts);
+// a mod un-hides or removes it from there, same review shape as
+// ConductReport.
+model CharacterGuide {
+  id        String    @id @default(cuid())
+  character String
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String // capped at 2000 chars in the app layer
+  score     Int       @default(0) // sum of CharacterGuideVote.value, denormalized for cheap sort-by-score
+  flagCount Int       @default(0) // denormalized count of CharacterGuideFlag rows
+  hiddenAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  votes CharacterGuideVote[]
+  flags CharacterGuideFlag[]
+
+  @@index([character, hiddenAt, score])
+}
+
+model CharacterGuideVote {
+  id        String         @id @default(cuid())
+  guideId   String
+  guide     CharacterGuide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  value     Int // 1 or -1
+  createdAt DateTime       @default(now())
+
+  @@unique([guideId, userId])
+}
+
+model CharacterGuideFlag {
+  id        String         @id @default(cuid())
+  guideId   String
+  guide     CharacterGuide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@unique([guideId, userId])
 }
 
 model KofiDonation {

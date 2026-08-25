@@ -109,6 +109,13 @@ export default async function AdminOverviewPage() {
           tone={watchlist.suspendThreshold.length > 0 ? "destructive" : undefined}
         />
         <StatCard icon={Timer} label="Active cooldowns" value={stats.activeCooldowns} href="/admin/cooldowns" />
+        <StatCard
+          icon={Flag}
+          label="Flagged guides"
+          value={stats.flaggedGuides}
+          href="/admin/guides"
+          tone={stats.flaggedGuides > 0 ? "warning" : undefined}
+        />
       </div>
 
       <div className="mt-8 flex flex-wrap gap-2">
@@ -129,6 +136,9 @@ export default async function AdminOverviewPage() {
         </Link>
         <Link href="/admin/reports" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Reports →
+        </Link>
+        <Link href="/admin/guides" className="text-muted-foreground hover:text-foreground hover:underline">
+          Go to Flagged guides →
         </Link>
         <Link href="/admin/watchlist" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Watchlist →

@@ -12,6 +12,7 @@ import {
   Handshake,
   Languages,
   LogOut,
+  NotebookPen,
   Radio,
   Search,
   Settings,
@@ -101,6 +102,12 @@ export async function SiteHeader() {
                     <Link href={`/players/${user.id}`} prefetch={false}>
                       <UserRound className="size-3.5" />
                       {lang === "es" ? "Ver perfil" : "View profile"}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/notes" prefetch={false}>
+                      <NotebookPen className="size-3.5" />
+                      {lang === "es" ? "Notas de matchup" : "Matchup notes"}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
