@@ -66,14 +66,59 @@ export async function subscribeToPush(): Promise<{ subscription: PushSubscriptio
   const registration = await registerPushServiceWorker();
   if (!registration) return { error: "Push notifications aren't supported in this browser." };
   try {
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
-    return { subscription };
-  } catch {
-    return { error: "Couldn't subscribe this browser — try again in a moment." };
+    return { subscription: await subscribeWithVapidKey(registration, publicKey) };
+  } catch (err) {
+    if (isInvalidStateError(err)) {
+      // A subscription already exists under a different application server
+      // key (e.g. the site's VAPID keys were rotated since this browser last
+      // subscribed). The Push API refuses to subscribe over it, so drop the
+      // stale one and try once more.
+      try {
+        const stale = await getPushSubscription();
+        await stale?.unsubscribe();
+        return { subscription: await subscribeWithVapidKey(registration, publicKey) };
+      } catch (retryErr) {
+        return { error: subscriptionError(retryErr) };
+      }
+    }
+    return { error: subscriptionError(err) };
   }
+}
+
+async function subscribeWithVapidKey(
+  registration: ServiceWorkerRegistration,
+  publicKey: string,
+): Promise<PushSubscription> {
+  return registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey),
+  });
+}
+
+function isInvalidStateError(err: unknown): boolean {
+  return err instanceof Error && err.name === "InvalidStateError";
+}
+
+// Map a subscribe() failure to something actionable instead of the old
+// catch-all. The two failures that happen after permission is granted are a
+// subscription conflict (handled above) and an unreachable push service —
+// Chromium forks with a built-in VPN/ad-blocker (Helium Browser is one)
+// commonly filter the push service request and reject with AbortError or
+// NotSupportedError.
+function subscriptionError(err: unknown): string {
+  if (err instanceof Error) {
+    switch (err.name) {
+      case "NotAllowedError":
+        return "Notification permission is blocked — allow it in your browser's site settings, then try again.";
+      case "AbortError":
+      case "NotSupportedError":
+        return "This browser couldn't reach its push service. VPNs, ad-blockers, and privacy settings can block it — try turning those off for this site, or use Chrome, Firefox, or Safari.";
+    }
+    // Unknown failure: log the details so the next report has a console line
+    // to point at, and keep the user-facing message generic.
+    console.error("push subscribe failed:", err.name, err.message);
+  }
+  return "Couldn't subscribe this browser — try again in a moment.";
 }
 
 export async function unsubscribeFromPush(): Promise<PushSubscription | null> {
