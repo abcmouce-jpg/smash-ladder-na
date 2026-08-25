@@ -97,13 +97,13 @@ export function CharacterGuideSection({
           <textarea
             name="content"
             maxLength={maxLength}
-            rows={4}
+            rows={8}
             placeholder={
               lang === "es"
                 ? "Matchups, consejos de escenario, lo que sea útil para otros jugando contra este personaje…"
                 : "Matchups, stage tips, anything useful for others playing against this character…"
             }
-            className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
+            className="w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
           />
           <div className="flex items-center justify-between gap-2">
             {createState.error ? <p className="text-xs text-destructive">{createState.error}</p> : <span />}
@@ -196,8 +196,8 @@ function GuideCard({
             name="content"
             defaultValue={guide.content}
             maxLength={maxLength}
-            rows={4}
-            className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
+            rows={8}
+            className="w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
           />
           <div className="flex items-center justify-between gap-2">
             {editState.error ? <p className="text-xs text-destructive">{editState.error}</p> : <span />}

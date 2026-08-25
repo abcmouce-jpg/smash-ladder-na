@@ -167,9 +167,9 @@ function MatchupNoteRow({
               name="note"
               defaultValue={note}
               maxLength={maxLength}
-              rows={3}
+              rows={6}
               placeholder={lang === "es" ? "Tu nota privada para este personaje…" : "Your private note for this character…"}
-              className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
+              className="w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
             />
             <div className="flex items-center justify-between">
               {state.error ? (
