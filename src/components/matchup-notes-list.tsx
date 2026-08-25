@@ -7,6 +7,7 @@ import { CharacterIcon } from "@/components/character-icon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CharacterGuideSection, type Guide } from "@/components/character-guide-section";
+import { ExpandableTextarea } from "@/components/expandable-textarea";
 import type { Lang } from "@/lib/i18n";
 import type { GuideActionState, GuideFormState, UpdateMatchupNoteState } from "@/app/notes/actions";
 
@@ -163,13 +164,14 @@ function MatchupNoteRow({
         </button>
         {expanded && (
           <form action={formAction} className="mt-2.5 flex flex-col gap-1.5">
-            <textarea
+            <ExpandableTextarea
               name="note"
               defaultValue={note}
               maxLength={maxLength}
               rows={6}
               placeholder={lang === "es" ? "Tu nota privada para este personaje…" : "Your private note for this character…"}
-              className="w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
+              className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
+              title={character}
             />
             <div className="flex items-center justify-between">
               {state.error ? (
