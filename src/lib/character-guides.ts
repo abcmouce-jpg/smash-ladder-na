@@ -30,6 +30,7 @@ export async function getAllCharacterGuides(viewerId: string | null) {
       // result shape (and its inferred type) identical in both cases instead
       // of a conditional union that's awkward to consume below.
       votes: { where: { userId: viewerId ?? "" }, select: { value: true } },
+      flags: { where: { userId: viewerId ?? "" }, select: { id: true } },
     },
   });
 

@@ -43,7 +43,7 @@ export default async function NotesPage() {
   const guidesByCharacter = Object.fromEntries(
     Array.from(guidesByCharacterMap, ([character, guides]) => [
       character,
-      guides.map((g) => ({ ...g, myVote: g.votes[0]?.value ?? 0 })),
+      guides.map((g) => ({ ...g, myVote: g.votes[0]?.value ?? 0, myFlag: g.flags.length > 0 })),
     ]),
   );
 

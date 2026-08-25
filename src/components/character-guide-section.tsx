@@ -16,6 +16,7 @@ export type Guide = {
   authorId: string;
   author: { id: string; username: string };
   myVote: number;
+  myFlag: boolean;
 };
 
 export function CharacterGuideSection({
@@ -264,12 +265,25 @@ function GuideCard({
               userId && (
                 <button
                   type="button"
-                  disabled={isPending}
+                  disabled={isPending || guide.myFlag}
                   onClick={() => runAction(() => flagGuideAction(guide.id))}
-                  aria-label={lang === "es" ? "Reportar" : "Flag"}
-                  className="rounded p-1 hover:bg-muted hover:text-destructive"
+                  aria-label={
+                    guide.myFlag
+                      ? lang === "es"
+                        ? "Reportado"
+                        : "Reported"
+                      : lang === "es"
+                        ? "Reportar"
+                        : "Flag"
+                  }
+                  title={guide.myFlag ? (lang === "es" ? "Ya reportado" : "Already reported") : undefined}
+                  className={
+                    guide.myFlag
+                      ? "rounded p-1 text-destructive"
+                      : "rounded p-1 hover:bg-muted hover:text-destructive"
+                  }
                 >
-                  <Flag className="size-3.5" />
+                  <Flag className="size-3.5" fill={guide.myFlag ? "currentColor" : "none"} />
                 </button>
               )
             )}
