@@ -851,6 +851,62 @@ describe("conflicting game reports", () => {
     expect(game.disputeRequestedAt).toBeNull();
   });
 
+  it("realigns the next game's seats when a contested claim flip contradicts the working assumption", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await createPlayedGame(match.id);
+
+    await reportGameResult(p1.id, match.id, 1, true);
+    await reportGameResult(p2.id, match.id, 1, true); // contested
+
+    // Game 2 was created off the first reporter's claim while game 1 was
+    // still unresolved.
+    const game2Before = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2Before.actorAId).toBe(p1.id);
+    expect(game2Before.actorBId).toBe(p2.id);
+
+    await reportGameResult(p1.id, match.id, 1, false); // p1 concedes — p2 actually won
+
+    const game1 = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game1.winnerId).toBe(p2.id);
+
+    // The real winner strikes first and locks in their character first —
+    // not whoever the contested game assumed.
+    const game2 = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2.actorAId).toBe(p2.id);
+    expect(game2.actorBId).toBe(p1.id);
+  });
+
+  it("leaves a next game's seats alone once it's already been started", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await createPlayedGame(match.id);
+
+    await reportGameResult(p1.id, match.id, 1, true);
+    await reportGameResult(p2.id, match.id, 1, true); // contested
+
+    // Game 2 gets underway under the working assumption before the flip —
+    // the character lock happened under that seat assignment, so re-seating
+    // would misattribute it.
+    await pickGameCharacter(p1.id, match.id, 2, "Mario");
+
+    await reportGameResult(p1.id, match.id, 1, false); // flip
+
+    const game2 = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2.actorAId).toBe(p1.id);
+    expect(game2.actorACharacter).toBe("Mario");
+  });
+
   it("records one side's re-confirmation without escalating until the other confirms", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();

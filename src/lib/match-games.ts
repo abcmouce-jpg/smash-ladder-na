@@ -1094,8 +1094,13 @@ async function progressSet(
   // touch whatever later game already got created off the old outcome — so
   // re-deciding that earlier game here would otherwise crash on the
   // [matchId, gameNumber] unique constraint. If the next game's already
-  // there, just leave it alone rather than erroring out the whole report.
-  if (games.some((g) => g.gameNumber === nextGameNumber)) return null;
+  // there, don't duplicate it — but realign its seats now that the real
+  // winner is known (it may have been created off the first reporter's
+  // working assumption while this game was still contested).
+  if (games.some((g) => g.gameNumber === nextGameNumber)) {
+    await realignNextGameActors(tx, match, decidedGameNumber, gameWinnerId);
+    return null;
+  }
 
   const loserId = gameWinnerId === match.player1Id ? match.player2Id : match.player1Id;
   await tx.matchGame.create({
@@ -1110,4 +1115,40 @@ async function progressSet(
     },
   });
   return null;
+}
+
+// When a game's result is settled after the next game was already created,
+// that next game may still carry the seats it got when it was made off the
+// first reporter's claim as a working assumption while the game was
+// contested (see progressSet). The set records the real winner, but the
+// wrong player would otherwise strike first and lock in their character
+// first in the next game. Only safe to re-seat while the game is untouched:
+// once characters are locked in or stages struck, that activity happened
+// under the old assignment and can't be re-attributed.
+export async function realignNextGameActors(
+  tx: Prisma.TransactionClient,
+  match: { id: string; player1Id: string; player2Id: string },
+  decidedGameNumber: number,
+  gameWinnerId: string,
+) {
+  const nextGameNumber = decidedGameNumber + 1;
+  const nextGame = await tx.matchGame.findUnique({
+    where: { matchId_gameNumber: { matchId: match.id, gameNumber: nextGameNumber } },
+  });
+  if (!nextGame) return;
+
+  const loserId = gameWinnerId === match.player1Id ? match.player2Id : match.player1Id;
+  if (nextGame.actorAId === gameWinnerId && nextGame.actorBId === loserId) return; // already aligned
+
+  const untouched =
+    nextGame.actorACharacter === null &&
+    nextGame.actorBCharacter === null &&
+    nextGame.struckStages.length === 0 &&
+    nextGame.finalStage === null;
+  if (!untouched) return;
+
+  await tx.matchGame.update({
+    where: { id: nextGame.id },
+    data: { actorAId: gameWinnerId, actorBId: loserId },
+  });
 }

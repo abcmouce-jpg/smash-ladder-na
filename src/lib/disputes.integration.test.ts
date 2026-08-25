@@ -148,6 +148,48 @@ describe("disputes", () => {
     const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
     expect(updatedMatch.status).toBe(MatchStatus.PENDING_REPORT);
   });
+
+  it("realigns the next game's seats when a ruling contradicts the working assumption", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+    // Game 1 disputed with p1's claim as the working assumption — the set
+    // continued and game 2 was already created off that assumption.
+    await createDisputedGame(match.id, p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        stagesRemaining: ["Final Destination"],
+      },
+    });
+
+    // Mod rules the disputed game for p2 — the opposite of the assumption.
+    await resolveDisputedGame(match.id, 1, p2.id);
+
+    const game1 = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game1.winnerId).toBe(p2.id);
+
+    // The real winner strikes first and locks in their character first.
+    const game2 = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2.actorAId).toBe(p2.id);
+    expect(game2.actorBId).toBe(p1.id);
+  });
 });
 
 describe("requestDisputeResolution", () => {
