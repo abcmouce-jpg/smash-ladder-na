@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 
-export const MAX_MATCHUP_NOTE_LENGTH = 2000;
+export const MAX_MATCHUP_NOTE_LENGTH = 10000;
 
 export async function getMatchupNotes(userId: string) {
   const notes = await prisma.matchupNote.findMany({ where: { userId } });

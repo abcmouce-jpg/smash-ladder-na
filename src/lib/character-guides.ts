@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 
-export const MAX_GUIDE_LENGTH = 2000;
+export const MAX_GUIDE_LENGTH = 10000;
 
 // Once a guide collects this many distinct flags it's auto-hidden pending a
 // mod's review — same shape as ConductReport's mod queue, just triggered by
