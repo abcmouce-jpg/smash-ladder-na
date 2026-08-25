@@ -23,10 +23,15 @@ function requireParticipant(match: { player1Id: string; player2Id: string }, use
   }
 }
 
-// How long a player has to strike or pick before it auto-resolves for them —
-// stage selection happens live during a session, unlike the 24h match-level
-// no-report timeout, so this needs to be short enough to actually unstick a
-// stalled/AFK opponent mid-session.
+// How long a player has to finish their whole turn — every strike they owe
+// at once, or the final-stage pick — before it auto-resolves for them. One
+// continuous clock per turn: anchored when the turn begins and only reset
+// when the turn passes to the other side, not after each individual ban.
+// When it does expire, the player's full allotment of bans for that turn is
+// applied automatically (see autoResolveStaleTurn). Stage selection happens
+// live during a session, unlike the 24h match-level no-report timeout, so
+// this needs to be short enough to actually unstick a stalled/AFK opponent
+// mid-session.
 export const STRIKE_TIMEOUT_MS = 60 * 1000;
 
 // How long a match waits for a report before the cron finalizer steps in
@@ -54,6 +59,17 @@ export const MATCH_TTL_MS = 3 * 60 * 60 * 1000;
 // other side to also report," so 5 minutes is safe again.
 export const REPORT_TIMEOUT_MS = 5 * 60 * 1000;
 
+// Picks `count` distinct stages from `pool`, uniformly at random.
+function randomStages(pool: readonly string[], count: number): string[] {
+  const remaining = [...pool];
+  const picks: string[] = [];
+  while (picks.length < count && remaining.length > 0) {
+    const i = Math.floor(Math.random() * remaining.length);
+    picks.push(remaining.splice(i, 1)[0]);
+  }
+  return picks;
+}
+
 // Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
 // for a live in-session timer): checked on every read, same idea as
 // liftExpiredSuspension in account.ts. Picks a uniformly random stage from
@@ -75,14 +91,26 @@ async function autoResolveStaleTurn(matchId: string) {
 
   const striker = actorForStrike(game);
   if (striker) {
-    const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
-    if (!stage) return;
+    // A stale turn resolves wholesale: the player's ENTIRE allotment of bans
+    // for this turn is applied at once, randomly from what's left, rather
+    // than one strike per lazy check — the turn is one continuous window, so
+    // it resolves at its single deadline. The next actor gets a fresh clock.
+    const count = game.struckStages.length;
+    const owed =
+      striker === game.actorAId
+        ? game.actorAStrikes - count
+        : game.actorAStrikes + game.actorBStrikes - count;
+    const strikes = randomStages(game.stagesRemaining, owed);
+    if (strikes.length === 0) return;
+    const struckStages = [...game.struckStages, ...strikes];
     await prisma.matchGame.updateMany({
       where: { id: game.id, struckStages: { equals: game.struckStages } },
       data: {
-        stagesRemaining: game.stagesRemaining.filter((s) => s !== stage),
-        struckStages: [...game.struckStages, stage],
-        turnStartedAt: new Date(),
+        stagesRemaining: game.stagesRemaining.filter((s) => !strikes.includes(s)),
+        struckStages,
+        ...(turnPassesToNextActor(game, struckStages, striker)
+          ? { turnStartedAt: new Date() }
+          : {}),
       },
     });
     return;
@@ -332,6 +360,18 @@ function picker(game: { actorAId: string; actorBId: string; actorAStrikes: numbe
   return game.actorAStrikes < game.actorBStrikes ? game.actorAId : game.actorBId;
 }
 
+// The stage-strike clock spans a player's whole turn — all the strikes they
+// owe at once — rather than resetting after each individual ban. The only
+// time a strike hands out a fresh window is when it ends the striker's turn
+// and passes the baton (to the other striker, or to the final pick).
+function turnPassesToNextActor(
+  game: { actorAId: string; actorBId: string; actorAStrikes: number; actorBStrikes: number },
+  struckStages: string[],
+  currentActor: string
+) {
+  return actorForStrike({ ...game, struckStages }) !== currentActor;
+}
+
 // Stage selection doesn't start until both sides have locked in a character
 // — not just your own. Without this, striking could start blind (fine for
 // game 1) while the other side still hasn't picked at all, letting the
@@ -541,13 +581,17 @@ export async function strikeGameStage(userId: string, matchId: string, gameNumbe
   if (!game.stagesRemaining.includes(stage)) throw new Error("Stage already struck or invalid");
 
   // Conditional on struckStages still matching what we read, so a racing
-  // duplicate click can't apply against stale state.
+  // duplicate click can't apply against stale state. The turn clock only
+  // resets when this strike ends the turn and passes it to the other side
+  // — a player who still owes strikes keeps the same continuous window.
   await prisma.matchGame.updateMany({
     where: { id: game.id, struckStages: { equals: game.struckStages } },
     data: {
       stagesRemaining: game.stagesRemaining.filter((s) => s !== stage),
       struckStages: [...game.struckStages, stage],
-      turnStartedAt: new Date(), // a fresh turn (next strike or the pick) starts now
+      ...(turnPassesToNextActor(game, [...game.struckStages, stage], actor)
+        ? { turnStartedAt: new Date() }
+        : {}),
     },
   });
 }
@@ -565,12 +609,14 @@ export async function unstrikeLastGameStage(userId: string, matchId: string, gam
   if (actorOfLastStrike !== userId) throw new Error("You can only undo your own most recent strike");
 
   const lastStage = game.struckStages[lastIndex];
+  // The turn goes back to the same player, so the whole-turn clock keeps
+  // running — resetting it here would let strike+undo cycles farm fresh
+  // windows out of a single turn.
   await prisma.matchGame.updateMany({
     where: { id: game.id, struckStages: { equals: game.struckStages } },
     data: {
       struckStages: game.struckStages.slice(0, -1),
       stagesRemaining: [...game.stagesRemaining, lastStage],
-      turnStartedAt: new Date(),
     },
   });
 }
@@ -603,7 +649,9 @@ export async function strikeSameBans(userId: string, matchId: string, gameNumber
     data: {
       stagesRemaining: game.stagesRemaining.filter((s) => !sameBans.stages.includes(s)),
       struckStages: [...game.struckStages, ...sameBans.stages],
-      turnStartedAt: new Date(),
+      ...(turnPassesToNextActor(game, [...game.struckStages, ...sameBans.stages], actor)
+        ? { turnStartedAt: new Date() }
+        : {}),
     },
   });
 }

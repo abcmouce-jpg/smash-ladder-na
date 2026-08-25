@@ -1159,8 +1159,10 @@ function GameSection({
         : `${verb} a stage`;
 
   // Only shown once both characters are locked in (see the !bothLocked
-  // branch below) — at that point turnStartedAt is purely a stage-strike
-  // clock, so STRIKE_TIMEOUT_MS is the only deadline that applies here.
+  // branch below) — at that point turnStartedAt is when the current player's
+  // turn began: one continuous clock spanning every strike they owe (it only
+  // resets when the turn passes to the other side), so STRIKE_TIMEOUT_MS is
+  // the only deadline that applies here.
   const deadline = new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS).toISOString();
 
   const lastStrikeIndex = current.struckStages.length - 1;
