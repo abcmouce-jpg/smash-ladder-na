@@ -10,6 +10,7 @@ import {
   updateCharacterGuide,
   voteOnGuide,
 } from "@/lib/character-guides";
+import { toggleCharacterGuideSubscription } from "@/lib/character-guide-subscriptions";
 import { prisma } from "@/lib/db";
 
 async function requireUserId() {
@@ -107,6 +108,19 @@ export async function flagGuideAction(guideId: string): Promise<GuideActionState
   }
   revalidatePath("/notes");
   return { error: null };
+}
+
+export type ToggleSubscriptionState = { subscribed: boolean; error: string | null };
+
+export async function toggleCharacterGuideSubscriptionAction(character: string): Promise<ToggleSubscriptionState> {
+  try {
+    const userId = await requireUserId();
+    const subscribed = await toggleCharacterGuideSubscription(userId, character);
+    revalidatePath("/notes");
+    return { subscribed, error: null };
+  } catch (err) {
+    return { subscribed: false, error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
 }
 
 // Overwrites the caller's private note for the guide's character — the

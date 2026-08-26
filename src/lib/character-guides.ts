@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
+import { notifyCharacterGuideSubscribers } from "@/lib/push-server";
 
 export const MAX_GUIDE_LENGTH = 10000;
 
@@ -43,13 +45,29 @@ export async function getAllCharacterGuides(viewerId: string | null) {
   return byCharacter;
 }
 
+// Defers notifyCharacterGuideSubscribers to run once the creating request
+// has committed — same reasoning as deferMatchmakingNotification in
+// free-battle.ts: notifying a whole subscriber list shouldn't hold up the
+// response to whoever just posted, and after() throws outside a real
+// request scope (integration tests, one-off scripts), which is a
+// deliberate no-op here rather than a bug to catch.
+function deferGuideNotification(character: string, authorId: string) {
+  try {
+    after(() => notifyCharacterGuideSubscribers(character, authorId));
+  } catch {
+    // See comment above.
+  }
+}
+
 export async function createCharacterGuide(authorId: string, character: string, content: string) {
   assertValidCharacter(character);
   const trimmed = content.trim();
   if (!trimmed) throw new Error("Guide can't be empty");
   if (trimmed.length > MAX_GUIDE_LENGTH) throw new Error(`Guide is too long (max ${MAX_GUIDE_LENGTH} characters)`);
 
-  return prisma.characterGuide.create({ data: { character, authorId, content: trimmed } });
+  const guide = await prisma.characterGuide.create({ data: { character, authorId, content: trimmed } });
+  deferGuideNotification(character, authorId);
+  return guide;
 }
 
 export async function updateCharacterGuide(authorId: string, guideId: string, content: string) {

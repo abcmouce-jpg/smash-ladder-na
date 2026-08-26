@@ -222,6 +222,7 @@ model User {
   characterGuides           CharacterGuide[]
   characterGuideVotes       CharacterGuideVote[]
   characterGuideFlags       CharacterGuideFlag[]
+  characterGuideSubscriptions CharacterGuideSubscription[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -594,8 +595,22 @@ model MatchupNote {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   character String // one of SMASH_CHARACTERS — validated at the app layer, not DB-level, same as MatchGame's actor*Character
-  note      String // free text; capped at 1000 chars in the app layer (see upsertMatchupNote)
+  note      String // free text; capped at MAX_MATCHUP_NOTE_LENGTH chars in the app layer (see upsertMatchupNote)
   updatedAt DateTime @updatedAt
+
+  @@unique([userId, character])
+}
+
+// Lets a user opt into a push notification whenever anyone posts a new
+// CharacterGuide for a given character — see notifyCharacterGuideSubscribers
+// in push-server.ts. Same @@unique([userId, character]) shape as
+// MatchupNote since it's the same "one row per user per character" idea.
+model CharacterGuideSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character String
+  createdAt DateTime @default(now())
 
   @@unique([userId, character])
 }

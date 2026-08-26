@@ -37,6 +37,17 @@ const MATCH_FOUND_MESSAGES = {
   es: { title: "¡Partida encontrada!", body: "Te emparejaron — ve a la Sala." },
 } as const;
 
+const NEW_GUIDE_MESSAGES = {
+  en: (character: string) => ({
+    title: "New community guide",
+    body: `Someone posted a new guide for ${character}.`,
+  }),
+  es: (character: string) => ({
+    title: "Nueva guía de la comunidad",
+    body: `Alguien publicó una nueva guía para ${character}.`,
+  }),
+} as const;
+
 const TEST_MESSAGES = {
   en: {
     title: "Test notification",
@@ -106,6 +117,39 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
         title: copy.title,
         body: copy.body,
         url: "/lobby",
+        icon: "/smash_ladder_icon.png",
+      }),
+    );
+  }
+  return sent;
+}
+
+// Called right after a new CharacterGuide is created (see
+// deferGuideNotification in character-guides.ts). Notifies everyone
+// subscribed to that character via the bell on /notes, except the author
+// themselves. Never throws, same reasoning as notifyMatchFoundToUsers.
+export async function notifyCharacterGuideSubscribers(character: string, authorId: string) {
+  if (!pushConfigured) return 0;
+
+  const subscribers = await prisma.user.findMany({
+    where: { id: { not: authorId }, characterGuideSubscriptions: { some: { character } } },
+    select: {
+      preferredLanguage: true,
+      pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
+    },
+  });
+
+  let sent = 0;
+  for (const subscriber of subscribers) {
+    if (subscriber.pushSubscriptions.length === 0) continue;
+    const copy =
+      subscriber.preferredLanguage === "es" ? NEW_GUIDE_MESSAGES.es(character) : NEW_GUIDE_MESSAGES.en(character);
+    sent += await sendPushPayload(
+      subscriber.pushSubscriptions,
+      JSON.stringify({
+        title: copy.title,
+        body: copy.body,
+        url: "/notes",
         icon: "/smash_ladder_icon.png",
       }),
     );

@@ -3,6 +3,7 @@ import { NotebookPen } from "lucide-react";
 import { auth } from "@/auth";
 import { getMatchupNotes, MAX_MATCHUP_NOTE_LENGTH } from "@/lib/matchup-notes";
 import { getAllCharacterGuides, MAX_GUIDE_LENGTH } from "@/lib/character-guides";
+import { getSubscribedCharacters } from "@/lib/character-guide-subscriptions";
 import { getLang } from "@/lib/i18n";
 import { MatchupNotesList } from "@/components/matchup-notes-list";
 import {
@@ -11,6 +12,7 @@ import {
   editGuideAction,
   flagGuideAction,
   importGuideAction,
+  toggleCharacterGuideSubscriptionAction,
   updateMatchupNoteAction,
   voteOnGuideAction,
 } from "./actions";
@@ -36,9 +38,10 @@ export default async function NotesPage() {
     );
   }
 
-  const [notes, guidesByCharacterMap] = await Promise.all([
+  const [notes, guidesByCharacterMap, subscribedCharacters] = await Promise.all([
     getMatchupNotes(userId),
     getAllCharacterGuides(userId),
+    getSubscribedCharacters(userId),
   ]);
   const guidesByCharacter = Object.fromEntries(
     Array.from(guidesByCharacterMap, ([character, guides]) => [
@@ -68,6 +71,8 @@ export default async function NotesPage() {
         voteOnGuideAction={voteOnGuideAction}
         flagGuideAction={flagGuideAction}
         importGuideAction={importGuideAction}
+        subscribedCharacters={subscribedCharacters}
+        toggleSubscriptionAction={toggleCharacterGuideSubscriptionAction}
         lang={lang}
       />
     </main>
