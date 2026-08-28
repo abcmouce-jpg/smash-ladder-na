@@ -71,6 +71,11 @@ export default async function FaqPage() {
             enough (see &quot;Canceling a match&quot; above), or ask your opponent to agree to a mutual cancel from the
             match screen, then requeue with the box unchecked.
           </QA>
+          <QA q="Can I use my main character while practicing?">
+            No — see the Rules page. Practicing takes your own rating off the table, so playing your main against
+            someone who isn&apos;t practicing puts all the risk on them and none on you. This isn&apos;t blocked
+            automatically; file a conduct report if you run into it.
+          </QA>
         </Category>
 
         <Category title="Character reporting">

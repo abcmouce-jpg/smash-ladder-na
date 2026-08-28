@@ -153,6 +153,12 @@ export default async function RulesPage() {
             and vice versa. If you&apos;d rather not face practicing opponents at all, turn on &quot;Don&apos;t match me
             with opponents who are practicing&quot; in Settings.
           </p>
+          <p>
+            You may not use your main character while practicing. Since practicing shields your own rating from any
+            risk, doing this against an opponent who isn&apos;t practicing puts all the risk on them with none on you —
+            that&apos;s not a legitimate use of the mode. This isn&apos;t enforced automatically; report it like any
+            other conduct issue and a mod will review and can suspend the account.
+          </p>
         </Section>
 
         <Section title="Character reporting">
