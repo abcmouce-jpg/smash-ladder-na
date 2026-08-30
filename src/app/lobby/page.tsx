@@ -243,17 +243,7 @@ export default async function LobbyPage() {
         </Card>
       )}
 
-      {isInActiveMatch ? (
-        <Card className="mt-4">
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">
-              {lang === "es"
-                ? "El perfil y los ajustes de emparejamiento están bloqueados mientras hay una partida en curso."
-                : "Profile and matchmaking settings are locked while a match is in progress."}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
+      {!isInActiveMatch && (
         <Card className="mt-4">
           <CardContent className="pt-4">
             <MatchmakingForm userId={session.user.id} lang={lang} disabled={entry?.status === "WAITING"} />
