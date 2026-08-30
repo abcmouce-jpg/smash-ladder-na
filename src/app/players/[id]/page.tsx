@@ -173,12 +173,12 @@ export default async function PlayerProfilePage({
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
           {player.avatarUrl && (
             <Image src={player.avatarUrl} alt={player.username} width={56} height={56} className="rounded-full" />
           )}
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          <div className="min-w-0">
+            <h1 className="flex flex-wrap items-center gap-2 wrap-break-word text-2xl font-semibold tracking-tight">
               {player.username}
               {player.role !== "USER" && (
                 <Badge variant={player.role === "ADMIN" ? "warning" : "secondary"} className="text-xs">
@@ -220,7 +220,7 @@ export default async function PlayerProfilePage({
                   : `${player.practiceRating} practice rating · ${player.practiceGamesPlayed} practice sets`}
               </p>
             )}
-            <div className="mt-1.5 flex items-center gap-1.5">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
               {nextTier && (
                 <span className="text-xs tabular-nums text-muted-foreground">
@@ -261,7 +261,7 @@ export default async function PlayerProfilePage({
               )}
             </div>
             {player.startggSlug && (
-              <div className="mt-1.5 flex gap-4">
+              <div className="mt-1.5 flex flex-wrap gap-4">
                 <a
                   href={startggProfileUrl(player.startggSlug)}
                   target="_blank"
@@ -303,10 +303,11 @@ export default async function PlayerProfilePage({
             href={`/players/${id}/opengraph-image`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
+            aria-label={lang === "es" ? "Compartir tarjeta de clasificación" : "Share rank card"}
+            title={lang === "es" ? "Compartir tarjeta de clasificación" : "Share rank card"}
+            className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            <Share2 className="size-3.5" />
-            {lang === "es" ? "Compartir tarjeta" : "Share rank card"}
+            <Share2 className="size-4" />
           </a>
           {session?.user?.id &&
             !isOwnProfile &&
