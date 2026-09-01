@@ -285,6 +285,73 @@ describe("joinLobbyAndTryPair", () => {
     expect(match.roomCode).toBe("CD456");
     expect(match.roomCodeSetById).toBe(b.id);
   });
+
+  // Regression test for the join side of the double-booking bug: two
+  // concurrent joins (two tabs, a double-fired submit) can both pass the
+  // waitingEntry read above before either commits, and both create a WAITING
+  // entry — the pairing paths can then book each entry into a different
+  // match. The unique partial index on (userId) WHERE status = 'WAITING' is
+  // the deterministic backstop: the second WAITING row is rejected at the
+  // database, no matter the timing.
+  it("rejects a second WAITING entry for the same player at the database level", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    await joinLobbyAndTryPair(a.id);
+
+    await expect(
+      prisma.ratingLobbyEntry.create({
+        data: { userId: a.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+
+    // A PAIRED row (e.g. leftover from a finished match) must NOT block a
+    // fresh WAITING entry — requeueing after a set is the normal flow.
+    const b = await createTestUser({ region: "USA East" });
+    await prisma.ratingLobbyEntry.create({
+      data: {
+        userId: b.id,
+        status: LobbyEntryStatus.PAIRED,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+    // Clear a's entry so b has no candidate and stays in the queue —
+    // otherwise joinLobbyAndTryPair would pair b with a (both compatible),
+    // which is correct behavior but not what this half of the test asserts.
+    await prisma.ratingLobbyEntry.updateMany({
+      where: { userId: a.id, status: LobbyEntryStatus.WAITING },
+      data: { status: LobbyEntryStatus.CANCELLED },
+    });
+    const joined = await joinLobbyAndTryPair(b.id);
+    expect(joined?.status).toBe("WAITING");
+  });
+
+  // Best-effort concurrency smoke test, same caveat as the retry double-book
+  // regression above: a fast local Postgres may not actually overlap the two
+  // calls, so this alone can't prove the fix — the unique index test above is
+  // the real guarantee. This documents the scenario and verifies the loser of
+  // the race degrades gracefully (returns the existing queue state instead of
+  // erroring or creating a second entry).
+  it("never leaves a player with two live entries after concurrent joins", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+    const c = await createTestUser({ region: "USA East" });
+
+    const results = await Promise.all([joinLobbyAndTryPair(a.id), joinLobbyAndTryPair(a.id)]);
+    expect(results.every((r) => r !== null)).toBe(true);
+
+    const aEntries = await prisma.ratingLobbyEntry.findMany({ where: { userId: a.id } });
+    expect(aEntries.length).toBe(1);
+
+    // Give the surviving entry a candidate; if the race had created two
+    // entries, b and c would each have been pairable with one, leaving a in
+    // two live matches.
+    await joinLobbyAndTryPair(b.id);
+    await joinLobbyAndTryPair(c.id);
+
+    const aUnresolvedMatches = await prisma.ratingMatch.count({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }], status: "PENDING_REPORT" },
+    });
+    expect(aUnresolvedMatches).toBeLessThanOrEqual(1);
+  });
 });
 
 describe("retryPairForWaitingUser", () => {
