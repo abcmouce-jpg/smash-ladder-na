@@ -374,9 +374,24 @@ export async function joinLobbyAndTryPair(
       "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
     );
   }
-  const newEntry = await prisma.ratingLobbyEntry.create({
-    data: { userId, isPracticing, existingRoomCode, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
-  });
+  let newEntry: Awaited<ReturnType<typeof prisma.ratingLobbyEntry.create>>;
+  try {
+    newEntry = await prisma.ratingLobbyEntry.create({
+      data: { userId, isPracticing, existingRoomCode, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
+    });
+  } catch (err) {
+    // The waitingEntry check above is a read-then-write race: two concurrent
+    // joins (two tabs both clicking Find Match, a double-fired submit) can
+    // both pass it and both attempt to create a WAITING entry. The unique
+    // partial index on (userId) WHERE status = 'WAITING' makes the second
+    // create fail deterministically — treat it exactly like the early return
+    // above: the player IS in the queue, so hand back its current state
+    // (which the concurrent join may already have paired) instead of an error.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return getActiveLobbyEntry(userId);
+    }
+    throw err;
+  }
 
   const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
   const myEffectiveGap = effectiveMaxRatingGap(me);

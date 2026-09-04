@@ -1109,6 +1109,29 @@ describe("requestRematch", () => {
     expect(newEntries.length).toBeGreaterThanOrEqual(1);
   });
 
+  // Regression test for the rematch half of the double-booking bug: the
+  // ended-match card shows both "Find Match" and the rematch button, so a
+  // player can requeue (live WAITING entry) and still accept a rematch. The
+  // rematch used to be created anyway, leaving that WAITING entry in the
+  // pairing pool for the sweep/poll to book into a second live match on top
+  // of the rematch.
+  it("doesn't create a rematch if either player has already requeued", async () => {
+    const { player1, player2, match } = await createConfirmedMatch();
+
+    // player2 requeued instead of waiting on the rematch.
+    await prisma.ratingLobbyEntry.create({
+      data: { userId: player2.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+
+    await requestRematch(player1.id, match.id);
+    await requestRematch(player2.id, match.id);
+
+    const newMatches = await prisma.ratingMatch.count({
+      where: { player1Id: player1.id, player2Id: player2.id, id: { not: match.id } },
+    });
+    expect(newMatches).toBe(0);
+  });
+
   // Regression test: a player who was practicing in the original match
   // (banning their own main, results kept off their real rating) expects a
   // rematch to keep behaving the same way — createDirectMatch used to

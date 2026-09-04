@@ -1,6 +1,6 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, ConfirmationMethod, PairingMethod, UserStatus } from "@/generated/prisma/enums";
+import { LobbyEntryStatus, MatchStatus, ConfirmationMethod, PairingMethod, UserStatus } from "@/generated/prisma/enums";
 import {
   CANCEL_SUSPEND_DURATION_HOURS,
   isCancelSuspendThreshold,
@@ -396,6 +396,22 @@ export async function requestRematch(userId: string, matchId: string) {
         },
       });
       if (eitherAlreadyPlaying) return;
+
+      // The ended-match card shows both "Find Match" and the rematch button,
+      // so either side can requeue (creating a live WAITING entry) and still
+      // accept a rematch. A rematch created then would leave that WAITING
+      // entry in the pairing pool, and the sweep/poll could pair it into a
+      // second live match on top of the rematch — the same double-booking as
+      // the queue race in lobby.ts, via a different path. Bail the same way
+      // the eitherAlreadyPlaying check above does.
+      const eitherQueued = await tx.ratingLobbyEntry.findFirst({
+        where: {
+          userId: { in: [match.player1Id, match.player2Id] },
+          status: LobbyEntryStatus.WAITING,
+          expiresAt: { gt: new Date() },
+        },
+      });
+      if (eitherQueued) return;
 
       await createDirectMatch(
         tx,

@@ -1,0 +1,13 @@
+-- Only one live (WAITING) queue entry per player. Two concurrent joins (two
+-- tabs, a double-fired submit) can both pass joinLobbyAndTryPair's
+-- "already waiting?" read before either commits, and each then creates its
+-- own WAITING entry; the pairing paths (join-time attemptPairing, the 5s
+-- poll retry, and the sweep cron) can each book a different entry into a
+-- different match — leaving the player in two live matches at once. The
+-- guarded status claims in lobby.ts are per-entry, so they can't see a
+-- second entry for the same user; the database is the unambiguous arbiter.
+--
+-- Deliberately WAITING-only: PAIRED rows are never cleaned up after a match
+-- resolves, so a player requeueing after a set must be able to hold a fresh
+-- WAITING row alongside their old PAIRED one(s).
+CREATE UNIQUE INDEX "RatingLobbyEntry_userId_waiting_key" ON "RatingLobbyEntry" ("userId") WHERE "status" = 'WAITING';
