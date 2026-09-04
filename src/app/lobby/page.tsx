@@ -19,7 +19,6 @@ import { resolveQuickMessages } from "@/lib/quick-messages";
 import { currentStreak, getHeadToHead, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
-  CHARACTER_TIMEOUT_MS,
   REPORT_TIMEOUT_MS,
   bothCharactersLocked,
   characterPickState,
@@ -243,17 +242,7 @@ export default async function LobbyPage() {
         </Card>
       )}
 
-      {isInActiveMatch ? (
-        <Card className="mt-4">
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">
-              {lang === "es"
-                ? "El perfil y los ajustes de emparejamiento están bloqueados mientras hay una partida en curso."
-                : "Profile and matchmaking settings are locked while a match is in progress."}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
+      {!isInActiveMatch && (
         <Card className="mt-4">
           <CardContent className="pt-4">
             <MatchmakingForm userId={session.user.id} lang={lang} disabled={entry?.status === "WAITING"} />
@@ -1321,6 +1310,7 @@ async function CharacterPickSection({
     actorBCharacter: string | null;
     actorBMoveset: string | null;
     createdAt: Date;
+    characterPickDeadline: Date;
   };
   opponentName: string;
   defaultCharacter: string | null;
@@ -1335,8 +1325,12 @@ async function CharacterPickSection({
   );
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
   // forfeits the whole game to whoever's opponent never locked in within this
-  // window, measured from the game's creation, so it needs to be visible here.
-  const pickDeadline = new Date(game.createdAt.getTime() + CHARACTER_TIMEOUT_MS);
+  // window. Each player gets their own CHARACTER_TIMEOUT_MS window: it starts
+  // at the game's creation for the first picker, and pickGameCharacter resets
+  // it to now + CHARACTER_TIMEOUT_MS when the first player locks in — so the
+  // second player's countdown restarts from their opponent's pick, not from
+  // when the game was created.
+  const pickDeadline = new Date(game.characterPickDeadline.getTime());
   const secondsLeft = secondsUntil(pickDeadline);
   const deadline = pickDeadline.toISOString();
 

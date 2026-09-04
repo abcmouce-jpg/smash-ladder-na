@@ -135,12 +135,19 @@ async function autoResolveStaleTurn(matchId: string) {
 // "Xs left" text in CharacterPickSection). Deliberately not a random
 // assignment either way: picking a character for someone is a much bigger
 // deal than picking a stage for them.
-export const CHARACTER_TIMEOUT_MS = 3 * 60 * 1000;
+//
+// Each player gets their OWN window of this length: the first picker's runs
+// from the game row's creation (when character selection became available),
+// and pickGameCharacter resets characterPickDeadline to now + this when the
+// first player locks in, so the second player always gets a fresh window
+// rather than whatever was left of the first player's.
+export const CHARACTER_TIMEOUT_MS = 2 * 60 * 1000;
 
 // Lazy, same pattern as autoResolveStaleTurn. Forfeits the WHOLE SET to
 // whichever side actually locked in a character, once the other side has
-// had CHARACTER_TIMEOUT_MS (measured from the game row's creation — the
-// moment character selection became available) and still hasn't — mirrors
+// had their CHARACTER_TIMEOUT_MS window (characterPickDeadline — reset to
+// now + CHARACTER_TIMEOUT_MS when the first player locks in, see
+// pickGameCharacter) and still hasn't — mirrors
 // autoConfirmStaleGameReport's "accept whoever showed up, penalize the
 // ghost" philosophy. Ends the whole match rather than just this game (see
 // applyEloAndConfirm below) — a player who's stopped locking in characters
@@ -157,7 +164,7 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
   });
   if (!game) return;
   if (bothCharactersLocked(game)) return;
-  if (Date.now() - game.createdAt.getTime() < CHARACTER_TIMEOUT_MS) return;
+  if (Date.now() < game.characterPickDeadline.getTime()) return;
 
   const aLocked = game.actorACharacter !== null;
   const bLocked = game.actorBCharacter !== null;
@@ -337,6 +344,7 @@ export async function startFirstGame(userId: string, matchId: string) {
       actorBId,
       actorBStrikes: 2,
       stagesRemaining: [...GAME_ONE_STAGES],
+      characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
     },
   });
 }
@@ -555,6 +563,12 @@ export async function pickGameCharacter(
       ...(isActorA
         ? { actorACharacter: character, actorAMoveset: storedMoveset }
         : { actorBCharacter: character, actorBMoveset: storedMoveset }),
+      // Each player gets their own CHARACTER_TIMEOUT_MS window: this lock-in
+      // (or the opponent's, if they already went) starts the clock for the
+      // other side fresh rather than leaving them whatever was left of the
+      // game-creation window. Once both are locked the pick clock is moot
+      // either way — the stage-strike clock below takes over.
+      characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
       // This pick is the second lock-in — start the stage-strike clock now
       // rather than from whenever the game row was created, which could've
       // been arbitrarily long ago if character selection itself took a while.
@@ -1160,6 +1174,7 @@ async function progressSet(
       actorBId: loserId,
       actorBStrikes: 0,
       stagesRemaining: [...COUNTERPICK_STAGES],
+      characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
     },
   });
   return null;

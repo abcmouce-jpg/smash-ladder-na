@@ -24,20 +24,27 @@ async function createMatch(p1: string, p2: string) {
 }
 
 describe("auto-forfeit for a stale character pick", () => {
-  it("does nothing before CHARACTER_TIMEOUT_MS has elapsed since the game was created", async () => {
+  it("resets the pick window when the first player locks in", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await startFirstGame(p1.id, match.id);
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
+    // The game row is ancient — under the old single-window-from-creation
+    // model this would already be past the deadline. The first lock-in
+    // resets the clock for the second player, so it must NOT forfeit yet.
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+    });
     await pickGameCharacter(game.actorAId, match.id, 1, "Mario"); // only one side locks in
 
     const games = await getMatchGames(match.id);
     expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
   });
 
-  it("forfeits the whole match to whoever locked in once CHARACTER_TIMEOUT_MS has elapsed", async () => {
+  it("forfeits the whole match to whoever locked in once the other side's window has elapsed", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -45,9 +52,11 @@ describe("auto-forfeit for a stale character pick", () => {
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
     await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    // The first pick reset the deadline to now + CHARACTER_TIMEOUT_MS; fast-
+    // forward past the second player's own window.
     await prisma.matchGame.update({
       where: { id: game.id },
-      data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+      data: { characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
     });
 
     const games = await getMatchGames(match.id);
@@ -84,7 +93,7 @@ describe("auto-forfeit for a stale character pick", () => {
     await pickGameCharacter(nonGhostId, match.id, 1, "Mario");
     await prisma.matchGame.update({
       where: { id: game.id },
-      data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+      data: { characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
     });
 
     await getMatchGames(match.id);
@@ -94,7 +103,7 @@ describe("auto-forfeit for a stale character pick", () => {
     expect(ghost.noShowCount).toBe(1);
   });
 
-  it("does nothing when neither side has locked in yet, even past the timeout", async () => {
+  it("does nothing when neither side has locked in yet, even past the deadline", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -103,7 +112,7 @@ describe("auto-forfeit for a stale character pick", () => {
     if (!game) throw new Error("expected game 1 to exist");
     await prisma.matchGame.update({
       where: { id: game.id },
-      data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+      data: { characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
     });
 
     const games = await getMatchGames(match.id);

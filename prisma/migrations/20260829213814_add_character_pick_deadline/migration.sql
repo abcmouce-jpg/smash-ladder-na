@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "MatchGame" ADD COLUMN     "characterPickDeadline" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
