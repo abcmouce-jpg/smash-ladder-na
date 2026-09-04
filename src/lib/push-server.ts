@@ -26,7 +26,7 @@ if (pushConfigured) {
 // reaching them, not delivered-but-late. Real incident: a player waiting
 // live on stream missed their match entirely and only found out by
 // manually checking back — no notification ever showed. Raised to cover
-// both per-game auto-forfeit windows (CHARACTER_TIMEOUT_MS 3min,
+// both per-game auto-forfeit windows (CHARACTER_TIMEOUT_MS 2min,
 // REPORT_TIMEOUT_MS 5min in match-games.ts) with room for the push service
 // to actually wake the device, not just match how long we'd want the
 // message to remain relevant.

@@ -340,6 +340,7 @@ model MatchGame {
   struckStages    String[]    @default([])
   finalStage      String?
   turnStartedAt   DateTime    @default(now()) // reset on every strike/pick — and when the final stage is picked, which is also what anchors the report clock; a stale turn past STRIKE_TIMEOUT_MS auto-resolves with a random remaining stage, and a lone hanging report past REPORT_TIMEOUT_MS auto-confirms
+  characterPickDeadline DateTime @default(now()) // each player gets CHARACTER_TIMEOUT_MS to lock in their character, measured from when picking became available to them: game creation for the first picker, and reset to now + CHARACTER_TIMEOUT_MS when the first player locks in (pickGameCharacter) so the second player gets a full window of their own. autoResolveStaleCharacterPick forfeits the set to whoever locked in once this passes and the other side hasn't
 
   reportedWinnerId     String?
   reportedById         String?

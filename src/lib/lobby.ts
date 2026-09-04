@@ -5,7 +5,7 @@ import { getLatestMatchForUser, getRoomHostId, getUnresolvedMatchForUser } from 
 import { getRegionsWithinDistance } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
-import { MATCH_TTL_MS } from "@/lib/match-games";
+import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { notifyMatchFoundToUsers } from "@/lib/push-server";
 
@@ -158,6 +158,26 @@ export async function getActiveLobbyEntry(userId: string) {
   // in-progress pairing — nothing in the UI can act on it, so treat it the
   // same as not being in the queue instead of rendering a dead end.
   if (!match) return null;
+
+  // The in-session auto-forfeit resolvers (stale character pick, hanging
+  // game report) are lazy — they only run on a getMatchGames call — and
+  // they're what flips a live match to CONFIRMED mid-flight. Resolve before
+  // reading the match back, or a match that just auto-resolved on this very
+  // read still looks in-progress to the lobby: PairedView's ended-state
+  // check would be skipped and the winner offered "start the next game" on
+  // a set that's actually over (game 5's character-pick timeout showed
+  // "Start Game 6 stage striking" instead of the confirmed result) until a
+  // later poll happened to re-read the now-CONFIRMED row.
+  if (
+    match.status !== MatchStatus.CONFIRMED &&
+    match.status !== MatchStatus.CANCELLED &&
+    match.status !== MatchStatus.EXPIRED
+  ) {
+    await getMatchGames(match.id);
+    const resolved = (await getUnresolvedMatchForUser(userId)) ?? (await getLatestMatchForUser(userId));
+    if (!resolved) return null; // orphaned between the two reads — same as above
+    return { ...entry, match: resolved };
+  }
 
   return { ...entry, match };
 }
