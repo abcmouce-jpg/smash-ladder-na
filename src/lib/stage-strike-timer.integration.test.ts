@@ -342,6 +342,7 @@ describe("stale character-pick auto-resolution", () => {
         actorBId: p2.id,
         actorBStrikes: 2,
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
+        characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
       },
     });
 
@@ -363,7 +364,8 @@ describe("stale character-pick auto-resolution", () => {
         actorBId: p2.id,
         actorBStrikes: 2,
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+        // p1 already locked in — the deadline is the end of p2's own window.
+        characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
       },
     });
 
@@ -398,7 +400,7 @@ describe("stale character-pick auto-resolution", () => {
         actorBId: p2.id,
         actorBStrikes: 2,
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+        characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
       },
     });
 
@@ -421,7 +423,7 @@ describe("stale character-pick auto-resolution", () => {
         actorBStrikes: 2,
         actorBCharacter: "Luigi",
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+        characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
       },
     });
 

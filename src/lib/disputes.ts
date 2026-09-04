@@ -2,7 +2,7 @@ import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 import { applyEloAndConfirm, applyCorrection, isMostRecentConfirmedMatch } from "@/lib/matches";
-import { realignNextGameActors, tallySetWins, GAMES_TO_WIN } from "@/lib/match-games";
+import { realignNextGameActors, tallySetWins, GAMES_TO_WIN, CHARACTER_TIMEOUT_MS } from "@/lib/match-games";
 import { GAME_ONE_STAGES } from "@/lib/stages";
 import { sendDiscordDM } from "@/lib/discord-bot";
 
@@ -351,6 +351,7 @@ export async function adminResetMatchToZero(matchId: string) {
         actorBId,
         actorBStrikes: 2,
         stagesRemaining: [...GAME_ONE_STAGES],
+        characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
       },
     });
   });
