@@ -26,6 +26,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(url);
   }
 
+  console.error("[twitch-oauth] connect issuing redirect", { redirectUri, host: new URL(request.url).host });
+
   const response = NextResponse.redirect(authorizeUrl);
   response.cookies.set(TWITCH_STATE_COOKIE, state, {
     httpOnly: true,

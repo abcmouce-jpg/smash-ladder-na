@@ -55,3 +55,4 @@ next-env.d.ts
 
 # per-machine MCP server config, not shared across contributors
 .mcp.json
+.claude/settings.local.json

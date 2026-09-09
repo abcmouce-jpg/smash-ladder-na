@@ -19,6 +19,13 @@ export async function GET(request: NextRequest) {
   const cookieState = request.cookies.get(STARTGG_STATE_COOKIE)?.value;
 
   if (!code || !state || !cookieState || state !== cookieState) {
+    console.error("[startgg-oauth] callback rejected", {
+      hasCode: !!code,
+      hasState: !!state,
+      hasCookieState: !!cookieState,
+      stateMatches: state === cookieState,
+      host: request.nextUrl.host,
+    });
     return redirectWithError(request, "That connection request expired or was invalid — try again.");
   }
 

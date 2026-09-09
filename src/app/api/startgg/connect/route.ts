@@ -31,6 +31,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(url);
   }
 
+  console.error("[startgg-oauth] connect issuing redirect", { redirectUri, host: new URL(request.url).host });
+
   const response = NextResponse.redirect(authorizeUrl);
   response.cookies.set(STARTGG_STATE_COOKIE, state, {
     httpOnly: true,
