@@ -1,6 +1,3 @@
-// TEMPORARY, ONE-OFF ADMIN TOOL — delete this file (and the API route that
-// calls it) once the shinymark/Who match has been corrected.
-//
 // Flips the winner of a single already-CONFIRMED match, then correctly
 // recomputes Elo forward through every match transitively connected to
 // either participant from that point on (their own subsequent matches, and

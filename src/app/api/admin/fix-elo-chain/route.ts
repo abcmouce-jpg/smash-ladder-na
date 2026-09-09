@@ -1,5 +1,6 @@
-// TEMPORARY, ONE-OFF ADMIN TOOL — remove this file (and src/lib/admin-elo-fix.ts)
-// once the shinymark/Who match has been corrected.
+// Corrects the winner of an already-CONFIRMED match and cascades the Elo
+// recompute forward through every transitively-connected match — for cases
+// normal admin edits can't reach (see src/lib/admin-elo-fix.ts).
 //
 // GET  ?playerId=&ratingBefore=&ratingAfter=   -> locates the match, reports blast radius (read-only)
 // POST { matchId, winnerId, dryRun }           -> recomputes; dryRun=true rolls back and returns the diff
