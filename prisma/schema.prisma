@@ -223,6 +223,7 @@ model User {
   characterGuideVotes       CharacterGuideVote[]
   characterGuideFlags       CharacterGuideFlag[]
   characterGuideSubscriptions CharacterGuideSubscription[]
+  apiTokens                 ApiToken[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -587,6 +588,23 @@ model PushSubscription {
   auth      String // auth secret, base64url — used to encrypt the payload
   userAgent String? // what browser registered it, for debugging stale subscriptions
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Personal access tokens for external clients (e.g. the Switch UI) to hit
+// /api/v1/* as a specific player — see lib/api-tokens.ts. Only the hash is
+// ever stored; the raw value is shown once at creation time and can't be
+// recovered afterward, same reasoning as a password.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
 
   @@index([userId])
 }

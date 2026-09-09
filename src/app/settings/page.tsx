@@ -18,9 +18,13 @@ import { listBlockedUsers } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 import { MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
+import { listApiTokens } from "@/lib/api-tokens";
+import { ApiTokensPanel } from "@/components/api-tokens-panel";
 import {
   disconnectStartggAction,
   disconnectTwitchAction,
+  generateApiTokenAction,
+  revokeApiTokenAction,
   updateArenaPassword,
   updateAudioPingOnMatchSetting,
   updateAvoidPracticeOpponentsSetting,
@@ -59,7 +63,7 @@ export default async function SettingsPage({
     );
   }
 
-  const [me, blocked, referralCount] = await Promise.all([
+  const [me, blocked, referralCount, apiTokens] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -81,6 +85,7 @@ export default async function SettingsPage({
     }),
     listBlockedUsers(session.user.id),
     getReferralCount(session.user.id),
+    listApiTokens(session.user.id),
   ]);
 
   return (
@@ -132,6 +137,23 @@ export default async function SettingsPage({
             }
             justConnected={startggConnected === "1"}
             error={startggError}
+            lang={lang}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <p className="mb-1 text-sm font-medium">{lang === "es" ? "Tokens de API" : "API tokens"}</p>
+          <ApiTokensPanel
+            tokens={apiTokens.map((token) => ({
+              id: token.id,
+              name: token.name,
+              createdAt: token.createdAt.toISOString(),
+              lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
+            }))}
+            generateAction={generateApiTokenAction}
+            revokeAction={revokeApiTokenAction}
             lang={lang}
           />
         </CardContent>
