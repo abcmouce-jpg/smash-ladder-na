@@ -8,10 +8,12 @@ import {
   setAudioPingOnMatch,
   setAvoidPracticeOpponents,
   setMatchFoundSound,
+  setNotifyQueueOpportunities,
   setQuickMessages,
   setUsername,
 } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
+import { generateApiToken, revokeApiToken } from "@/lib/api-tokens";
 import { sendTestPushToUser } from "@/lib/push-server";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
 import { disconnectTwitchAccount } from "@/lib/twitch-oauth";
@@ -63,6 +65,12 @@ export async function updateMatchFoundSoundSetting(sound: "CHIME" | "ANNOUNCER")
   await setMatchFoundSound(userId, sound);
   revalidatePath("/settings");
   revalidatePath("/lobby");
+}
+
+export async function updateNotifyQueueOpportunitiesSetting(enabled: boolean) {
+  const userId = await requireUserId();
+  await setNotifyQueueOpportunities(userId, enabled);
+  revalidatePath("/settings");
 }
 
 export type PushSubscriptionKeys = { endpoint: string; p256dh: string; auth: string };
@@ -153,4 +161,29 @@ export async function disconnectTwitchAction() {
   await disconnectTwitchAccount(userId);
   revalidatePath("/settings");
   revalidatePath(`/players/${userId}`);
+}
+
+export type GenerateApiTokenState = { error: string | null; rawToken: string | null };
+
+// The raw token is only ever available here, in the state this returns —
+// nothing persists it in recoverable form, so the panel must show it once
+// and the player has to copy it before navigating away.
+export async function generateApiTokenAction(
+  _prevState: GenerateApiTokenState,
+  formData: FormData,
+): Promise<GenerateApiTokenState> {
+  const userId = await requireUserId();
+  try {
+    const rawToken = await generateApiToken(userId, String(formData.get("name") ?? ""));
+    revalidatePath("/settings");
+    return { error: null, rawToken };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", rawToken: null };
+  }
+}
+
+export async function revokeApiTokenAction(tokenId: string) {
+  const userId = await requireUserId();
+  await revokeApiToken(userId, tokenId);
+  revalidatePath("/settings");
 }

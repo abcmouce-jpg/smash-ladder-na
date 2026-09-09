@@ -18,13 +18,18 @@ import { listBlockedUsers } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 import { MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
+import { listApiTokens } from "@/lib/api-tokens";
+import { ApiTokensPanel } from "@/components/api-tokens-panel";
 import {
   disconnectStartggAction,
   disconnectTwitchAction,
+  generateApiTokenAction,
+  revokeApiTokenAction,
   updateArenaPassword,
   updateAudioPingOnMatchSetting,
   updateAvoidPracticeOpponentsSetting,
   updateMatchFoundSoundSetting,
+  updateNotifyQueueOpportunitiesSetting,
   updateQuickMessagesAction,
   updateUsernameAction,
 } from "./actions";
@@ -59,7 +64,7 @@ export default async function SettingsPage({
     );
   }
 
-  const [me, blocked, referralCount] = await Promise.all([
+  const [me, blocked, referralCount, apiTokens] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -75,12 +80,14 @@ export default async function SettingsPage({
         avoidPracticeOpponents: true,
         audioPingOnMatch: true,
         matchFoundSound: true,
+        notifyQueueOpportunities: true,
         quickMessages: true,
         _count: { select: { pushSubscriptions: true } },
       },
     }),
     listBlockedUsers(session.user.id),
     getReferralCount(session.user.id),
+    listApiTokens(session.user.id),
   ]);
 
   return (
@@ -139,6 +146,23 @@ export default async function SettingsPage({
 
       <Card className="mt-4">
         <CardContent className="pt-4">
+          <p className="mb-1 text-sm font-medium">{lang === "es" ? "Tokens de API" : "API tokens"}</p>
+          <ApiTokensPanel
+            tokens={apiTokens.map((token) => ({
+              id: token.id,
+              name: token.name,
+              createdAt: token.createdAt.toISOString(),
+              lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
+            }))}
+            generateAction={generateApiTokenAction}
+            revokeAction={revokeApiTokenAction}
+            lang={lang}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
           <AvoidPracticeOpponentsForm defaultValue={me?.avoidPracticeOpponents ?? false} lang={lang} />
         </CardContent>
       </Card>
@@ -156,6 +180,12 @@ export default async function SettingsPage({
       <Card className="mt-4">
         <CardContent className="pt-4">
           <PushNotificationsForm defaultEnabled={(me?._count.pushSubscriptions ?? 0) > 0} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <NotifyQueueOpportunitiesForm defaultValue={me?.notifyQueueOpportunities ?? false} lang={lang} />
         </CardContent>
       </Card>
 
@@ -462,6 +492,38 @@ function AudioPingOnMatchForm({
         <span className="text-sm">{lang === "es" ? "Sonido" : "Sound"}</span>
         <MatchFoundSoundPicker key={defaultSound} defaultValue={defaultSound} lang={lang} />
       </div>
+    </form>
+  );
+}
+
+function NotifyQueueOpportunitiesForm({ defaultValue, lang }: { defaultValue: boolean; lang: Lang }) {
+  async function action(formData: FormData) {
+    "use server";
+    await updateNotifyQueueOpportunitiesSetting(formData.get("notifyQueueOpportunities") === "on");
+  }
+
+  return (
+    <form action={action} className="flex items-end justify-between gap-2">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          key={String(defaultValue)}
+          type="checkbox"
+          name="notifyQueueOpportunities"
+          defaultChecked={defaultValue}
+          className="size-4 rounded border-border"
+        />
+        <span>
+          {lang === "es" ? "Avisarme de oponentes en la cola" : "Notify me of matchable opponents in queue"}
+          <span className="block text-xs font-normal text-muted-foreground">
+            {lang === "es"
+              ? "Útil si los rivales para tu rango escasean: te enviamos una notificación push cuando alguien que podría emparejarse contigo entra a la cola y tú no estás en ella. Requiere que las notificaciones push (arriba) estén activadas."
+              : "Useful if matches are rare for your rank — sends a push notification when someone who could match you joins the queue while you're not in it. Requires push notifications (above) to be enabled."}
+          </span>
+        </span>
+      </label>
+      <Button type="submit" size="sm">
+        {lang === "es" ? "Guardar" : "Save"}
+      </Button>
     </form>
   );
 }
