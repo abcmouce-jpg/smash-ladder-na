@@ -176,6 +176,8 @@ model User {
   practiceRating          Int     @default(1500) // separate Elo track for matches joined with isPracticing — never touches `rating`/`gamesPlayed`
   practiceGamesPlayed     Int     @default(0)
   avoidPracticeOpponents  Boolean @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
+  notifyQueueOpportunities   Boolean   @default(false) // self-declared opt-in; push-notified (see notifyQueueOpportunitySubscribers) when someone joins the queue who could actually match this player, but only while this player has no active RatingLobbyEntry themselves — a small-pool top-rank player's way to hear "someone's here" without having to sit in the queue waiting
+  queueOpportunityNotifiedAt DateTime? // cooldown for the notification above (QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS in lobby.ts) — without it, a busy stretch of joins in this player's range could fire one push per join
   zenMode                Boolean @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
   audioPingOnMatch        Boolean @default(true) // self-declared master switch; LobbyPoller's playMatchFoundSound (lib/sound.ts) only fires while this is on. Defaults true — matches the original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
   matchFoundSound         MatchFoundSound @default(CHIME) // which sound the ping above plays: the original synthesized chime or the announcer voice clips. Defaults CHIME — the original match-found sound before PR #94 replaced it with announcer clips.
