@@ -6,6 +6,10 @@
 // token, so this is safe to ship ahead of key setup.
 import webpush from "web-push";
 import { prisma } from "@/lib/db";
+import { LobbyEntryStatus, UserStatus } from "@/generated/prisma/enums";
+import { getRegionsWithinDistance } from "@/lib/regions";
+import { getBlockedEitherWayIds } from "@/lib/blocks";
+import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY?.trim();
@@ -35,6 +39,11 @@ const PUSH_TTL_SECONDS = 5 * 60;
 const MATCH_FOUND_MESSAGES = {
   en: { title: "Match found!", body: "You've been paired — head to the Lobby." },
   es: { title: "¡Partida encontrada!", body: "Te emparejaron — ve a la Sala." },
+} as const;
+
+const QUEUE_OPPORTUNITY_MESSAGES = {
+  en: { title: "Opponent in your range just queued", body: "Jump in now while they're still waiting." },
+  es: { title: "Un rival en tu rango acaba de entrar a la cola", body: "Entra ahora mientras sigue esperando." },
 } as const;
 
 const NEW_GUIDE_MESSAGES = {
@@ -121,6 +130,100 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
       }),
     );
   }
+  return sent;
+}
+
+// Per-candidate rate limit for notifyQueueOpportunitySubscribers below — a
+// busy stretch of joins in someone's rating/region range could otherwise
+// fire one push per join. 20 minutes rather than the original 5: this is an
+// opt-in convenience ping, not a match-found alert, so it should stay rare
+// enough to never feel like spam even for a subscriber in a very active
+// bracket.
+const QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS = 20 * 60 * 1000;
+
+// Called from joinLobbyAndTryPair (lobby.ts) only when a fresh join found no
+// immediate opponent — tells anyone who opted in (User.notifyQueueOpportunities)
+// and isn't already queued themselves that someone matchable just showed up,
+// so they can jump into the queue while that entry is still WAITING. Never
+// throws, same contract as the other notify* functions here; called via
+// after() from the caller so it can't delay the join response.
+//
+// Deliberately anonymous: QUEUE_OPPORTUNITY_MESSAGES never names the joiner,
+// states their rating, or gives anything else identifying — unlike
+// notifyMatchmakingSubscribers (free-battle.ts), which names the post's
+// author because claiming a Free Battle post is a deliberate, consensual
+// act. Here the joiner never agreed to be identified just for queuing, so
+// the ping only ever says "someone" is around.
+export async function notifyQueueOpportunitySubscribers(
+  joinerId: string,
+  joiner: {
+    region: string;
+    rating: number;
+    maxMatchDistanceKm: number | null;
+    wiredConnection: boolean;
+    requireWiredOpponent: boolean;
+  },
+  joinerReach: string[],
+  joinerEffectiveGap: number | null,
+) {
+  if (!pushConfigured) return 0;
+
+  const cooldownCutoff = new Date(Date.now() - QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS);
+  const blockedIds = await getBlockedEitherWayIds(joinerId);
+
+  const candidates = await prisma.user.findMany({
+    where: {
+      id: { notIn: [joinerId, ...blockedIds] },
+      status: { not: UserStatus.BANNED },
+      notifyQueueOpportunities: true,
+      OR: [{ queueOpportunityNotifiedAt: null }, { queueOpportunityNotifiedAt: { lt: cooldownCutoff } }],
+      lobbyEntries: { none: { status: { in: [LobbyEntryStatus.WAITING, LobbyEntryStatus.PAIRED] } } },
+      pushSubscriptions: { some: {} },
+    },
+    select: {
+      id: true,
+      region: true,
+      maxMatchDistanceKm: true,
+      rating: true,
+      maxRatingGap: true,
+      gamesPlayed: true,
+      wiredConnection: true,
+      requireWiredOpponent: true,
+      preferredLanguage: true,
+      pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
+    },
+  });
+
+  // Both directions matter, same as sweepLobbyPairing's canMatch: the
+  // candidate's own region must be within the joiner's reach, AND the
+  // joiner's region must be within the candidate's own declared reach —
+  // one side having a wide radius doesn't override the other's tighter one.
+  const eligible = candidates.filter(
+    (c) =>
+      c.region !== null &&
+      joinerReach.includes(c.region) &&
+      getRegionsWithinDistance(c.region, c.maxMatchDistanceKm).includes(joiner.region) &&
+      ratingGapAllows(joiner.rating, c.rating, effectiveMaxRatingGap(c)) &&
+      ratingGapAllows(joiner.rating, c.rating, joinerEffectiveGap) &&
+      wiredRequirementAllows(joiner, c),
+  );
+  if (eligible.length === 0) return 0;
+
+  let sent = 0;
+  for (const candidate of eligible) {
+    const copy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_MESSAGES.es : QUEUE_OPPORTUNITY_MESSAGES.en;
+    sent += await sendPushPayload(
+      candidate.pushSubscriptions,
+      JSON.stringify({ title: copy.title, body: copy.body, url: "/lobby", icon: "/smash_ladder_icon.png" }),
+    );
+  }
+  // Written for everyone eligible, not just those a push actually reached —
+  // best-effort delivery shouldn't turn into a retry storm against a
+  // candidate whose subscription is merely slow/erroring.
+  await prisma.user.updateMany({
+    where: { id: { in: eligible.map((c) => c.id) } },
+    data: { queueOpportunityNotifiedAt: new Date() },
+  });
   return sent;
 }
 

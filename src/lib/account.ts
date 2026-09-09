@@ -154,6 +154,13 @@ export async function setAvoidPracticeOpponents(userId: string, avoidPracticeOpp
   await prisma.user.update({ where: { id: userId }, data: { avoidPracticeOpponents } });
 }
 
+// Opt-in for notifyQueueOpportunitySubscribers (push-server.ts) — ping this
+// player when someone joins the queue who could actually match them, while
+// they aren't queued themselves. See User.notifyQueueOpportunities.
+export async function setNotifyQueueOpportunities(userId: string, notifyQueueOpportunities: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { notifyQueueOpportunities } });
+}
+
 // Expanded display preference — hides the opponent's rating, username,
 // characters, and avatar from this player's own lobby view, and replaces
 // the opponent's name with "Opponent" in chat too.
