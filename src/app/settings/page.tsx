@@ -29,7 +29,6 @@ import {
   updateAudioPingOnMatchSetting,
   updateAvoidPracticeOpponentsSetting,
   updateMatchFoundSoundSetting,
-  updateNotifyQueueOpportunitiesSetting,
   updateQuickMessagesAction,
   updateUsernameAction,
 } from "./actions";
@@ -80,7 +79,6 @@ export default async function SettingsPage({
         avoidPracticeOpponents: true,
         audioPingOnMatch: true,
         matchFoundSound: true,
-        notifyQueueOpportunities: true,
         quickMessages: true,
         _count: { select: { pushSubscriptions: true } },
       },
@@ -180,12 +178,6 @@ export default async function SettingsPage({
       <Card className="mt-4">
         <CardContent className="pt-4">
           <PushNotificationsForm defaultEnabled={(me?._count.pushSubscriptions ?? 0) > 0} lang={lang} />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <NotifyQueueOpportunitiesForm defaultValue={me?.notifyQueueOpportunities ?? false} lang={lang} />
         </CardContent>
       </Card>
 
@@ -492,38 +484,6 @@ function AudioPingOnMatchForm({
         <span className="text-sm">{lang === "es" ? "Sonido" : "Sound"}</span>
         <MatchFoundSoundPicker key={defaultSound} defaultValue={defaultSound} lang={lang} />
       </div>
-    </form>
-  );
-}
-
-function NotifyQueueOpportunitiesForm({ defaultValue, lang }: { defaultValue: boolean; lang: Lang }) {
-  async function action(formData: FormData) {
-    "use server";
-    await updateNotifyQueueOpportunitiesSetting(formData.get("notifyQueueOpportunities") === "on");
-  }
-
-  return (
-    <form action={action} className="flex items-end justify-between gap-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          key={String(defaultValue)}
-          type="checkbox"
-          name="notifyQueueOpportunities"
-          defaultChecked={defaultValue}
-          className="size-4 rounded border-border"
-        />
-        <span>
-          {lang === "es" ? "Avisarme de oponentes en la cola" : "Notify me of matchable opponents in queue"}
-          <span className="block text-xs font-normal text-muted-foreground">
-            {lang === "es"
-              ? "Útil si los rivales para tu rango escasean: te enviamos una notificación push cuando alguien que podría emparejarse contigo entra a la cola y tú no estás en ella. Requiere que las notificaciones push (arriba) estén activadas."
-              : "Useful if matches are rare for your rank — sends a push notification when someone who could match you joins the queue while you're not in it. Requires push notifications (above) to be enabled."}
-          </span>
-        </span>
-      </label>
-      <Button type="submit" size="sm">
-        {lang === "es" ? "Guardar" : "Save"}
-      </Button>
     </form>
   );
 }

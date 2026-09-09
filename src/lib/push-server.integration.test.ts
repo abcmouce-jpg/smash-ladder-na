@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { createTestUser } from "@/test/factories";
-import { blockUser } from "@/lib/blocks";
-import { LobbyEntryStatus } from "@/generated/prisma/enums";
 
 vi.mock("web-push", () => {
   class WebPushError extends Error {
@@ -27,18 +25,6 @@ const sendNotificationMock = vi.mocked(webpush.sendNotification);
 
 let notifyMatchFoundToUsers: (player1Id: string, player2Id: string) => Promise<number>;
 let sendTestPushToUser: (userId: string) => Promise<{ sent: number; error?: string }>;
-let notifyQueueOpportunitySubscribers: (
-  joinerId: string,
-  joiner: {
-    region: string;
-    rating: number;
-    maxMatchDistanceKm: number | null;
-    wiredConnection: boolean;
-    requireWiredOpponent: boolean;
-  },
-  joinerReach: string[],
-  joinerEffectiveGap: number | null,
-) => Promise<number>;
 
 beforeAll(async () => {
   // push-server reads the VAPID env vars at module load — stub them before
@@ -46,9 +32,7 @@ beforeAll(async () => {
   vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "test-public-key");
   vi.stubEnv("VAPID_PRIVATE_KEY", "test-private-key");
   vi.stubEnv("VAPID_SUBJECT", "mailto:test@example.com");
-  ({ notifyMatchFoundToUsers, sendTestPushToUser, notifyQueueOpportunitySubscribers } = await import(
-    "@/lib/push-server"
-  ));
+  ({ notifyMatchFoundToUsers, sendTestPushToUser } = await import("@/lib/push-server"));
 });
 
 afterEach(() => {
@@ -179,161 +163,6 @@ describe("sendTestPushToUser", () => {
 
     expect(result.sent).toBe(0);
     expect(result.error).toMatch(/off and on/i);
-  });
-});
-
-describe("notifyQueueOpportunitySubscribers", () => {
-  function joinerParams(overrides: Partial<{ region: string; rating: number; maxMatchDistanceKm: number | null }> = {}) {
-    return {
-      region: "USA East",
-      rating: 1500,
-      maxMatchDistanceKm: 2400,
-      wiredConnection: false,
-      requireWiredOpponent: false,
-      ...overrides,
-    };
-  }
-
-  it("notifies an opted-in, unqueued candidate within region and rating range", async () => {
-    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
-    const candidate = await createTestUser({
-      rating: 1520,
-      gamesPlayed: 20,
-      region: "USA East",
-      notifyQueueOpportunities: true,
-    });
-    await subscribeUser(candidate.id, "https://push.example.com/opportunity");
-    sendNotificationMock.mockResolvedValue({ statusCode: 201, body: "", headers: {} });
-
-    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
-
-    expect(sent).toBe(1);
-    const payload = JSON.parse(String(sendNotificationMock.mock.calls[0][1]));
-    expect(payload).toMatchObject({ url: "/lobby" });
-    expect(payload.title).toMatch(/queued/i);
-    const updated = await prisma.user.findUniqueOrThrow({ where: { id: candidate.id } });
-    expect(updated.queueOpportunityNotifiedAt).not.toBeNull();
-  });
-
-  it("skips candidates who haven't opted in", async () => {
-    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
-    const candidate = await createTestUser({ rating: 1500, gamesPlayed: 20, region: "USA East" });
-    await subscribeUser(candidate.id, "https://push.example.com/not-opted-in");
-
-    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
-
-    expect(sent).toBe(0);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
-  });
-
-  it("skips a candidate who already has an active lobby entry", async () => {
-    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
-    const candidate = await createTestUser({
-      rating: 1500,
-      gamesPlayed: 20,
-      region: "USA East",
-      notifyQueueOpportunities: true,
-    });
-    await subscribeUser(candidate.id, "https://push.example.com/already-queued");
-    await prisma.ratingLobbyEntry.create({
-      data: {
-        userId: candidate.id,
-        status: LobbyEntryStatus.WAITING,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      },
-    });
-
-    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
-
-    expect(sent).toBe(0);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
-  });
-
-  it("skips a candidate outside the candidate's own rating-gap tolerance", async () => {
-    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
-    const candidate = await createTestUser({
-      rating: 1650,
-      gamesPlayed: 20,
-      region: "USA East",
-      maxRatingGap: 50,
-      notifyQueueOpportunities: true,
-    });
-    await subscribeUser(candidate.id, "https://push.example.com/too-far-candidate-side");
-
-    // joinerEffectiveGap is unlimited (null); the candidate's own 50-point
-    // tolerance is what should reject a 150-point difference.
-    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
-
-    expect(sent).toBe(0);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
-  });
-
-  it("skips a candidate outside the joiner's own rating-gap tolerance", async () => {
-    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
-    const candidate = await createTestUser({
-      rating: 1650,
-      gamesPlayed: 20,
-      region: "USA East",
-      notifyQueueOpportunities: true,
-    });
-    await subscribeUser(candidate.id, "https://push.example.com/too-far-joiner-side");
-
-    // Candidate's own tolerance is unlimited; the joiner's passed-in 50-point
-    // effective gap is what should reject a 150-point difference.
-    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], 50);
-
-    expect(sent).toBe(0);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
-  });
-
-  it("skips a candidate whose region is outside the joiner's reach", async () => {
-    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
-    const candidate = await createTestUser({
-      rating: 1500,
-      gamesPlayed: 20,
-      region: "Japan",
-      notifyQueueOpportunities: true,
-    });
-    await subscribeUser(candidate.id, "https://push.example.com/out-of-reach");
-
-    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
-
-    expect(sent).toBe(0);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
-  });
-
-  it("respects the per-candidate cooldown", async () => {
-    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
-    const candidate = await createTestUser({
-      rating: 1500,
-      gamesPlayed: 20,
-      region: "USA East",
-      notifyQueueOpportunities: true,
-      queueOpportunityNotifiedAt: new Date(),
-    });
-    await subscribeUser(candidate.id, "https://push.example.com/cooldown");
-
-    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
-
-    expect(sent).toBe(0);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
-  });
-
-  it("skips a candidate who has blocked (or is blocked by) the joiner", async () => {
-    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
-    const candidate = await createTestUser({
-      rating: 1500,
-      gamesPlayed: 20,
-      region: "USA East",
-      notifyQueueOpportunities: true,
-    });
-    await subscribeUser(candidate.id, "https://push.example.com/blocked");
-    await blockUser(joiner.id, candidate.id);
-
-    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
-
-    expect(sent).toBe(0);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
   });
 });
 

@@ -8,7 +8,6 @@ import {
   setAudioPingOnMatch,
   setAvoidPracticeOpponents,
   setMatchFoundSound,
-  setNotifyQueueOpportunities,
   setQuickMessages,
   setUsername,
 } from "@/lib/account";
@@ -65,12 +64,6 @@ export async function updateMatchFoundSoundSetting(sound: "CHIME" | "ANNOUNCER")
   await setMatchFoundSound(userId, sound);
   revalidatePath("/settings");
   revalidatePath("/lobby");
-}
-
-export async function updateNotifyQueueOpportunitiesSetting(enabled: boolean) {
-  const userId = await requireUserId();
-  await setNotifyQueueOpportunities(userId, enabled);
-  revalidatePath("/settings");
 }
 
 export type PushSubscriptionKeys = { endpoint: string; p256dh: string; auth: string };

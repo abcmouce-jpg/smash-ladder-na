@@ -6,8 +6,36 @@ import { getRegionsWithinDistance } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
 import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
-import { notifyMatchFoundToUsers, notifyQueueOpportunitySubscribers } from "@/lib/push-server";
-import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
+import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
+import { notifyMatchFoundToUsers } from "@/lib/push-server";
+
+function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null) {
+  return maxGap === null || Math.abs(ratingA - ratingB) <= maxGap;
+}
+
+// A brand-new player's maxRatingGap defaults to null ("any rating") — with
+// no protection, their very first games could be against a Grandmaster.
+// Provisional players (see PROVISIONAL_GAMES_THRESHOLD) get their effective
+// gap clamped to this regardless of their own setting; anyone who explicitly
+// set something tighter keeps that instead.
+export const PROVISIONAL_RATING_GAP_CAP = 300;
+
+function effectiveMaxRatingGap(user: { gamesPlayed: number; maxRatingGap: number | null }) {
+  if (user.gamesPlayed >= PROVISIONAL_GAMES_THRESHOLD) return user.maxRatingGap;
+  return user.maxRatingGap === null
+    ? PROVISIONAL_RATING_GAP_CAP
+    : Math.min(user.maxRatingGap, PROVISIONAL_RATING_GAP_CAP);
+}
+
+// Not symmetric like distance/rating gap — this checks each side's
+// requirement against the OTHER side's actual wiredConnection fact, not a
+// shared value both sides have their own tolerance for.
+function wiredRequirementAllows(
+  a: { wiredConnection: boolean; requireWiredOpponent: boolean },
+  b: { wiredConnection: boolean; requireWiredOpponent: boolean },
+) {
+  return (!a.requireWiredOpponent || b.wiredConnection) && (!b.requireWiredOpponent || a.wiredConnection);
+}
 
 // isPracticing lives on the join (RatingLobbyEntry), not the user, since
 // it's a per-session choice — avoidPracticeOpponents is the user-level
@@ -381,27 +409,7 @@ export async function joinLobbyAndTryPair(
 
   // Notify outside the transaction — a push failure must never roll back (or
   // delay) the pairing itself. Best-effort internally (see push-server).
-  if (!paired) {
-    // Nobody to pair with right now — tell anyone who's opted in and could
-    // actually match this join (rather than the whole subscriber list) so
-    // they can jump into the queue while this entry is still WAITING. Only
-    // fired from the join-time path: retryPairForWaitingUser's 5s poll and
-    // the cron sweep operate on entries that already went through this
-    // check once, so re-notifying there would just spam the same people.
-    await notifyQueueOpportunitySubscribers(
-      userId,
-      {
-        region: myRegion,
-        rating: me.rating,
-        maxMatchDistanceKm: me.maxMatchDistanceKm,
-        wiredConnection: me.wiredConnection,
-        requireWiredOpponent: me.requireWiredOpponent,
-      },
-      myReach,
-      myEffectiveGap,
-    );
-    return newEntry;
-  }
+  if (!paired) return newEntry;
   const entry = await getActiveLobbyEntry(userId);
   await notifyMatchFoundToUsers(paired.player1Id, paired.player2Id);
   return entry;
