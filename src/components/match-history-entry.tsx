@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CharacterIcon } from "@/components/character-icon";
 import { LocalTime } from "@/components/local-time";
 import { MatchChatLog } from "@/components/match-chat-log";
+import { cn } from "@/lib/utils";
 import type { MatchHistoryEntryData } from "@/lib/players";
 
 // The page hands this component the same entry getPlayerMatchHistory
@@ -16,6 +17,50 @@ import type { MatchHistoryEntryData } from "@/lib/players";
 export type SerializedMatchHistoryEntryData = Omit<MatchHistoryEntryData, "confirmedAt"> & {
   confirmedAt: string | null;
 };
+
+function ResultChip({ won }: { won: boolean }) {
+  return (
+    <span
+      className={cn(
+        "flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-semibold",
+        won ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-destructive/10 text-destructive",
+      )}
+      aria-label={won ? "Win" : "Loss"}
+    >
+      {won ? "W" : "L"}
+    </span>
+  );
+}
+
+// Character line: "your characters vs their characters" with small icons.
+function CharactersLine({ mine, theirs, lang }: { mine: string[]; theirs: string[]; lang?: "en" | "es" }) {
+  if (mine.length === 0 && theirs.length === 0) return null;
+  return (
+    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+      {mine.length > 0 ? (
+        <span className="flex min-w-0 items-center gap-1">
+          {mine.slice(0, 3).map((c) => (
+            <CharacterIcon key={c} name={c} size={16} />
+          ))}
+          {mine.length > 3 && <span className="tabular-nums">+{mine.length - 3}</span>}
+        </span>
+      ) : (
+        <span aria-hidden className="size-4" />
+      )}
+      <span className="text-muted-foreground/60">{lang === "es" ? "contra" : "vs"}</span>
+      {theirs.length > 0 ? (
+        <span className="flex min-w-0 items-center gap-1">
+          {theirs.slice(0, 3).map((c) => (
+            <CharacterIcon key={c} name={c} size={16} />
+          ))}
+          {theirs.length > 3 && <span className="tabular-nums">+{theirs.length - 3}</span>}
+        </span>
+      ) : (
+        <span aria-hidden className="size-4" />
+      )}
+    </span>
+  );
+}
 
 // One confirmed match in the profile page's match-history list. The summary
 // lines are clickable and open a details modal (same visual language as the
@@ -43,8 +88,11 @@ export function MatchHistoryEntry({
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
+  const { score, delta } = match;
+  const hasScore = score.wins > 0 || score.losses > 0;
+
   return (
-    <div className="px-4 py-2.5 text-sm">
+    <div className="px-3 py-2 sm:px-4 sm:py-2.5">
       <div
         role="button"
         tabIndex={0}
@@ -56,40 +104,61 @@ export function MatchHistoryEntry({
             setOpen(true);
           }
         }}
-        className="cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="cursor-pointer rounded-lg px-1 py-1 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring sm:px-1.5"
       >
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
-              {match.won ? "W" : "L"}
-            </Badge>
-            {match.isPracticing && <Badge variant="outline">{lang === "es" ? "Práctica" : "Practice"}</Badge>}
-            vs{" "}
-            <Link
-              href={`/players/${match.opponent.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="hover:underline"
-            >
-              {match.opponent.username}
-            </Link>
-            {(match.score.wins > 0 || match.score.losses > 0) && (
-              <span className="tabular-nums text-muted-foreground">
-                {match.score.wins}–{match.score.losses}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <ResultChip won={match.won} />
+
+          <div className="min-w-0 flex-1">
+            <p className="flex min-w-0 items-center gap-1.5 text-sm">
+              <span className="shrink-0 text-xs text-muted-foreground">vs</span>
+              <Link
+                href={`/players/${match.opponent.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="truncate font-medium text-foreground hover:underline"
+              >
+                {match.opponent.username}
+              </Link>
+              {match.isPracticing && (
+                <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                  {lang === "es" ? "Práctica" : "Practice"}
+                </Badge>
+              )}
+            </p>
+            <CharactersLine mine={match.characters} theirs={match.opponentCharacters} lang={lang} />
+          </div>
+
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <span className="flex items-baseline gap-2">
+              {hasScore && (
+                <span className="text-sm font-semibold tabular-nums">
+                  {score.wins}–{score.losses}
+                </span>
+              )}
+              {match.ratingBefore != null && (
+                <span
+                  className={cn(
+                    "text-xs tabular-nums",
+                    match.isPracticing
+                      ? "text-muted-foreground"
+                      : delta > 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : delta < 0
+                          ? "text-destructive"
+                          : "text-muted-foreground",
+                  )}
+                >
+                  {delta > 0 ? "+" : ""}
+                  {delta}
+                </span>
+              )}
+            </span>
+            {match.confirmedAt && (
+              <span className="text-xs tabular-nums text-muted-foreground">
+                <LocalTime iso={match.confirmedAt} />
               </span>
             )}
-          </span>
-          <span className="tabular-nums text-muted-foreground">
-            {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
-            {match.delta}
-            {match.isPracticing ? (lang === "es" ? ", práctica" : ", practice") : ""})
-          </span>
-        </div>
-        <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            {match.characters.length > 0 ? match.characters.join(", ") : "—"}
-            {match.opponentCharacters.length > 0 && <> vs {match.opponentCharacters.join(", ")}</>}
-          </span>
-          {match.confirmedAt && <LocalTime iso={match.confirmedAt} />}
+          </div>
         </div>
       </div>
 
@@ -141,6 +210,9 @@ function MatchDetailsModal({
 
   if (typeof document === "undefined") return null;
 
+  const { score } = match;
+  const hasScore = score.wins > 0 || score.losses > 0;
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -160,17 +232,18 @@ function MatchDetailsModal({
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               {match.isPracticing && <Badge variant="outline">{lang === "es" ? "Práctica" : "Practice"}</Badge>}
-              <span className="font-medium">vs {match.opponent.username}</span>
-              {(match.score.wins > 0 || match.score.losses > 0) && (
-                <span className="tabular-nums text-muted-foreground">
-                  {match.score.wins}–{match.score.losses}
+              <span className="font-medium">
+                {viewedPlayerName} <span className="text-muted-foreground">{lang === "es" ? "contra" : "vs"}</span>{" "}
+                {match.opponent.username}
+              </span>
+              {hasScore && (
+                <span className="font-semibold tabular-nums">
+                  {score.wins}–{score.losses}
                 </span>
               )}
             </p>
           </div>
-          <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
-            {match.won ? "W" : "L"}
-          </Badge>
+          <ResultChip won={match.won} />
         </div>
 
         {match.confirmedAt && (

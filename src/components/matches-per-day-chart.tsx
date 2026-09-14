@@ -3,7 +3,6 @@
 import { useSyncExternalStore, useState } from "react";
 import type { Lang } from "@/lib/i18n";
 
-const DAYS = 30;
 const WIDTH = 560;
 const HEIGHT = 160;
 const PAD_LEFT = 30;
@@ -30,7 +29,16 @@ function useBrowserTimeZone(): string | null {
 const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
-export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[]; lang: Lang }) {
+export function MatchesPerDayChart({
+  timestamps,
+  lang,
+  days = 30,
+}: {
+  timestamps: string[];
+  lang: Lang;
+  /** Number of calendar days the chart spans (matches-per-day window). */
+  days?: number;
+}) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const tz = useBrowserTimeZone() ?? "UTC";
 
@@ -42,15 +50,15 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
   });
   const dayKey = (date: Date) => dayFormatter.format(date);
 
-  // The 30 calendar days ending today in the viewer's timezone, oldest first.
-  // Keys are derived from a single representative instant (the viewer's local
-  // midnight today) so subtracting whole days can't drift across a day
-  // boundary. Labels below are built from the key's parts directly — never
-  // by re-formatting a Date, whose UTC instant would shift to the previous
-  // local day for negative offsets.
+  // The `days` calendar days ending today in the viewer's timezone, oldest
+  // first. Keys are derived from a single representative instant (the
+  // viewer's local midnight today) so subtracting whole days can't drift
+  // across a day boundary. Labels below are built from the key's parts
+  // directly — never by re-formatting a Date, whose UTC instant would shift
+  // to the previous local day for negative offsets.
   const todayMidnight = Date.parse(`${dayKey(new Date())}T00:00:00Z`);
   const keys: string[] = [];
-  for (let i = DAYS - 1; i >= 0; i--) {
+  for (let i = days - 1; i >= 0; i--) {
     keys.push(dayKey(new Date(todayMidnight - i * DAY_MS)));
   }
 
@@ -60,8 +68,8 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
     const current = counts.get(key);
     if (current !== undefined) counts.set(key, current + 1);
   }
-  const days = keys.map((key) => ({ key, count: counts.get(key)! }));
-  const total = days.reduce((sum, d) => sum + d.count, 0);
+  const dayEntries = keys.map((key) => ({ key, count: counts.get(key)! }));
+  const total = dayEntries.reduce((sum, d) => sum + d.count, 0);
 
   const months = lang === "es" ? MONTHS_ES : MONTHS_EN;
   const dateLabel = (key: string) => {
@@ -78,16 +86,16 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
     return (
       <p className="text-sm text-muted-foreground">
         {lang === "es"
-          ? "Aún no hay partidas confirmadas en los últimos 30 días."
-          : "No confirmed matches in the last 30 days yet."}
+          ? `Aún no hay partidas confirmadas en los últimos ${days} días.`
+          : `No confirmed matches in the last ${days} days yet.`}
       </p>
     );
   }
 
-  const max = Math.max(...days.map((d) => d.count));
+  const max = Math.max(...dayEntries.map((d) => d.count));
   const plotW = WIDTH - PAD_LEFT - PAD_RIGHT;
   const plotH = HEIGHT - PAD_TOP - PAD_BOTTOM;
-  const slotW = plotW / DAYS;
+  const slotW = plotW / days;
   const y = (count: number) => PAD_TOP + (1 - count / max) * plotH;
   const pointX = (i: number) => PAD_LEFT + (i + 0.5) * slotW;
 
@@ -96,17 +104,17 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
   // The days are evenly spaced (one point per calendar day), so the x scale
   // is a plain slot index — unlike RatingChart, whose points land on the
   // actual days matches happened.
-  const linePath = days.map((d, i) => `${i === 0 ? "M" : "L"}${pointX(i)},${y(d.count)}`).join(" ");
-  const areaPath = `${linePath} L${pointX(DAYS - 1)},${y(0)} L${pointX(0)},${y(0)} Z`;
+  const linePath = dayEntries.map((d, i) => `${i === 0 ? "M" : "L"}${pointX(i)},${y(d.count)}`).join(" ");
+  const areaPath = `${linePath} L${pointX(days - 1)},${y(0)} L${pointX(0)},${y(0)} Z`;
 
   function handleMove(e: React.MouseEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const relX = ((e.clientX - rect.left) / rect.width) * WIDTH;
-    const index = Math.min(DAYS - 1, Math.max(0, Math.floor((relX - PAD_LEFT) / slotW)));
+    const index = Math.min(days - 1, Math.max(0, Math.floor((relX - PAD_LEFT) / slotW)));
     setHoverIndex(index);
   }
 
-  const hovered = hoverIndex !== null ? days[hoverIndex] : null;
+  const hovered = hoverIndex !== null ? dayEntries[hoverIndex] : null;
 
   return (
     <div>
@@ -116,7 +124,9 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverIndex(null)}
         role="img"
-        aria-label={lang === "es" ? "Partidas por día en los últimos 30 días" : "Matches per day over the last 30 days"}
+        aria-label={
+          lang === "es" ? `Partidas por día en los últimos ${days} días` : `Matches per day over the last ${days} days`
+        }
       >
         {gridLines.map((g) => (
           <g key={g}>
@@ -143,7 +153,7 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
           strokeLinejoin="round"
           className="dark:stroke-[oklch(0.65_0.17_255)]"
         />
-        {days.map((d, i) => (
+        {dayEntries.map((d, i) => (
           <circle
             key={d.key}
             cx={pointX(i)}
@@ -176,11 +186,12 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
           </g>
         )}
 
-        {/* Every fifth day back from today gets a label; anchors avoid
-            clipping at the plot edges. */}
-        {days.map((d, i) => {
-          if ((DAYS - 1 - i) % 5 !== 0) return null;
-          const anchor = i === DAYS - 1 ? "end" : i === 0 ? "start" : "middle";
+        {/* Roughly every ~sixth of the span back from today gets a label;
+            anchors avoid clipping at the plot edges. */}
+        {dayEntries.map((d, i) => {
+          const labelEvery = Math.max(1, Math.round(days / 6));
+          if ((days - 1 - i) % labelEvery !== 0) return null;
+          const anchor = i === days - 1 ? "end" : i === 0 ? "start" : "middle";
           const [, month, day] = d.key.split("-").map(Number);
           return (
             <text
@@ -199,10 +210,10 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
 
       <div className="flex h-5 items-center justify-center text-xs text-muted-foreground">
         {hovered && hoverIndex !== null
-          ? `${dateLabel(days[hoverIndex].key)} — ${countLabel(days[hoverIndex].count)}`
+          ? `${dateLabel(dayEntries[hoverIndex].key)} — ${countLabel(dayEntries[hoverIndex].count)}`
           : lang === "es"
-            ? `${total} partidas confirmadas en los últimos 30 días`
-            : `${total} confirmed matches in the last 30 days`}
+            ? `${total} partidas confirmadas en los últimos ${days} días`
+            : `${total} confirmed matches in the last ${days} days`}
       </div>
 
       {/* Hover is undiscoverable on touch devices, which is what the
@@ -220,7 +231,7 @@ export function MatchesPerDayChart({ timestamps, lang }: { timestamps: string[];
               </tr>
             </thead>
             <tbody>
-              {[...days]
+              {[...dayEntries]
                 .reverse()
                 .filter((d) => d.count > 0)
                 .map((d) => (

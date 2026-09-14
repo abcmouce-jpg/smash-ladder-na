@@ -39,6 +39,8 @@ import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tie
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
 import { SMASH_CHARACTERS } from "@/lib/characters";
+import { cn } from "@/lib/utils";
+import { PageHeading } from "@/components/page-heading";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -112,7 +114,7 @@ export default async function LobbyPage() {
   if (!session?.user?.id) {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
-        <PageTitle lang={lang} />
+        <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
         <ActivityLine inMatch={activity.inMatch} matched={false} isWaiting={false} poll={false} lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
           {lang === "es"
@@ -157,7 +159,7 @@ export default async function LobbyPage() {
 
   return (
     <main className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}>
-      <PageTitle lang={lang} />
+      <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
       <ActivityLine
         inMatch={activity.inMatch}
         matched={!!isInActiveMatch}
@@ -252,15 +254,6 @@ export default async function LobbyPage() {
 
       {showMatchPanel && entry?.match && <PairedView userId={session.user.id} match={entry.match} lang={lang} />}
     </main>
-  );
-}
-
-function PageTitle({ lang }: { lang: Lang }) {
-  return (
-    <div className="flex items-center gap-2">
-      <Swords className="size-5 text-muted-foreground" />
-      <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Sala" : "Lobby"}</h1>
-    </div>
   );
 }
 
@@ -622,11 +615,6 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
   // query re-checking opponent engagement.
   const gameDecided = games.some((g) => g.winnerId !== null || g.reportedById !== null);
   const opponentEngaged = gameDecided ? true : await hasOpponentEngaged(match.id, opponent.id, match.roomCodeSetById);
-  const wins = { me: 0, opponent: 0 };
-  for (const g of games) {
-    if (g.winnerId === userId) wins.me++;
-    else if (g.winnerId) wins.opponent++;
-  }
 
   const chat = (
     <CommentsSection
@@ -641,6 +629,9 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
 
   const statusLabel =
     lang === "es" ? MATCH_STATUS_LABEL_ES[match.status] : match.status.replace("_", " ").toLowerCase();
+  // Re-derived on every poll, like the rest of the match state below, so the
+  // top-of-card banner always reflects the current turn/deadline.
+  const matchAction = matchActionSummary(userId, match, games);
 
   return (
     <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
@@ -652,7 +643,11 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
             </p>
             <Badge variant="secondary">{statusLabel}</Badge>
           </div>
+          <MatchScoreboard games={games} userId={userId} opponentName={displayName} lang={lang} />
         </CardHeader>
+        <CardContent className="pt-0">
+          <MatchActionBanner summary={matchAction} opponentName={displayName} lang={lang} />
+        </CardContent>
         <CardContent className="flex flex-col gap-2">
           <p className="text-xs text-muted-foreground tabular-nums">
             <span>
@@ -720,8 +715,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
                       return (
                         <span>
                           {lang === "es" ? `${displayRating} de clasificación` : `${displayRating} rating`}
-                          {opponentIsPracticing &&
-                            (lang === "es" ? " (práctica)" : " (practice)")}
+                          {opponentIsPracticing && (lang === "es" ? " (práctica)" : " (practice)")}
                         </span>
                       );
                     })()}
@@ -758,11 +752,6 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
                 </div>
               )}
             </div>
-            {games.length > 0 && (
-              <Badge variant="outline" className="ml-auto tabular-nums">
-                {wins.me}–{wins.opponent}
-              </Badge>
-            )}
           </div>
         </CardContent>
 
@@ -778,24 +767,30 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
           />
         </CardContent>
 
-        {games.filter(isDisputedGame).map((g) =>
-          g.disputeRequestedAt ? (
-            <CardContent key={g.id} className="border-t border-border pt-4">
-              <p className="text-sm text-muted-foreground">
-                {lang === "es"
-                  ? `⚠️ El resultado del juego ${g.gameNumber} está en disputa y a la espera de revisión por un mod — esto no bloquea el resto de la partida.`
-                  : `⚠️ Game ${g.gameNumber}'s result is disputed and awaiting mod review — this doesn't block the rest of the set.`}
-              </p>
-              <DisputeResolutionForm
-                action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
-                myId={userId}
-                opponentId={opponent.id}
-                opponentUsername={displayName}
-                lang={lang}
-              />
-            </CardContent>
-          ) : (
-            <CardContent key={g.id} className="border-t border-border pt-4">
+        {games.filter(isDisputedGame).map((g) => {
+          if (g.disputeRequestedAt) {
+            return (
+              <CardContent key={g.id} className="border-t border-border pt-4">
+                <p className="text-sm text-muted-foreground">
+                  {lang === "es"
+                    ? `⚠️ El resultado del juego ${g.gameNumber} está en disputa y a la espera de revisión por un mod — esto no bloquea el resto de la partida.`
+                    : `⚠️ Game ${g.gameNumber}'s result is disputed and awaiting mod review — this doesn't block the rest of the set.`}
+                </p>
+                <DisputeResolutionForm
+                  action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
+                  myId={userId}
+                  opponentId={opponent.id}
+                  opponentUsername={displayName}
+                  lang={lang}
+                />
+              </CardContent>
+            );
+          }
+
+          const myConfirmed = g.reportedById === userId ? g.reporterConfirmedAt : g.secondReporterConfirmedAt;
+          const oppConfirmed = g.reportedById === userId ? g.secondReporterConfirmedAt : g.reporterConfirmedAt;
+          const body = (
+            <>
               <p className="text-sm text-muted-foreground">
                 {lang === "es"
                   ? `⚠️ Tú y ${displayName} reportaron resultados distintos para el juego ${g.gameNumber}. Vuelve a reportar tu resultado para confirmarlo, o disputa el juego para que un mod lo revise.`
@@ -827,8 +822,6 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 {(() => {
-                  const myConfirmed = g.reportedById === userId ? g.reporterConfirmedAt : g.secondReporterConfirmedAt;
-                  const oppConfirmed = g.reportedById === userId ? g.secondReporterConfirmedAt : g.reporterConfirmedAt;
                   if (lang === "es") {
                     if (myConfirmed && oppConfirmed) {
                       return "Ambos volvieron a confirmar sus reportes — este juego pasa a un mod.";
@@ -858,9 +851,14 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
                   {lang === "es" ? "Disputar este juego" : "Dispute this game"}
                 </Button>
               </form>
+            </>
+          );
+          return (
+            <CardContent key={g.id} className="border-t border-border pt-4">
+              {myConfirmed ? body : <InputFocus>{body}</InputFocus>}
             </CardContent>
-          ),
-        )}
+          );
+        })}
 
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <GameSection
@@ -1000,6 +998,396 @@ function isDisputedGame(game: {
   return !game.winnerId && !!game.secondReportWinnerId && game.secondReportWinnerId !== game.reportedWinnerId;
 }
 
+// Number of game pips in the scoreboard row — the set is always best-of-5.
+const SET_GAME_COUNT = 5;
+
+type MatchGameRow = Awaited<ReturnType<typeof getMatchGames>>[number];
+
+// Discriminated summary of the single most important next step in a live
+// set, derived from the same state the action sections below render (so the
+// banner restates the situation instead of drifting from what those sections
+// actually offer). Kept as data so the banner renderer owns all the copy.
+type MatchActionSummary =
+  | { kind: "start-game"; gameNumber: number }
+  | { kind: "pick-character"; gameNumber: number; mine: boolean; deadlineIso: string | null }
+  | {
+      kind: "stage";
+      gameNumber: number;
+      phase: "striking" | "picking";
+      mine: boolean;
+      strikeCount: number;
+      deadlineIso: string;
+    }
+  | { kind: "report-game"; gameNumber: number; mine: boolean; deadlineIso: string | null }
+  | { kind: "contest"; gameNumber: number; escalated: boolean }
+  | { kind: "match-disputed" }
+  | { kind: "waiting" };
+
+function matchActionSummary(userId: string, match: Match, games: MatchGameRow[]): MatchActionSummary {
+  // A match-level dispute (an escalated game, or a legacy row) has no
+  // playable next step — everyone is waiting on a mod.
+  if (match.status === "DISPUTED") return { kind: "match-disputed" };
+
+  // The playable game in flight — a disputed/contested game is skipped here
+  // (it doesn't block the rest of the set), mirroring GameSection.
+  const current = games.find((g) => !g.winnerId && !isDisputedGame(g));
+
+  if (!current) {
+    const lastGame = games[games.length - 1];
+    if (games.length > 0 && lastGame && isDisputedGame(lastGame)) {
+      return { kind: "contest", gameNumber: lastGame.gameNumber, escalated: !!lastGame.disputeRequestedAt };
+    }
+    return { kind: "start-game", gameNumber: games.length + 1 };
+  }
+
+  const gameNumber = current.gameNumber;
+
+  if (!bothCharactersLocked(current)) {
+    const pick = characterPickState(current, userId);
+    if (pick.yourCharacter) {
+      // Locked in yourself — the character-pick clock (reset when you locked
+      // in, see pickGameCharacter) now belongs to the opponent.
+      return {
+        kind: "pick-character",
+        gameNumber,
+        mine: false,
+        deadlineIso: current.characterPickDeadline.toISOString(),
+      };
+    }
+    if (pick.canPickNow) {
+      return {
+        kind: "pick-character",
+        gameNumber,
+        mine: true,
+        deadlineIso: current.characterPickDeadline.toISOString(),
+      };
+    }
+    // Games 2+: the previous game's winner (actor A) must lock in before you
+    // can pick. This pre-lock window isn't a per-player clock — nothing
+    // auto-resolves while neither side has locked in — so no countdown.
+    return { kind: "pick-character", gameNumber, mine: false, deadlineIso: null };
+  }
+
+  const turn = gameTurnState(current);
+
+  if (turn.phase === "done") {
+    // The report clock only starts once someone has actually reported (see
+    // ReportGameSection) — anchored on reportedAt, not on when the stage was
+    // picked.
+    const mine = current.reportedById !== userId;
+    const deadlineIso = current.reportedAt
+      ? new Date(current.reportedAt.getTime() + REPORT_TIMEOUT_MS).toISOString()
+      : null;
+    return { kind: "report-game", gameNumber, mine, deadlineIso };
+  }
+
+  const struckSoFar = current.struckStages.length;
+  return {
+    kind: "stage",
+    gameNumber,
+    phase: turn.phase,
+    mine: turn.actorId === userId,
+    strikeCount:
+      turn.phase === "striking"
+        ? struckSoFar < current.actorAStrikes
+          ? current.actorAStrikes - struckSoFar
+          : current.actorAStrikes + current.actorBStrikes - struckSoFar
+        : 1,
+    deadlineIso: new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS).toISOString(),
+  };
+}
+
+// The header's match-progress strip: current set score plus one pip per game
+// (best-of-5). Decided games are colored — emerald when you won, destructive
+// when you lost; the playable game gets a pulsing ring; everything else stays
+// muted. The legend below the pips spells out the win/loss color coding.
+function MatchScoreboard({
+  games,
+  userId,
+  opponentName,
+  lang,
+}: {
+  games: MatchGameRow[];
+  userId: string;
+  opponentName: string;
+  lang: Lang;
+}) {
+  const wins = { me: 0, opponent: 0 };
+  for (const g of games) {
+    if (g.winnerId === userId) wins.me++;
+    else if (g.winnerId) wins.opponent++;
+  }
+  // Same "current playable game" rule the action section below uses, so the
+  // pulsing pip always lines up with whatever GameSection is showing.
+  const currentGame = games.find((g) => !g.winnerId && !isDisputedGame(g));
+  const es = lang === "es";
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <p className="flex items-baseline gap-1.5 tabular-nums">
+        <span className="text-xl font-bold">{wins.me}</span>
+        <span className="text-xs text-muted-foreground">–</span>
+        <span className="text-xl font-bold">{wins.opponent}</span>
+        <span className="ml-1.5 text-xs text-muted-foreground">
+          {es ? "tú contra " : "you vs "}
+          <span className="font-medium text-foreground">{opponentName}</span>
+        </span>
+      </p>
+      <div className="flex flex-col items-end gap-1">
+        {(() => {
+          const labels: string[] = [];
+          const pips = Array.from({ length: SET_GAME_COUNT }, (_, i) => {
+            const gameNumber = i + 1;
+            const game = games[i]; // rows are ordered ascending by gameNumber
+            const decided = game?.winnerId ? (game.winnerId === userId ? "won" : "lost") : null;
+            const inProgress = currentGame?.gameNumber === gameNumber;
+            const label = decided
+              ? decided === "won"
+                ? es
+                  ? `Juego ${gameNumber} — lo ganaste`
+                  : `Game ${gameNumber} — you won`
+                : es
+                  ? `Juego ${gameNumber} — lo perdiste`
+                  : `Game ${gameNumber} — you lost`
+              : inProgress
+                ? es
+                  ? `Juego ${gameNumber} — en curso`
+                  : `Game ${gameNumber} — in progress`
+                : es
+                  ? `Juego ${gameNumber} — pendiente`
+                  : `Game ${gameNumber} — upcoming`;
+            labels.push(label);
+            return (
+              <span
+                key={gameNumber}
+                title={label}
+                className={cn(
+                  "h-2 w-6 rounded-full",
+                  decided === "won" && "bg-emerald-500",
+                  decided === "lost" && "bg-destructive",
+                  inProgress && "animate-pulse bg-primary/25 ring-2 ring-primary/70",
+                  !decided && !inProgress && "border border-border bg-background/60",
+                )}
+              />
+            );
+          });
+          return (
+            <div role="img" aria-label={labels.join(", ")} className="flex items-center gap-1.5">
+              {pips}
+            </div>
+          );
+        })()}
+        <p className="text-[11px] text-muted-foreground">
+          <span className="mr-2 inline-flex items-center gap-1">
+            <span aria-hidden="true" className="size-2 rounded-full bg-emerald-500" />
+            {es ? "ganados" : "won"}
+          </span>
+          <span className="mr-2 inline-flex items-center gap-1">
+            <span aria-hidden="true" className="size-2 rounded-full bg-destructive" />
+            {es ? "perdidos" : "lost"}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span
+              aria-hidden="true"
+              className="size-2 animate-pulse rounded-full bg-primary/25 ring-2 ring-primary/70"
+            />
+            {es ? "en curso" : "live"}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Top-of-card banner that leads with the single most important next step:
+// bright primary callout + "Your turn" + a large countdown when the ball is in
+// the current player's court, muted and smaller when it's on the opponent.
+function MatchActionBanner({
+  summary,
+  opponentName,
+  lang,
+}: {
+  summary: MatchActionSummary;
+  opponentName: string;
+  lang: Lang;
+}) {
+  const es = lang === "es";
+
+  let tone: "action" | "waiting";
+  let kicker: React.ReactNode = null;
+  let title: React.ReactNode;
+  let detail: React.ReactNode = null;
+  let deadlineIso: string | null = null;
+  let largeCountdown = false;
+
+  switch (summary.kind) {
+    case "start-game": {
+      tone = "action";
+      kicker = es ? "Tu turno" : "Your turn";
+      title = (
+        <>
+          {es ? "Listo para empezar" : "Ready to start"} —{" "}
+          {es ? `descarte del juego ${summary.gameNumber}` : `strike for Game ${summary.gameNumber}`}
+        </>
+      );
+      detail = es
+        ? "Presiona el botón de abajo cuando estén listos."
+        : "Press the button below once you're both ready.";
+      break;
+    }
+    case "pick-character": {
+      if (summary.mine) {
+        tone = "action";
+        kicker = es ? "Tu turno" : "Your turn";
+        title = es
+          ? `Elige tu personaje para el juego ${summary.gameNumber}`
+          : `Pick your character for Game ${summary.gameNumber}`;
+        detail = es
+          ? "La selección de escenario comienza cuando ambos personajes estén elegidos."
+          : "Stage selection starts once you've both locked in.";
+        deadlineIso = summary.deadlineIso;
+        largeCountdown = true;
+      } else {
+        tone = "waiting";
+        title = es
+          ? `Esperando a que ${opponentName} elija su personaje para el juego ${summary.gameNumber}…`
+          : `Waiting for ${opponentName} to pick their character for Game ${summary.gameNumber}…`;
+        deadlineIso = summary.deadlineIso;
+        if (!deadlineIso) {
+          detail = es
+            ? "Los personajes se eligen en orden — te tocará después."
+            : "Picks happen in order — you'll be up once they lock in.";
+        }
+      }
+      break;
+    }
+    case "stage": {
+      if (summary.mine) {
+        tone = "action";
+        kicker = es ? "Tu turno" : "Your turn";
+        title =
+          summary.phase === "striking"
+            ? es
+              ? `Descarta ${summary.strikeCount} ${summary.strikeCount === 1 ? "escenario" : "escenarios"} para el juego ${summary.gameNumber}`
+              : `Strike ${summary.strikeCount} ${summary.strikeCount === 1 ? "stage" : "stages"} for Game ${summary.gameNumber}`
+            : es
+              ? `Elige el escenario final del juego ${summary.gameNumber}`
+              : `Pick the final stage for Game ${summary.gameNumber}`;
+        detail = es ? "Si el tiempo se agota, se elige automáticamente." : "If time runs out, it auto-picks.";
+        deadlineIso = summary.deadlineIso;
+        largeCountdown = true;
+      } else {
+        tone = "waiting";
+        title =
+          summary.phase === "striking"
+            ? es
+              ? `Esperando a que ${opponentName} descarte para el juego ${summary.gameNumber}…`
+              : `Waiting for ${opponentName} to strike for Game ${summary.gameNumber}…`
+            : es
+              ? `Esperando a que ${opponentName} elija el escenario final del juego ${summary.gameNumber}…`
+              : `Waiting for ${opponentName} to pick the final stage for Game ${summary.gameNumber}…`;
+        deadlineIso = summary.deadlineIso;
+      }
+      break;
+    }
+    case "report-game": {
+      if (summary.mine) {
+        tone = "action";
+        kicker = es ? "Tu turno" : "Your turn";
+        if (summary.deadlineIso) {
+          title = es
+            ? `${opponentName} reportó el juego ${summary.gameNumber} — confírmalo o dispútalo.`
+            : `${opponentName} reported Game ${summary.gameNumber} — confirm or dispute it.`;
+        } else {
+          title = es
+            ? `Reporta el resultado del juego ${summary.gameNumber}`
+            : `Report Game ${summary.gameNumber}'s result`;
+          detail = es
+            ? "Nadie ha reportado todavía — cada quien reporta su propio resultado."
+            : "Nobody has reported yet — each side reports their own result.";
+        }
+        deadlineIso = summary.deadlineIso;
+        largeCountdown = !!summary.deadlineIso;
+      } else {
+        tone = "waiting";
+        title = es
+          ? `Esperando a que ${opponentName} confirme el resultado del juego ${summary.gameNumber}…`
+          : `Waiting for ${opponentName} to confirm Game ${summary.gameNumber}'s result…`;
+        deadlineIso = summary.deadlineIso;
+      }
+      break;
+    }
+    case "contest": {
+      tone = "waiting";
+      title = summary.escalated
+        ? es
+          ? `El resultado del juego ${summary.gameNumber} está bajo revisión de un mod.`
+          : `Game ${summary.gameNumber}'s result is under mod review.`
+        : es
+          ? `El resultado del juego ${summary.gameNumber} está en disputa — resuélvelo arriba para continuar.`
+          : `Game ${summary.gameNumber}'s result is disputed — resolve it above to keep the set moving.`;
+      break;
+    }
+    case "match-disputed": {
+      tone = "waiting";
+      title = es ? "Esta partida está a la espera de revisión por un mod." : "This match is awaiting mod review.";
+      detail = es
+        ? "No hay nada que hacer por ahora — te avisaremos cuando se resuelva."
+        : "Nothing to do for now — you'll be notified when it's resolved.";
+      break;
+    }
+    case "waiting": {
+      tone = "waiting";
+      title = es ? "Esperando a tu rival…" : "Waiting on your opponent…";
+      break;
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-lg px-4",
+        tone === "action" ? "border border-primary/40 bg-primary/10 py-3" : "bg-muted/40 py-2.5",
+      )}
+    >
+      <div className="min-w-0">
+        {kicker && <p className="text-[11px] font-semibold tracking-widest text-primary uppercase">{kicker}</p>}
+        <p
+          className={cn(
+            "text-sm",
+            kicker && "mt-1",
+            tone === "action" ? "font-medium text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {title}
+        </p>
+        {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
+      </div>
+      {deadlineIso &&
+        (largeCountdown ? (
+          <div className="shrink-0 text-right">
+            <p className="flex items-baseline justify-end gap-1 text-2xl leading-none font-bold tabular-nums">
+              <Countdown deadline={deadlineIso} />
+              <span className="text-base font-semibold text-muted-foreground">s</span>
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{es ? "tiempo restante" : "time left"}</p>
+          </div>
+        ) : (
+          <p className="shrink-0 text-sm text-muted-foreground tabular-nums">
+            <Countdown deadline={deadlineIso} />s
+          </p>
+        ))}
+    </div>
+  );
+}
+
+// Soft primary callout for a section that's currently waiting on the current
+// player's input — same visual language as the matchup-note box, so the part
+// of the card that can actually advance the set is where the eyes land.
+function InputFocus({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-lg border border-primary/20 bg-primary/[0.03] p-3">{children}</div>;
+}
+
 function GameSection({
   userId,
   match,
@@ -1048,27 +1436,29 @@ function GameSection({
     const gameNumber = games.length + 1;
     return (
       <CardContent className="border-t border-border pt-4">
-        <p className="text-sm font-medium">
-          {lang === "es"
-            ? gameNumber === 1
-              ? "Listo para elegir escenario"
-              : `Juego ${gameNumber} — quien ganó el último juego descarta primero`
-            : gameNumber === 1
-              ? "Ready to pick a stage"
-              : `Game ${gameNumber} — winner of the last game strikes first`}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {lang === "es"
-            ? `Presiona el botón de abajo para empezar el descarte de escenario con ${opponentName} — esto no es algo para resolver por chat, el sitio te guía turno por turno.`
-            : `Click the button below to start stage striking with ${opponentName} — this isn't something to sort out over chat, the site walks you through it turn by turn.`}
-        </p>
-        <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
-          <Button type="submit" size="sm">
+        <InputFocus>
+          <p className="text-sm font-medium">
             {lang === "es"
-              ? `Empezar descarte de escenario del juego ${gameNumber} →`
-              : `Start Game ${gameNumber} stage striking →`}
-          </Button>
-        </form>
+              ? gameNumber === 1
+                ? "Listo para elegir escenario"
+                : `Juego ${gameNumber} — quien ganó el último juego descarta primero`
+              : gameNumber === 1
+                ? "Ready to pick a stage"
+                : `Game ${gameNumber} — winner of the last game strikes first`}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {lang === "es"
+              ? `Presiona el botón de abajo para empezar el descarte de escenario con ${opponentName} — esto no es algo para resolver por chat, el sitio te guía turno por turno.`
+              : `Click the button below to start stage striking with ${opponentName} — this isn't something to sort out over chat, the site walks you through it turn by turn.`}
+          </p>
+          <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
+            <Button type="submit" size="sm">
+              {lang === "es"
+                ? `Empezar descarte de escenario del juego ${gameNumber} →`
+                : `Start Game ${gameNumber} stage striking →`}
+            </Button>
+          </form>
+        </InputFocus>
       </CardContent>
     );
   }
@@ -1184,101 +1574,103 @@ function GameSection({
     <>
       {characterSection}
       <CardContent className="border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">
-          {lang === "es" ? `Juego ${current.gameNumber} — ` : `Game ${current.gameNumber} — `}
-          {!bothLocked ? (
-            lang === "es" ? (
-              "La selección de escenario empezará cuando ambos personajes estén elegidos."
-            ) : (
-              "Stage selection will start once both characters are locked in."
-            )
-          ) : !myTurn ? (
-            lang === "es" ? (
+        <div className={cn(!canAct ? "" : "rounded-lg border border-primary/20 bg-primary/[0.03] p-3")}>
+          <p className="text-sm text-muted-foreground">
+            {lang === "es" ? `Juego ${current.gameNumber} — ` : `Game ${current.gameNumber} — `}
+            {!bothLocked ? (
+              lang === "es" ? (
+                "La selección de escenario empezará cuando ambos personajes estén elegidos."
+              ) : (
+                "Stage selection will start once both characters are locked in."
+              )
+            ) : !myTurn ? (
+              lang === "es" ? (
+                <>
+                  Esperando a que {opponentName} {verbEs}… (
+                  <Countdown deadline={deadline} />s restantes)
+                </>
+              ) : (
+                <>
+                  Waiting for {opponentName} to {verb}… (
+                  <Countdown deadline={deadline} />s left)
+                </>
+              )
+            ) : lang === "es" ? (
               <>
-                Esperando a que {opponentName} {verbEs}… (
-                <Countdown deadline={deadline} />s restantes)
+                Tu turno — {turnDescription} (<Countdown deadline={deadline} />s restantes, o se elige automáticamente).
               </>
             ) : (
               <>
-                Waiting for {opponentName} to {verb}… (
-                <Countdown deadline={deadline} />s left)
+                Your turn — {turnDescription} (<Countdown deadline={deadline} />s left, or it auto-picks).
               </>
-            )
-          ) : lang === "es" ? (
-            <>
-              Tu turno — {turnDescription} (<Countdown deadline={deadline} />s restantes, o se elige automáticamente).
-            </>
-          ) : (
-            <>
-              Your turn — {turnDescription} (<Countdown deadline={deadline} />s left, or it auto-picks).
-            </>
+            )}
+          </p>
+          {sameBans && (
+            <div className="mt-3">
+              <SameBansButton
+                action={sameBansStrike.bind(null, match.id, current.gameNumber)}
+                gameNumber={sameBans.gameNumber}
+                stages={sameBans.stages}
+                canAct={canAct}
+                lang={lang}
+              />
+            </div>
           )}
-        </p>
-        {sameBans && (
-          <div className="mt-3">
-            <SameBansButton
-              action={sameBansStrike.bind(null, match.id, current.gameNumber)}
-              gameNumber={sameBans.gameNumber}
-              stages={sameBans.stages}
-              canAct={canAct}
-              lang={lang}
-            />
-          </div>
-        )}
-        {canRunItBack && (
-          <div className="mt-3">
-            <form action={runItBack.bind(null, match.id, current.gameNumber)}>
-              <Button type="submit" size="sm" variant="default" disabled={!canAct}>
-                {lang === "es" ? `Repetir escenario (${runItBackStage})` : `Run it back (${runItBackStage})`}
-              </Button>
-            </form>
-          </div>
-        )}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(() => {
-            const pool: readonly string[] = current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
-            const allStages = [...new Set([...current.struckStages, ...current.stagesRemaining])];
-            return allStages.sort((a, b) => pool.indexOf(a) - pool.indexOf(b));
-          })().map((stage) => {
-            const isStruck = current.struckStages.includes(stage);
-            const imgPath = stageImagePath(stage);
-            return (
-              <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="outline"
-                  disabled={!canAct || isStruck}
-                  className={`relative flex h-24 w-36 max-sm:h-20 max-sm:w-28 flex-col items-center justify-end gap-1 overflow-hidden p-2 ${isStruck ? "cursor-not-allowed opacity-60" : ""}`}
-                >
-                  {imgPath && (
-                    <Image src={`/stages/${imgPath}`} alt={stage} fill className="object-cover" sizes="128px" />
-                  )}
-                  <span className="relative z-10 rounded bg-background/80 px-1 text-xs max-sm:text-[10px] font-medium">
-                    {stage}
-                  </span>
-                  {isStruck && (
-                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-                      <span
-                        className="leading-none text-red-500 opacity-80 drop-shadow-[0_0_8px_rgba(0,0,0,0.95)]"
-                        style={{ fontSize: "5rem" }}
-                      >
-                        ✕
-                      </span>
-                    </div>
-                  )}
+          {canRunItBack && (
+            <div className="mt-3">
+              <form action={runItBack.bind(null, match.id, current.gameNumber)}>
+                <Button type="submit" size="sm" variant="default" disabled={!canAct}>
+                  {lang === "es" ? `Repetir escenario (${runItBackStage})` : `Run it back (${runItBackStage})`}
                 </Button>
               </form>
-            );
-          })}
+            </div>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(() => {
+              const pool: readonly string[] = current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
+              const allStages = [...new Set([...current.struckStages, ...current.stagesRemaining])];
+              return allStages.sort((a, b) => pool.indexOf(a) - pool.indexOf(b));
+            })().map((stage) => {
+              const isStruck = current.struckStages.includes(stage);
+              const imgPath = stageImagePath(stage);
+              return (
+                <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="outline"
+                    disabled={!canAct || isStruck}
+                    className={`relative flex h-24 w-36 max-sm:h-20 max-sm:w-28 flex-col items-center justify-end gap-1 overflow-hidden p-2 ${isStruck ? "cursor-not-allowed opacity-60" : ""}`}
+                  >
+                    {imgPath && (
+                      <Image src={`/stages/${imgPath}`} alt={stage} fill className="object-cover" sizes="128px" />
+                    )}
+                    <span className="relative z-10 rounded bg-background/80 px-1 text-xs max-sm:text-[10px] font-medium">
+                      {stage}
+                    </span>
+                    {isStruck && (
+                      <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                        <span
+                          className="leading-none text-red-500 opacity-80 drop-shadow-[0_0_8px_rgba(0,0,0,0.95)]"
+                          style={{ fontSize: "5rem" }}
+                        >
+                          ✕
+                        </span>
+                      </div>
+                    )}
+                  </Button>
+                </form>
+              );
+            })}
+          </div>
+          {canUndoLastStrike && (
+            <form action={unstrikeStage.bind(null, match.id, current.gameNumber)} className="mt-2">
+              <Button type="submit" size="sm" variant="outline">
+                {lang === "es" ? "Deshacer mi último descarte" : "Undo my last strike"}
+              </Button>
+            </form>
+          )}
         </div>
-        {canUndoLastStrike && (
-          <form action={unstrikeStage.bind(null, match.id, current.gameNumber)} className="mt-2">
-            <Button type="submit" size="sm" variant="outline">
-              {lang === "es" ? "Deshacer mi último descarte" : "Undo my last strike"}
-            </Button>
-          </form>
-        )}
       </CardContent>
     </>
   );
@@ -1440,54 +1832,56 @@ async function CharacterPickSection({
 
   return (
     <CardContent className="border-t border-border pt-4">
-      <p className="text-sm text-muted-foreground">
-        {lang === "es" ? `Juego ${game.gameNumber} — ` : `Game ${game.gameNumber} — `}
-        {lang === "es"
-          ? game.gameNumber === 1
-            ? "elige tu personaje (a ciegas — oculto hasta que ambos hayan elegido)."
-            : opponentCharacter
-              ? `${opponentName} eligió ${characterLabel(opponentCharacter, opponentMoveset)}. Tu elección:`
-              : "elige tu personaje — vas primero, esto se fija antes de que tu rival elija."
-          : game.gameNumber === 1
-            ? "pick your character (blind — hidden until you're both locked in)."
-            : opponentCharacter
-              ? `${opponentName} locked in ${characterLabel(opponentCharacter, opponentMoveset)}. Your pick:`
-              : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
-        {secondsLeft > 0 ? (
-          <span className="font-medium text-foreground">
-            {lang === "es" ? (
-              <>
-                Elige en <Countdown deadline={deadline} />s o pierdes este juego por abandono.
-              </>
-            ) : (
-              <>
-                Lock in within <Countdown deadline={deadline} />s or you forfeit this game.
-              </>
-            )}
-          </span>
-        ) : (
-          <span className="font-medium text-destructive">
-            {lang === "es"
-              ? "Ya pasaste el plazo — elige ahora antes de perder por abandono."
-              : "You're past the deadline — lock in now before this forfeits."}
-          </span>
-        )}
-      </p>
-      {isPracticing && (
-        <p className="mt-2 text-xs text-muted-foreground">
+      <InputFocus>
+        <p className="text-sm text-muted-foreground">
+          {lang === "es" ? `Juego ${game.gameNumber} — ` : `Game ${game.gameNumber} — `}
           {lang === "es"
-            ? "Entraste a la cola de esta partida en modo Práctica — solo afecta tu clasificación de práctica aparte, no tu clasificación del ladder."
-            : "You queued this match as Practicing — this set only affects your separate practice rating, not your ladder rating."}
+            ? game.gameNumber === 1
+              ? "elige tu personaje (a ciegas — oculto hasta que ambos hayan elegido)."
+              : opponentCharacter
+                ? `${opponentName} eligió ${characterLabel(opponentCharacter, opponentMoveset)}. Tu elección:`
+                : "elige tu personaje — vas primero, esto se fija antes de que tu rival elija."
+            : game.gameNumber === 1
+              ? "pick your character (blind — hidden until you're both locked in)."
+              : opponentCharacter
+                ? `${opponentName} locked in ${characterLabel(opponentCharacter, opponentMoveset)}. Your pick:`
+                : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
+          {secondsLeft > 0 ? (
+            <span className="font-medium text-foreground">
+              {lang === "es" ? (
+                <>
+                  Elige en <Countdown deadline={deadline} />s o pierdes este juego por abandono.
+                </>
+              ) : (
+                <>
+                  Lock in within <Countdown deadline={deadline} />s or you forfeit this game.
+                </>
+              )}
+            </span>
+          ) : (
+            <span className="font-medium text-destructive">
+              {lang === "es"
+                ? "Ya pasaste el plazo — elige ahora antes de perder por abandono."
+                : "You're past the deadline — lock in now before this forfeits."}
+            </span>
+          )}
         </p>
-      )}
-      <CharacterPickForm
-        key={game.gameNumber}
-        defaultCharacter={defaultCharacter}
-        defaultMoveset={defaultMoveset}
-        topCharacters={topCharacters}
-        action={pickCharacter.bind(null, matchId, game.gameNumber)}
-        lang={lang}
-      />
+        {isPracticing && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {lang === "es"
+              ? "Entraste a la cola de esta partida en modo Práctica — solo afecta tu clasificación de práctica aparte, no tu clasificación del ladder."
+              : "You queued this match as Practicing — this set only affects your separate practice rating, not your ladder rating."}
+          </p>
+        )}
+        <CharacterPickForm
+          key={game.gameNumber}
+          defaultCharacter={defaultCharacter}
+          defaultMoveset={defaultMoveset}
+          topCharacters={topCharacters}
+          action={pickCharacter.bind(null, matchId, game.gameNumber)}
+          lang={lang}
+        />
+      </InputFocus>
     </CardContent>
   );
 }
@@ -1513,7 +1907,9 @@ function ReportGameSection({
   const reportDeadline = game.reportedAt ? new Date(game.reportedAt.getTime() + REPORT_TIMEOUT_MS) : null;
   const secondsLeft = reportDeadline ? secondsUntil(reportDeadline) : null;
   const deadline = reportDeadline?.toISOString();
-
+  // The report buttons only need the current player while they haven't
+  // reported yet — once you've reported you're just waiting on the opponent.
+  const needsMyReport = game.reportedById !== userId;
   // Each player reports their own result independently. The buttons never
   // change based on who reported first — the other side's claim (and the
   // report clock) is shown as a status line below rather than replacing the
@@ -1575,8 +1971,8 @@ function ReportGameSection({
       );
   }
 
-  return (
-    <CardContent className="border-t border-border pt-4">
+  const body = (
+    <>
       <p className="text-sm text-muted-foreground">
         {lang === "es"
           ? `Reporta el resultado del juego ${game.gameNumber} una vez que hayan jugado. Si solo uno de los dos reporta, el otro tiene ${REPORT_TIMEOUT_MS / 60_000} minutos para confirmar o disputar antes de que se acepte automáticamente y se le marque un no-show al que no respondió.`
@@ -1607,6 +2003,12 @@ function ReportGameSection({
         </ConfirmSubmitButton>
       </div>
       {statusLine && <p className="mt-4 text-sm text-muted-foreground">{statusLine}</p>}
+    </>
+  );
+
+  return (
+    <CardContent className="border-t border-border pt-4">
+      {needsMyReport ? <InputFocus>{body}</InputFocus> : body}
     </CardContent>
   );
 }

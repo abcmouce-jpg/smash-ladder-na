@@ -13,7 +13,7 @@ const LAUNCH_REGION_LOCK = process.env.LAUNCH_REGION_LOCK?.trim() || null;
 function requireRegionUnlocked(region: string | null) {
   if (LAUNCH_REGION_LOCK && region !== LAUNCH_REGION_LOCK) {
     throw new Error(
-      `Smash Ladder NA is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
+      `NA Smashmate is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
     );
   }
 }
@@ -70,7 +70,7 @@ export async function requireActiveUser(userId: string) {
   const status = await liftExpiredSuspension(userId, user);
   if (status === UserStatus.SUSPENDED) {
     throw new Error(
-      "Your account is suspended — free battle and reporting are unavailable, but ranked play still works.",
+      "Your account is suspended — board posts and reporting are unavailable, but ranked play still works.",
     );
   }
   requireRegionUnlocked(user.region);

@@ -1,6 +1,6 @@
 import { getLang } from "@/lib/i18n";
 
-export const metadata = { title: "Terms of Service — Smash Ladder NA" };
+export const metadata = { title: "Terms of Service — NA Smashmate" };
 
 export default async function TermsPage() {
   const lang = await getLang();
@@ -15,7 +15,7 @@ export default async function TermsPage() {
           <section>
             <h2 className="text-sm font-medium text-foreground">Qué es esto</h2>
             <p className="mt-2">
-              Smash Ladder NA es un ladder rankeado de Super Smash Bros. administrado por la comunidad, organizado
+              NA Smashmate es un ladder rankeado de Super Smash Bros. administrado por la comunidad, organizado
               mediante inicio de sesión con Discord. Es gratis. Al iniciar sesión, aceptas estos términos.
             </p>
           </section>
@@ -43,8 +43,8 @@ export default async function TermsPage() {
             <p className="mt-2">
               Otros jugadores pueden reportar mala conducta. Los reportes son revisados por mods antes de tomar
               cualquier acción — presentar un reporte por sí solo no hace nada. Las cuentas que acumulan suficientes
-              reportes confirmados por mods se suspenden (solo se bloquea el juego rankeado; free battle y nuevos
-              reportes también se bloquean) o se banean (todo bloqueado), en una escala gradual. Consulta la{" "}
+              reportes confirmados por mods se suspenden (solo se bloquea el juego rankeado; el Tablón y nuevos reportes
+              también se bloquean) o se banean (todo bloqueado), en una escala gradual.
               <a href="/rules" className="underline">
                 página de Reglas
               </a>{" "}
@@ -76,7 +76,7 @@ export default async function TermsPage() {
             <p className="mt-2">
               El sitio se ofrece tal cual (&quot;as-is&quot;). No garantizamos disponibilidad continua, que el
               matchmaking siempre te encuentre una partida, ni que el servicio esté libre de errores. Nintendo no tiene
-              ninguna afiliación con este sitio — Smash Ladder NA es un proyecto comunitario independiente, hecho por
+              ninguna afiliación con este sitio — NA Smashmate es un proyecto comunitario independiente, hecho por
               fans.
             </p>
           </section>
@@ -117,7 +117,7 @@ export default async function TermsPage() {
         <section>
           <h2 className="text-sm font-medium text-foreground">What this is</h2>
           <p className="mt-2">
-            Smash Ladder NA is a community-run ranked ladder for Super Smash Bros., organized through Discord sign-in.
+            NA Smashmate is a community-run ranked ladder for Super Smash Bros., organized through Discord sign-in.
             It&apos;s free to use. By signing in, you agree to these terms.
           </p>
         </section>
@@ -134,8 +134,8 @@ export default async function TermsPage() {
           <h2 className="text-sm font-medium text-foreground">Playing fair</h2>
           <p className="mt-2">
             Report your own match results honestly. Don&apos;t no-show, don&apos;t stall, don&apos;t grief opponents,
-            and don&apos;t file conduct reports in bad faith. Ranked matches and free battles are between you and your
-            opponent — we don&apos;t referee the actual games, only the reporting and matchmaking layer.
+            and don&apos;t file conduct reports in bad faith. Ranked matches and Board friendlies are between you and
+            your opponent — we don&apos;t referee the actual games, only the reporting and matchmaking layer.
           </p>
         </section>
 
@@ -144,7 +144,7 @@ export default async function TermsPage() {
           <p className="mt-2">
             Other players can report misconduct. Reports are reviewed by mods before any action is taken — filing a
             report alone doesn&apos;t do anything. Accounts that accumulate enough mod-confirmed reports get suspended
-            (ranked play only, free battle and new reports blocked) or banned (everything blocked), on a graduated
+            (ranked play only, Board posts and new reports blocked) or banned (everything blocked), on a graduated
             scale. See the{" "}
             <a href="/rules" className="underline">
               Rules page
@@ -174,7 +174,7 @@ export default async function TermsPage() {
           <h2 className="text-sm font-medium text-foreground">No warranty</h2>
           <p className="mt-2">
             The site is provided as-is. We don&apos;t guarantee uptime, that matchmaking will always find you a game, or
-            that the service will be error-free. Nintendo has no affiliation with this site — Smash Ladder NA is an
+            that the service will be error-free. Nintendo has no affiliation with this site — NA Smashmate is an
             independent, fan-run community project.
           </p>
         </section>

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import { startOfDayInTimeZone } from "@/lib/timezone";
+import { startOfDayInTimeZone, LADDER_TIME_ZONE } from "@/lib/timezone";
 
 // Single definition of "matches today" shared by the homepage, the Sets
 // feed, and the admin overview — those three used to disagree (rolling 24h
@@ -102,4 +102,30 @@ export async function getMatchesPerDay(days = 30) {
   return matches
     .filter((m): m is { confirmedAt: Date } => m.confirmedAt !== null)
     .map((m) => m.confirmedAt.toISOString());
+}
+
+// Raw counts per hour-of-day (in the ladder's reference timezone — see
+// lib/timezone.ts) for confirmed matches started inside the window. The Stats
+// overview divides these by windowDays to show "average matches per hour" —
+// bucketing happens server-side here because, unlike the per-day chart, hour
+// boundaries are defined by the ladder's own timezone (America/New_York), not
+// each visitor's, mirroring how "matches today" is counted everywhere else.
+export async function getMatchesByHour(days = 90) {
+  const since = new Date(Date.now() - (days + 1) * 24 * 60 * 60 * 1000);
+  const matches = await prisma.ratingMatch.findMany({
+    where: { status: MatchStatus.CONFIRMED, confirmedAt: { gte: since } },
+    select: { confirmedAt: true },
+  });
+  const hourFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: LADDER_TIME_ZONE,
+    hour: "2-digit",
+    hourCycle: "h23",
+  });
+  const hourlyCounts = new Array<number>(24).fill(0);
+  for (const m of matches) {
+    if (!m.confirmedAt) continue;
+    const hour = Number(hourFormatter.format(m.confirmedAt));
+    if (Number.isInteger(hour) && hour >= 0 && hour < 24) hourlyCounts[hour]++;
+  }
+  return { windowDays: days, hourlyCounts };
 }

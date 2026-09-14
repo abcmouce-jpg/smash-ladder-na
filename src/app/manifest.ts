@@ -5,8 +5,8 @@ import type { MetadataRoute } from "next";
 // notifications. Pure metadata: no caching/offline behavior is registered.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Smash Ladder NA",
-    short_name: "Smash Ladder",
+    name: "NA Smashmate",
+    short_name: "NA Smashmate",
     description: "North American ranked ladder and matchmaking for Smash.",
     start_url: "/",
     display: "standalone",

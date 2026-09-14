@@ -93,8 +93,10 @@
   /* Same warm-neutral treatment as :root above, tuned dark — close to the
      near-black (#0a0a0a) the rank card and OG image already use, so a
      shared profile/leaderboard page and its social-preview image read as
-     the same brand instead of two different products. */
-  --background: oklch(0.13 0.008 40);
+     the same brand instead of two different products. Slightly lighter
+     than pure near-black (0.16 vs 0.13) so large surfaces and the page
+     background read as a deep warm gray rather than a void. */
+  --background: oklch(0.16 0.008 40);
   --foreground: oklch(0.97 0.004 45);
   --card: oklch(0.19 0.01 40);
   --card-foreground: oklch(0.97 0.004 45);

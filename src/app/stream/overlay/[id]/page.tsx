@@ -417,7 +417,7 @@ export default async function StreamOverlayPage({
             className={`block size-12`}
           />
           <span className={`font-semibold tracking-tight text-white text-xl`}>
-            Smash Ladder <span className="text-primary">NA</span>
+            NA <span className="text-primary">Smashmate</span>
           </span>
         </div>
       </div>

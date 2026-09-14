@@ -100,11 +100,7 @@ export async function notifyMatchmakingSubscribers(
   // post form's "Who can join?" — so pinging them about it would just be a
   // dead end). Peak-rating based, same as every other minTier check here.
   const eligible = post.minTier
-    ? (
-        await Promise.all(
-          withinDistance.map(async (c) => ({ c, peak: await getPeakRating(c.id) })),
-        )
-      )
+    ? (await Promise.all(withinDistance.map(async (c) => ({ c, peak: await getPeakRating(c.id) }))))
         .filter(({ peak }) => hasReachedTier(peak, post.minTier as FreeBattleTier))
         .map(({ c }) => c)
     : withinDistance;
@@ -118,7 +114,7 @@ export async function notifyMatchmakingSubscribers(
   if (recipients.length === 0) return;
   await sendDiscordDMsSequentially(
     recipients,
-    `🔔 New free battle matching your interests — **${author.username}**: "${post.comment}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
+    `🔔 New free battle matching your interests — **${author.username}**: "${post.comment}"\nhttps://smash-ladder-na.vercel.app/board`,
   );
 }
 
@@ -187,7 +183,7 @@ export async function createPost(userId: string, comment: string, minTier: FreeB
     const tagSuffix = tags ? ` (${tags})` : "";
     const messageId = await sendDiscordWebhookMessage(
       webhookUrl,
-      `${rolePrefix}🎮 **${author.username}** is looking for a free battle${tagSuffix}: "${trimmed}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
+      `${rolePrefix}🎮 **${author.username}** is looking for a free battle${tagSuffix}: "${trimmed}"\nhttps://smash-ladder-na.vercel.app/board`,
     );
     // Recorded after the fact rather than in the initial create — the
     // message doesn't exist (so has no id) until after the post row does.

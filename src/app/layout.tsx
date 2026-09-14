@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 const SITE_URL = "https://smash-ladder-na.vercel.app";
-const TITLE = "Smash Ladder NA";
+const TITLE = "NA Smashmate";
 const DESCRIPTION = "North American ranked ladder and matchmaking for Smash.";
 
 export const metadata: Metadata = {

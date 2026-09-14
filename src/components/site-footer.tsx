@@ -12,8 +12,8 @@ export async function SiteFooter() {
       <div className="mx-auto flex max-w-3xl flex-col gap-3 px-6 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:py-4">
         <p>
           {lang === "es"
-            ? "Smash Ladder NA — un proyecto comunitario independiente, hecho por fans. No afiliado a Nintendo."
-            : "Smash Ladder NA — an independent, fan-run community project. Not affiliated with Nintendo."}
+            ? "NA Smashmate — un proyecto comunitario independiente, hecho por fans. No afiliado a Nintendo."
+            : "NA Smashmate — an independent, fan-run community project. Not affiliated with Nintendo."}
         </p>
         <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Link href="/about" prefetch={false} className="hover:text-foreground hover:underline">

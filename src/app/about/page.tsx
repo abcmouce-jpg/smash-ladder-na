@@ -1,16 +1,16 @@
 import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 
-export const metadata = { title: "About — Smash Ladder NA" };
+export const metadata = { title: "About — NA Smashmate" };
 
 const copy = {
   en: {
     heading: "About",
-    subtitle: "Who's behind Smash Ladder NA and what it's for.",
+    subtitle: "Who's behind NA Smashmate and what it's for.",
     whatTitle: "What this is",
     what: (
       <>
-        Smash Ladder NA is a ranked ladder and matchmaking site for the North American Super Smash Bros. Ultimate
+        NA Smashmate is a ranked ladder and matchmaking site for the North American Super Smash Bros. Ultimate
         community. Sign in with Discord, set a region and match preferences, and get paired against opponents around
         your skill level — no bracket, no sign-up window, just queue up and play. Preseason launched July 2026, with a
         full first season to follow.
@@ -21,7 +21,7 @@ const copy = {
       <>
         Competitive Smash has plenty of tournament infrastructure (start.gg and friends) but not much for the
         day-to-day: finding a real ranked opponent outside of an event. This fills that gap — an Elo-style rating,
-        seasonal leaderboards, and a Free Battle board for casual games, all built around the North American scene
+        seasonal leaderboards, and a Board for casual friendlies, all built around the North American scene
         specifically.
       </>
     ),
@@ -64,11 +64,11 @@ const copy = {
   },
   es: {
     heading: "Acerca de",
-    subtitle: "Quién está detrás de Smash Ladder NA y para qué sirve.",
+    subtitle: "Quién está detrás de NA Smashmate y para qué sirve.",
     whatTitle: "Qué es esto",
     what: (
       <>
-        Smash Ladder NA es un sitio de liga clasificatoria y emparejamiento para la comunidad de Super Smash Bros.
+        NA Smashmate es un sitio de liga clasificatoria y emparejamiento para la comunidad de Super Smash Bros.
         Ultimate de Norteamérica. Inicia sesión con Discord, define una región y tus preferencias de partida, y te
         emparejamos con rivales de tu nivel — sin bracket, sin ventana de inscripción, solo entrar a la cola y jugar. La
         preseason arrancó en julio de 2026, con una primera temporada completa después.
@@ -79,8 +79,8 @@ const copy = {
       <>
         La escena competitiva de Smash tiene mucha infraestructura para torneos (start.gg y similares) pero poco para el
         día a día: encontrar un rival rankeado real fuera de un evento. Esto llena ese vacío — una clasificación estilo
-        Elo, tablas de posiciones por temporada, y un tablón de Free Battle para partidas casuales, todo construido
-        pensando en la escena de Norteamérica específicamente.
+        Elo, tablas de posiciones por temporada, y un Tablón para partidas casuales, todo construido pensando en la
+        escena de Norteamérica específicamente.
       </>
     ),
     whoTitle: "Quién lo administra",
