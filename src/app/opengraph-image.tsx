@@ -67,7 +67,7 @@ export default function Image() {
           lineHeight: 1.05,
         }}
       >
-        NA Smash scene
+        NA Smash Ultimate
       </div>
       <div
         style={{
