@@ -590,6 +590,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
           <CardContent className="border-t border-border pt-4">
             <Link
               href={`/players/${userId}`}
+              prefetch={false}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
               {lang === "es"
@@ -691,7 +692,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
             <div className={zenMode ? "flex-1" : ""}>
               <p className="flex items-center gap-1.5 font-medium">
                 {!zenMode ? (
-                  <Link href={`/players/${opponent.id}`} className="hover:underline">
+                  <Link href={`/players/${opponent.id}`} prefetch={false} className="hover:underline">
                     {displayName}
                   </Link>
                 ) : (
@@ -1929,7 +1930,7 @@ function RoomCodeSection({
             Pon la contraseña de la sala del juego en{" "}
             <span className="font-medium text-foreground">{hostArenaPassword}</span> — este es tu valor por defecto,
             puedes{" "}
-            <Link href="/settings" className="underline hover:text-foreground">
+            <Link href="/settings" prefetch={false} className="underline hover:text-foreground">
               cambiarlo en Ajustes
             </Link>
             .
@@ -1938,7 +1939,7 @@ function RoomCodeSection({
           <>
             Set the in-game room password to <span className="font-medium text-foreground">{hostArenaPassword}</span> —
             this is your default, you can{" "}
-            <Link href="/settings" className="underline hover:text-foreground">
+            <Link href="/settings" prefetch={false} className="underline hover:text-foreground">
               change it in Settings
             </Link>
             .

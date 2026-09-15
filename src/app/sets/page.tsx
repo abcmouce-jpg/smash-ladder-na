@@ -141,7 +141,7 @@ function LiveSetCard({ entry, parentHost, lang }: { entry: MatchFeedEntry; paren
 
 function PlayerLink({ player }: { player: { id: string; username: string } }) {
   return (
-    <Link href={`/players/${player.id}`} className="font-medium text-foreground hover:underline">
+    <Link href={`/players/${player.id}`} prefetch={false} className="font-medium text-foreground hover:underline">
       {player.username}
     </Link>
   );
@@ -179,7 +179,7 @@ function SetRow({ entry, lang }: { entry: MatchFeedEntry; lang: Lang }) {
 
 function SetPlayer({ player, won, live }: { player: MatchFeedEntry["player1"]; won: boolean; live: boolean }) {
   return (
-    <Link href={`/players/${player.id}`} className="flex min-w-0 items-center gap-1.5 hover:underline">
+    <Link href={`/players/${player.id}`} prefetch={false} className="flex min-w-0 items-center gap-1.5 hover:underline">
       {player.avatarUrl && (
         <Image src={player.avatarUrl} alt="" width={20} height={20} className="shrink-0 rounded-full" />
       )}
