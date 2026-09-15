@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Trophy } from "lucide-react";
+import { CalendarClock, Trophy } from "lucide-react";
 import { auth } from "@/auth";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import {
@@ -12,7 +12,12 @@ import {
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { getCharacterUsage } from "@/lib/players";
-import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
+import {
+  ensureActiveSeason,
+  getSeasonEndsAt,
+  PRE_SEASON_DURATION_MONTHS,
+  PRE_SEASON_EXPECTED_END_AT,
+} from "@/lib/seasons";
 import { SEASON_PRIZE_POOL_USD, PRIZE_SPLIT_PERCENT, approxMxn, prizeForPlace } from "@/lib/prizes";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { CharacterFilterSelect } from "@/components/character-filter-select";
@@ -20,6 +25,7 @@ import { InfoPopup } from "@/components/info-popup";
 import { PageHeading } from "@/components/page-heading";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { RankBadge } from "@/components/rank-badge";
+import { SeasonCountdown } from "@/components/season-countdown";
 import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,6 +93,8 @@ export default async function LeaderboardPage({
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
   const viewerId = session?.user?.id ?? null;
+  // Null for every season but the preseason — see getSeasonEndsAt.
+  const seasonEndsAt = getSeasonEndsAt(season);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
@@ -95,7 +103,8 @@ export default async function LeaderboardPage({
         title={lang === "es" ? "Tabla de clasificación" : "Leaderboard"}
         description={
           <span>
-            Jugadores rankeados con {LEADERBOARD_MIN_GAMES}+ {lang === "es" ? "partidas jugadas" : "sets played"}
+            {lang === "es" ? "Jugadores rankeados con" : "Ranked players with"} {LEADERBOARD_MIN_GAMES}+{" "}
+            {lang === "es" ? "partidas jugadas" : "sets played"}
             {isValidCharacter
               ? lang === "es"
                 ? ` que usan a ${echoGroupLabel(character as SmashCharacter)} como main o secundario`
@@ -103,16 +112,26 @@ export default async function LeaderboardPage({
               : ""}
             {isValidRegion ? (lang === "es" ? ` en ${region}` : ` in ${region}`) : ""}
             {!isValidRegion && isValidCountry ? (lang === "es" ? ` en ${country}` : ` in ${country}`) : ""}
-            {query ? ` matching "${query}"` : ""}.
+            {query ? (lang === "es" ? ` que coinciden con "${query}"` : ` matching "${query}"`) : ""}.
           </span>
         }
-        action={
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{season.name}</Badge>
-            <InfoPopup lang={lang} />
-          </div>
-        }
+        action={<InfoPopup lang={lang} />}
       />
+
+      <Card className="mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+            <h2 className="text-base font-semibold tracking-tight">{season.name}</h2>
+          </div>
+          {seasonEndsAt && (
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs text-muted-foreground">{lang === "es" ? "Termina en" : "Ends in"}</span>
+              <SeasonCountdown endsAt={seasonEndsAt.toISOString()} lang={lang} />
+            </div>
+          )}
+        </div>
+      </Card>
 
       {!isFiltered && (
         <Card className="mt-6 border-primary/20 bg-primary/[0.04]">
