@@ -8,13 +8,6 @@ import { SectionHeading } from "@/components/section-heading";
 import type { Lang } from "@/lib/i18n";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
-const PLACEMENT: Record<number, { en: string; es: string }> = {
-  1: { en: "Champion", es: "Campeón" },
-  2: { en: "Runner-up", es: "Subcampeón" },
-  3: { en: "3rd Place", es: "3er lugar" },
-  4: { en: "4th Place", es: "4.º lugar" },
-  5: { en: "5th Place", es: "5.º lugar" },
-};
 
 // How many finalists each past-season card previews before linking out to
 // the season's full standings page (which doubles as that season's leaderboard).
@@ -101,57 +94,75 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
               const podium = podiumBySeason.get(season.id) ?? [];
               const playerCount = countBySeason.get(season.id) ?? 0;
               return (
-                <Link
+                // The card is a plain box with a stretched season link over it
+                // rather than a <Link> wrapping the whole card: nesting the
+                // player links inside it would emit invalid nested anchors, and
+                // an onClick to stop that propagation can't be passed from this
+                // Server Component.
+                <div
                   key={season.id}
-                  href={`/seasons/${season.id}`}
-                  className="group rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:border-foreground/30"
+                  className="group relative rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:border-foreground/30 focus-within:border-foreground/30"
                 >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-sm font-semibold">{season.name}</p>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {season.startsAt.toLocaleDateString(dateLocale)} – {season.endsAt?.toLocaleDateString(dateLocale)}
-                    </span>
-                  </div>
-                  {podium.length > 0 && (
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                      {podium.map((standing) => (
-                        <span key={standing.id} className="flex items-center gap-1.5 text-sm">
-                          <span className="w-5 shrink-0 text-center" aria-hidden>
-                            {standing.rank <= 3 ? MEDALS[standing.rank - 1] : `#${standing.rank}`}
-                          </span>
-                          <Link
-                            href={`/players/${standing.user.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="font-medium hover:underline"
-                          >
-                            {standing.user.username}
-                          </Link>
-                          <span className="text-xs tabular-nums text-muted-foreground">
-                            {standing.finalRating} {lang === "es" ? "de clasificación" : "rating"}
-                          </span>
-                          <span className="text-xs text-muted-foreground/70">
-                            {lang === "es" ? PLACEMENT[standing.rank].es : PLACEMENT[standing.rank].en}
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <p className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2 text-xs text-muted-foreground">
-                    {playerCount > 0 ? (
-                      <span>
-                        {lang === "es"
-                          ? `${playerCount} ${playerCount === 1 ? "jugador" : "jugadores"} en la clasificación final`
-                          : `${playerCount} player${playerCount === 1 ? "" : "s"} in the final standings`}
+                  <Link
+                    href={`/seasons/${season.id}`}
+                    aria-label={
+                      lang === "es"
+                        ? `Ver la clasificación completa de ${season.name}`
+                        : `View the full standings for ${season.name}`
+                    }
+                    className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  {/* Transparent to pointers so clicks fall through to the
+                      stretched link, except on the player links below. */}
+                  <div className="pointer-events-none">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm font-semibold">{season.name}</p>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {season.startsAt.toLocaleDateString(dateLocale)} –{" "}
+                        {season.endsAt?.toLocaleDateString(dateLocale)}
                       </span>
-                    ) : (
-                      <span>{lang === "es" ? "Sin clasificación registrada" : "No standings recorded"}</span>
+                    </div>
+                    {podium.length > 0 && (
+                      <table className="mt-2 w-full text-sm">
+                        <tbody>
+                          {podium.map((standing) => (
+                            <tr key={standing.id}>
+                              <td className="w-5 py-0.5 pr-1 text-center" aria-hidden>
+                                {standing.rank <= 3 ? MEDALS[standing.rank - 1] : `#${standing.rank}`}
+                              </td>
+                              <td className="py-0.5 pr-3">
+                                <Link
+                                  href={`/players/${standing.user.id}`}
+                                  className="pointer-events-auto relative font-medium hover:underline"
+                                >
+                                  {standing.user.username}
+                                </Link>
+                              </td>
+                              <td className="py-0.5 text-right text-xs tabular-nums text-muted-foreground">
+                                {standing.finalRating}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
-                    <span className="ml-auto flex items-center gap-1 font-medium text-muted-foreground transition-colors group-hover:text-foreground">
-                      {lang === "es" ? "Ver clasificación completa" : "Full standings"}
-                      <ArrowRight className="size-3" />
-                    </span>
-                  </p>
-                </Link>
+                    <p className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2 text-xs text-muted-foreground">
+                      {playerCount > 0 ? (
+                        <span>
+                          {lang === "es"
+                            ? `${playerCount} ${playerCount === 1 ? "jugador" : "jugadores"} en la clasificación final`
+                            : `${playerCount} player${playerCount === 1 ? "" : "s"} in the final standings`}
+                        </span>
+                      ) : (
+                        <span>{lang === "es" ? "Sin clasificación registrada" : "No standings recorded"}</span>
+                      )}
+                      <span className="ml-auto flex items-center gap-1 font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                        {lang === "es" ? "Ver clasificación completa" : "Full standings"}
+                        <ArrowRight className="size-3" />
+                      </span>
+                    </p>
+                  </div>
+                </div>
               );
             })}
           </div>
