@@ -1,12 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Activity, MapPin, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
-import { getBoardPosts, getLiveStreamers } from "@/lib/home-feed";
+import { getBoardPosts } from "@/lib/home-feed";
+import { getMatchFeed } from "@/lib/match-feed";
+import { serializeSetEntry } from "@/lib/set-entry";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
@@ -14,6 +17,9 @@ import { RankBadge } from "@/components/rank-badge";
 import { LocalTime } from "@/components/local-time";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { Card, CardContent } from "@/components/ui/card";
+import { LiveStreamProvider } from "@/components/live-streams/selection";
+import { LiveStreamStage } from "@/components/live-streams/stage";
+import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 
@@ -39,7 +45,7 @@ export default async function Home() {
   const session = await auth();
   const user = session?.user;
 
-  const [me, stats, lang, streamers, posts, matchTimestamps] = await Promise.all([
+  const [me, stats, lang, feed, posts, matchTimestamps] = await Promise.all([
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
@@ -48,10 +54,12 @@ export default async function Home() {
       : null,
     getPublicStats(),
     getLang(),
-    getLiveStreamers(8),
+    getMatchFeed(),
     getBoardPosts(6),
     getMatchesPerDay(30),
   ]);
+  const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
+  const liveEntries = feed.filter((entry) => entry.hasLiveStreamer).map(serializeSetEntry);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
@@ -139,6 +147,18 @@ export default async function Home() {
         </span>
       </div>
 
+      {liveEntries.length > 0 && (
+        <div className="mt-10">
+          <SectionHeading label={lang === "es" ? "En vivo en Twitch" : "Live on Twitch"} />
+          <LiveStreamProvider>
+            <div className="mt-3">
+              <LiveStreamStage entries={liveEntries} parentHost={parentHost} />
+              <LiveStreamThumbnails entries={liveEntries} lang={lang} />
+            </div>
+          </LiveStreamProvider>
+        </div>
+      )}
+
       {stats.topPlayers.length > 0 && (
         <div className="mt-10">
           <SectionHeading
@@ -179,54 +199,6 @@ export default async function Home() {
                   </CardContent>
                 </Card>
               </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {streamers.length > 0 && (
-        <div className="mt-10">
-          <SectionHeading label={lang === "es" ? "En vivo en Twitch" : "Live on Twitch"} />
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {streamers.map((s) => (
-              <a
-                key={s.userId}
-                href={`https://twitch.tv/${s.twitchUsername}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Card className="h-full py-0 transition-colors hover:border-foreground/30">
-                  <CardContent className="flex items-center gap-3 py-3">
-                    {s.avatarUrl ? (
-                      <Image src={s.avatarUrl} alt={s.name} width={32} height={32} className="shrink-0 rounded-full" />
-                    ) : (
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-                        {s.name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{s.name}</p>
-                      <p className="text-xs tabular-nums text-muted-foreground">
-                        {s.rating} · {s.gamesPlayed}{" "}
-                        {lang === "es"
-                          ? s.gamesPlayed === 1
-                            ? "partida"
-                            : "partidas"
-                          : s.gamesPlayed === 1
-                            ? "set"
-                            : "sets"}
-                      </p>
-                    </div>
-                    <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-red-500">
-                      <span className="relative flex size-2">
-                        <span className="live-pulse absolute inline-flex size-full rounded-full bg-red-500 opacity-75" />
-                        <span className="relative inline-flex size-2 rounded-full bg-red-500" />
-                      </span>
-                      LIVE
-                    </span>
-                  </CardContent>
-                </Card>
-              </a>
             ))}
           </div>
         </div>

@@ -35,6 +35,8 @@ const SEED_USERS = [
     gamesPlayed: 33,
     mainCharacter: "Mr. Game & Watch",
     region: "Texas",
+    twitchUsername: "gnwgrandpa",
+    twitchDisplayName: "GnwGrandpa",
   },
   {
     discordId: "seed-004",
@@ -43,6 +45,8 @@ const SEED_USERS = [
     gamesPlayed: 12,
     mainCharacter: "Sheik",
     region: "Florida",
+    twitchUsername: "sheikbae",
+    twitchDisplayName: "SheikBae",
   },
   {
     discordId: "seed-005",
@@ -59,6 +63,44 @@ const SEED_USERS = [
     gamesPlayed: 4,
     mainCharacter: "Jigglypuff",
     region: "Ohio",
+  },
+  {
+    discordId: "seed-007",
+    username: "MarthMonarch",
+    rating: 1660,
+    gamesPlayed: 41,
+    mainCharacter: "Marth",
+    region: "Ontario",
+    twitchUsername: "marthmonarch",
+    twitchDisplayName: "MarthMonarch",
+  },
+  {
+    discordId: "seed-008",
+    username: "FalcoFlight",
+    rating: 1610,
+    gamesPlayed: 28,
+    mainCharacter: "Falco",
+    region: "Illinois",
+    twitchUsername: "falcoflight",
+    twitchDisplayName: "FalcoFlight",
+  },
+  {
+    discordId: "seed-009",
+    username: "CapFalconKid",
+    rating: 1480,
+    gamesPlayed: 19,
+    mainCharacter: "Captain Falcon",
+    region: "Georgia",
+    twitchUsername: "capfalconkid",
+    twitchDisplayName: "CapFalconKid",
+  },
+  {
+    discordId: "seed-010",
+    username: "PeachPrincess",
+    rating: 1530,
+    gamesPlayed: 24,
+    mainCharacter: "Peach",
+    region: "Quebec",
   },
 ] as const;
 
@@ -227,10 +269,12 @@ async function main() {
   }
   console.log(`Seeded ${boardPosts.length} open Board posts.`);
 
-  // Two in-progress, streamed sets (users with twitchUsername set become
+  // Four in-progress, streamed sets (users with twitchUsername set become
   // "live" when MOCK_LIVE_TWITCH=1 in .env.development — see twitch-helix.ts)
-  // so the Sets page has multiple live entries to drive the stream carousel,
-  // plus one 0-0 set that hasn't started for the empty-progress state.
+  // so the live sections have plenty to drive them. seed-live-1..3 have BOTH
+  // sides streaming — two channels per set, for the per-stream thumbnails on
+  // the home carousel — while seed-live-4 has a single streamer. Plus one 0-0
+  // set that hasn't started for the empty-progress state.
   const liveSets = [
     {
       id: "seed-live-1",
@@ -249,6 +293,24 @@ async function main() {
       winnerCharacter: "Mr. Game & Watch",
       loserCharacter: "Pikachu",
       stage: "Smashville",
+    },
+    {
+      id: "seed-live-3",
+      player1: users[6],
+      player2: users[7],
+      winner: users[6],
+      winnerCharacter: "Marth",
+      loserCharacter: "Falco",
+      stage: "Town and City",
+    },
+    {
+      id: "seed-live-4",
+      player1: users[8],
+      player2: users[9],
+      winner: users[9],
+      winnerCharacter: "Peach",
+      loserCharacter: "Captain Falcon",
+      stage: "Final Destination",
     },
   ] as const;
   for (const set of liveSets) {

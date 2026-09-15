@@ -10,42 +10,17 @@ import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-// Dates can't cross the server→client boundary, so the page serializes them
-// before handing entries to this client row.
-export type SerializedSetEntry = Omit<MatchFeedEntry, "createdAt" | "confirmedAt"> & {
-  createdAt: string;
-  confirmedAt: string | null;
-};
-
-type FeedPlayer = MatchFeedEntry["player1"];
-
-export const STATUS_LABEL: Record<string, { en: string; es: string }> = {
-  PENDING_REPORT: { en: "In progress", es: "En curso" },
-  REPORTED: { en: "In progress", es: "En curso" },
-  DISPUTED: { en: "Disputed", es: "En disputa" },
-  CONFIRMED: { en: "Final", es: "Final" },
-  CANCELLED: { en: "Cancelled", es: "Cancelada" },
-  EXPIRED: { en: "Expired", es: "Expirada" },
-};
-
-export const STATUS_VARIANT: Record<string, "success" | "warning" | "outline"> = {
-  PENDING_REPORT: "success",
-  REPORTED: "success",
-  DISPUTED: "warning",
-  CONFIRMED: "outline",
-  CANCELLED: "outline",
-  EXPIRED: "outline",
-};
+import { STATUS_LABEL, STATUS_VARIANT, type FeedPlayer, type SerializedSetEntry } from "@/lib/set-entry";
+import { OpenStreamButton } from "@/components/live-streams/open-stream-button";
 
 // Expandable feed row. The collapsed header summarizes the set (both
 // players, current score, status); clicking anywhere except the player-name
 // links reveals the per-game progress underneath, in the same compact
 // scoreboard style as a profile's match history. Rows with no games yet
 // still open — they just say the set hasn't started — and any side that is
-// live gets a "watch on Twitch" link up top. In-progress sets that nobody
-// is streaming get a green left-edge accent so scanners notice them among
-// the finished rows.
+// live gets an "Open stream" button that drives the pinned player at the top
+// of the page. In-progress sets that nobody is streaming get a green
+// left-edge accent so scanners notice them among the finished rows.
 export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang }) {
   const [open, setOpen] = useState(false);
   const label = STATUS_LABEL[entry.status];
@@ -74,7 +49,7 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
         className={cn("cursor-pointer outline-none select-none", open && "bg-muted/30")}
       >
         <div className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
-          <Side player={entry.player1} live={entry.player1Live} align="left" />
+          <Side player={entry.player1} live={entry.player1Live} align="left" matchId={entry.id} lang={lang} />
 
           <div className="flex shrink-0 flex-col items-center gap-1">
             <span className="text-base leading-none font-semibold tabular-nums">
@@ -86,7 +61,7 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
             />
           </div>
 
-          <Side player={entry.player2} live={entry.player2Live} align="right" />
+          <Side player={entry.player2} live={entry.player2Live} align="right" matchId={entry.id} lang={lang} />
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground sm:px-4">
@@ -168,10 +143,14 @@ function Side({
   player,
   live,
   align,
+  matchId,
+  lang,
 }: {
   player: FeedPlayer;
   live: boolean;
   align: "left" | "right";
+  matchId: string;
+  lang: Lang;
 }) {
   const isRight = align === "right";
   return (
@@ -193,7 +172,6 @@ function Side({
       >
         <span className={cn("flex min-w-0 items-center gap-1", isRight && "justify-end")}>
           <span className="min-w-0 truncate font-medium">{player.username}</span>
-          {live && <Radio className="size-3 shrink-0 text-red-500" />}
         </span>
         <span className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "justify-end")}>
           <span className="tabular-nums">{player.rating}</span>
@@ -205,6 +183,7 @@ function Side({
           )}
         </span>
       </Link>
+      {live && <OpenStreamButton matchId={matchId} playerId={player.id} lang={lang} />}
     </div>
   );
 }

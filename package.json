@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:base": "node scripts/dev-base.mjs",
     "postinstall": "prisma generate",
     "prebuild": "prisma migrate status",
     "build": "next build",

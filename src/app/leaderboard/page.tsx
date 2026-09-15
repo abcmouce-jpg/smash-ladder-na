@@ -25,7 +25,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getLang, type Lang } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 const PAGE_SIZE = 50;
@@ -158,57 +157,46 @@ export default async function LeaderboardPage({
               )}
             </p>
 
-            {/* Prize distribution infographic — only meaningful on the global
+            {/* Prize split infographic — only meaningful on the global
                 leaderboard, which is why it renders alongside the banner that
                 already hides when a filter is applied. */}
-            <div className="mt-4 flex flex-col gap-1.5">
+            <div className="mt-4">
               <p className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
                 {lang === "es" ? "Distribución del premio" : "Prize split"}
               </p>
-              {PRIZE_SPLIT_PERCENT.map((percent, i) => {
-                const place = i + 1;
-                const usd = prizeForPlace(place) ?? 0;
-                const rankLabel =
-                  lang === "es"
-                    ? place === 1
-                      ? "1.º"
-                      : place === 2
-                        ? "2.º"
-                        : place === 3
-                          ? "3.º"
-                          : `${place}.º`
-                    : place === 1
-                      ? "1st"
-                      : place === 2
-                        ? "2nd"
-                        : place === 3
-                          ? "3rd"
-                          : `${place}th`;
-                return (
-                  <div key={place} className="flex items-center gap-3">
-                    <span className="w-7 shrink-0 text-sm tabular-nums">
-                      {place <= 3 ? ["🥇", "🥈", "🥉"][place - 1] : rankLabel}
-                    </span>
-                    <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/10">
-                      <div
-                        className={cn("h-full rounded-full", place === 1 ? "bg-primary" : "bg-primary/60")}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                    <span className="w-14 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-                      {percent}%
-                    </span>
-                    <span className="w-24 shrink-0 text-right text-xs font-medium tabular-nums">
-                      ${usd} USD
+              <div className="mt-2 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5">
+                {PRIZE_SPLIT_PERCENT.map((_, i) => {
+                  const place = i + 1;
+                  const usd = prizeForPlace(place) ?? 0;
+                  const rankLabel =
+                    lang === "es"
+                      ? place === 1
+                        ? "1.º"
+                        : place === 2
+                          ? "2.º"
+                          : place === 3
+                            ? "3.º"
+                            : `${place}.º`
+                      : place === 1
+                        ? "1st"
+                        : place === 2
+                          ? "2nd"
+                          : place === 3
+                            ? "3rd"
+                            : `${place}th`;
+                  return (
+                    <div key={place} className="flex flex-col gap-0.5">
+                      <span className="text-xs text-muted-foreground">{rankLabel}</span>
+                      <span className="text-sm font-medium tabular-nums">${usd} USD</span>
                       {lang === "es" && usd > 0 && (
-                        <span className="block text-[10px] font-normal text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground">
                           ≈ ${approxMxn(usd).toLocaleString("es-MX")} MXN
                         </span>
                       )}
-                    </span>
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </Card>
