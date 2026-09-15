@@ -9,7 +9,7 @@ import type { FeedPlayer, SerializedSetEntry } from "@/lib/set-entry";
 import { resolveLiveStream, useLiveStreamSelection } from "./selection";
 
 // The featured streamer's player plus the set it belongs to. Shared by the
-// home page and the Sets page: on Sets the pick comes from the feed's "Open
+// home page and the Live page: on Live the pick comes from the feed's "Open
 // stream" buttons, on the home page from the thumbnail strip underneath.
 export function LiveStreamStage({ entries, parentHost }: { entries: SerializedSetEntry[]; parentHost: string }) {
   const { selection } = useLiveStreamSelection();

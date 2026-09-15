@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "cdn.discordapp.com" }],
   },
+  // The sets feed moved to /live — permanent so existing links (Discord posts,
+  // bookmarks, search results) keep resolving instead of 404ing.
+  async redirects() {
+    return [{ source: "/sets", destination: "/live", permanent: true }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

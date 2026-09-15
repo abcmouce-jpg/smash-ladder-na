@@ -1,7 +1,7 @@
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 
-export const metadata = { title: "Q&A — NA Smashmate" };
+export const metadata = { title: "Q&A — Smash Ladder NA" };
 
 function QA({ q, children }: { q: string; children: React.ReactNode }) {
   return (

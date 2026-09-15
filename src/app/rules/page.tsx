@@ -3,7 +3,7 @@ import { SEASON_PRIZE_POOL_USD, PRIZE_SPLIT_PERCENT, approxMxn } from "@/lib/pri
 import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { getLang } from "@/lib/i18n";
 
-export const metadata = { title: "Rules — NA Smashmate" };
+export const metadata = { title: "Rules — Smash Ladder NA" };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

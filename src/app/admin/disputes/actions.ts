@@ -46,7 +46,7 @@ export async function messageDisputedPlayer(playerId: string, formData: FormData
 
   await sendDiscordDM(
     player.discordId,
-    `📨 A NA Smashmate mod sent you a message about your disputed match:\n\n${message}`,
+    `📨 A Smash Ladder NA mod sent you a message about your disputed match:\n\n${message}`,
   );
   revalidatePath("/admin/disputes");
 }

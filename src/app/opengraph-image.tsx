@@ -42,7 +42,7 @@ export default function Image() {
         }}
       >
         <img src={iconDataUri} width={48} height={48} style={{ borderRadius: 10 }} alt="" />
-        NA SMASHMATE
+        SMASH LADDER NA
       </div>
       <div
         style={{
@@ -67,7 +67,7 @@ export default function Image() {
           lineHeight: 1.05,
         }}
       >
-        NA Smashmate
+        NA Smash scene
       </div>
       <div
         style={{

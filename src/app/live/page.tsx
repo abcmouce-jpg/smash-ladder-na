@@ -27,7 +27,7 @@ export default async function SetsFeedPage() {
       <SetsFeedPoller />
       <PageHeading
         icon={Radio}
-        title={lang === "es" ? "Partidas" : "Sets"}
+        title={lang === "es" ? "En vivo" : "Live"}
         description={
           lang === "es"
             ? "Partidas en curso y recién terminadas en todo el ladder. Las partidas con un stream en vivo de Twitch se fijan arriba."

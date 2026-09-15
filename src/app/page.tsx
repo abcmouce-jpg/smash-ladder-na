@@ -64,7 +64,7 @@ export default async function Home() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <h1 className="mt-4 text-4xl font-semibold tracking-tight text-balance">
-        NA <span className="text-primary">Smashmate</span>
+        Smash Ladder <span className="text-primary">NA</span>
       </h1>
       <p className="mt-3 max-w-md text-muted-foreground">
         {lang === "es"

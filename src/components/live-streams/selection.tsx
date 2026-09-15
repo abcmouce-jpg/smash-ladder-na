@@ -45,7 +45,7 @@ type LiveStreamContextValue = {
 
 const LiveStreamContext = createContext<LiveStreamContextValue | null>(null);
 
-// Shared by the home page and the Sets page so a pick made anywhere (a
+// Shared by the home page and the Live page so a pick made anywhere (a
 // thumbnail, or a feed row's "Open stream" button) drives the single pinned
 // player at the top of the page.
 export function LiveStreamProvider({ children }: { children: ReactNode }) {

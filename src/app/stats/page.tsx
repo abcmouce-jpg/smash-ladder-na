@@ -8,7 +8,7 @@ import { StatsCharactersSection } from "./characters-section";
 import { StatsSeasonsSection } from "./seasons-section";
 
 export const metadata: Metadata = {
-  title: "Stats — NA Smashmate",
+  title: "Stats — Smash Ladder NA",
   description: "Ladder activity, season champions, and character meta across the North American Smash ladder.",
 };
 

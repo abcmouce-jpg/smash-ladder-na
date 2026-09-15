@@ -25,7 +25,7 @@ function liveStreams(entries: SerializedSetEntry[]) {
 
 // Horizontal strip of live channels under the featured player. Picking one
 // swaps the player above; when more channels exist than the cap allows, the
-// last tile links out to the Sets page.
+// last tile links out to the Live page.
 export function LiveStreamThumbnails({ entries, lang }: { entries: SerializedSetEntry[]; lang: Lang }) {
   const { selection, select } = useLiveStreamSelection();
   const active = resolveLiveStream(entries, selection);
@@ -46,7 +46,7 @@ export function LiveStreamThumbnails({ entries, lang }: { entries: SerializedSet
       ))}
       {hasMore && (
         <Link
-          href="/sets"
+          href="/live"
           className="flex w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border px-2 py-3 text-center text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
         >
           {lang === "es" ? "Ver más" : "Show more"}

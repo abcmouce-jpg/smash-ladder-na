@@ -6,7 +6,7 @@ import { getRankTier } from "@/lib/rank-tier";
 import { getCareerStats } from "@/lib/players";
 import { characterIconSlug } from "@/lib/character-icons";
 
-export const alt = "NA Smashmate rank card";
+export const alt = "Smash Ladder NA rank card";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -62,7 +62,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           fontSize: 40,
         }}
       >
-        NA Smashmate
+        Smash Ladder NA
       </div>,
       { ...size },
     );
@@ -89,7 +89,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <img src={ICON_URI} width={36} height={36} style={{ borderRadius: 8 }} alt="" />
         <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: "#9a9a9e", letterSpacing: 1 }}>
-          NA SMASHMATE
+          SMASH LADDER NA
         </div>
       </div>
 

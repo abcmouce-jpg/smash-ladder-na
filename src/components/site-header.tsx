@@ -49,7 +49,7 @@ export async function SiteHeader() {
               className="size-[26px] hidden dark:block"
             />
             <span className="hidden truncate min-[420px]:inline">
-              NA <span className="text-primary">Smashmate</span>
+              Smash Ladder <span className="text-primary">NA</span>
             </span>
           </Link>
 

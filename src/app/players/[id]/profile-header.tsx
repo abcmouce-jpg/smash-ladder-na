@@ -78,8 +78,8 @@ export function PlayerProfileHeader({
             {player.isSupporter && (
               <p className="text-xs text-muted-foreground">
                 {lang === "es"
-                  ? `${player.username} ha donado para apoyar NA Smashmate — ¡gracias!`
-                  : `${player.username} has donated to support NA Smashmate — thank you!`}
+                  ? `${player.username} ha donado para apoyar Smash Ladder NA — ¡gracias!`
+                  : `${player.username} has donated to support Smash Ladder NA — thank you!`}
               </p>
             )}
             <p className="text-sm tabular-nums text-muted-foreground">

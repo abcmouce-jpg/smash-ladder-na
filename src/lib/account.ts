@@ -13,7 +13,7 @@ const LAUNCH_REGION_LOCK = process.env.LAUNCH_REGION_LOCK?.trim() || null;
 function requireRegionUnlocked(region: string | null) {
   if (LAUNCH_REGION_LOCK && region !== LAUNCH_REGION_LOCK) {
     throw new Error(
-      `NA Smashmate is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
+      `Smash Ladder NA is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
     );
   }
 }

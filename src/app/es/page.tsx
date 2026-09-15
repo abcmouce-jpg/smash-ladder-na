@@ -23,7 +23,7 @@ import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 
 export const metadata: Metadata = {
-  title: "NA Smashmate — Liga clasificatoria",
+  title: "Smash Ladder NA — Liga clasificatoria",
   description: "Liga clasificatoria y emparejamiento de Norteamérica para Smash, en español.",
   alternates: { languages: { "en-US": "/" } },
 };
@@ -74,7 +74,7 @@ export default async function HomeEs() {
         </Badge>
       </div>
       <h1 className="mt-4 text-4xl font-semibold tracking-tight text-balance">
-        NA <span className="text-primary">Smashmate</span>
+        Smash Ladder <span className="text-primary">NA</span>
       </h1>
       <p className="mt-3 max-w-md text-muted-foreground">
         Una liga clasificatoria y emparejamiento para la comunidad de Smash de Norteamérica.
