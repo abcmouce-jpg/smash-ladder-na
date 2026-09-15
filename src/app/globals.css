@@ -148,6 +148,36 @@
   }
 }
 
+/*
+  Slim, theme-aware scrollbar for horizontal strips (the live stream carousel
+  and anything like it). The stock OS bar is thick and unthemed, so it reads
+  as a heavy seam under the tiles; this derives the thumb from the muted
+  foreground token so it tracks light/dark, and rounds it off. Firefox only
+  honours the scrollbar-* properties, WebKit needs the pseudo-elements
+  spelled out.
+*/
+@utility scrollbar-slim {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent) transparent;
+
+  &::-webkit-scrollbar {
+    height: 0.375rem;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--muted-foreground) 60%, transparent);
+  }
+}
+
 @keyframes confetti-burst {
   0% {
     transform: translate(-50%, -50%) scale(1);

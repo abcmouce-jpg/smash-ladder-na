@@ -34,7 +34,7 @@ export function LiveStreamThumbnails({ entries, lang }: { entries: SerializedSet
   const hasMore = streams.length > MAX_THUMBNAILS;
 
   return (
-    <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">
+    <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-slim sm:-mx-6 sm:px-6">
       {shown.map(({ entry, player }) => (
         <Thumbnail
           key={`${entry.id}:${player.id}`}
