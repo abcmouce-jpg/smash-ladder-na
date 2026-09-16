@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CharacterGuideSection, type Guide } from "@/components/character-guide-section";
 import { ExpandableTextarea } from "@/components/expandable-textarea";
+import { echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import { getPushSubscription, subscribeToPush } from "@/lib/push-client";
 import { savePushSubscriptionAction } from "@/app/settings/actions";
 import type { Lang } from "@/lib/i18n";
@@ -49,7 +50,7 @@ export function MatchupNotesList({
   guidesByCharacter: Record<string, Guide[]>;
   guideMaxLength: number;
   userId: string | null;
-  createGuideAction: (character: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
+  createGuideAction: (prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   editGuideAction: (guideId: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   deleteGuideAction: (guideId: string) => Promise<GuideActionState>;
   voteOnGuideAction: (guideId: string, value: 1 | -1) => Promise<GuideActionState>;
@@ -66,7 +67,9 @@ export function MatchupNotesList({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return notes;
-    return notes.filter((n) => n.character.toLowerCase().includes(q));
+    // Matches the group label rather than the raw character so a search for
+    // "Daisy" still finds the Peach/Daisy row it's folded into.
+    return notes.filter((n) => echoGroupLabel(n.character as SmashCharacter).toLowerCase().includes(q));
   }, [notes, search]);
 
   // Characters with an existing note surface first, so the page opens on
@@ -149,7 +152,7 @@ function MatchupNoteRow({
   guides: Guide[];
   guideMaxLength: number;
   userId: string | null;
-  createGuideAction: (character: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
+  createGuideAction: (prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   editGuideAction: (guideId: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   deleteGuideAction: (guideId: string) => Promise<GuideActionState>;
   voteOnGuideAction: (guideId: string, value: 1 | -1) => Promise<GuideActionState>;
@@ -208,7 +211,7 @@ function MatchupNoteRow({
             <CharacterIcon name={character} size={28} />
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-sm font-medium">
-                {character}
+                {echoGroupLabel(character as SmashCharacter)}
                 {guides.length > 0 && (
                   <Badge variant="outline" className="px-1.5 py-0 text-[10px] tabular-nums">
                     {guides.length}

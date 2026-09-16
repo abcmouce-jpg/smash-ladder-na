@@ -6,6 +6,7 @@
 // token, so this is safe to ship ahead of key setup.
 import webpush from "web-push";
 import { prisma } from "@/lib/db";
+import { echoGroupLabel, echoGroupMembers, type SmashCharacter } from "@/lib/characters";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY?.trim();
@@ -131,8 +132,13 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
 export async function notifyCharacterGuideSubscribers(character: string, authorId: string) {
   if (!pushConfigured) return 0;
 
+  // Matches the subscriber's whole echo group and names the group in the
+  // message, so the bell on the Samus/Dark Samus row fires for a guide either
+  // half of the pair gets.
+  const groupMembers = echoGroupMembers(character as SmashCharacter);
+  const label = echoGroupLabel(character as SmashCharacter);
   const subscribers = await prisma.user.findMany({
-    where: { id: { not: authorId }, characterGuideSubscriptions: { some: { character } } },
+    where: { id: { not: authorId }, characterGuideSubscriptions: { some: { character: { in: [...groupMembers] } } } },
     select: {
       preferredLanguage: true,
       pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
@@ -142,8 +148,7 @@ export async function notifyCharacterGuideSubscribers(character: string, authorI
   let sent = 0;
   for (const subscriber of subscribers) {
     if (subscriber.pushSubscriptions.length === 0) continue;
-    const copy =
-      subscriber.preferredLanguage === "es" ? NEW_GUIDE_MESSAGES.es(character) : NEW_GUIDE_MESSAGES.en(character);
+    const copy = subscriber.preferredLanguage === "es" ? NEW_GUIDE_MESSAGES.es(label) : NEW_GUIDE_MESSAGES.en(label);
     sent += await sendPushPayload(
       subscriber.pushSubscriptions,
       JSON.stringify({

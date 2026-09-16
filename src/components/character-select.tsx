@@ -4,7 +4,6 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { Search, Check, ChevronDown } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
 import { SMASH_CHARACTERS } from "@/lib/characters";
-import type { SmashCharacter } from "@/lib/characters";
 
 /**
  * A searchable character picker that displays each fighter's stock icon next
@@ -24,6 +23,7 @@ export function CharacterSelect({
   className,
   name,
   clearLabel,
+  characters,
 }: {
   value?: string;
   onChange?: (value: string) => void;
@@ -39,6 +39,10 @@ export function CharacterSelect({
   /** When set, pins an extra option at the top of the list that clears the
    *  selection back to none — e.g. "All Characters" for a filter dropdown. */
   clearLabel?: string;
+  /** Roster to offer instead of the full fighter list — e.g. the notes page
+   *  passes MATCHUP_CHARACTERS to leave out "Random" and fold echo fighters
+   *  into their base character. */
+  characters?: readonly string[];
 }) {
   // Internal state for form-integrated mode
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
@@ -51,10 +55,10 @@ export function CharacterSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const roster = SMASH_CHARACTERS;
+  const roster = characters ?? SMASH_CHARACTERS;
   const filtered = query ? roster.filter((c) => c.toLowerCase().includes(query.toLowerCase())) : roster;
 
-  const selected = effectiveValue ? (effectiveValue as SmashCharacter) : null;
+  const selected = effectiveValue || null;
 
   // Close on outside click
   useEffect(() => {

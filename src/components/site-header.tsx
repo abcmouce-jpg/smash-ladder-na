@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, Coffee, LogOut, NotebookPen, Settings, UserRound } from "lucide-react";
+import { ChevronDown, Coffee, LogOut, Settings, UserRound } from "lucide-react";
 import { auth, signIn, signOut, primaryProviderId } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { ThemeMenu } from "@/components/theme-menu";
@@ -106,12 +106,6 @@ export async function SiteHeader() {
                     <Link href={`/players/${user.id}`} prefetch={false}>
                       <UserRound className="size-3.5" />
                       {lang === "es" ? "Ver perfil" : "View profile"}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/notes" prefetch={false}>
-                      <NotebookPen className="size-3.5" />
-                      {lang === "es" ? "Notas de matchup" : "Matchup notes"}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

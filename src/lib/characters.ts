@@ -137,6 +137,23 @@ export function echoGroupLabel(character: SmashCharacter): string {
   return echoGroupMembers(character).join(" / ");
 }
 
+// The roster as the notes page presents it: one entry per echo group (its
+// canonical member) with "Random" dropped. Random isn't a real fighter — the
+// game's RNG picked, not the player — so a note or guide filed under it isn't
+// actionable, and leaving it in would put a meaningless "Random" tag beside
+// the real ones. Derived from SMASH_CHARACTERS rather than spelled out again
+// so it can't drift from the roster.
+export const MATCHUP_CHARACTERS = SMASH_CHARACTERS.filter(
+  (character) => character !== "Random" && echoGroupCanonical(character) === character,
+);
+
+// Whether `character` is one of the entries the notes page covers (see
+// MATCHUP_CHARACTERS) — false for echoes folded into their base fighter and
+// for "Random".
+export function isMatchupCharacter(character: string): boolean {
+  return (MATCHUP_CHARACTERS as readonly string[]).includes(character);
+}
+
 // The 3 Mii fighters — the only characters that take a user-entered
 // moveset string (see MOVESET_PATTERN) alongside the pick itself.
 export const MII_CHARACTERS: readonly SmashCharacter[] = [

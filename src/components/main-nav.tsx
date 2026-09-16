@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Flag,
   Gauge,
+  NotebookPen,
   Radio,
   Search,
   Shield,
@@ -25,6 +26,7 @@ const PRIMARY_LINKS = [
   { href: "/live", en: "Live", es: "En vivo", Icon: Radio },
   { href: "/leaderboard", en: "Leaderboard", es: "Clasificación", Icon: Trophy },
   { href: "/stats", en: "Stats", es: "Estadísticas", Icon: BarChart3 },
+  { href: "/notes", en: "Notes", es: "Notas", Icon: NotebookPen },
 ] as const;
 
 const STAFF_LINKS = [
