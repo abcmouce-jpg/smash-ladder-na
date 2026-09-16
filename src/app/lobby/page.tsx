@@ -1381,11 +1381,13 @@ function MatchActionBanner({
   );
 }
 
-// Soft primary callout for a section that's currently waiting on the current
-// player's input — same visual language as the matchup-note box, so the part
-// of the card that can actually advance the set is where the eyes land.
+// Soft primary wash for a section that's currently waiting on the current
+// player's input, so the part of the card that can actually advance the set is
+// where the eyes land. Deliberately no outline: these sections already sit
+// under their CardContent's own separator, so a second border around them reads
+// as a double border instead of a highlight.
 function InputFocus({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-lg border border-primary/20 bg-primary/[0.03] p-3">{children}</div>;
+  return <div className="rounded-lg bg-primary/[0.03] p-3">{children}</div>;
 }
 
 function GameSection({
@@ -1574,7 +1576,7 @@ function GameSection({
     <>
       {characterSection}
       <CardContent className="border-t border-border pt-4">
-        <div className={cn(!canAct ? "" : "rounded-lg border border-primary/20 bg-primary/[0.03] p-3")}>
+        <div className={cn(!canAct ? "" : "rounded-lg bg-primary/[0.03] p-3")}>
           <p className="text-sm text-muted-foreground">
             {lang === "es" ? `Juego ${current.gameNumber} — ` : `Game ${current.gameNumber} — `}
             {!bothLocked ? (
