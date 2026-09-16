@@ -5,6 +5,7 @@ import { getMatchupNotes, getNotedCharacters, MAX_MATCHUP_NOTE_LENGTH } from "@/
 import { getAllCharacterGuides, getAllGuides, MAX_GUIDE_LENGTH } from "@/lib/character-guides";
 import { getSubscribedCharacters } from "@/lib/character-guide-subscriptions";
 import { getLang, type Lang } from "@/lib/i18n";
+import { PageHeading } from "@/components/page-heading";
 import { SectionTabs } from "@/components/section-tabs";
 import { MatchupNotesList } from "@/components/matchup-notes-list";
 import { GuidesExplorer } from "@/components/guides-explorer";
@@ -38,11 +39,22 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
   const userId = session?.user?.id ?? null;
   const tab: NotesTab = VALID_TABS.includes((tabParam ?? "") as NotesTab) ? (tabParam as NotesTab) : "matchups";
 
+  // One blurb per tab, sitting in the heading block the way the Stats page
+  // does it — the two views need different framing.
+  const description =
+    tab === "matchups"
+      ? lang === "es"
+        ? "Solo tú puedes ver tus notas privadas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Las guías de la comunidad son públicas — cualquiera puede escribir una. Los personajes echo comparten entrada con su personaje base."
+        : "Only you can see your private notes. They pop up automatically in your matches once your opponent's character is locked in. Community guides are public — anyone can write one. Echo fighters share an entry with their base fighter."
+      : lang === "es"
+        ? "Todas las guías de la comunidad en una sola lista, etiquetadas por personaje. Filtra por etiqueta o busca para encontrar consejos de matchup. Los personajes echo comparten etiqueta con su personaje base."
+        : "Every community guide in one list, tagged by character. Filter by tag or search to find matchup advice. Echo fighters share a tag with their base fighter.";
+
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-16">
-      <PageTitle lang={lang} />
+    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
+      <PageHeading icon={NotebookPen} title={lang === "es" ? "Notas" : "Notes"} description={description} />
       <SectionTabs
-        className="mt-6"
+        className="mt-8"
         items={[
           {
             href: "?tab=matchups",
@@ -77,30 +89,23 @@ async function MatchupsTab({ userId, lang }: { userId: string | null; lang: Lang
   ]);
 
   return (
-    <>
-      <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Solo tú puedes ver tus notas privadas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Las guías de la comunidad son públicas — cualquiera puede escribir una. Los personajes echo comparten entrada con su personaje base."
-          : "Only you can see your private notes. They pop up automatically in your matches once your opponent's character is locked in. Community guides are public — anyone can write one. Echo fighters share an entry with their base fighter."}
-      </p>
-      <MatchupNotesList
-        notes={notes}
-        action={updateMatchupNoteAction}
-        maxLength={MAX_MATCHUP_NOTE_LENGTH}
-        guidesByCharacter={Object.fromEntries(guidesByCharacter)}
-        guideMaxLength={MAX_GUIDE_LENGTH}
-        userId={userId}
-        createGuideAction={createGuideAction}
-        editGuideAction={editGuideAction}
-        deleteGuideAction={deleteGuideAction}
-        voteOnGuideAction={voteOnGuideAction}
-        flagGuideAction={flagGuideAction}
-        importGuideAction={importGuideAction}
-        subscribedCharacters={subscribedCharacters}
-        toggleSubscriptionAction={toggleCharacterGuideSubscriptionAction}
-        lang={lang}
-      />
-    </>
+    <MatchupNotesList
+      notes={notes}
+      action={updateMatchupNoteAction}
+      maxLength={MAX_MATCHUP_NOTE_LENGTH}
+      guidesByCharacter={Object.fromEntries(guidesByCharacter)}
+      guideMaxLength={MAX_GUIDE_LENGTH}
+      userId={userId}
+      createGuideAction={createGuideAction}
+      editGuideAction={editGuideAction}
+      deleteGuideAction={deleteGuideAction}
+      voteOnGuideAction={voteOnGuideAction}
+      flagGuideAction={flagGuideAction}
+      importGuideAction={importGuideAction}
+      subscribedCharacters={subscribedCharacters}
+      toggleSubscriptionAction={toggleCharacterGuideSubscriptionAction}
+      lang={lang}
+    />
   );
 }
 
@@ -111,36 +116,18 @@ async function GuidesTab({ userId, lang }: { userId: string | null; lang: Lang }
   ]);
 
   return (
-    <>
-      <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Todas las guías de la comunidad en una sola lista, etiquetadas por personaje. Filtra por etiqueta o busca para encontrar consejos de matchup. Los personajes echo comparten etiqueta con su personaje base."
-          : "Every community guide in one list, tagged by character. Filter by tag or search to find matchup advice. Echo fighters share a tag with their base fighter."}
-      </p>
-      <div className="mt-4">
-        <GuidesExplorer
-          guides={guides}
-          notedCharacters={notedCharacters}
-          userId={userId}
-          maxLength={MAX_GUIDE_LENGTH}
-          createGuideAction={createGuideAction}
-          editGuideAction={editGuideAction}
-          deleteGuideAction={deleteGuideAction}
-          voteOnGuideAction={voteOnGuideAction}
-          flagGuideAction={flagGuideAction}
-          importGuideAction={importGuideAction}
-          lang={lang}
-        />
-      </div>
-    </>
-  );
-}
-
-function PageTitle({ lang }: { lang: Lang }) {
-  return (
-    <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-      <NotebookPen className="size-6 text-primary" />
-      {lang === "es" ? "Notas" : "Notes"}
-    </h1>
+    <GuidesExplorer
+      guides={guides}
+      notedCharacters={notedCharacters}
+      userId={userId}
+      maxLength={MAX_GUIDE_LENGTH}
+      createGuideAction={createGuideAction}
+      editGuideAction={editGuideAction}
+      deleteGuideAction={deleteGuideAction}
+      voteOnGuideAction={voteOnGuideAction}
+      flagGuideAction={flagGuideAction}
+      importGuideAction={importGuideAction}
+      lang={lang}
+    />
   );
 }
