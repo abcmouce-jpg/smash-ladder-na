@@ -48,10 +48,22 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
         }}
         className={cn("cursor-pointer outline-none select-none", open && "bg-muted/30")}
       >
-        <div className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
-          <Side player={entry.player1} live={entry.player1Live} align="left" matchId={entry.id} lang={lang} />
+        {/* On phones each player gets its own line with the score held to the
+            right of both; squeezing two mirrored sides and the score into one
+            line left no room for the stream button, which spilled over the
+            score and the usernames. From sm up the mirrored scoreboard is
+            back. */}
+        <div className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-1.5 px-3 py-2.5 sm:flex sm:items-center sm:gap-3 sm:px-4">
+          <Side
+            player={entry.player1}
+            live={entry.player1Live}
+            align="left"
+            matchId={entry.id}
+            lang={lang}
+            className="col-start-1 row-start-1"
+          />
 
-          <div className="flex shrink-0 flex-col items-center gap-1">
+          <div className="col-start-2 row-span-2 row-start-1 flex shrink-0 flex-col items-center gap-1">
             <span className="text-base leading-none font-semibold tabular-nums">
               {entry.wins.player1}–{entry.wins.player2}
             </span>
@@ -61,7 +73,14 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
             />
           </div>
 
-          <Side player={entry.player2} live={entry.player2Live} align="right" matchId={entry.id} lang={lang} />
+          <Side
+            player={entry.player2}
+            live={entry.player2Live}
+            align="right"
+            matchId={entry.id}
+            lang={lang}
+            className="col-start-1 row-start-2"
+          />
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground sm:px-4">
@@ -139,22 +158,28 @@ function WatchLiveLink({ player, lang }: { player: FeedPlayer; lang: Lang }) {
   );
 }
 
+// One side of the set: character, username/rating, and the stream button when
+// that side is live. Mirrored only from sm up — on phones both sides stack
+// left-aligned, where a mirrored second row would read as a separate column
+// rather than the opponent across the score.
 function Side({
   player,
   live,
   align,
   matchId,
   lang,
+  className,
 }: {
   player: FeedPlayer;
   live: boolean;
   align: "left" | "right";
   matchId: string;
   lang: Lang;
+  className?: string;
 }) {
   const isRight = align === "right";
   return (
-    <div className={cn("flex min-w-0 flex-1 items-center gap-2", isRight && "flex-row-reverse")}>
+    <div className={cn("flex min-w-0 flex-1 items-center gap-2", isRight && "sm:flex-row-reverse", className)}>
       {player.currentCharacter ? (
         <CharacterIcon name={player.currentCharacter} size={28} />
       ) : (
@@ -167,13 +192,15 @@ function Side({
         title={player.username}
         className={cn(
           "flex min-w-0 flex-col rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring",
-          isRight && "items-end",
+          isRight && "sm:items-end",
         )}
       >
-        <span className={cn("flex min-w-0 items-center gap-1", isRight && "justify-end")}>
+        <span className={cn("flex min-w-0 items-center gap-1", isRight && "sm:justify-end")}>
           <span className="min-w-0 truncate font-medium">{player.username}</span>
         </span>
-        <span className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "justify-end")}>
+        <span
+          className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "sm:justify-end")}
+        >
           <span className="tabular-nums">{player.rating}</span>
           {player.region && (
             <span className="flex min-w-0 items-center gap-0.5">
