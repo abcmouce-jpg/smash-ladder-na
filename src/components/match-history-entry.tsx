@@ -32,32 +32,44 @@ function ResultChip({ won }: { won: boolean }) {
   );
 }
 
-// Character line: "your characters vs their characters" with small icons.
+// Caps how many fighters of one side the summary line names before the rest
+// collapse into a "+N" — a player who counterpicked every game shouldn't be
+// able to push the opponent's name off the row.
+const MAX_CHARACTERS_SHOWN = 3;
+
+// One side's characters, each as its stock icon plus the fighter's name — at
+// this size the icons alone aren't enough to tell similar-looking fighters
+// apart. Same icon+name pairing the Characters tab uses.
+function CharacterGroup({ names }: { names: string[] }) {
+  if (names.length === 0) {
+    // Keeps the "vs" from sliding left when this side never locked one in.
+    return <span aria-hidden className="size-4 shrink-0" />;
+  }
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      {names.slice(0, MAX_CHARACTERS_SHOWN).map((name) => (
+        <span key={name} className="flex min-w-0 items-center gap-1">
+          <CharacterIcon name={name} size={16} />
+          <span className="truncate">{name}</span>
+        </span>
+      ))}
+      {names.length > MAX_CHARACTERS_SHOWN && (
+        <span className="shrink-0 tabular-nums">+{names.length - MAX_CHARACTERS_SHOWN}</span>
+      )}
+    </span>
+  );
+}
+
+// Character line: "your characters vs their characters", icons and names.
+// Wraps rather than clips, so three long-ish names on a narrow phone still
+// read in full instead of pushing the opponent's side out of view.
 function CharactersLine({ mine, theirs, lang }: { mine: string[]; theirs: string[]; lang?: "en" | "es" }) {
   if (mine.length === 0 && theirs.length === 0) return null;
   return (
-    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-      {mine.length > 0 ? (
-        <span className="flex min-w-0 items-center gap-1">
-          {mine.slice(0, 3).map((c) => (
-            <CharacterIcon key={c} name={c} size={16} />
-          ))}
-          {mine.length > 3 && <span className="tabular-nums">+{mine.length - 3}</span>}
-        </span>
-      ) : (
-        <span aria-hidden className="size-4" />
-      )}
-      <span className="text-muted-foreground/60">{lang === "es" ? "contra" : "vs"}</span>
-      {theirs.length > 0 ? (
-        <span className="flex min-w-0 items-center gap-1">
-          {theirs.slice(0, 3).map((c) => (
-            <CharacterIcon key={c} name={c} size={16} />
-          ))}
-          {theirs.length > 3 && <span className="tabular-nums">+{theirs.length - 3}</span>}
-        </span>
-      ) : (
-        <span aria-hidden className="size-4" />
-      )}
+    <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+      <CharacterGroup names={mine} />
+      <span className="shrink-0 text-muted-foreground/60">{lang === "es" ? "contra" : "vs"}</span>
+      <CharacterGroup names={theirs} />
     </span>
   );
 }
@@ -90,6 +102,26 @@ export function MatchHistoryEntry({
 
   const { score, delta } = match;
   const hasScore = score.wins > 0 || score.losses > 0;
+  // The arrow needs both ends; a match with no post-rating recorded falls back
+  // to the bare delta rather than drawing "1500 → null".
+  const hasRatingTrail = match.ratingBefore != null && match.ratingAfter != null;
+  const deltaClass = cn(
+    "text-xs tabular-nums",
+    match.isPracticing
+      ? "text-muted-foreground"
+      : delta > 0
+        ? "text-emerald-600 dark:text-emerald-400"
+        : delta < 0
+          ? "text-destructive"
+          : "text-muted-foreground",
+  );
+  const ratingTrailTitle = match.isPracticing
+    ? lang === "es"
+      ? "Clasificación de práctica antes → después"
+      : "Practice rating before → after"
+    : lang === "es"
+      ? "Clasificación antes → después"
+      : "Rating before → after";
 
   return (
     <div className="px-3 py-2 sm:px-4 sm:py-2.5">
@@ -110,7 +142,14 @@ export function MatchHistoryEntry({
           <ResultChip won={match.won} />
 
           <div className="min-w-0 flex-1">
-            <p className="flex min-w-0 items-center gap-1.5 text-sm">
+            {/* Score and opponent share a line — "3–0 vs X" — so the result
+                reads before the character detail underneath it. */}
+            <p className="flex min-w-0 items-baseline gap-1.5 text-sm">
+              {hasScore && (
+                <span className="shrink-0 font-semibold tabular-nums">
+                  {score.wins}–{score.losses}
+                </span>
+              )}
               <span className="shrink-0 text-xs text-muted-foreground">vs</span>
               <Link
                 href={`/players/${match.opponent.id}`}
@@ -129,30 +168,26 @@ export function MatchHistoryEntry({
           </div>
 
           <div className="flex shrink-0 flex-col items-end gap-0.5">
-            <span className="flex items-baseline gap-2">
-              {hasScore && (
-                <span className="text-sm font-semibold tabular-nums">
-                  {score.wins}–{score.losses}
+            {hasRatingTrail ? (
+              // Before, after, and the diff on one line — the diff alone
+              // doesn't say what ±12 meant at that point in the ladder.
+              <span className="flex items-baseline gap-1.5 text-xs tabular-nums" title={ratingTrailTitle}>
+                <span className="text-muted-foreground">
+                  {match.ratingBefore} → {match.ratingAfter}
                 </span>
-              )}
-              {match.ratingBefore != null && (
-                <span
-                  className={cn(
-                    "text-xs tabular-nums",
-                    match.isPracticing
-                      ? "text-muted-foreground"
-                      : delta > 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : delta < 0
-                          ? "text-destructive"
-                          : "text-muted-foreground",
-                  )}
-                >
+                <span className={deltaClass}>
                   {delta > 0 ? "+" : ""}
                   {delta}
                 </span>
-              )}
-            </span>
+              </span>
+            ) : (
+              match.ratingBefore != null && (
+                <span className={deltaClass}>
+                  {delta > 0 ? "+" : ""}
+                  {delta}
+                </span>
+              )
+            )}
             {match.confirmedAt && (
               <span className="text-xs tabular-nums text-muted-foreground">
                 <LocalTime iso={match.confirmedAt} />
