@@ -24,8 +24,8 @@ export function DisputeResolutionForm({
     <div className="mt-2 flex flex-col gap-1.5 text-xs">
       <p className="text-muted-foreground">
         {lang === "es"
-          ? `Ponte de acuerdo con ${opponentUsername} sobre quién ganó realmente este juego y se resuelve de inmediato — sin esperar a un mod.`
-          : `Agree with ${opponentUsername} on who actually won this game and it resolves immediately — no need to wait on a mod.`}
+          ? `Pónganse de acuerdo en quién ganó este juego y se resuelve al instante. Sin esperar a un mod.`
+          : `Agree on who won this game and it resolves right away. No mod needed.`}
       </p>
       <form action={formAction} className="flex gap-2">
         <Button type="submit" name="winnerId" value={myId} size="sm" variant="outline" disabled={isPending}>
