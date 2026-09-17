@@ -90,25 +90,25 @@
 
 .dark {
   color-scheme: dark;
-  /* Same warm-neutral treatment as :root above, tuned dark — close to the
-     near-black (#0a0a0a) the rank card and OG image already use, so a
-     shared profile/leaderboard page and its social-preview image read as
-     the same brand instead of two different products. Slightly lighter
-     than pure near-black (0.16 vs 0.13) so large surfaces and the page
-     background read as a deep warm gray rather than a void. */
-  --background: oklch(0.16 0.008 40);
+  /* Same warm-neutral treatment as :root above, tuned dark. Sits a few steps
+     up from the near-black (#0a0a0a) the rank card and OG image use: still
+     unmistakably a dark theme, but a deep warm gray rather than a void, which
+     is easier on the eyes for long sessions. The surface scale keeps the same
+     relative steps as before (background < card < muted/accent) so hierarchy
+     and contrast are unchanged. */
+  --background: oklch(0.21 0.008 40);
   --foreground: oklch(0.97 0.004 45);
-  --card: oklch(0.19 0.01 40);
+  --card: oklch(0.245 0.01 40);
   --card-foreground: oklch(0.97 0.004 45);
-  --popover: oklch(0.19 0.01 40);
+  --popover: oklch(0.245 0.01 40);
   --popover-foreground: oklch(0.97 0.004 45);
   --primary: oklch(0.7 0.19 28);
   --primary-foreground: oklch(0.13 0 0);
-  --secondary: oklch(0.24 0.01 40);
+  --secondary: oklch(0.29 0.01 40);
   --secondary-foreground: oklch(0.97 0.004 45);
-  --muted: oklch(0.24 0.01 40);
-  --muted-foreground: oklch(0.68 0.01 40);
-  --accent: oklch(0.24 0.02 32);
+  --muted: oklch(0.29 0.01 40);
+  --muted-foreground: oklch(0.72 0.01 40);
+  --accent: oklch(0.29 0.02 32);
   --accent-foreground: oklch(0.97 0.004 45);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
@@ -119,11 +119,11 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.19 0.01 40);
+  --sidebar: oklch(0.245 0.01 40);
   --sidebar-foreground: oklch(0.97 0.004 45);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.97 0.004 45);
-  --sidebar-accent: oklch(0.24 0.01 40);
+  --sidebar-accent: oklch(0.29 0.01 40);
   --sidebar-accent-foreground: oklch(0.97 0.004 45);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
