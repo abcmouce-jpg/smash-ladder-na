@@ -2,12 +2,10 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CharacterIcon } from "@/components/character-icon";
 import { CharacterSelect } from "@/components/character-select";
 import { ExpandableTextarea } from "@/components/expandable-textarea";
 import { GuideCard, type Guide } from "@/components/character-guide-section";
 import { echoGroupCanonical, echoGroupLabel, MATCHUP_CHARACTERS, type SmashCharacter } from "@/lib/characters";
-import { cn } from "@/lib/utils";
 import type { Lang } from "@/lib/i18n";
 import type { GuideActionState, GuideFormState } from "@/app/notes/actions";
 
@@ -48,8 +46,8 @@ export function GuidesExplorer({
   const [writing, setWriting] = useState(false);
   const notedSet = useMemo(() => new Set(notedCharacters), [notedCharacters]);
 
-  // Only tags that actually have a guide behind them, kept in roster order so
-  // the chips don't reshuffle as guides are added.
+  // Only characters that actually have a guide behind them, kept in roster
+  // order so the options don't reshuffle as guides are added.
   const tags = useMemo(() => {
     const present = new Set(guides.map((g) => echoGroupCanonical(g.character as SmashCharacter)));
     return MATCHUP_CHARACTERS.filter((c) => present.has(c));
@@ -87,22 +85,17 @@ export function GuidesExplorer({
           className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
         />
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            <TagChip
-              label={lang === "es" ? "Todos" : "All"}
-              active={activeTag === null}
-              onClick={() => setActiveTag(null)}
+          <label className="flex w-full flex-col gap-1 text-sm sm:w-56">
+            {lang === "es" ? "Personaje" : "Character"}
+            <CharacterSelect
+              value={activeTag ?? ""}
+              onChange={(value) => setActiveTag(value || null)}
+              characters={tags}
+              placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
+              clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
+              className="w-full"
             />
-            {tags.map((tag) => (
-              <TagChip
-                key={tag}
-                label={echoGroupLabel(tag)}
-                iconName={tag}
-                active={activeTag === tag}
-                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-              />
-            ))}
-          </div>
+          </label>
         )}
       </div>
 
@@ -177,34 +170,5 @@ export function GuidesExplorer({
           </Button>
         ))}
     </div>
-  );
-}
-
-function TagChip({
-  label,
-  iconName,
-  active,
-  onClick,
-}: {
-  label: string;
-  iconName?: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
-        active
-          ? "border-primary/40 bg-primary/10 font-medium text-primary"
-          : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-      )}
-    >
-      {iconName && <CharacterIcon name={iconName} size={14} />}
-      {label}
-    </button>
   );
 }

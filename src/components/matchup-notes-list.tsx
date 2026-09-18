@@ -5,7 +5,6 @@ import { useActionState } from "react";
 import { Bell, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CharacterGuideSection, type Guide } from "@/components/character-guide-section";
 import { ExpandableTextarea } from "@/components/expandable-textarea";
@@ -210,14 +209,7 @@ function MatchupNoteRow({
           >
             <CharacterIcon name={character} size={28} />
             <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 text-sm font-medium">
-                {echoGroupLabel(character as SmashCharacter)}
-                {guides.length > 0 && (
-                  <Badge variant="outline" className="px-1.5 py-0 text-[10px] tabular-nums">
-                    {guides.length}
-                  </Badge>
-                )}
-              </p>
+              <p className="text-sm font-medium">{echoGroupLabel(character as SmashCharacter)}</p>
               {!expanded && note && <p className="truncate text-xs text-muted-foreground">{note}</p>}
             </div>
           </button>

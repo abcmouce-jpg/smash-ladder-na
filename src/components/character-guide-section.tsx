@@ -20,6 +20,12 @@ export type Guide = {
   myFlag: boolean;
 };
 
+// Each character row keeps only the best of what's been written, so the page
+// stays scannable — the full list for a character lives on the Guides tab.
+// `guides` arrives already ranked (score desc, then newest), matching
+// getVisibleGuides' order, so the head of the array is the top-rated set.
+const MAX_GUIDES_PER_CHARACTER = 3;
+
 export function CharacterGuideSection({
   character,
   guides,
@@ -75,7 +81,7 @@ export function CharacterGuideSection({
         </p>
       )}
       <ul className="mt-2 flex flex-col gap-2">
-        {guides.map((guide) => (
+        {guides.slice(0, MAX_GUIDES_PER_CHARACTER).map((guide) => (
           <GuideCard
             key={guide.id}
             guide={guide}
