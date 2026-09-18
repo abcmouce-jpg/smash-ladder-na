@@ -581,6 +581,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
           <CardContent className="border-t border-border pt-4">
             <Link
               href={`/players/${userId}`}
+              prefetch={false}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
               {lang === "es"
@@ -1137,7 +1138,7 @@ function MatchScoreboard({
           <div className="min-w-0">
             <p className="flex flex-wrap items-center justify-end gap-1.5 font-medium">
               {!zenMode ? (
-                <Link href={`/players/${opponent.id}`} className="truncate hover:underline">
+                <Link href={`/players/${opponent.id}`} prefetch={false} className="truncate hover:underline">
                   {opponentName}
                 </Link>
               ) : (
@@ -2310,7 +2311,7 @@ function RoomCodeSection({
           <>
             Contraseña: <span className="font-medium text-foreground">{hostArenaPassword}</span> — este es tu valor por
             defecto, puedes{" "}
-            <Link href="/settings" className="underline hover:text-foreground">
+            <Link href="/settings" prefetch={false} className="underline hover:text-foreground">
               cambiarlo en Ajustes
             </Link>
             .
@@ -2319,7 +2320,7 @@ function RoomCodeSection({
           <>
             Password: <span className="font-medium text-foreground">{hostArenaPassword}</span> — this is your default,
             you can{" "}
-            <Link href="/settings" className="underline hover:text-foreground">
+            <Link href="/settings" prefetch={false} className="underline hover:text-foreground">
               change it in Settings
             </Link>
             .

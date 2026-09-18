@@ -95,11 +95,11 @@ export default async function LiveMatchesPage({ searchParams }: { searchParams: 
                 <CardContent className="pt-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium">
-                      <Link href={`/players/${match.player1.id}`} className="hover:underline">
+                      <Link href={`/players/${match.player1.id}`} prefetch={false} className="hover:underline">
                         {match.player1.username}
                       </Link>{" "}
                       vs{" "}
-                      <Link href={`/players/${match.player2.id}`} className="hover:underline">
+                      <Link href={`/players/${match.player2.id}`} prefetch={false} className="hover:underline">
                         {match.player2.username}
                       </Link>
                     </p>
