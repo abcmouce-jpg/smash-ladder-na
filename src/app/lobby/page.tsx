@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Loader2, MapPin, NotebookPen, Swords, Users } from "lucide-react";
+import { Check, Clock, Loader2, Lock, MapPin, NotebookPen, SlidersHorizontal, Swords, Users, ThumbsUp } from "lucide-react";
 import { auth } from "@/auth";
 import { getMatchupNote } from "@/lib/matchup-notes";
 import { prisma } from "@/lib/db";
@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 import { PageHeading } from "@/components/page-heading";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterPickForm } from "@/components/character-pick";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
@@ -129,8 +129,12 @@ export default async function LobbyPage() {
   const entry = await getActiveLobbyEntry(session.user.id);
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { queueCooldownUntil: true, audioPingOnMatch: true, matchFoundSound: true },
+    select: { region: true, queueCooldownUntil: true, audioPingOnMatch: true, matchFoundSound: true },
   });
+  // Region is required to queue (see joinLobbyAndTryPair), so the Lobby states
+  // that up front and points at the settings card instead of letting the Find
+  // Match button fail server-side with an error message.
+  const hasRegion = Boolean(me?.region);
   const queueCooldownUntil = me?.queueCooldownUntil?.toISOString() ?? null;
   const audioPingOnMatch = me?.audioPingOnMatch ?? true;
   const matchFoundSound = me?.matchFoundSound ?? "CHIME";
@@ -156,6 +160,10 @@ export default async function LobbyPage() {
   // needs the wide 5xl container for its side-by-side chat column, while the
   // rest of the site uses the standard 3xl.
   const showMatchPanel = !myLeftAt && (isInActiveMatch || matchJustEnded);
+  const isWaiting = entry?.status === "WAITING";
+  // The queue + settings stack only makes sense with no live match to focus on;
+  // once a match ends it comes back below the results panel.
+  const showQueueArea = !isInActiveMatch;
 
   return (
     <main className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}>
@@ -163,10 +171,10 @@ export default async function LobbyPage() {
       <ActivityLine
         inMatch={activity.inMatch}
         matched={!!isInActiveMatch}
-        isWaiting={entry?.status === "WAITING"}
+        isWaiting={isWaiting}
         poll={shouldPollLobby({
           isInActiveMatch: !!isInActiveMatch,
-          isWaiting: entry?.status === "WAITING",
+          isWaiting,
           matchJustEnded: !!matchJustEnded,
           hasLeftMatch: !!myLeftAt,
         })}
@@ -175,84 +183,163 @@ export default async function LobbyPage() {
         lang={lang}
       />
       <PushNudgeBanner lang={lang} />
-      <SupporterBanner supporterCount={supporterCount} lang={lang} />
-
-      {matchJustEnded && (
-        <Card className="mt-4 border-primary/30">
-          <CardContent className="pt-4">
-            <p className="text-sm font-medium">
-              {lang === "es" ? "¿Listo para otra partida?" : "Ready for another match?"}
-            </p>
-            <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
-              <JoinLobbyForm action={joinLobby} className="mt-3" lang={lang} />
-            </QueueCooldownGate>
-          </CardContent>
-        </Card>
-      )}
-
-      {!entry && (
-        <Card className="mt-4">
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">
-              {lang === "es" ? "No estás en la cola." : "You're not in the queue."}
-            </p>
-            <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
-              <JoinLobbyForm action={joinLobby} className="mt-4" lang={lang} />
-            </QueueCooldownGate>
-          </CardContent>
-        </Card>
-      )}
-
-      {entry?.status === "WAITING" && (
-        <Card className="mt-4">
-          <CardContent className="flex items-center gap-3 pt-4">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {lang === "es" ? "Esperando a un rival…" : "Waiting for an opponent…"}
-            </p>
-            <span className="ml-auto text-sm tabular-nums text-muted-foreground">
-              {lang === "es" ? "Tiempo en cola:" : "In queue:"} <QueueTimer joinedAt={entry.joinedAt.toISOString()} />
-            </span>
-          </CardContent>
-          <CardContent className="pt-0">
-            <form action={cancelLobby}>
-              <Button type="submit" variant="outline">
-                {lang === "es" ? "Cancelar" : "Cancel"}
-              </Button>
-            </form>
-          </CardContent>
-          <CardContent className="border-t border-border pt-3">
-            <QueueRoomCodeForm
-              initialValue={entry.existingRoomCode ?? ""}
-              action={updateLobbyRoomCodeAction}
-              lang={lang}
-            />
-          </CardContent>
-          <CardContent className="border-t border-border pt-3">
-            <p className="text-xs text-muted-foreground">
-              {lang === "es"
-                ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
-                : "Wait feeling long? Invite a friend to get matched faster."}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
-                {referralLink(session.user.id)}
-              </code>
-              <CopyButton text={referralLink(session.user.id)} />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {!isInActiveMatch && (
-        <Card className="mt-4">
-          <CardContent className="pt-4">
-            <MatchmakingForm userId={session.user.id} lang={lang} disabled={entry?.status === "WAITING"} />
-          </CardContent>
-        </Card>
-      )}
 
       {showMatchPanel && entry?.match && <PairedView userId={session.user.id} match={entry.match} lang={lang} />}
+
+      {showQueueArea && (
+        <>
+          {/* One obvious place to start matchmaking, with the settings that
+              shape the opponent pool in their own card right below it. */}
+          {isWaiting ? (
+            <Card className="mt-4 overflow-hidden border-primary/30">
+              <CardHeader className="border-b border-border bg-primary/5">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Loader2 className="size-4 animate-spin" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base">
+                      {lang === "es" ? "Buscando rival…" : "Searching for an opponent…"}
+                    </CardTitle>
+                    <CardDescription className="mt-0.5">
+                      {lang === "es" ? "Activa las notificaciones en " : "Turn on notifications in "}
+                      <Link
+                        href="/settings#push-notifications"
+                        className="text-foreground underline underline-offset-2"
+                      >
+                        {lang === "es" ? "Ajustes" : "Settings"}
+                      </Link>
+                      {lang === "es" ? " para no perderte la partida." : " so you don't miss the match."}
+                    </CardDescription>
+                  </div>
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Clock className="size-3.5" />
+                    {lang === "es" ? "En cola" : "In queue"}
+                    <span className="font-medium tabular-nums text-foreground">
+                      <QueueTimer joinedAt={entry.joinedAt.toISOString()} />
+                    </span>
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <form action={cancelLobby}>
+                  <Button type="submit" variant="outline">
+                    {lang === "es" ? "Cancelar búsqueda" : "Cancel search"}
+                  </Button>
+                </form>
+                <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4">
+                  <QueueRoomCodeForm
+                    initialValue={entry.existingRoomCode ?? ""}
+                    action={updateLobbyRoomCodeAction}
+                    lang={lang}
+                  />
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {lang === "es"
+                        ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
+                        : "Wait feeling long? Invite a friend to get matched faster."}
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
+                        {referralLink(session.user.id)}
+                      </code>
+                      <CopyButton text={referralLink(session.user.id)} />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="mt-4 overflow-hidden border-primary/30">
+              <CardHeader className="border-b border-border bg-primary/5">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ThumbsUp className="size-4" />
+                  </span>
+                  <div>
+                    <CardTitle className="text-base">
+                      {matchJustEnded
+                        ? lang === "es"
+                          ? "¿Listo para otra partida?"
+                          : "Ready for another match?"
+                        : lang === "es"
+                          ? "¿Listo para jugar?"
+                          : "Ready to play?"}
+                    </CardTitle>
+                    <CardDescription className="mt-0.5">
+                      {lang === "es"
+                        ? "Entra en la cola y te emparejaremos con un rival cercano."
+                        : "Join the queue and we'll pair you with a nearby opponent."}
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {!hasRegion && (
+                  <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                    <MapPin className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <p className="text-muted-foreground">
+                      {lang === "es" ? (
+                        <>
+                          Elige tu <span className="font-medium text-foreground">región de partida</span> en los ajustes
+                          de abajo para poder buscar partida.{" "}
+                          <a
+                            href="#match-settings"
+                            className="font-medium text-foreground underline underline-offset-2"
+                          >
+                            Elegir región ↓
+                          </a>
+                        </>
+                      ) : (
+                        <>
+                          Choose your <span className="font-medium text-foreground">match region</span> in the settings
+                          below to start matching.{" "}
+                          <a
+                            href="#match-settings"
+                            className="font-medium text-foreground underline underline-offset-2"
+                          >
+                            Set region ↓
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
+                <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
+                  <JoinLobbyForm action={joinLobby} lang={lang} hasRegion={hasRegion} />
+                </QueueCooldownGate>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card id="match-settings" className="mt-4 scroll-mt-24">
+            <CardHeader className="border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <SlidersHorizontal className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-base">{lang === "es" ? "Ajustes de partida" : "Match settings"}</CardTitle>
+                  <CardDescription className="mt-0.5">
+                    {lang === "es" ? "Con quién te emparejamos y cómo." : "Who you match with, and how."}
+                  </CardDescription>
+                </div>
+                {isWaiting && (
+                  <Badge variant="outline" className="shrink-0">
+                    <Lock className="size-3" />
+                    {lang === "es" ? "Bloqueados" : "Locked"}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <MatchmakingForm userId={session.user.id} lang={lang} disabled={isWaiting} />
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <SupporterBanner supporterCount={supporterCount} lang={lang} />
     </main>
   );
 }
@@ -351,157 +438,206 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
     return { error: null, saved: true };
   }
 
+  const missingRegion = !me?.region;
+
   return (
-    <MatchSettingsForm action={action} className="flex flex-col gap-2" lang={lang} disabled={disabled}>
+    <MatchSettingsForm action={action} className="flex flex-col gap-6" lang={lang} disabled={disabled}>
       {disabled && (
-        <p className="text-xs text-muted-foreground">
+        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           {lang === "es"
-            ? "Los ajustes de emparejamiento están bloqueados mientras estás en la cola — cancela la búsqueda para cambiarlos."
-            : "Matchmaking settings are locked while you're in queue — cancel your search to change them."}
+            ? "Estás en la cola, así que estos ajustes están bloqueados — cancela la búsqueda para cambiarlos."
+            : "You're in the queue, so these settings are locked — cancel your search to change them."}
         </p>
       )}
-      <label className="flex flex-col gap-1 text-sm">
-        {lang === "es" ? "Región de partida" : "Match region"}
-        <span className="text-xs font-normal text-muted-foreground">
-          {lang === "es"
-            ? "Necesaria para entrar a la cola — el emparejamiento se basa en la distancia entre regiones, así que elige la que esté físicamente más cerca de ti, aunque no sea tu propio país. Other no tiene ubicación, así que solo empareja con otros jugadores Other."
-            : "Required to queue — matching works off the distance between regions, so pick whichever is physically closest to you, even if it's not your own country. Other has no location, so it only ever matches other Other players."}
-        </span>
-        <OptionSelect
-          key={me?.region ?? ""}
-          name="region"
-          defaultValue={me?.region ?? ""}
-          placeholder={lang === "es" ? "Sin definir" : "Not set"}
-          clearLabel={lang === "es" ? "Sin definir" : "Not set"}
-          className="w-52"
-          searchable
-          searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
-          disabled={disabled}
-          options={REGION_OPTIONS}
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        {lang === "es" ? "Distancia de partida" : "Match distance"}
-        <span className="text-xs font-normal text-muted-foreground">
-          {lang === "es"
-            ? "El emparejamiento requiere que el ajuste de distancia de AMBOS jugadores cubra la distancia real entre ellos — ampliar el tuyo no anula el del otro lado."
-            : "Matching requires BOTH players' distance setting to cover the actual distance between them — widening yours doesn't override the other side's."}
-        </span>
-        <OptionSelect
-          key={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
+          <span className="flex items-center gap-1.5">
+            {lang === "es" ? "Región de partida" : "Match region"}
+            {missingRegion && <Badge variant="warning">{lang === "es" ? "Requerido" : "Required"}</Badge>}
+          </span>
+          <OptionSelect
+            key={me?.region ?? ""}
+            name="region"
+            defaultValue={me?.region ?? ""}
+            placeholder={lang === "es" ? "Sin definir" : "Not set"}
+            clearLabel={lang === "es" ? "Sin definir" : "Not set"}
+            className="w-full"
+            searchable
+            autoSubmit
+            searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
+            disabled={disabled}
+            options={REGION_OPTIONS}
+          />
+        </label>
+
+        <MatchSettingSelect
           name="maxMatchDistanceKm"
+          label={lang === "es" ? "Distancia de partida" : "Match distance"}
           defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
+          resetKey={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
           disabled={disabled}
-          className="w-48"
           options={MATCH_DISTANCE_PRESETS.map((preset) => ({
             value: String(preset.km ?? WORLDWIDE_VALUE),
             label: preset.label,
           }))}
         />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        {lang === "es" ? "Diferencia de clasificación" : "Rating gap"}
-        <span className="text-xs font-normal text-muted-foreground">
-          {lang === "es"
-            ? "El emparejamiento requiere que el ajuste de diferencia de clasificación de AMBOS jugadores cubra la diferencia real."
-            : "Matching requires BOTH players' rating-gap setting to cover the actual difference in rating."}
-        </span>
-        <OptionSelect
-          key={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
+
+        <MatchSettingSelect
           name="maxRatingGap"
+          label={lang === "es" ? "Diferencia de clasificación" : "Rating gap"}
           defaultValue={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
+          resetKey={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           disabled={disabled}
-          className="w-48"
           options={MATCH_RATING_GAP_PRESETS.map((preset) => ({
             value: String(preset.gap ?? ANY_RATING_VALUE),
             label: preset.label,
           }))}
         />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        {lang === "es" ? "Tiempo de espera para revancha" : "Rematch cooldown"}
-        <span className="text-xs font-normal text-muted-foreground">
-          {lang === "es"
-            ? "El emparejamiento requiere que el tiempo de espera de AMBOS jugadores haya pasado desde la última vez que jugaron entre ustedes."
-            : "Matching requires BOTH players' cooldown to have elapsed since you two last played."}
-        </span>
-        <OptionSelect
-          key={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
+
+        <MatchSettingSelect
           name="rematchCooldownHours"
+          label={lang === "es" ? "Espera de revancha" : "Rematch cooldown"}
           defaultValue={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
+          resetKey={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
           disabled={disabled}
-          className="w-48"
           options={REMATCH_COOLDOWN_PRESETS.map((preset) => ({
             value: String(preset.hours ?? ANYTIME_VALUE),
             label: preset.label,
           }))}
         />
-      </label>
-      <div className="mt-1 flex flex-col gap-1">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            key={String(me?.wiredConnection ?? false)}
-            type="checkbox"
-            name="wired"
-            defaultChecked={me?.wiredConnection ?? false}
-            disabled={disabled}
-            className="size-4 rounded border-border disabled:opacity-60"
-          />
-          {lang === "es" ? "En una conexión por cable (LAN)" : "On a wired (LAN) connection"}
-        </label>
-        <span className="pl-6 text-xs text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Se quita automáticamente (y no se puede volver a marcar hasta que se recupere) si tus cancelaciones
-              superan el 25% de tus cancelaciones-más-partidas-jugadas, o si suficientes rivales reportan un problema de
-              conexión contigo — ver la página de Reglas.
-            </>
-          ) : (
-            <>
-              Auto-clears (and can&apos;t be re-checked until it recovers) if your cancels pass 25% of your
-              cancels-plus-games-played, or if enough opponents report a connection issue with you — see the Rules page.
-            </>
-          )}
-        </span>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          key={String(me?.requireWiredOpponent ?? false)}
-          type="checkbox"
+
+      <div className="flex flex-col gap-3">
+        <div className="rounded-lg border border-border p-3">
+          <label className="flex cursor-pointer items-center gap-2.5 text-sm font-medium">
+            <input
+              key={String(me?.wiredConnection ?? false)}
+              type="checkbox"
+              name="wired"
+              defaultChecked={me?.wiredConnection ?? false}
+              disabled={disabled}
+              className="size-4 rounded border-border disabled:opacity-60"
+            />
+            {lang === "es" ? "En una conexión por cable (LAN)" : "On a wired (LAN) connection"}
+          </label>
+          {/* Kept outside the label so clicking the link doesn't toggle the box. */}
+          <p className="mt-1.5 pl-6 text-xs text-muted-foreground">
+            {lang === "es" ? (
+              <>
+                Se desactiva solo si tus cancelaciones superan el 25% de tus cancelaciones más partidas jugadas, o si
+                suficientes rivales reportan un problema de conexión contigo — consulta las{" "}
+                <Link href="/rules" className="text-foreground underline underline-offset-2">
+                  Reglas
+                </Link>
+                .
+              </>
+            ) : (
+              <>
+                Auto-clears if your cancels pass 25% of cancels plus games played, or if enough opponents report a
+                connection issue with you — see the{" "}
+                <Link href="/rules" className="text-foreground underline underline-offset-2">
+                  Rules
+                </Link>
+                .
+              </>
+            )}
+          </p>
+        </div>
+
+        <MatchSettingToggle
           name="requireWiredOpponent"
-          defaultChecked={me?.requireWiredOpponent ?? false}
+          checked={me?.requireWiredOpponent ?? false}
+          label={lang === "es" ? "Solo rivales por cable" : "Only match with wired opponents"}
           disabled={disabled}
-          className="size-4 rounded border-border disabled:opacity-60"
         />
-        {lang === "es" ? "Solo emparejar con rivales por cable" : "Only match with wired opponents"}
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          key={String(me?.avoidPracticeOpponents ?? false)}
-          type="checkbox"
+        <MatchSettingToggle
           name="avoidPracticeOpponents"
-          defaultChecked={me?.avoidPracticeOpponents ?? false}
+          checked={me?.avoidPracticeOpponents ?? false}
+          label={
+            lang === "es" ? "Evitar rivales que están practicando" : "Don't match me with opponents who are practicing"
+          }
           disabled={disabled}
-          className="size-4 rounded border-border disabled:opacity-60"
         />
-        {lang === "es"
-          ? "No emparejarme con rivales que están practicando"
-          : "Don't match me with opponents who are practicing"}
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          key={String(me?.zenMode ?? false)}
-          type="checkbox"
+        <MatchSettingToggle
           name="zenMode"
-          defaultChecked={me?.zenMode ?? false}
+          checked={me?.zenMode ?? false}
+          label={lang === "es" ? "Modo Zen" : "Zen Mode"}
+          hint={
+            lang === "es"
+              ? "Oculta la clasificación, el nombre, los personajes y el avatar de tu rival."
+              : "Hide your opponent's rating, name, characters, and avatar."
+          }
           disabled={disabled}
-          className="size-4 rounded border-border disabled:opacity-60"
         />
-        {lang === "es"
-          ? "Modo Zen — oculta la clasificación, nombre, personajes y avatar del rival"
-          : "Zen Mode — hide opponent's rating, name, characters, and avatar"}
-      </label>
+      </div>
     </MatchSettingsForm>
+  );
+}
+
+// Label + preset dropdown, the shape every numeric match setting shares.
+// `resetKey` is passed straight through to OptionSelect's key so a fresh
+// server value remounts the picker.
+function MatchSettingSelect({
+  name,
+  label,
+  defaultValue,
+  resetKey,
+  disabled,
+  options,
+}: {
+  name: string;
+  label: string;
+  defaultValue: string;
+  resetKey: string;
+  disabled: boolean;
+  options: OptionSelectOption[];
+}) {
+  return (
+    <label className="flex flex-col gap-1.5 text-sm font-medium">
+      {label}
+      <OptionSelect
+        key={resetKey}
+        name={name}
+        defaultValue={defaultValue}
+        disabled={disabled}
+        className="w-full"
+        autoSubmit
+        options={options}
+      />
+    </label>
+  );
+}
+
+// Checkbox row with an optional second line of explanation.
+function MatchSettingToggle({
+  name,
+  checked,
+  label,
+  hint,
+  disabled,
+}: {
+  name: string;
+  checked: boolean;
+  label: string;
+  hint?: string;
+  disabled: boolean;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border p-3 text-sm">
+      <input
+        key={String(checked)}
+        type="checkbox"
+        name={name}
+        defaultChecked={checked}
+        disabled={disabled}
+        className="mt-0.5 size-4 rounded border-border disabled:opacity-60"
+      />
+      <span>
+        <span className="font-medium">{label}</span>
+        {hint && <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{hint}</span>}
+      </span>
+    </label>
   );
 }
 
@@ -866,7 +1002,7 @@ function MatchFooterActions({
       <ReportConductForm action={reportConductAction.bind(null, match.id)} lang={lang} />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? "¿Lag, rollbacks o desconexiones?" : "Lag, rollbacks, or disconnects?"}
+          {lang === "es" ? "¿Lag o desconexiones?" : "Lag or disconnects?"}
         </p>
         {alreadyReportedConnection ? (
           <Button size="sm" variant="outline" disabled className="gap-1.5">

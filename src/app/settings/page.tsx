@@ -177,7 +177,7 @@ export default async function SettingsPage({
         </CardContent>
       </Card>
 
-      <Card className="mt-4">
+      <Card id="push-notifications" className="mt-4 scroll-mt-24">
         <CardContent className="pt-4">
           <PushNotificationsForm defaultEnabled={(me?._count.pushSubscriptions ?? 0) > 0} lang={lang} />
         </CardContent>
