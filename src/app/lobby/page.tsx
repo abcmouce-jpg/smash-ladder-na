@@ -964,12 +964,12 @@ function MatchFooterActions({
         <p className="text-xs text-muted-foreground">
           {lang === "es"
             ? gameDecided
-              ? `Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si ${opponentName} deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos y la partida continúa.`
+              ? `Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si ${opponentName} deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos, o el set completo si nunca elige personaje.`
               : opponentEngaged
                 ? `${opponentName} ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis.`
                 : `${opponentName} aún no se presenta. Cancelar ahora es gratis.`
             : gameDecided
-              ? `A game is already decided, so leaving now counts as a surrender (a loss). If ${opponentName} goes quiet, you don't need to surrender: they forfeit their turn after a few minutes and the set continues.`
+              ? `A game is already decided, so leaving now counts as a surrender (a loss). If ${opponentName} goes quiet, you don't need to surrender: they forfeit their turn after a few minutes, or the whole set if it's a character pick they never lock in.`
               : opponentEngaged
                 ? `${opponentName} already started this match, so leaving now counts as a surrender (a loss), not a free cancel.`
                 : `${opponentName} hasn't shown up yet. Cancelling now is free.`}
@@ -1076,8 +1076,9 @@ function matchActionSummary(userId: string, match: Match, games: MatchGameRow[])
   if (!bothCharactersLocked(current)) {
     const pick = characterPickState(current, userId);
     if (pick.yourCharacter) {
-      // Locked in yourself — the character-pick clock (reset when you locked
-      // in, see pickGameCharacter) now belongs to the opponent.
+      // Locked in yourself — the pick clock now belongs to the opponent. On
+      // game 1 that's the same shared window you both started on; on games
+      // 2+ it restarted when you locked in (see pickGameCharacter).
       return {
         kind: "pick-character",
         gameNumber,
@@ -1843,11 +1844,12 @@ async function CharacterPickSection({
   );
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
   // forfeits the whole game to whoever's opponent never locked in within this
-  // window. Each player gets their own CHARACTER_TIMEOUT_MS window: it starts
-  // at the game's creation for the first picker, and pickGameCharacter resets
-  // it to now + CHARACTER_TIMEOUT_MS when the first player locks in — so the
-  // second player's countdown restarts from their opponent's pick, not from
-  // when the game was created.
+  // window. Game 1 is a blind simultaneous pick on ONE clock shared by both
+  // sides: it starts at the game's creation and a lock-in never restarts it,
+  // so both players are always reading the same countdown and the second one
+  // to pick doesn't get a fresh — or shorter — window. Games 2+ pick in order,
+  // so pickGameCharacter does reset characterPickDeadline when actorA locks
+  // in, giving actorB their own full window from their opponent's pick.
   const pickDeadline = new Date(game.characterPickDeadline.getTime());
   const secondsLeft = secondsUntil(pickDeadline);
   const deadline = pickDeadline.toISOString();
@@ -1914,7 +1916,7 @@ async function CharacterPickSection({
               . Esperando a que {opponentName} elija…{" "}
               {secondsLeft > 0 ? (
                 <>
-                  Ganas por abandono si no elige en <Countdown deadline={deadline} />
+                  Ganas el set por abandono si no elige en <Countdown deadline={deadline} />
                   s.
                 </>
               ) : (
@@ -1931,7 +1933,7 @@ async function CharacterPickSection({
               . Waiting for {opponentName} to pick…{" "}
               {secondsLeft > 0 ? (
                 <>
-                  You win by forfeit if they don&apos;t pick in <Countdown deadline={deadline} />
+                  You win the set by forfeit if they don&apos;t pick in <Countdown deadline={deadline} />
                   s.
                 </>
               ) : (
@@ -1974,19 +1976,19 @@ async function CharacterPickSection({
           <span className="font-medium text-foreground">
             {lang === "es" ? (
               <>
-                Tienes <Countdown deadline={deadline} />s para elegir o pierdes este juego por abandono.
+                Tienes <Countdown deadline={deadline} />s para elegir o pierdes este set por abandono.
               </>
             ) : (
               <>
-                You have <Countdown deadline={deadline} />s to pick or you forfeit this game.
+                You have <Countdown deadline={deadline} />s to pick or you forfeit this set.
               </>
             )}
           </span>
         ) : (
           <span className="font-medium text-destructive">
             {lang === "es"
-              ? "Pasaste el plazo. Elige ahora o pierdes por abandono."
-              : "You're past the deadline. Pick now or you forfeit."}
+              ? "Pasaste el plazo. Elige ahora o pierdes el set por abandono."
+              : "You're past the deadline. Pick now or you forfeit the set."}
           </span>
         )}
       </p>

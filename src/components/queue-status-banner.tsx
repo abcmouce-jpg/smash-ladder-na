@@ -24,6 +24,13 @@ import { QueueStatusPoller } from "@/components/queue-status-poller";
 // The Lobby page still owns the authoritative view; this only needs to know
 // which of the two states applies.
 export async function QueueStatusBanner() {
+  // Nothing to show on the Lobby page itself: it already puts the queue wait
+  // and the full match panel right in front of the player, so a thinner copy
+  // up top would just be noise. Checked before any auth/DB work (and before
+  // the poller mounts below) so /lobby pays nothing for this.
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  if (pathname.startsWith("/lobby")) return null;
+
   const session = await auth();
   if (!session?.user?.id) return null;
   const userId = session.user.id;
@@ -51,12 +58,6 @@ export async function QueueStatusBanner() {
   const inMatch = Boolean(match) && !leftMatch;
   if (!inMatch && !waiting) return null;
 
-  // LobbyPoller already re-renders /lobby every 5s while queued or matched, so
-  // there this banner rides along for free; everywhere else it's the only
-  // thing keeping itself current.
-  const pathname = (await headers()).get("x-pathname") ?? "";
-  const shouldPoll = !pathname.startsWith("/lobby");
-
   return (
     <div className="border-b border-border bg-primary/5">
       <div className="mx-auto flex max-w-3xl items-center gap-2 px-6 py-2 text-sm">
@@ -81,7 +82,7 @@ export async function QueueStatusBanner() {
             </Link>
           </>
         ) : null}
-        {shouldPoll && <QueueStatusPoller />}
+        <QueueStatusPoller />
       </div>
     </div>
   );

@@ -132,12 +132,13 @@ export default async function RulesPage() {
           <p>
             The free cancel stops working the moment a game has a decided winner or either side has reported one — at
             that point backing out always means Surrender, from either side, for the rest of the set. If your opponent
-            goes quiet mid-set instead of surrendering yourself, you generally don&apos;t need to do anything: an
-            unresponsive opponent auto-forfeits their turn after a few minutes (character pick or stage strike,
-            whichever they&apos;re stuck on) and the set continues without erasing anything already decided. If
-            you&apos;d rather not wait, or you and your opponent both want to call the whole set off instead, either of
-            you can request a mutual cancel from the match screen; once the other side agrees, it cancels immediately
-            with no rating impact for either player, no matter how far the set got.
+            goes quiet mid-set instead of surrendering yourself, you generally don&apos;t need to do anything: if they
+            stall their stage strikes, their turn is resolved for them after a few minutes and the set continues
+            without erasing anything already decided. Character picks are stricter — if one side has locked a
+            character in and the other never does, the whole set is forfeited to whoever locked in, not just the game
+            they were on. If you&apos;d rather not wait, or you and your opponent both want to call the whole set off
+            instead, either of you can request a mutual cancel from the match screen; once the other side agrees, it
+            cancels immediately with no rating impact for either player, no matter how far the set got.
           </p>
         </Section>
 
