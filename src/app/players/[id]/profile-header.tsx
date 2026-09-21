@@ -72,7 +72,7 @@ export function PlayerProfileHeader({
               )}
               <CharacterUsageIcons usage={characterUsage} />
             </h1>
-            {player.discordUsername && player.discordUsername !== player.username && (
+            {player.discordUsername && !player.hideDiscordUsername && (
               <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
             )}
             {player.isSupporter && (

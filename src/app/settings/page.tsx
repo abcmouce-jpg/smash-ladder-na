@@ -28,6 +28,7 @@ import {
   updateArenaPassword,
   updateAudioPingOnMatchSetting,
   updateAvoidPracticeOpponentsSetting,
+  updateHideDiscordUsernameSetting,
   updateMatchFoundSoundSetting,
   updateNotifyQueueOpportunitiesSetting,
   updateQuickMessagesAction,
@@ -69,6 +70,8 @@ export default async function SettingsPage({
       where: { id: session.user.id },
       select: {
         username: true,
+        discordUsername: true,
+        hideDiscordUsername: true,
         startggUserId: true,
         startggSlug: true,
         startggGamerTag: true,
@@ -97,6 +100,16 @@ export default async function SettingsPage({
       <Card className="mt-8">
         <CardContent className="pt-4">
           <UsernameForm defaultValue={me?.username ?? ""} action={updateUsernameAction} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <HideDiscordUsernameForm
+            discordUsername={me?.discordUsername ?? null}
+            defaultValue={me?.hideDiscordUsername ?? false}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 
@@ -438,6 +451,50 @@ function AvoidPracticeOpponentsForm({ defaultValue, lang }: { defaultValue: bool
             {lang === "es"
               ? "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo."
               : "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely."}
+          </span>
+        </span>
+      </label>
+      <Button type="submit" size="sm">
+        {lang === "es" ? "Guardar" : "Save"}
+      </Button>
+    </form>
+  );
+}
+
+function HideDiscordUsernameForm({
+  discordUsername,
+  defaultValue,
+  lang,
+}: {
+  discordUsername: string | null;
+  defaultValue: boolean;
+  lang: Lang;
+}) {
+  async function action(formData: FormData) {
+    "use server";
+    await updateHideDiscordUsernameSetting(formData.get("hideDiscordUsername") === "on");
+  }
+
+  return (
+    <form action={action} className="flex items-end justify-between gap-2">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          key={String(defaultValue)}
+          type="checkbox"
+          name="hideDiscordUsername"
+          defaultChecked={defaultValue}
+          className="size-4 rounded border-border"
+        />
+        <span>
+          {lang === "es" ? "Ocultar mi Discord de mi perfil" : "Hide my Discord from my profile"}
+          <span className="block text-xs font-normal text-muted-foreground">
+            {lang === "es"
+              ? `Tu perfil muestra el nombre de tu cuenta de Discord${
+                  discordUsername ? ` (${discordUsername})` : ""
+                }, incluso si es igual a tu nombre de usuario aquí. Actívalo para ocultarlo de los demás.`
+              : `Your profile shows your Discord account name${
+                  discordUsername ? ` (${discordUsername})` : ""
+                }, even when it matches your username here. Turn this on to hide it from everyone else.`}
           </span>
         </span>
       </label>

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import {
   setAudioPingOnMatch,
   setAvoidPracticeOpponents,
+  setHideDiscordUsername,
   setMatchFoundSound,
   setNotifyQueueOpportunities,
   setQuickMessages,
@@ -51,6 +52,13 @@ export async function updateAvoidPracticeOpponentsSetting(avoid: boolean) {
   await setAvoidPracticeOpponents(userId, avoid);
   revalidatePath("/settings");
   revalidatePath("/lobby");
+}
+
+export async function updateHideDiscordUsernameSetting(hide: boolean) {
+  const userId = await requireUserId();
+  await setHideDiscordUsername(userId, hide);
+  revalidatePath("/settings");
+  revalidatePath(`/players/${userId}`);
 }
 
 export async function updateAudioPingOnMatchSetting(enabled: boolean) {

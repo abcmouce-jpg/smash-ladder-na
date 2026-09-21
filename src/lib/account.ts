@@ -154,6 +154,13 @@ export async function setAvoidPracticeOpponents(userId: string, avoidPracticeOpp
   await prisma.user.update({ where: { id: userId }, data: { avoidPracticeOpponents } });
 }
 
+// Privacy toggle for the Discord name synced from sign-in (see
+// User.discordUsername): the profile page shows it whenever it's set, so this
+// is the only way for a player to keep it off their public profile.
+export async function setHideDiscordUsername(userId: string, hide: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { hideDiscordUsername: hide } });
+}
+
 // Opt-in for notifyQueueOpportunitySubscribers (push-server.ts) — ping this
 // player when someone joins the queue who could actually match them, while
 // they aren't queued themselves. See User.notifyQueueOpportunities.
@@ -277,6 +284,13 @@ export async function setWiredConnection(userId: string, wired: boolean) {
 // default onDelete: Restrict on most of this user's relations would just
 // throw anyway. Scrambling discordId means a future login with the same
 // Discord account starts a genuinely fresh row instead of reviving this one.
+//
+// discordUsername is kept rather than nulled — the profile header shows it
+// whenever it's set, and this row's username is now the generic "Deleted
+// User", so without hideDiscordUsername the ex-player's Discord name would
+// stay publicly visible on the anonymized profile. Hiding it keeps the
+// identity on the row for internal reference while matching what the delete
+// copy actually promises (username, avatar, and email gone).
 export async function deleteMyAccount(userId: string) {
   await prisma.user.update({
     where: { id: userId },
@@ -285,6 +299,7 @@ export async function deleteMyAccount(userId: string) {
       avatarUrl: null,
       email: null,
       discordId: `deleted-${userId}`,
+      hideDiscordUsername: true,
       mainCharacter: null,
       region: null,
       wiredConnection: false,

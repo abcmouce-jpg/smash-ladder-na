@@ -150,6 +150,7 @@ model User {
   discordId            String     @unique
   username             String
   discordUsername      String? // Discord's current display name, re-synced on every sign-in — independent of `username` (self-editable on this site) so a player's original/current Discord identity stays visible even after renaming here. Null for dev-credentials accounts, which have no real Discord profile.
+  hideDiscordUsername  Boolean    @default(false) // self-declared privacy toggle — hides discordUsername from this player's public profile page. Defaults false because the whole point of syncing the field is that it's visible; does not affect anything else Discord-related (DMs, role sync).
   avatarUrl            String?
   email                String?    @unique
   rating               Int        @default(1500)
