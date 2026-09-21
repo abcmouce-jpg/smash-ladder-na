@@ -56,9 +56,12 @@ export async function getLiveStreamers(limit = 8): Promise<LiveStreamer[]> {
 
 // Most recent open Free Battle posts for the home page's Board section —
 // newest first so the section reads as "who's looking for a game right now".
+// The expiresAt guard is a lazy read-side check on top of the status filter:
+// OPEN flips to EXPIRED only when the cron finalizer runs, so a post whose
+// 24h TTL has lapsed would otherwise linger here until the next sweep.
 export async function getBoardPosts(limit = 6) {
   return prisma.freeBattlePost.findMany({
-    where: { status: PostStatus.OPEN },
+    where: { status: PostStatus.OPEN, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
