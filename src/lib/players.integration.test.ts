@@ -8,12 +8,14 @@ import {
   getHeadToHead,
   getPlayerMatchCount,
   getPlayerMatchHistory,
+  getPlayerProfile,
   getSeasonStats,
   getTopCharacters,
   getTopRivals,
   isCurrentlyInMatch,
 } from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
+import { DELETED_USERNAME } from "@/lib/account";
 import { createTestUser } from "@/test/factories";
 
 async function createConfirmedMatch(
@@ -797,5 +799,36 @@ describe("getHeadToHead", () => {
 
     const result = await getHeadToHead(viewer.id, opponent.id);
     expect(result).toEqual({ wins: 1, losses: 0 });
+  });
+});
+
+describe("getPlayerProfile", () => {
+  it("keeps a live account's Discord name", async () => {
+    const player = await createTestUser({ discordUsername: "someDiscordName" });
+
+    const profile = await getPlayerProfile(player.id);
+    expect(profile?.discordUsername).toBe("someDiscordName");
+  });
+
+  it("blanks the Discord name for an account deleted before hideDiscordUsername existed", async () => {
+    // The pre-migration shape: anonymized username/discordId, but the privacy
+    // flag left at its default false, so the row would otherwise still expose
+    // the name on the profile.
+    const deleted = await createTestUser({
+      username: DELETED_USERNAME,
+      discordId: "deleted-someoldid",
+      discordUsername: "someDiscordName",
+      hideDiscordUsername: false,
+    });
+
+    const profile = await getPlayerProfile(deleted.id);
+    expect(profile?.discordUsername).toBeNull();
+  });
+
+  it("blanks the Discord name for a Discord-side deletion still named 'Deleted User'", async () => {
+    const deleted = await createTestUser({ username: DELETED_USERNAME, discordUsername: "Deleted User" });
+
+    const profile = await getPlayerProfile(deleted.id);
+    expect(profile?.discordUsername).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { echoGroupMembers, type SmashCharacter } from "@/lib/characters";
+import { DELETED_USERNAME } from "@/lib/account";
 import { expandRegionForSearch, expandCountryForSearch, type MatchCountry } from "@/lib/regions";
 
 export interface LeaderboardFilters {
@@ -27,7 +28,7 @@ function leaderboardEligibility(query?: string | null) {
     // search term is also present, since object spread overwrites same-name
     // keys.
     username: {
-      not: "Deleted User",
+      not: DELETED_USERNAME,
       ...(query ? { contains: query, mode: "insensitive" as const } : {}),
     },
   };
@@ -119,7 +120,7 @@ export async function getLeaderboardRank(userId: string) {
   const qualifies =
     user !== null &&
     user.status !== UserStatus.BANNED &&
-    user.username !== "Deleted User" &&
+    user.username !== DELETED_USERNAME &&
     user.gamesPlayed >= LEADERBOARD_MIN_GAMES;
 
   return { rank: qualifies ? above + 1 : null, totalPlayers };

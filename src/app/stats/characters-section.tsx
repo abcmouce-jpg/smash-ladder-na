@@ -6,6 +6,7 @@ import { MatchStatus, UserStatus } from "@/generated/prisma/enums";
 import { SMASH_CHARACTERS, echoGroupCanonical, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getActiveSeason } from "@/lib/seasons";
+import { DELETED_USERNAME } from "@/lib/account";
 import { CharacterIcon } from "@/components/character-icon";
 import { winRateVariant } from "@/components/character-usage-card";
 import { AdSlot } from "@/components/ad-slot";
@@ -146,7 +147,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
   const leaderboardWhere: Prisma.UserWhereInput = {
     gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
     status: { not: UserStatus.BANNED },
-    username: { not: "Deleted User" },
+    username: { not: DELETED_USERNAME },
   };
 
   const canonical = (c: string) => echoGroupCanonical(c as SmashCharacter);
