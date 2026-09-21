@@ -253,7 +253,7 @@ export default async function Home() {
               <p className="text-sm text-muted-foreground">
                 {lang === "es"
                   ? "Nadie está buscando partida ahora mismo — sé el primero en publicar."
-                  : "No one&apos;s looking for a game right now — be the first to post."}
+                  : "No one's looking for a game right now — be the first to post."}
               </p>
               <Button asChild variant="secondary" size="sm" className="mt-3">
                 <Link href="/friendlies">{lang === "es" ? "Abrir Amistosos" : "Open Friendlies"}</Link>
