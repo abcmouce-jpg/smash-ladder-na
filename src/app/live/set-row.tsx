@@ -259,7 +259,10 @@ function GameLine({
         <span className={cn("truncate", p1Won ? "font-medium text-foreground" : "text-muted-foreground")}>
           {entry.player1.username}
         </span>
-        {p1Won && <Check className="size-3.5 shrink-0 text-emerald-500" aria-hidden />}
+        {/* The W/L badges between the names already say who won each game, and
+            on a phone the check costs the truncating username real width — so
+            it's kept for sm and up only. */}
+        {p1Won && <Check className="size-3.5 shrink-0 text-emerald-500 max-sm:hidden" aria-hidden />}
       </span>
 
       <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -279,7 +282,7 @@ function GameLine({
       </span>
 
       <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
-        {p2Won && <Check className="size-3.5 shrink-0 text-emerald-500" aria-hidden />}
+        {p2Won && <Check className="size-3.5 shrink-0 text-emerald-500 max-sm:hidden" aria-hidden />}
         <span className={cn("truncate", p2Won ? "font-medium text-foreground" : "text-muted-foreground")}>
           {entry.player2.username}
         </span>
