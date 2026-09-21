@@ -279,6 +279,17 @@ export async function setWiredConnection(userId: string, wired: boolean) {
   await prisma.user.update({ where: { id: userId }, data: { wiredConnection: wired } });
 }
 
+// The username deleteMyAccount anonymizes a departing player to. Because the
+// row is kept rather than removed (see below), this literal is the marker that
+// says "this account was deleted" — the same one Discord reports for accounts
+// that no longer exist, which is why the leaderboard filters on it too. Shared
+// so every "is this a deleted account?" check agrees on one value.
+export const DELETED_USERNAME = "Deleted User";
+
+export function isDeletedAccountUsername(username: string) {
+  return username === DELETED_USERNAME;
+}
+
 // Anonymize rather than hard-delete: match history, ratings, and comments
 // involve other players' legitimate competitive records too, and Prisma's
 // default onDelete: Restrict on most of this user's relations would just
@@ -295,7 +306,7 @@ export async function deleteMyAccount(userId: string) {
   await prisma.user.update({
     where: { id: userId },
     data: {
-      username: "Deleted User",
+      username: DELETED_USERNAME,
       avatarUrl: null,
       email: null,
       discordId: `deleted-${userId}`,

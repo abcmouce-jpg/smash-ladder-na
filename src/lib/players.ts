@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
-import { liftExpiredSuspension } from "@/lib/account";
+import { liftExpiredSuspension, isDeletedAccountUsername } from "@/lib/account";
 import { getActiveSeason } from "@/lib/seasons";
 import { startOfDayInTimeZone } from "@/lib/timezone";
 
@@ -58,13 +58,20 @@ export async function getPlayerProfile(userId: string) {
   });
   if (!player) return player;
 
+  // A deleted account keeps its Discord name on the row for internal
+  // reference (see deleteMyAccount), but must never show it publicly. Newer
+  // deletions set hideDiscordUsername, but rows deleted before that column
+  // existed — and Discord-side deletions, which can't set it — don't, so
+  // blank it here rather than trusting the stored flag.
+  const discordUsername = isDeletedAccountUsername(player.username) ? null : player.discordUsername;
+
   // Without this, a suspension that's already expired keeps showing as
   // "suspended" on the profile (and to the mod tools below it) until the
   // suspended player themselves happens to hit requireActiveUser — which
   // never happens if they only play ranked. Lift it here too so the status
   // mods see is always current.
   const status = await liftExpiredSuspension(userId, player);
-  return { ...player, status };
+  return { ...player, discordUsername, status };
 }
 
 // Lightweight existence check for the profile page's "currently playing"
