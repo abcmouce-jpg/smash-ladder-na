@@ -232,6 +232,14 @@ function GameLine({
   const p2Won = game.winnerId === entry.player2.id;
   const decided = p1Won || p2Won;
 
+  // actorA/actorB flip between players from game to game — game 1's blind
+  // pick assigns actorA randomly, and every game after that gives actorA to
+  // whoever won the previous one — so the left (player1) side can't just
+  // always read actorACharacter. Resolve each side by matching the actor id
+  // instead, same as characterForPlayer in lib/match-feed.ts.
+  const player1Character = game.actorAId === entry.player1.id ? game.actorACharacter : game.actorBCharacter;
+  const player2Character = game.actorAId === entry.player2.id ? game.actorACharacter : game.actorBCharacter;
+
   return (
     <div className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm sm:gap-3 sm:px-3">
       <span className="flex w-14 shrink-0 flex-col sm:w-24">
@@ -246,8 +254,8 @@ function GameLine({
       </span>
 
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
-        {game.actorACharacter ? (
-          <CharacterIcon name={game.actorACharacter} size={18} />
+        {player1Character ? (
+          <CharacterIcon name={player1Character} size={18} />
         ) : (
           <span aria-hidden className="size-[18px] shrink-0 rounded-full border border-dashed border-border" />
         )}
@@ -278,8 +286,8 @@ function GameLine({
         <span className={cn("truncate", p2Won ? "font-medium text-foreground" : "text-muted-foreground")}>
           {entry.player2.username}
         </span>
-        {game.actorBCharacter ? (
-          <CharacterIcon name={game.actorBCharacter} size={18} />
+        {player2Character ? (
+          <CharacterIcon name={player2Character} size={18} />
         ) : (
           <span aria-hidden className="size-[18px] shrink-0 rounded-full border border-dashed border-border" />
         )}
