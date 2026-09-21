@@ -227,8 +227,8 @@ async function main() {
   }
   console.log(`Seeded Preseason standings for ${ranked.length} players.`);
 
-  // Open Board posts for the landing page's Board section.
-  const boardPosts = [
+  // Open Friendlies posts for the landing page's Friendlies section.
+  const friendliesPosts = [
     {
       id: "seed-post-1",
       authorId: users[3].id,
@@ -248,7 +248,7 @@ async function main() {
       region: "California",
     },
   ] as const;
-  for (const post of boardPosts) {
+  for (const post of friendliesPosts) {
     await prisma.freeBattlePost.upsert({
       where: { id: post.id },
       update: {},
@@ -261,7 +261,7 @@ async function main() {
       },
     });
   }
-  console.log(`Seeded ${boardPosts.length} open Board posts.`);
+  console.log(`Seeded ${friendliesPosts.length} open Friendlies posts.`);
 
   // Four in-progress, streamed sets (users with twitchUsername set become
   // "live" when MOCK_LIVE_TWITCH=1 in .env.development — see twitch-helix.ts)

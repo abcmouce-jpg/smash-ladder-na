@@ -54,9 +54,9 @@ export async function getLiveStreamers(limit = 8): Promise<LiveStreamer[]> {
   return streamers;
 }
 
-// Most recent open Free Battle posts for the home page's Board section —
+// Most recent open Free Battle posts for the home page's Friendlies section —
 // newest first so the section reads as "who's looking for a game right now".
-export async function getBoardPosts(limit = 6) {
+export async function getFriendliesPosts(limit = 6) {
   return prisma.freeBattlePost.findMany({
     where: { status: PostStatus.OPEN },
     orderBy: { createdAt: "desc" },
