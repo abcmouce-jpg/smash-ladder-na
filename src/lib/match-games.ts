@@ -136,17 +136,18 @@ async function autoResolveStaleTurn(matchId: string) {
 // assignment either way: picking a character for someone is a much bigger
 // deal than picking a stage for them.
 //
-// Each player gets their OWN window of this length: the first picker's runs
-// from the game row's creation (when character selection became available),
-// and pickGameCharacter resets characterPickDeadline to now + this when the
-// first player locks in, so the second player always gets a fresh window
-// rather than whatever was left of the first player's.
+// Game 1 is a blind simultaneous pick, so both players share ONE window of
+// this length: it's opened when the game row is created and a lock-in never
+// touches it, so the second player to decide is racing the same clock the
+// first one was. Games 2+ pick sequentially (actorA first, then actorB with
+// actorA's choice visible) and so do get a fresh window per picker — see
+// pickGameCharacter.
 export const CHARACTER_TIMEOUT_MS = 2 * 60 * 1000;
 
 // Lazy, same pattern as autoResolveStaleTurn. Forfeits the WHOLE SET to
 // whichever side actually locked in a character, once the other side has
-// had their CHARACTER_TIMEOUT_MS window (characterPickDeadline — reset to
-// now + CHARACTER_TIMEOUT_MS when the first player locks in, see
+// had their CHARACTER_TIMEOUT_MS window (characterPickDeadline — the shared
+// game-1 clock, or the second picker's own window on games 2+, see
 // pickGameCharacter) and still hasn't — mirrors
 // autoConfirmStaleGameReport's "accept whoever showed up, penalize the
 // ghost" philosophy. Ends the whole match rather than just this game (see
@@ -563,12 +564,16 @@ export async function pickGameCharacter(
       ...(isActorA
         ? { actorACharacter: character, actorAMoveset: storedMoveset }
         : { actorBCharacter: character, actorBMoveset: storedMoveset }),
-      // Each player gets their own CHARACTER_TIMEOUT_MS window: this lock-in
-      // (or the opponent's, if they already went) starts the clock for the
-      // other side fresh rather than leaving them whatever was left of the
-      // game-creation window. Once both are locked the pick clock is moot
-      // either way — the stage-strike clock below takes over.
-      characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
+      // Game 1 runs on a single shared window (see CHARACTER_TIMEOUT_MS), so
+      // this lock-in deliberately leaves the deadline alone — restarting it
+      // here would hand whoever picked second a fresh clock the first picker
+      // never got, on what's supposed to be a blind simultaneous pick.
+      // Games 2+ are sequential instead: the first lock-in does restart the
+      // clock, giving the second picker their own full window rather than
+      // whatever was left of the first picker's. Once both are locked the
+      // pick clock is moot either way — the stage-strike clock below takes
+      // over.
+      ...(game.gameNumber === 1 ? {} : { characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS) }),
       // This pick is the second lock-in — start the stage-strike clock now
       // rather than from whenever the game row was created, which could've
       // been arbitrarily long ago if character selection itself took a while.

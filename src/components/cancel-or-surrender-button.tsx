@@ -60,10 +60,10 @@ export function CancelOrSurrenderButton({
   const confirmMessage =
     lang === "es"
       ? mode === "surrender"
-        ? "¿Rendirte en esta partida? Tu rival ya empezó, así que esto cuenta como derrota y afectará tu clasificación. Esto no se puede deshacer."
-        : "¿Cancelar esta partida? Esto no se puede deshacer."
+        ? "¿Rendirte? Cuenta como derrota y afecta tu clasificación. No se puede deshacer."
+        : "¿Cancelar esta partida? No se puede deshacer."
       : mode === "surrender"
-        ? "Surrender this match? Your opponent has already started, so this counts as a loss and will affect your rating. This can't be undone."
+        ? "Surrender this match? It counts as a loss and affects your rating. This can't be undone."
         : "Cancel this match? This can't be undone.";
 
   return (

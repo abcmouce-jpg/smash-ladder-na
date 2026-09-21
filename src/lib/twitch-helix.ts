@@ -1,6 +1,13 @@
 const TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const STREAMS_URL = "https://api.twitch.tv/helix/streams";
 
+// Dev-only showcase switch: when MOCK_LIVE_TWITCH=1 (see .env.development),
+// every queried channel counts as live without calling Twitch's API. Lets the
+// "Live on Twitch" row, the sets feed carousel, and profile embeds be
+// developed/demoed against seeded users instead of needing real live
+// channels. Never set in production.
+const mockLiveTwitch = process.env.MOCK_LIVE_TWITCH === "1";
+
 // App access token (client-credentials grant) — no user involved, distinct
 // from the OAuth user-token flow in twitch-oauth.ts. Only used to call
 // Helix's /streams "is this channel live" check.
@@ -38,7 +45,9 @@ async function getAppAccessToken(clientId: string, clientSecret: string): Promis
 export async function isTwitchLive(username: string): Promise<boolean> {
   const clientId = process.env.TWITCH_OAUTH_CLIENT_ID;
   const clientSecret = process.env.TWITCH_OAUTH_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return false;
+  if (!clientId || !clientSecret) return mockLiveTwitch;
+
+  if (mockLiveTwitch) return true;
 
   try {
     const token = await getAppAccessToken(clientId, clientSecret);
@@ -70,6 +79,7 @@ export async function getLiveTwitchUsernames(usernames: string[]): Promise<Set<s
   const clientId = process.env.TWITCH_OAUTH_CLIENT_ID;
   const clientSecret = process.env.TWITCH_OAUTH_CLIENT_SECRET;
   const unique = [...new Set(usernames.map((u) => u.toLowerCase()))];
+  if (mockLiveTwitch) return new Set(unique);
   if (!clientId || !clientSecret || unique.length === 0) return new Set();
 
   const token = await getAppAccessToken(clientId, clientSecret);

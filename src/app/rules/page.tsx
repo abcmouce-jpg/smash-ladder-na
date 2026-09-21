@@ -21,7 +21,7 @@ export default async function RulesPage() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Rules</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Covers ranked play. Free battle and start.gg tournaments are separate — see the notes at the bottom.
+        Covers ranked play. Board and start.gg tournaments are separate — see the notes at the bottom.
       </p>
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
@@ -115,7 +115,7 @@ export default async function RulesPage() {
           <p>
             A free cancel (opponent hasn&apos;t shown up) is still logged against the canceling player&apos;s account. A
             high enough cancel rate triggers an automatic Discord warning, and canceling well beyond that suspends the
-            account for 24 hours — ranked play still works while suspended, but free battle and filing new conduct
+            account for 24 hours — ranked play still works while suspended, but Board posts and filing new conduct
             reports don&apos;t. Surrendering doesn&apos;t count toward this — it already costs rating, so there&apos;s
             no separate penalty on top.
           </p>
@@ -132,12 +132,13 @@ export default async function RulesPage() {
           <p>
             The free cancel stops working the moment a game has a decided winner or either side has reported one — at
             that point backing out always means Surrender, from either side, for the rest of the set. If your opponent
-            goes quiet mid-set instead of surrendering yourself, you generally don&apos;t need to do anything: an
-            unresponsive opponent auto-forfeits their turn after a few minutes (character pick or stage strike,
-            whichever they&apos;re stuck on) and the set continues without erasing anything already decided. If
-            you&apos;d rather not wait, or you and your opponent both want to call the whole set off instead, either of
-            you can request a mutual cancel from the match screen; once the other side agrees, it cancels immediately
-            with no rating impact for either player, no matter how far the set got.
+            goes quiet mid-set instead of surrendering yourself, you generally don&apos;t need to do anything: if they
+            stall their stage strikes, their turn is resolved for them after a few minutes and the set continues
+            without erasing anything already decided. Character picks are stricter — if one side has locked a
+            character in and the other never does, the whole set is forfeited to whoever locked in, not just the game
+            they were on. If you&apos;d rather not wait, or you and your opponent both want to call the whole set off
+            instead, either of you can request a mutual cancel from the match screen; once the other side agrees, it
+            cancels immediately with no rating impact for either player, no matter how far the set got.
           </p>
         </Section>
 
@@ -178,7 +179,7 @@ export default async function RulesPage() {
           <p>
             Only a mod acting on a report moves an account toward restriction — filing one is never enough by itself. A
             single report is enough for a mod to suspend or ban if it warrants it (a mod can also act directly with no
-            report at all). Suspension blocks free battle and filing new reports (so a suspended player can&apos;t
+            report at all). Suspension blocks Board posts and filing new reports (so a suspended player can&apos;t
             retaliate) but ranked play stays open, and can be timed (auto-lifts) or indefinite. A ban blocks everything.
             See{" "}
             <a href="/faq" className="underline">
@@ -211,11 +212,11 @@ export default async function RulesPage() {
           </p>
         </Section>
 
-        <Section title="Free battle and tournaments">
+        <Section title="Board and tournaments">
           <p>
-            Free battle posts are unrated, first-come-claimed, and expire after 24 hours — good for practice or
-            friendlies without touching your rating. Community tournaments are run on start.gg; sign-ups happen here,
-            but bracket rules and disputes for a given tournament are set by that tournament&apos;s host.
+            Board posts are unrated, first-come-claimed, and expire after 24 hours — good for practice or friendlies
+            without touching your rating. Community tournaments are run on start.gg; sign-ups happen here, but bracket
+            rules and disputes for a given tournament are set by that tournament&apos;s host.
           </p>
         </Section>
       </div>
@@ -233,7 +234,7 @@ function RulesPageEs() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Reglas</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Cubre el juego rankeado. Free battle y los torneos de start.gg son aparte — ver las notas al final.
+        Cubre el juego rankeado. El Tablón y los torneos de start.gg son aparte — ver las notas al final.
       </p>
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
@@ -334,7 +335,7 @@ function RulesPageEs() {
             Una cancelación gratuita (el rival no se presentó) igual queda registrada en la cuenta de quien cancela. Una
             tasa de cancelación demasiado alta activa una advertencia automática por Discord, y cancelar bastante más
             allá de eso suspende la cuenta por 24 horas — el juego rankeado sigue funcionando mientras estás suspendido,
-            pero free battle y presentar nuevos reportes de conducta no. Rendirse no cuenta para esto — ya cuesta
+            pero el Tablón y presentar nuevos reportes de conducta no. Rendirse no cuenta para esto — ya cuesta
             clasificación, así que no hay una penalización aparte encima.
           </p>
           <p>
@@ -392,7 +393,7 @@ function RulesPageEs() {
           <p>
             Solo la acción de un mod sobre un reporte mueve una cuenta hacia una restricción — presentar uno nunca es
             suficiente por sí solo. Un solo reporte es suficiente para que un mod suspenda o banee si lo amerita (un mod
-            también puede actuar directamente sin ningún reporte). La suspensión bloquea free battle y presentar nuevos
+            también puede actuar directamente sin ningún reporte). La suspensión bloquea el Tablón y presentar nuevos
             reportes (para que un jugador suspendido no pueda tomar represalias) pero el juego rankeado sigue
             disponible, y puede ser temporal (se levanta sola) o indefinida. Un ban bloquea todo. Consulta{" "}
             <a href="/faq" className="underline">
@@ -427,9 +428,9 @@ function RulesPageEs() {
           </p>
         </Section>
 
-        <Section title="Free battle y torneos">
+        <Section title="Tablón y torneos">
           <p>
-            Las publicaciones de free battle no afectan la clasificación, se reclaman por orden de llegada, y expiran
+            Las publicaciones del Tablón no afectan la clasificación, se reclaman por orden de llegada, y expiran
             después de 24 horas — buenas para practicar o jugar amistosos sin tocar tu clasificación. Los torneos de la
             comunidad se organizan en start.gg; las inscripciones ocurren aquí, pero las reglas de bracket y disputas de
             un torneo específico las define quien organiza ese torneo.

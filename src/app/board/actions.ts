@@ -23,13 +23,13 @@ export async function postFreeBattle(comment: string, minTier: FreeBattleTier | 
     windowLabel: "5 minutes",
   });
   await createPost(userId, comment, minTier);
-  revalidatePath("/free-battle");
+  revalidatePath("/board");
 }
 
 export async function closeFreeBattlePost(postId: string) {
   const userId = await requireUserId();
   await closePost(userId, postId);
-  revalidatePath("/free-battle");
+  revalidatePath("/board");
 }
 
 export async function claimFreeBattlePost(postId: string) {
@@ -44,5 +44,5 @@ export async function claimFreeBattlePost(postId: string) {
     windowLabel: "minute",
   });
   await claimPost(userId, postId);
-  revalidatePath("/free-battle");
+  revalidatePath("/board");
 }

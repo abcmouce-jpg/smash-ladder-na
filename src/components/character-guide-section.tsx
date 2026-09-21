@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { ChevronDown, ChevronUp, Flag, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CharacterIcon } from "@/components/character-icon";
 import { useConfirm } from "@/components/confirm-dialog";
 import { ExpandableTextarea } from "@/components/expandable-textarea";
 import type { Lang } from "@/lib/i18n";
@@ -18,6 +19,12 @@ export type Guide = {
   myVote: number;
   myFlag: boolean;
 };
+
+// Each character row keeps only the best of what's been written, so the page
+// stays scannable — the full list for a character lives on the Guides tab.
+// `guides` arrives already ranked (score desc, then newest), matching
+// getVisibleGuides' order, so the head of the array is the top-rated set.
+const MAX_GUIDES_PER_CHARACTER = 3;
 
 export function CharacterGuideSection({
   character,
@@ -38,7 +45,7 @@ export function CharacterGuideSection({
   userId: string | null;
   hasOwnNote: boolean;
   maxLength: number;
-  createAction: (character: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
+  createAction: (prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   editAction: (guideId: string, prevState: GuideFormState, formData: FormData) => Promise<GuideFormState>;
   deleteGuide: (guideId: string) => Promise<GuideActionState>;
   voteOnGuide: (guideId: string, value: 1 | -1) => Promise<GuideActionState>;
@@ -47,8 +54,10 @@ export function CharacterGuideSection({
   lang: Lang;
 }) {
   const [writing, setWriting] = useState(false);
-  const boundCreate = createAction.bind(null, character);
-  const [createState, createFormAction, createPending] = useActionState(boundCreate, { error: null });
+  // The character rides along in the form (see the hidden input below) rather
+  // than being bound here, so the ungrouped Guides tab can post to the same
+  // action from its own character dropdown.
+  const [createState, createFormAction, createPending] = useActionState(createAction, { error: null });
   const submittedRef = useRef(false);
 
   // Only collapse the composer once a submission actually succeeds — closing
@@ -72,7 +81,7 @@ export function CharacterGuideSection({
         </p>
       )}
       <ul className="mt-2 flex flex-col gap-2">
-        {guides.map((guide) => (
+        {guides.slice(0, MAX_GUIDES_PER_CHARACTER).map((guide) => (
           <GuideCard
             key={guide.id}
             guide={guide}
@@ -96,6 +105,7 @@ export function CharacterGuideSection({
       )}
       {userId && writing && (
         <form action={createFormAction} className="mt-2 flex flex-col gap-1.5">
+          <input type="hidden" name="character" value={character} />
           <ExpandableTextarea
             name="content"
             maxLength={maxLength}
@@ -125,7 +135,10 @@ export function CharacterGuideSection({
   );
 }
 
-function GuideCard({
+// Exported so the ungrouped Guides tab (guides-explorer.tsx) renders the same
+// card. `tagLabel`/`tagIconName` are only passed there — inside a character row
+// the surrounding header already names the fighter.
+export function GuideCard({
   guide,
   userId,
   hasOwnNote,
@@ -136,6 +149,8 @@ function GuideCard({
   flagGuideAction,
   importGuide,
   lang,
+  tagLabel,
+  tagIconName,
 }: {
   guide: Guide;
   userId: string | null;
@@ -147,6 +162,10 @@ function GuideCard({
   flagGuideAction: (guideId: string) => Promise<GuideActionState>;
   importGuide: (guideId: string) => Promise<GuideActionState>;
   lang: Lang;
+  /** Character tag shown above the guide body — its echo group's label. */
+  tagLabel?: string;
+  /** Character icon fronting the tag (the group's canonical member). */
+  tagIconName?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -193,6 +212,12 @@ function GuideCard({
 
   return (
     <li className="rounded-lg border border-border p-2.5">
+      {tagLabel && (
+        <span className="mb-2 flex w-fit items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+          <CharacterIcon name={tagIconName ?? tagLabel} size={14} />
+          {tagLabel}
+        </span>
+      )}
       {editing ? (
         <form action={editFormAction} className="flex flex-col gap-1.5">
           <ExpandableTextarea

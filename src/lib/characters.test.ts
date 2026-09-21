@@ -4,9 +4,12 @@ import {
   echoGroupCanonical,
   echoGroupLabel,
   echoGroupMembers,
+  isMatchupCharacter,
+  MATCHUP_CHARACTERS,
   MII_CHARACTERS,
   MOVESET_PATTERN,
   isMiiCharacter,
+  SMASH_CHARACTERS,
 } from "./characters";
 
 describe("echoGroupMembers", () => {
@@ -58,6 +61,35 @@ describe("ECHO_FIGHTER_GROUPS", () => {
         seen.add(member);
       }
     }
+  });
+});
+
+describe("MATCHUP_CHARACTERS", () => {
+  it("excludes Random", () => {
+    expect(MATCHUP_CHARACTERS).not.toContain("Random");
+  });
+
+  it("keeps only each echo group's canonical member", () => {
+    expect(MATCHUP_CHARACTERS).toContain("Peach");
+    expect(MATCHUP_CHARACTERS).not.toContain("Daisy");
+    expect(MATCHUP_CHARACTERS).toContain("Samus");
+    expect(MATCHUP_CHARACTERS).not.toContain("Dark Samus");
+  });
+
+  it("keeps every non-echo fighter other than Random", () => {
+    const expected = SMASH_CHARACTERS.filter((c) => c !== "Random" && echoGroupCanonical(c) === c);
+    expect(MATCHUP_CHARACTERS).toEqual(expected);
+  });
+});
+
+describe("isMatchupCharacter", () => {
+  it("is true for a non-echo fighter", () => {
+    expect(isMatchupCharacter("Mario")).toBe(true);
+  });
+
+  it("is false for Random and for echoes folded into their base fighter", () => {
+    expect(isMatchupCharacter("Random")).toBe(false);
+    expect(isMatchupCharacter("Daisy")).toBe(false);
   });
 });
 

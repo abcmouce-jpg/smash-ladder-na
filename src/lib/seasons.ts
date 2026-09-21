@@ -6,6 +6,8 @@ import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
 // past a DST boundary.
 export const PRE_SEASON_STARTS_AT = new Date("2026-07-25T18:00:00-04:00");
 
+export const PRE_SEASON_NAME = "Preseason";
+
 // The preseason is a fixed 2-month trial run before Season 1 proper — the
 // actual rollover is still triggered manually via the admin Seasons page
 // (see endActiveSeasonAndStartNext), but players should be able to see
@@ -23,6 +25,18 @@ export const PRE_SEASON_EXPECTED_END_AT = new Date(
 
 export function hasPreSeasonStarted() {
   return Date.now() >= PRE_SEASON_STARTS_AT.getTime();
+}
+
+// When the active season is expected to end, for display (the leaderboard's
+// countdown) — null when there's nothing to count down to. A season's endsAt
+// is only ever stamped at rollover (endActiveSeasonAndStartNext), so the
+// active row's own endsAt is normally null; the preseason is the exception
+// because its fixed length is announced up front, even though the actual
+// rollover still happens manually on the admin Seasons page. Any future
+// season with a known endsAt gets a countdown for free.
+export function getSeasonEndsAt(season: { name: string; endsAt: Date | null }): Date | null {
+  if (season.endsAt) return season.endsAt;
+  return season.name === PRE_SEASON_NAME ? PRE_SEASON_EXPECTED_END_AT : null;
 }
 
 // Temporary: ending a season resets EVERYONE's rating, and enough people
@@ -129,9 +143,9 @@ export async function launchPreSeasonIfDue(now = new Date()) {
   const active = await getActiveSeason();
   if (active) {
     if (active.startsAt >= PRE_SEASON_STARTS_AT) return false;
-    await endActiveSeasonAndStartNext("Preseason", now);
+    await endActiveSeasonAndStartNext(PRE_SEASON_NAME, now);
   } else {
-    await prisma.season.create({ data: { name: "Preseason", startsAt: now } });
+    await prisma.season.create({ data: { name: PRE_SEASON_NAME, startsAt: now } });
   }
   return true;
 }

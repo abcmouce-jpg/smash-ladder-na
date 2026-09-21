@@ -1,30 +1,51 @@
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { Activity, Coffee, Handshake, Swords, Trophy, Users } from "lucide-react";
+import type { ReactNode } from "react";
+import { Activity, MapPin, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
-import { getMatchesPerDay, getPublicStats, getTopGrinders } from "@/lib/public-stats";
+import { getLang } from "@/lib/i18n";
+import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
+import { getBoardPosts } from "@/lib/home-feed";
+import { getMatchFeed } from "@/lib/match-feed";
+import { serializeSetEntry } from "@/lib/set-entry";
 import { Button } from "@/components/ui/button";
-import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
+import { LocalTime } from "@/components/local-time";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
-import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { LiveStreamProvider } from "@/components/live-streams/selection";
+import { LiveStreamStage } from "@/components/live-streams/stage";
+import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
-import { getLang } from "@/lib/i18n";
-import { getTopRecruiters } from "@/lib/referrals";
 
 export const metadata: Metadata = {
   alternates: { languages: { "es-MX": "/es" } },
 };
 
+// Shared home section header: small-caps label with the accent tick on the
+// left, optional action link on the right.
+function SectionHeading({ label, action }: { label: string; action?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <h2 className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+        <span aria-hidden className="h-3.5 w-1 rounded-full bg-primary" />
+        {label}
+      </h2>
+      {action}
+    </div>
+  );
+}
+
 export default async function Home() {
   const session = await auth();
   const user = session?.user;
 
-  const [me, stats, lang, topRecruiters, topGrinders, matchTimestamps] = await Promise.all([
+  const [me, stats, lang, feed, posts, matchTimestamps] = await Promise.all([
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
@@ -33,50 +54,59 @@ export default async function Home() {
       : null,
     getPublicStats(),
     getLang(),
-    getTopRecruiters(3),
-    getTopGrinders(3),
+    getMatchFeed(),
+    getBoardPosts(6),
     getMatchesPerDay(30),
   ]);
+  const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
+  const liveEntries = feed.filter((entry) => entry.hasLiveStreamer).map(serializeSetEntry);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-20">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="border-primary/30 text-primary">
-          {lang === "es" ? "Norteamérica" : "North America"}
-        </Badge>
-        <a
-          href={DISCORD_SERVER_URL}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(
-            badgeVariants({ variant: "outline" }),
-            "border-transparent bg-[#5865F2] text-white transition-colors hover:bg-[#4752C4]",
-          )}
-        >
-          <DiscordIcon className="size-3.5" />
-          Discord
-        </a>
-      </div>
-      <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
+    <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
+      <h1 className="mt-4 text-4xl font-semibold tracking-tight text-balance">
+        Smash Ladder <span className="text-primary">NA</span>
+      </h1>
       <p className="mt-3 max-w-md text-muted-foreground">
         {lang === "es"
           ? "Una liga clasificatoria y emparejamiento para la comunidad de Smash de Norteamérica."
           : "A ranked ladder and matchmaking hub for the North American Smash community."}
       </p>
 
-      {!user && (
-        <form
-          action={async () => {
-            "use server";
-            await signIn(primaryProviderId);
-          }}
-          className="mt-8"
-        >
-          <Button type="submit" size="lg">
-            {lang === "es" ? "Inicia sesión para empezar" : "Sign in to get started"}
-          </Button>
-        </form>
-      )}
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        {user ? (
+          <>
+            <Button asChild size="lg">
+              <Link href="/lobby">{lang === "es" ? "Ir a la Sala" : "Go to Lobby"}</Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
+                <DiscordIcon className="size-4" />
+                {lang === "es" ? "Únete a nuestro servidor de Discord" : "Join Our Discord Server"}
+              </a>
+            </Button>
+          </>
+        ) : (
+          <>
+            <form
+              action={async () => {
+                "use server";
+                await signIn(primaryProviderId);
+              }}
+            >
+              <Button type="submit" size="lg">
+                <DiscordIcon className="size-4" />
+                {lang === "es" ? "Inicia sesión con Discord" : "Log in with Discord"}
+              </Button>
+            </form>
+            <Button asChild variant="outline" size="lg">
+              <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
+                <DiscordIcon className="size-4" />
+                {lang === "es" ? "Únete a nuestro servidor de Discord" : "Join Our Discord Server"}
+              </a>
+            </Button>
+          </>
+        )}
+      </div>
 
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
@@ -117,11 +147,31 @@ export default async function Home() {
         </span>
       </div>
 
+      {liveEntries.length > 0 && (
+        <div className="mt-10">
+          <SectionHeading label={lang === "es" ? "En vivo en Twitch" : "Live on Twitch"} />
+          <LiveStreamProvider>
+            <div className="mt-3">
+              <LiveStreamStage entries={liveEntries} parentHost={parentHost} />
+              <LiveStreamThumbnails entries={liveEntries} lang={lang} />
+            </div>
+          </LiveStreamProvider>
+        </div>
+      )}
+
       {stats.topPlayers.length > 0 && (
         <div className="mt-10">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {lang === "es" ? "Los mejores de la liga" : "Top of the ladder"}
-          </h2>
+          <SectionHeading
+            label={lang === "es" ? "Los mejores de la liga" : "Top of the ladder"}
+            action={
+              <Link
+                href="/leaderboard"
+                className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {lang === "es" ? "Ver todos →" : "See all →"}
+              </Link>
+            }
+          />
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {stats.topPlayers.map((p, i) => (
               <Link key={p.id} href={`/players/${p.id}`}>
@@ -155,150 +205,88 @@ export default async function Home() {
       )}
 
       <div className="mt-10">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {lang === "es" ? "Partidas por día" : "Matches per day"}
-        </h2>
+        <SectionHeading label={lang === "es" ? "Publicaciones del Tablón" : "Board posts"} />
+        {posts.length > 0 ? (
+          <Card className="mt-3 divide-y divide-border overflow-hidden py-0">
+            {posts.map((post) => (
+              <div key={post.id} className="px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  {post.author.avatarUrl && (
+                    <Image
+                      src={post.author.avatarUrl}
+                      alt={post.author.username}
+                      width={20}
+                      height={20}
+                      className="shrink-0 rounded-full"
+                    />
+                  )}
+                  <Link
+                    href={`/players/${post.author.id}`}
+                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+                  >
+                    {post.author.username}
+                  </Link>
+                  <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted-foreground">
+                    <span>{post.author.rating}</span>
+                    <span aria-hidden>·</span>
+                    <LocalTime iso={post.createdAt.toISOString()} />
+                  </span>
+                </div>
+                <p className="mt-1 text-sm leading-snug">{post.comment}</p>
+                {(post.region || post.minTier) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {post.region && (
+                      <Badge variant="outline">
+                        <MapPin className="size-3" />
+                        {post.region}
+                      </Badge>
+                    )}
+                    {post.minTier && <Badge variant="outline">{post.minTier}+</Badge>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </Card>
+        ) : (
+          <Card className="mt-3">
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">
+                {lang === "es"
+                  ? "Nadie está buscando partida ahora mismo — sé el primero en publicar."
+                  : "No one&apos;s looking for a game right now — be the first to post."}
+              </p>
+              <Button asChild variant="secondary" size="sm" className="mt-3">
+                <Link href="/board">{lang === "es" ? "Abrir el Tablón" : "Open the Board"}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        {user ? (
+          <Link
+            href="/board"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {lang === "es" ? "Publica en el Tablón →" : "Post on the Board →"}
+          </Link>
+        ) : (
+          <a
+            href={DISCORD_SERVER_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {lang === "es" ? "Únete a nuestro Discord para encontrar partidas" : "Join our Discord to find games"}
+          </a>
+        )}
+      </div>
+
+      <div className="mt-10">
+        <SectionHeading label={lang === "es" ? "Partidas por día" : "Matches per day"} />
         <Card className="mt-3">
           <CardContent className="pt-4">
             <MatchesPerDayChart timestamps={matchTimestamps} lang={lang} />
           </CardContent>
         </Card>
-      </div>
-
-      {topGrinders.length > 0 && (
-        <div className="mt-10">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {lang === "es" ? "Los que más juegan" : "Top grinders"}
-          </h2>
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {topGrinders.map((g) => (
-              <Link key={g.id} href={`/players/${g.id}`}>
-                <Card className="h-full py-0 transition-colors hover:border-foreground/30">
-                  <CardContent className="flex items-center gap-3 py-3">
-                    {g.avatarUrl && (
-                      <Image
-                        src={g.avatarUrl}
-                        alt={g.username}
-                        width={32}
-                        height={32}
-                        className="shrink-0 rounded-full"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{g.username}</p>
-                      <p className="text-xs tabular-nums text-muted-foreground">
-                        {lang === "es"
-                          ? `${g.gamesPlayed} ${g.gamesPlayed === 1 ? "partida jugada" : "partidas jugadas"}`
-                          : `${g.gamesPlayed} ${g.gamesPlayed === 1 ? "set" : "sets"} played`}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {topRecruiters.length > 0 && (
-        <div className="mt-10">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {lang === "es" ? "Los que más invitan" : "Top recruiters"}
-          </h2>
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {topRecruiters.map((r) => (
-              <Link key={r.id} href={`/players/${r.id}`}>
-                <Card className="h-full py-0 transition-colors hover:border-foreground/30">
-                  <CardContent className="flex items-center gap-3 py-3">
-                    {r.avatarUrl && (
-                      <Image
-                        src={r.avatarUrl}
-                        alt={r.username}
-                        width={32}
-                        height={32}
-                        className="shrink-0 rounded-full"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{r.username}</p>
-                      <p className="text-xs tabular-nums text-muted-foreground">
-                        {lang === "es"
-                          ? `${r.count} ${r.count === 1 ? "jugador invitado" : "jugadores invitados"}`
-                          : `${r.count} ${r.count === 1 ? "player" : "players"} invited`}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Link href="/lobby">
-          <Card className="h-full transition-colors hover:border-foreground/30">
-            <CardHeader>
-              <Swords className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">{lang === "es" ? "Sala clasificatoria" : "Ranked Lobby"}</CardTitle>
-              <CardDescription>
-                {lang === "es"
-                  ? "Ponte en cola y te emparejamos automáticamente para una partida clasificatoria."
-                  : "Queue up and get auto-paired for a rated match."}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-        <Link href="/free-battle">
-          <Card className="h-full transition-colors hover:border-foreground/30">
-            <CardHeader>
-              <Handshake className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">{lang === "es" ? "Free Battle" : "Free Battle"}</CardTitle>
-              <CardDescription>
-                {lang === "es"
-                  ? "Amistosos casuales sin afectar tu clasificación — ni región, ni cola automática, tú eliges con quién jugar."
-                  : "Casual, unranked friendlies — no region needed, no auto-matching, you pick who to play."}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-        <Link href="/leaderboard">
-          <Card className="h-full transition-colors hover:border-foreground/30">
-            <CardHeader>
-              <Trophy className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">{lang === "es" ? "Tabla de clasificación" : "Leaderboard"}</CardTitle>
-              <CardDescription>
-                {lang === "es" ? "Mira en qué posición estás." : "See where you stack up."}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-        <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="h-full">
-          <Card className="h-full transition-colors hover:border-foreground/30">
-            <CardHeader>
-              <DiscordIcon className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">Discord</CardTitle>
-              <CardDescription>
-                {lang === "es"
-                  ? "Únete al servidor de la comunidad para socializar y obtener ayuda."
-                  : "Join the community server to hang out and get support."}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </a>
-        <Link href="/supporters" className="h-full">
-          <Card className="h-full transition-colors hover:border-foreground/30">
-            <CardHeader>
-              <Coffee className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">{lang === "es" ? "Colaboradores" : "Supporters"}</CardTitle>
-              <CardDescription>
-                {lang === "es"
-                  ? "Ayuda a cubrir el hosting — totalmente opcional."
-                  : "Help cover hosting costs — entirely optional."}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
       </div>
     </main>
   );

@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
-import { SMASH_CHARACTERS } from "@/lib/characters";
+import { echoGroupCanonical, isMatchupCharacter, SMASH_CHARACTERS, type SmashCharacter } from "@/lib/characters";
 import { notifyCharacterGuideSubscribers } from "@/lib/push-server";
 
 export const MAX_GUIDE_LENGTH = 10000;
@@ -16,17 +16,38 @@ function assertValidCharacter(character: string) {
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) throw new Error("Not a valid character");
 }
 
-// Visible (non-hidden) guides for every character in one query, grouped by
-// character — the /notes page renders all ~90 characters at once, and one
-// query grouped in JS beats 90 round trips. Guide volume (community-authored,
-// not one-per-user) stays small enough that loading everything up front is
-// cheap.
-export async function getAllCharacterGuides(viewerId: string | null) {
-  const guides = await prisma.characterGuide.findMany({
+// The echo group a guide belongs to, or null for a character the notes page
+// doesn't cover ("Random"). Guides are filed and tagged by this, so a guide
+// written for Dark Samus shows up under Samus/Dark Samus, and a stray guide
+// on "Random" stays out of the notes UI entirely.
+function guideGroup(character: string): SmashCharacter | null {
+  const group = echoGroupCanonical(character as SmashCharacter);
+  return isMatchupCharacter(group) ? group : null;
+}
+
+// What the client guide cards actually render. The raw rows also carry the
+// viewer's vote/flag relations, which is more than the UI needs to receive.
+export type GuideView = {
+  id: string;
+  character: string;
+  content: string;
+  score: number;
+  authorId: string;
+  author: { id: string; username: string };
+  myVote: number;
+  myFlag: boolean;
+};
+
+// One query for every visible (non-hidden) guide, with the viewer's own vote
+// and flag folded in. Callers group or flatten it as needed; guide volume
+// (community-authored, not one-per-user) stays small enough that loading
+// everything up front is cheap.
+async function getVisibleGuides(viewerId: string | null) {
+  return prisma.characterGuide.findMany({
     where: { hiddenAt: null },
     orderBy: [{ score: "desc" }, { createdAt: "desc" }],
     include: {
-      author: { select: { id: true, username: true, avatarUrl: true } },
+      author: { select: { id: true, username: true } },
       // Filtered by an always-empty userId when signed out, rather than
       // toggling `include.votes` between an object and `false` — keeps the
       // result shape (and its inferred type) identical in both cases instead
@@ -35,14 +56,48 @@ export async function getAllCharacterGuides(viewerId: string | null) {
       flags: { where: { userId: viewerId ?? "" }, select: { id: true } },
     },
   });
+}
 
-  const byCharacter = new Map<string, (typeof guides)[number][]>();
-  for (const g of guides) {
-    const list = byCharacter.get(g.character);
-    if (list) list.push(g);
-    else byCharacter.set(g.character, [g]);
+type RawGuide = Awaited<ReturnType<typeof getVisibleGuides>>[number];
+
+function toGuideView(guide: RawGuide): GuideView {
+  return {
+    id: guide.id,
+    character: guide.character,
+    content: guide.content,
+    score: guide.score,
+    authorId: guide.authorId,
+    author: { id: guide.author.id, username: guide.author.username },
+    myVote: guide.votes[0]?.value ?? 0,
+    myFlag: guide.flags.length > 0,
+  };
+}
+
+// Visible guides grouped by echo group — the notes page's "My Notes" tab
+// renders one row per character and needs this character's (and its echo's)
+// guides alongside the note now, rather than 90 separate round trips. Keyed by
+// each group's canonical character so Peach and Daisy share a row, matching the
+// leaderboard and Stats > Characters grouping.
+export async function getAllCharacterGuides(viewerId: string | null) {
+  const guides = await getVisibleGuides(viewerId);
+  const byCharacter = new Map<string, GuideView[]>();
+  for (const guide of guides) {
+    const group = guideGroup(guide.character);
+    if (!group) continue;
+    const view = toGuideView(guide);
+    const list = byCharacter.get(group);
+    if (list) list.push(view);
+    else byCharacter.set(group, [view]);
   }
   return byCharacter;
+}
+
+// The same guides as a flat, globally-ranked list for the ungrouped Guides
+// tab, where each guide carries its own character tag instead of being filed
+// under a character row.
+export async function getAllGuides(viewerId: string | null): Promise<GuideView[]> {
+  const guides = await getVisibleGuides(viewerId);
+  return guides.filter((guide) => guideGroup(guide.character) !== null).map(toGuideView);
 }
 
 // Defers notifyCharacterGuideSubscribers to run once the creating request
@@ -65,8 +120,11 @@ export async function createCharacterGuide(authorId: string, character: string, 
   if (!trimmed) throw new Error("Guide can't be empty");
   if (trimmed.length > MAX_GUIDE_LENGTH) throw new Error(`Guide is too long (max ${MAX_GUIDE_LENGTH} characters)`);
 
-  const guide = await prisma.characterGuide.create({ data: { character, authorId, content: trimmed } });
-  deferGuideNotification(character, authorId);
+  // Filed under the echo group's canonical character so Samus/Dark Samus (and
+  // the other pairs) share one tag — the read path groups by the same key.
+  const group = echoGroupCanonical(character as SmashCharacter);
+  const guide = await prisma.characterGuide.create({ data: { character: group, authorId, content: trimmed } });
+  deferGuideNotification(group, authorId);
   return guide;
 }
 

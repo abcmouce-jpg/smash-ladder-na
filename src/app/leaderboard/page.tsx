@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Trophy } from "lucide-react";
+import { CalendarClock, Trophy } from "lucide-react";
 import { auth } from "@/auth";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import {
@@ -12,13 +12,20 @@ import {
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { getCharacterUsage } from "@/lib/players";
-import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
-import { SEASON_PRIZE_POOL_USD, approxMxn, prizeForPlace } from "@/lib/prizes";
+import {
+  ensureActiveSeason,
+  getSeasonEndsAt,
+  PRE_SEASON_DURATION_MONTHS,
+  PRE_SEASON_EXPECTED_END_AT,
+} from "@/lib/seasons";
+import { SEASON_PRIZE_POOL_USD, PRIZE_SPLIT_PERCENT, approxMxn, prizeForPlace } from "@/lib/prizes";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { CharacterFilterSelect } from "@/components/character-filter-select";
 import { InfoPopup } from "@/components/info-popup";
+import { PageHeading } from "@/components/page-heading";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { RankBadge } from "@/components/rank-badge";
+import { SeasonCountdown } from "@/components/season-countdown";
 import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,82 +93,131 @@ export default async function LeaderboardPage({
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
   const viewerId = session?.user?.id ?? null;
+  // Null for every season but the preseason — see getSeasonEndsAt.
+  const seasonEndsAt = getSeasonEndsAt(season);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-16">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Trophy className="size-5 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {lang === "es" ? "Tabla de clasificación" : "Leaderboard"}
-          </h1>
-          <Badge variant="outline">{season.name}</Badge>
-        </div>
-        <InfoPopup lang={lang} />
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {lang === "es" ? (
-          <>
-            Jugadores rankeados con {LEADERBOARD_MIN_GAMES}+ partidas jugadas
+    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
+      <PageHeading
+        icon={Trophy}
+        title={lang === "es" ? "Tabla de clasificación" : "Leaderboard"}
+        description={
+          <span>
+            {lang === "es" ? "Jugadores rankeados con" : "Ranked players with"} {LEADERBOARD_MIN_GAMES}+{" "}
+            {lang === "es" ? "partidas jugadas" : "sets played"}
             {isValidCharacter
-              ? ` que usan a ${echoGroupLabel(character as SmashCharacter)} como main o secundario`
+              ? lang === "es"
+                ? ` que usan a ${echoGroupLabel(character as SmashCharacter)} como main o secundario`
+                : ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary`
               : ""}
-            {isValidRegion ? ` en ${region}` : ""}
-            {!isValidRegion && isValidCountry ? ` en ${country}` : ""}
-            {query ? ` que coinciden con "${query}"` : ""}.
-          </>
-        ) : (
-          <>
-            Ranked players with {LEADERBOARD_MIN_GAMES}+ sets played
-            {isValidCharacter ? ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary` : ""}
-            {isValidRegion ? ` in ${region}` : ""}
-            {!isValidRegion && isValidCountry ? ` in ${country}` : ""}
-            {query ? ` matching "${query}"` : ""}.
-          </>
-        )}
-      </p>
+            {isValidRegion ? (lang === "es" ? ` en ${region}` : ` in ${region}`) : ""}
+            {!isValidRegion && isValidCountry ? (lang === "es" ? ` en ${country}` : ` in ${country}`) : ""}
+            {query ? (lang === "es" ? ` que coinciden con "${query}"` : ` matching "${query}"`) : ""}.
+          </span>
+        }
+        action={<InfoPopup lang={lang} />}
+      />
+
+      <Card className="mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+            <h2 className="text-base font-semibold tracking-tight">{season.name}</h2>
+          </div>
+          {seasonEndsAt && (
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs text-muted-foreground">{lang === "es" ? "Termina en" : "Ends in"}</span>
+              <SeasonCountdown endsAt={seasonEndsAt.toISOString()} lang={lang} />
+            </div>
+          )}
+        </div>
+      </Card>
 
       {!isFiltered && (
-        <Card className="mt-4 border-primary/20 bg-primary/[0.04] py-3">
-          <p className="px-4 text-sm">
-            {lang === "es" ? (
-              <>
-                🏆{" "}
-                <span className="font-medium">
-                  Bolsa de premios de ${SEASON_PRIZE_POOL_USD} USD (≈ $
-                  {approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN)
-                </span>{" "}
-                — repartida entre los 5 primeros cuando termine {season.name}.
-                {season.name === "Preseason" && (
-                  <>
-                    {" "}
-                    Esta preseason es fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor del{" "}
-                    {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("es-MX", {
-                      timeZone: "America/New_York",
-                      dateStyle: "long",
-                    })}
-                    .
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> — split among the
-                top 5 finishers when {season.name} ends.
-                {season.name === "Preseason" && (
-                  <>
-                    {" "}
-                    This is a fixed {PRE_SEASON_DURATION_MONTHS}-month preseason, expected to end around{" "}
-                    {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
-                      timeZone: "America/New_York",
-                      dateStyle: "long",
-                    })}
-                    .
-                  </>
-                )}
-              </>
-            )}
-          </p>
+        <Card className="mt-6 border-primary/20 bg-primary/[0.04]">
+          <div className="px-4 py-3">
+            <p className="text-sm">
+              {lang === "es" ? (
+                <>
+                  🏆{" "}
+                  <span className="font-medium">
+                    Bolsa de premios de ${SEASON_PRIZE_POOL_USD} USD (≈ $
+                    {approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN)
+                  </span>{" "}
+                  — repartida entre los 5 primeros cuando termine {season.name}.
+                  {season.name === "Preseason" && (
+                    <>
+                      {" "}
+                      Esta preseason es fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor del{" "}
+                      {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("es-MX", {
+                        timeZone: "America/New_York",
+                        dateStyle: "long",
+                      })}
+                      .
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> — split among
+                  the top 5 finishers when {season.name} ends.
+                  {season.name === "Preseason" && (
+                    <>
+                      {" "}
+                      This is a fixed {PRE_SEASON_DURATION_MONTHS}-month preseason, expected to end around{" "}
+                      {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
+                        timeZone: "America/New_York",
+                        dateStyle: "long",
+                      })}
+                      .
+                    </>
+                  )}
+                </>
+              )}
+            </p>
+
+            {/* Prize split infographic — only meaningful on the global
+                leaderboard, which is why it renders alongside the banner that
+                already hides when a filter is applied. */}
+            <div className="mt-4">
+              <p className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
+                {lang === "es" ? "Distribución del premio" : "Prize split"}
+              </p>
+              <div className="mt-2 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5">
+                {PRIZE_SPLIT_PERCENT.map((_, i) => {
+                  const place = i + 1;
+                  const usd = prizeForPlace(place) ?? 0;
+                  const rankLabel =
+                    lang === "es"
+                      ? place === 1
+                        ? "1.º"
+                        : place === 2
+                          ? "2.º"
+                          : place === 3
+                            ? "3.º"
+                            : `${place}.º`
+                      : place === 1
+                        ? "1st"
+                        : place === 2
+                          ? "2nd"
+                          : place === 3
+                            ? "3rd"
+                            : `${place}th`;
+                  return (
+                    <div key={place} className="flex flex-col gap-0.5">
+                      <span className="text-xs text-muted-foreground">{rankLabel}</span>
+                      <span className="text-sm font-medium tabular-nums">${usd} USD</span>
+                      {lang === "es" && usd > 0 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          ≈ ${approxMxn(usd).toLocaleString("es-MX")} MXN
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </Card>
       )}
 
@@ -243,14 +299,7 @@ export default async function LeaderboardPage({
                 <th className="py-2 font-medium text-right tabular-nums">
                   {lang === "es" ? "Clasificación" : "Rating"}
                 </th>
-                <th className={`py-2 font-medium text-right tabular-nums ${isFiltered ? "pr-4" : ""}`}>
-                  {lang === "es" ? "Partidas" : "Sets"}
-                </th>
-                {!isFiltered && (
-                  <th className="py-2 pr-4 font-medium text-right tabular-nums">
-                    {lang === "es" ? "Premio" : "Prize"}
-                  </th>
-                )}
+                <th className="py-2 pr-4 font-medium text-right tabular-nums">{lang === "es" ? "Partidas" : "Sets"}</th>
               </tr>
             </thead>
             <tbody>
@@ -287,26 +336,7 @@ export default async function LeaderboardPage({
                       <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
                     </td>
                     <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
-                    <td className={`py-2 text-right tabular-nums text-muted-foreground ${isFiltered ? "pr-4" : ""}`}>
-                      {player.gamesPlayed}
-                    </td>
-                    {!isFiltered && (
-                      <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                        {(() => {
-                          const prize = prizeForPlace(rank + 1);
-                          if (prize === null) return "—";
-                          if (lang !== "es") return `$${prize} USD`;
-                          return (
-                            <span className="flex flex-col items-end">
-                              <span>${prize} USD</span>
-                              <span className="text-[10px] opacity-70">
-                                ≈ ${approxMxn(prize).toLocaleString("es-MX")} MXN
-                              </span>
-                            </span>
-                          );
-                        })()}
-                      </td>
-                    )}
+                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{player.gamesPlayed}</td>
                   </tr>
                 );
               })}

@@ -24,24 +24,50 @@ async function createMatch(p1: string, p2: string) {
 }
 
 describe("auto-forfeit for a stale character pick", () => {
-  it("resets the pick window when the first player locks in", async () => {
+  it("shares one pick window between both players on game 1", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await startFirstGame(p1.id, match.id);
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
-    // The game row is ancient — under the old single-window-from-creation
-    // model this would already be past the deadline. The first lock-in
-    // resets the clock for the second player, so it must NOT forfeit yet.
-    await prisma.matchGame.update({
-      where: { id: game.id },
-      data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
-    });
+    const sharedDeadline = game.characterPickDeadline.getTime();
+
     await pickGameCharacter(game.actorAId, match.id, 1, "Mario"); // only one side locks in
 
-    const games = await getMatchGames(match.id);
-    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+    // Game 1 is a blind simultaneous pick — the first lock-in must NOT restart
+    // the clock, or the player still deciding would be racing a fresh window
+    // the other one never got.
+    const afterFirstPick = await getCurrentGame(match.id);
+    expect(afterFirstPick?.characterPickDeadline.getTime()).toBe(sharedDeadline);
+  });
+
+  it("still gives the second picker a fresh window on games 2+", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        stagesRemaining: ["Final Destination"],
+        struckStages: ["Battlefield", "Small Battlefield", "Smashville"],
+        // actorA's own window is nearly up. actorB can't even pick until
+        // actorA locks in, so their clock has to start from that lock-in.
+        characterPickDeadline: new Date(Date.now() + 1000),
+      },
+    });
+
+    await pickGameCharacter(p1.id, match.id, 2, "Mario"); // actorA locks in first
+
+    const updated = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(updated.characterPickDeadline.getTime()).toBeGreaterThan(Date.now() + 1000);
   });
 
   it("forfeits the whole match to whoever locked in once the other side's window has elapsed", async () => {

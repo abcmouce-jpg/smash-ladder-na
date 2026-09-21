@@ -9,14 +9,30 @@ import { Card, CardContent } from "@/components/ui/card";
 // localhost all differ) — passed in from the page via headers() since
 // there's no single fixed site-URL env var in this project.
 //
-// Collapsed by default: this renders inline on the match feed, where
-// several live entries stacking full-size video players at once was
-// overwhelming the page. Starts as just the clickable "Live on Twitch"
-// header; the iframe (and its network/CPU cost) only mounts once someone
-// actually asks to see it.
-export function TwitchLiveEmbed({ username, parentHost }: { username: string; parentHost: string }) {
-  const [expanded, setExpanded] = useState(false);
+// Collapsed by default: the match feed can stack several live entries, and
+// mounting a full-size video player for each one at once was overwhelming
+// the page. Pass `collapsible={false}` to skip the toggle card and render
+// the player directly, for callers that only ever show one at a time.
+export function TwitchLiveEmbed({
+  username,
+  parentHost,
+  collapsible = true,
+}: {
+  username: string;
+  parentHost: string;
+  collapsible?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(!collapsible);
   const src = `https://player.twitch.tv/?channel=${encodeURIComponent(username)}&parent=${encodeURIComponent(parentHost)}&muted=true`;
+  const player = (
+    <div className="aspect-video w-full overflow-hidden rounded-lg">
+      <iframe src={src} allowFullScreen className="h-full w-full" title={`${username}'s Twitch stream`} />
+    </div>
+  );
+
+  if (!collapsible) {
+    return <div className="mt-4">{player}</div>;
+  }
 
   return (
     <Card className="mt-4">
@@ -35,11 +51,7 @@ export function TwitchLiveEmbed({ username, parentHost }: { username: string; pa
             <ChevronRight className="size-3.5 text-muted-foreground" />
           )}
         </button>
-        {expanded && (
-          <div className="mt-2 aspect-video w-full overflow-hidden rounded-lg">
-            <iframe src={src} allowFullScreen className="h-full w-full" title={`${username}'s Twitch stream`} />
-          </div>
-        )}
+        {expanded && <div className="mt-2">{player}</div>}
       </CardContent>
     </Card>
   );

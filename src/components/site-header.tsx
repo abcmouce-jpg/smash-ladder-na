@@ -1,31 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  AlertTriangle,
-  Award,
-  CalendarClock,
-  ChevronDown,
-  Coffee,
-  Flag,
-  Gamepad2,
-  Gauge,
-  Handshake,
-  Languages,
-  LogOut,
-  NotebookPen,
-  Radio,
-  Search,
-  Settings,
-  Shield,
-  Swords,
-  Trophy,
-  UserRound,
-} from "lucide-react";
+import { ChevronDown, Coffee, LogOut, Settings, UserRound } from "lucide-react";
 import { auth, signIn, signOut, primaryProviderId } from "@/auth";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeMenu } from "@/components/theme-menu";
+import { LanguageToggle } from "@/components/language-toggle";
+import { MainNav } from "@/components/main-nav";
 import { DiscordIcon } from "@/components/discord-icon";
-import { DISCORD_SERVER_URL } from "@/lib/links";
+import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang, setLangAction } from "@/lib/i18n";
 import {
   DropdownMenu,
@@ -39,48 +21,70 @@ export async function SiteHeader() {
   const session = await auth();
   const user = session?.user;
   const lang = await getLang();
+  const role = user?.role;
+  const enAction = setLangAction.bind(null, "en");
+  const esAction = setLangAction.bind(null, "es");
 
   return (
-    <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-      <div className="mx-auto max-w-3xl px-6 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              href="/"
-              prefetch={false}
-              className="flex shrink-0 items-center gap-1.5 text-sm font-semibold tracking-tight"
-            >
-              <Image src="/smash_ladder_icon.png" alt="" width={24} height={24} className="size-6 block dark:hidden" />
-              <Image
-                src="/smash_ladder_icon_white.png"
-                alt=""
-                width={24}
-                height={24}
-                className="size-6 hidden dark:block"
-              />
+    <header className="sticky top-0 z-40 border-b border-border bg-background">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <div className="flex h-14 items-center justify-between gap-3">
+          <Link
+            href="/"
+            prefetch={false}
+            className="flex min-w-0 shrink-0 items-center gap-2 text-sm font-semibold tracking-tight"
+          >
+            <Image
+              src="/smash_ladder_icon.png"
+              alt=""
+              width={26}
+              height={26}
+              className="size-[26px] block dark:hidden"
+            />
+            <Image
+              src="/smash_ladder_icon_white.png"
+              alt=""
+              width={26}
+              height={26}
+              className="size-[26px] hidden dark:block"
+            />
+            <span className="hidden truncate min-[420px]:inline">
               Smash Ladder <span className="text-primary">NA</span>
-            </Link>
-          </div>
+            </span>
+          </Link>
 
-          <div className="flex shrink-0 items-center gap-4">
-            <a
-              href={DISCORD_SERVER_URL}
-              target="_blank"
-              rel="noreferrer"
-              title="Discord"
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button
+              asChild
+              variant="ghost"
+              size="icon-sm"
               className="text-muted-foreground hover:text-foreground"
+              title={lang === "es" ? "Servidor de Discord" : "Discord server"}
+              aria-label={lang === "es" ? "Servidor de Discord" : "Discord server"}
             >
-              <DiscordIcon className="size-4" />
-            </a>
-            <Link
-              href="/supporters"
-              prefetch={false}
-              title={lang === "es" ? "Apóyanos" : "Support us"}
-              className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+              <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
+                <DiscordIcon className="size-[15px]" />
+              </a>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-foreground"
+              title={lang === "es" ? "Apóyenos en Ko-fi" : "Support us on Ko-fi"}
+              aria-label={lang === "es" ? "Apóyenos en Ko-fi" : "Support us on Ko-fi"}
             >
-              <Coffee className="size-3.5" />
-              <span className="hidden sm:inline">{lang === "es" ? "Apóyanos" : "Support"}</span>
-            </Link>
+              <a href={KOFI_URL} target="_blank" rel="noreferrer">
+                <Coffee className="size-[15px]" />
+              </a>
+            </Button>
+
+            <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
+
+            <ThemeMenu lang={lang} />
+            <LanguageToggle lang={lang} enAction={enAction} esAction={esAction} />
+
+            <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
 
             {user ? (
               <DropdownMenu>
@@ -94,7 +98,7 @@ export async function SiteHeader() {
                       className="shrink-0 rounded-full"
                     />
                   )}
-                  <span className="min-w-0 truncate">{user.name}</span>
+                  <span className="hidden max-w-32 truncate min-[640px]:inline">{user.name}</span>
                   <ChevronDown className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
@@ -105,28 +109,11 @@ export async function SiteHeader() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/notes" prefetch={false}>
-                      <NotebookPen className="size-3.5" />
-                      {lang === "es" ? "Notas de matchup" : "Matchup notes"}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
                     <Link href="/settings" prefetch={false}>
                       <Settings className="size-3.5" />
                       {lang === "es" ? "Ajustes" : "Settings"}
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <ThemeToggle />
-                  <form action={setLangAction.bind(null, lang === "es" ? "en" : "es")}>
-                    <button
-                      type="submit"
-                      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none hover:bg-muted hover:text-foreground"
-                    >
-                      <Languages className="size-3.5" />
-                      {lang === "es" ? "English" : "Español"}
-                    </button>
-                  </form>
                   <DropdownMenuSeparator />
                   <form
                     action={async () => {
@@ -162,73 +149,8 @@ export async function SiteHeader() {
           </div>
         </div>
 
-        <div className="relative mt-3">
-          <nav className="flex items-center gap-4 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
-            <Link href="/lobby" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-              <Swords className="size-3.5" />
-              {lang === "es" ? "Sala" : "Lobby"}
-            </Link>
-            <Link href="/free-battle" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-              <Handshake className="size-3.5" />
-              {lang === "es" ? "Free Battle" : "Free Battle"}
-            </Link>
-            <Link href="/sets" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-              <Radio className="size-3.5" />
-              {lang === "es" ? "Partidas" : "Sets"}
-            </Link>
-            <Link href="/leaderboard" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-              <Trophy className="size-3.5" />
-              {lang === "es" ? "Clasificación" : "Leaderboard"}
-            </Link>
-            <Link href="/seasons" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-              <Award className="size-3.5" />
-              {lang === "es" ? "Temporadas" : "Seasons"}
-            </Link>
-            <Link href="/characters" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-              <Gamepad2 className="size-3.5" />
-              {lang === "es" ? "Personajes" : "Characters"}
-            </Link>
-            {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link href="/admin" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-                <Gauge className="size-3.5" />
-                Admin
-              </Link>
-            )}
-            {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link href="/admin/players" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-                <Search className="size-3.5" />
-                Players
-              </Link>
-            )}
-            {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link href="/admin/disputes" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-                <Shield className="size-3.5" />
-                Disputes
-              </Link>
-            )}
-            {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link href="/admin/reports" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-                <Flag className="size-3.5" />
-                Reports
-              </Link>
-            )}
-            {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link
-                href="/admin/watchlist"
-                prefetch={false}
-                className="flex items-center gap-1.5 hover:text-foreground"
-              >
-                <AlertTriangle className="size-3.5" />
-                Watchlist
-              </Link>
-            )}
-            {(user?.role === "MOD" || user?.role === "ADMIN") && (
-              <Link href="/admin/seasons" prefetch={false} className="flex items-center gap-1.5 hover:text-foreground">
-                <CalendarClock className="size-3.5" />
-                Seasons
-              </Link>
-            )}
-          </nav>
+        <div className="relative -mx-1 flex items-center gap-4 overflow-x-auto border-t border-border/60 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <MainNav lang={lang} role={role} />
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent md:hidden"

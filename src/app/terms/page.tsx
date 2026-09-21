@@ -43,8 +43,8 @@ export default async function TermsPage() {
             <p className="mt-2">
               Otros jugadores pueden reportar mala conducta. Los reportes son revisados por mods antes de tomar
               cualquier acción — presentar un reporte por sí solo no hace nada. Las cuentas que acumulan suficientes
-              reportes confirmados por mods se suspenden (solo se bloquea el juego rankeado; free battle y nuevos
-              reportes también se bloquean) o se banean (todo bloqueado), en una escala gradual. Consulta la{" "}
+              reportes confirmados por mods se suspenden (solo se bloquea el juego rankeado; el Tablón y nuevos reportes
+              también se bloquean) o se banean (todo bloqueado), en una escala gradual. Consulta la{" "}
               <a href="/rules" className="underline">
                 página de Reglas
               </a>{" "}
@@ -134,8 +134,8 @@ export default async function TermsPage() {
           <h2 className="text-sm font-medium text-foreground">Playing fair</h2>
           <p className="mt-2">
             Report your own match results honestly. Don&apos;t no-show, don&apos;t stall, don&apos;t grief opponents,
-            and don&apos;t file conduct reports in bad faith. Ranked matches and free battles are between you and your
-            opponent — we don&apos;t referee the actual games, only the reporting and matchmaking layer.
+            and don&apos;t file conduct reports in bad faith. Ranked matches and Board friendlies are between you and
+            your opponent — we don&apos;t referee the actual games, only the reporting and matchmaking layer.
           </p>
         </section>
 
@@ -144,7 +144,7 @@ export default async function TermsPage() {
           <p className="mt-2">
             Other players can report misconduct. Reports are reviewed by mods before any action is taken — filing a
             report alone doesn&apos;t do anything. Accounts that accumulate enough mod-confirmed reports get suspended
-            (ranked play only, free battle and new reports blocked) or banned (everything blocked), on a graduated
+            (ranked play only, Board posts and new reports blocked) or banned (everything blocked), on a graduated
             scale. See the{" "}
             <a href="/rules" className="underline">
               Rules page

@@ -42,7 +42,7 @@ export default function Image() {
         }}
       >
         <img src={iconDataUri} width={48} height={48} style={{ borderRadius: 10 }} alt="" />
-        SMASH LADDER
+        SMASH LADDER NA
       </div>
       <div
         style={{

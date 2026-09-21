@@ -33,6 +33,7 @@ const matchFeedSelect = {
   games: {
     select: {
       gameNumber: true,
+      finalStage: true,
       winnerId: true,
       actorAId: true,
       actorACharacter: true,

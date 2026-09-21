@@ -94,7 +94,7 @@ export async function autoSuspendWatchlistViolators() {
     });
     await sendDiscordDM(
       user.discordId,
-      `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — an automated patrol found your cancel count (${user.cancelCount}) still crosses the threshold for a cancel-abuse pattern. Free battle and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
+      `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — an automated patrol found your cancel count (${user.cancelCount}) still crosses the threshold for a cancel-abuse pattern. Board posts and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
     );
     suspendedUsernames.push(user.username);
   }

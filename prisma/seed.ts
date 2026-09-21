@@ -2,12 +2,100 @@ import { prisma } from "../src/lib/db";
 import { ConfirmationMethod, MatchStatus, PairingMethod, TournamentStatus } from "../src/generated/prisma/enums";
 
 const SEED_USERS = [
-  { discordId: "seed-001", username: "FoxMain_East", rating: 1820, gamesPlayed: 62, mainCharacter: "Fox" },
-  { discordId: "seed-002", username: "PikaChamp", rating: 1705, gamesPlayed: 48, mainCharacter: "Pikachu" },
-  { discordId: "seed-003", username: "GnwGrandpa", rating: 1590, gamesPlayed: 33, mainCharacter: "Mr. Game & Watch" },
-  { discordId: "seed-004", username: "SheikBae", rating: 1500, gamesPlayed: 12, mainCharacter: "Sheik" },
-  { discordId: "seed-005", username: "RookieRoy", rating: 1420, gamesPlayed: 7, mainCharacter: "Roy" },
-  { discordId: "seed-006", username: "PlacementPuff", rating: 1550, gamesPlayed: 4, mainCharacter: "Jigglypuff" },
+  {
+    discordId: "seed-001",
+    username: "FoxMain_East",
+    rating: 1820,
+    gamesPlayed: 62,
+    mainCharacter: "Fox",
+    region: "New York",
+    twitchUsername: "foxmain_east",
+    twitchDisplayName: "FoxMainEast",
+  },
+  {
+    discordId: "seed-002",
+    username: "PikaChamp",
+    rating: 1705,
+    gamesPlayed: 48,
+    mainCharacter: "Pikachu",
+    region: "California",
+    twitchUsername: "pikachamp_tv",
+    twitchDisplayName: "PikaChamp",
+  },
+  {
+    discordId: "seed-003",
+    username: "GnwGrandpa",
+    rating: 1590,
+    gamesPlayed: 33,
+    mainCharacter: "Mr. Game & Watch",
+    region: "Texas",
+    twitchUsername: "gnwgrandpa",
+    twitchDisplayName: "GnwGrandpa",
+  },
+  {
+    discordId: "seed-004",
+    username: "SheikBae",
+    rating: 1500,
+    gamesPlayed: 12,
+    mainCharacter: "Sheik",
+    region: "Florida",
+    twitchUsername: "sheikbae",
+    twitchDisplayName: "SheikBae",
+  },
+  {
+    discordId: "seed-005",
+    username: "RookieRoy",
+    rating: 1420,
+    gamesPlayed: 7,
+    mainCharacter: "Roy",
+    region: "Washington",
+  },
+  {
+    discordId: "seed-006",
+    username: "PlacementPuff",
+    rating: 1550,
+    gamesPlayed: 4,
+    mainCharacter: "Jigglypuff",
+    region: "Ohio",
+  },
+  {
+    discordId: "seed-007",
+    username: "MarthMonarch",
+    rating: 1660,
+    gamesPlayed: 41,
+    mainCharacter: "Marth",
+    region: "Ontario",
+    twitchUsername: "marthmonarch",
+    twitchDisplayName: "MarthMonarch",
+  },
+  {
+    discordId: "seed-008",
+    username: "FalcoFlight",
+    rating: 1610,
+    gamesPlayed: 28,
+    mainCharacter: "Falco",
+    region: "Illinois",
+    twitchUsername: "falcoflight",
+    twitchDisplayName: "FalcoFlight",
+  },
+  {
+    discordId: "seed-009",
+    username: "CapFalconKid",
+    rating: 1480,
+    gamesPlayed: 19,
+    mainCharacter: "Captain Falcon",
+    region: "Georgia",
+    twitchUsername: "capfalconkid",
+    twitchDisplayName: "CapFalconKid",
+  },
+  {
+    discordId: "seed-010",
+    username: "PeachPrincess",
+    rating: 1530,
+    gamesPlayed: 24,
+    mainCharacter: "Peach",
+    region: "Quebec",
+  },
 ] as const;
 
 // (winnerIndex, loserIndex, daysAgo) into SEED_USERS — a small, hand-picked
@@ -107,6 +195,183 @@ async function main() {
     matchesSeeded++;
   }
   console.log(`Seeded ${matchesSeeded} confirmed matches.`);
+
+  // ---- Dev-showcase data (idempotent, safe to re-run) ---------------------
+
+  // An ended season + final standings so Stats > Seasons (and the profile
+  // Seasons tab) have history to show before a real season closes out.
+  const preseason = await prisma.season.upsert({
+    where: { id: "seed-season-0" },
+    update: {},
+    create: {
+      id: "seed-season-0",
+      name: "Preseason",
+      startsAt: new Date("2026-07-25T18:00:00-04:00"),
+      endsAt: new Date("2026-08-31T23:59:59-04:00"),
+    },
+  });
+  const ranked = [...users].sort((a, b) => b.rating - a.rating);
+  for (const [i, user] of ranked.entries()) {
+    const rank = i + 1;
+    await prisma.seasonStanding.upsert({
+      where: { seasonId_userId: { seasonId: preseason.id, userId: user.id } },
+      update: {},
+      create: {
+        seasonId: preseason.id,
+        userId: user.id,
+        rank,
+        finalRating: user.rating,
+        gamesPlayed: user.gamesPlayed,
+      },
+    });
+  }
+  console.log(`Seeded Preseason standings for ${ranked.length} players.`);
+
+  // Open Board posts for the landing page's Board section.
+  const boardPosts = [
+    {
+      id: "seed-post-1",
+      authorId: users[3].id,
+      comment: "Looking for friendlies — Sheik vs Fox/Marth, EST evenings.",
+      region: "Florida",
+    },
+    {
+      id: "seed-post-2",
+      authorId: users[2].id,
+      comment: "Anyone around for a late-night set? G&W main, wired.",
+      region: "Texas",
+    },
+    {
+      id: "seed-post-3",
+      authorId: users[1].id,
+      comment: "Pika ditto practice before the weekly — hit me up!",
+      region: "California",
+    },
+  ] as const;
+  for (const post of boardPosts) {
+    await prisma.freeBattlePost.upsert({
+      where: { id: post.id },
+      update: {},
+      create: {
+        id: post.id,
+        authorId: post.authorId,
+        comment: post.comment,
+        region: post.region,
+        expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+  console.log(`Seeded ${boardPosts.length} open Board posts.`);
+
+  // Four in-progress, streamed sets (users with twitchUsername set become
+  // "live" when MOCK_LIVE_TWITCH=1 in .env.development — see twitch-helix.ts)
+  // so the live sections have plenty to drive them. seed-live-1..3 have BOTH
+  // sides streaming — two channels per set, for the per-stream thumbnails on
+  // the home carousel — while seed-live-4 has a single streamer. Plus one 0-0
+  // set that hasn't started for the empty-progress state.
+  const liveSets = [
+    {
+      id: "seed-live-1",
+      player1: users[0],
+      player2: users[3],
+      winner: users[0],
+      winnerCharacter: "Fox",
+      loserCharacter: "Sheik",
+      stage: "Battlefield",
+    },
+    {
+      id: "seed-live-2",
+      player1: users[1],
+      player2: users[2],
+      winner: users[2],
+      winnerCharacter: "Mr. Game & Watch",
+      loserCharacter: "Pikachu",
+      stage: "Smashville",
+    },
+    {
+      id: "seed-live-3",
+      player1: users[6],
+      player2: users[7],
+      winner: users[6],
+      winnerCharacter: "Marth",
+      loserCharacter: "Falco",
+      stage: "Town and City",
+    },
+    {
+      id: "seed-live-4",
+      player1: users[8],
+      player2: users[9],
+      winner: users[9],
+      winnerCharacter: "Peach",
+      loserCharacter: "Captain Falcon",
+      stage: "Final Destination",
+    },
+  ] as const;
+  for (const set of liveSets) {
+    const created = await prisma.ratingMatch.upsert({
+      where: { id: set.id },
+      update: {},
+      create: {
+        id: set.id,
+        player1Id: set.player1.id,
+        player2Id: set.player2.id,
+        pairingMethod: PairingMethod.AUTO,
+        status: MatchStatus.PENDING_REPORT,
+        createdAt: new Date(Date.now() - 10 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      },
+    });
+    // Game 1 decided; game 2 is the current, still-unfinished game.
+    const p1WonGame1 = set.winner.id === set.player1.id;
+    await prisma.matchGame.upsert({
+      where: { id: `${set.id}-g1` },
+      update: {},
+      create: {
+        id: `${set.id}-g1`,
+        matchId: created.id,
+        gameNumber: 1,
+        actorAId: set.player1.id,
+        actorAStrikes: 1,
+        actorACharacter: p1WonGame1 ? set.winnerCharacter : set.loserCharacter,
+        actorBId: set.player2.id,
+        actorBStrikes: 2,
+        actorBCharacter: p1WonGame1 ? set.loserCharacter : set.winnerCharacter,
+        finalStage: set.stage,
+        winnerId: set.winner.id,
+        reportedWinnerId: set.winner.id,
+      },
+    });
+    await prisma.matchGame.upsert({
+      where: { id: `${set.id}-g2` },
+      update: {},
+      create: {
+        id: `${set.id}-g2`,
+        matchId: created.id,
+        gameNumber: 2,
+        actorAId: set.winner.id,
+        actorAStrikes: 2,
+        actorACharacter: set.winnerCharacter,
+        actorBId: set.winner.id === set.player1.id ? set.player2.id : set.player1.id,
+        actorBStrikes: 0,
+        actorBCharacter: set.loserCharacter,
+      },
+    });
+  }
+
+  const idleMatch = await prisma.ratingMatch.upsert({
+    where: { id: "seed-idle-1" },
+    update: {},
+    create: {
+      id: "seed-idle-1",
+      player1Id: users[4].id,
+      player2Id: users[5].id,
+      pairingMethod: PairingMethod.AUTO,
+      status: MatchStatus.PENDING_REPORT,
+      createdAt: new Date(Date.now() - 4 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+    },
+  });
+  console.log(`Seeded ${liveSets.length} in-progress streamed sets + idle 0-0 match (${idleMatch.id}).`);
 
   const tournament = await prisma.tournament.upsert({
     where: { id: "seed-tournament-1" },

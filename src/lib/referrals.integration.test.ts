@@ -1,10 +1,32 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { resolveReferrerId, getReferralCount, getTopRecruiters, referralLink } from "./referrals";
 import { createTestUser } from "@/test/factories";
 
 describe("referralLink", () => {
-  it("builds a link keyed on the user's id", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("builds a link from the configured SITE_URL, keyed on the user's id", () => {
+    vi.stubEnv("SITE_URL", "https://example.com");
+    expect(referralLink("abc123")).toBe("https://example.com/?ref=abc123");
+  });
+
+  it("tolerates a trailing slash on the configured origin", () => {
+    vi.stubEnv("SITE_URL", "https://example.com/");
+    expect(referralLink("abc123")).toBe("https://example.com/?ref=abc123");
+  });
+
+  it("falls back to Vercel's production domain when SITE_URL isn't set", () => {
+    vi.stubEnv("SITE_URL", "");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "smash-ladder-na.vercel.app");
     expect(referralLink("abc123")).toBe("https://smash-ladder-na.vercel.app/?ref=abc123");
+  });
+
+  it("falls back to localhost outside Vercel", () => {
+    vi.stubEnv("SITE_URL", "");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "");
+    expect(referralLink("abc123")).toBe("http://localhost:3000/?ref=abc123");
   });
 });
 

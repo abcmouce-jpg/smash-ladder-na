@@ -12,6 +12,7 @@ import { FREE_BATTLE_TIERS, hasReachedTier, type FreeBattleTier } from "@/lib/ra
 import { tierRoleId } from "@/lib/rank-roles";
 import { getPeakRating } from "@/lib/players";
 import { getRegionsWithinDistance } from "@/lib/regions";
+import { siteOrigin } from "@/lib/site-url";
 
 // One #<tier>-grind channel per restricted tier, each with its own webhook
 // (Channel Settings → Integrations → Webhooks) so a restricted post only
@@ -100,11 +101,7 @@ export async function notifyMatchmakingSubscribers(
   // post form's "Who can join?" — so pinging them about it would just be a
   // dead end). Peak-rating based, same as every other minTier check here.
   const eligible = post.minTier
-    ? (
-        await Promise.all(
-          withinDistance.map(async (c) => ({ c, peak: await getPeakRating(c.id) })),
-        )
-      )
+    ? (await Promise.all(withinDistance.map(async (c) => ({ c, peak: await getPeakRating(c.id) }))))
         .filter(({ peak }) => hasReachedTier(peak, post.minTier as FreeBattleTier))
         .map(({ c }) => c)
     : withinDistance;
@@ -118,7 +115,7 @@ export async function notifyMatchmakingSubscribers(
   if (recipients.length === 0) return;
   await sendDiscordDMsSequentially(
     recipients,
-    `🔔 New free battle matching your interests — **${author.username}**: "${post.comment}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
+    `🔔 New Board post matching your interests — **${author.username}**: "${post.comment}"\n${siteOrigin()}/board`,
   );
 }
 
@@ -187,7 +184,7 @@ export async function createPost(userId: string, comment: string, minTier: FreeB
     const tagSuffix = tags ? ` (${tags})` : "";
     const messageId = await sendDiscordWebhookMessage(
       webhookUrl,
-      `${rolePrefix}🎮 **${author.username}** is looking for a free battle${tagSuffix}: "${trimmed}"\nhttps://smash-ladder-na.vercel.app/free-battle`,
+      `${rolePrefix}🎮 **${author.username}** is looking for a game on the Board${tagSuffix}: "${trimmed}"\n${siteOrigin()}/board`,
     );
     // Recorded after the fact rather than in the initial create — the
     // message doesn't exist (so has no id) until after the post row does.
@@ -250,6 +247,6 @@ export async function claimPost(userId: string, postId: string) {
     prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
   ]);
   if (author && claimer) {
-    await sendDiscordDM(author.discordId, `🙋 ${claimer.username} is in on your free battle post!`);
+    await sendDiscordDM(author.discordId, `🙋 ${claimer.username} is in on your Board post!`);
   }
 }

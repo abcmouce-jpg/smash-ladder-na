@@ -6,7 +6,7 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Smash Ladder NA",
-    short_name: "Smash Ladder",
+    short_name: "Smash Ladder NA",
     description: "North American ranked ladder and matchmaking for Smash.",
     start_url: "/",
     display: "standalone",

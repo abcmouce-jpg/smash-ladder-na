@@ -150,6 +150,7 @@ model User {
   discordId            String     @unique
   username             String
   discordUsername      String? // Discord's current display name, re-synced on every sign-in — independent of `username` (self-editable on this site) so a player's original/current Discord identity stays visible even after renaming here. Null for dev-credentials accounts, which have no real Discord profile.
+  hideDiscordUsername  Boolean    @default(false) // self-declared privacy toggle — hides discordUsername from this player's public profile page. Defaults false because the whole point of syncing the field is that it's visible; does not affect anything else Discord-related (DMs, role sync).
   avatarUrl            String?
   email                String?    @unique
   rating               Int        @default(1500)
@@ -314,6 +315,12 @@ model RatingMatch {
   connectionReports ConnectionReport[]
 
   @@index([status])
+  // The activity charts (home + Stats overview) filter on exactly this pair —
+  // status = CONFIRMED within a recent window. The per-player composites below
+  // can't serve it (nothing filters by player), and @@index([status]) alone
+  // still has to visit every confirmed match ever to check confirmedAt — so
+  // without this the read grows with all-time history, not with the window.
+  @@index([status, confirmedAt])
   @@index([player1Id])
   @@index([player2Id])
   @@index([player1Id, status, confirmedAt])
@@ -343,7 +350,7 @@ model MatchGame {
   struckStages    String[]    @default([])
   finalStage      String?
   turnStartedAt   DateTime    @default(now()) // reset on every strike/pick — and when the final stage is picked, which is also what anchors the report clock; a stale turn past STRIKE_TIMEOUT_MS auto-resolves with a random remaining stage, and a lone hanging report past REPORT_TIMEOUT_MS auto-confirms
-  characterPickDeadline DateTime @default(now()) // each player gets CHARACTER_TIMEOUT_MS to lock in their character, measured from when picking became available to them: game creation for the first picker, and reset to now + CHARACTER_TIMEOUT_MS when the first player locks in (pickGameCharacter) so the second player gets a full window of their own. autoResolveStaleCharacterPick forfeits the set to whoever locked in once this passes and the other side hasn't
+  characterPickDeadline DateTime @default(now()) // CHARACTER_TIMEOUT_MS is the window to lock in a character. Game 1 is a blind simultaneous pick, so both players share the single deadline set at game creation and a lock-in never resets it; games 2+ pick in order, and pickGameCharacter resets this to now + CHARACTER_TIMEOUT_MS when the first player locks in so the second picker gets a full window of their own rather than the leftovers of the first's. autoResolveStaleCharacterPick forfeits the set to whoever locked in once this passes and the other side hasn't
 
   reportedWinnerId     String?
   reportedById         String?

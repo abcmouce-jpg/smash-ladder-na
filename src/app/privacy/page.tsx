@@ -21,9 +21,9 @@ export default async function PrivacyPage() {
             </p>
             <p className="mt-2">
               Además de eso, guardamos lo que generas al usar el sitio: partidas rankeadas y sus resultados,
-              publicaciones de Free Battle, comentarios de chat de partidas, inscripciones a torneos, reportes de
-              conducta que envías o recibes, y cualquier dato autodeclarado (región, estado de conexión por cable,
-              personaje principal).
+              publicaciones del Tablón, comentarios de chat de partidas, inscripciones a torneos, reportes de conducta
+              que envías o recibes, y cualquier dato autodeclarado (región, estado de conexión por cable, personaje
+              principal).
             </p>
           </section>
 
@@ -44,7 +44,7 @@ export default async function PrivacyPage() {
               base de datos) procesan tus datos en nuestro nombre. No vendemos tus datos.
             </p>
             <p className="mt-2">
-              Algunas páginas de solo lectura (tabla de posiciones, personajes, torneos, free battle) pueden mostrar
+              Algunas páginas de solo lectura (tabla de posiciones, estadísticas, torneos, el Tablón) pueden mostrar
               anuncios servidos por Google AdSense. AdSense puede establecer sus propias cookies y usar datos sobre tus
               visitas a este y otros sitios para mostrar y medir anuncios — esto no son datos que nosotros recopilemos o
               controlemos. Puedes ver y ajustar lo que Google usa para la personalización de anuncios en{" "}
@@ -110,9 +110,9 @@ export default async function PrivacyPage() {
             OAuth consent screen shows you.
           </p>
           <p className="mt-2">
-            Beyond that, we store what you generate by using the site: ranked matches and results, free battle posts,
-            match comments, tournament sign-ups, conduct reports you file or receive, and anything you self-declare
-            (region, wired-connection status, main character).
+            Beyond that, we store what you generate by using the site: ranked matches and results, Board posts, match
+            comments, tournament sign-ups, conduct reports you file or receive, and anything you self-declare (region,
+            wired-connection status, main character).
           </p>
         </section>
 
@@ -133,10 +133,10 @@ export default async function PrivacyPage() {
             our behalf. We don&apos;t sell your data.
           </p>
           <p className="mt-2">
-            Some read-only pages (leaderboard, characters, tournaments, free battle) may show ads served by Google
-            AdSense. AdSense can set its own cookies and use data about your visits to this and other sites to serve and
-            measure ads — this isn&apos;t data we collect or control ourselves. You can see and adjust what Google uses
-            for ad personalization at{" "}
+            Some read-only pages (leaderboard, stats, tournaments, the Board) may show ads served by Google AdSense.
+            AdSense can set its own cookies and use data about your visits to this and other sites to serve and measure
+            ads — this isn&apos;t data we collect or control ourselves. You can see and adjust what Google uses for ad
+            personalization at{" "}
             <a href="https://adssettings.google.com" target="_blank" rel="noreferrer" className="underline">
               adssettings.google.com
             </a>

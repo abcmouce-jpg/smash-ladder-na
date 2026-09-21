@@ -110,7 +110,7 @@ export default async function FaqPage() {
           </QA>
           <QA q="What's the actual difference between suspended and banned?">
             Suspended (Level 1) still lets you play ranked — that&apos;s the core activity, and disputes already give
-            bad results their own path to correction — but blocks free battle and filing new reports, so a suspended
+            bad results their own path to correction — but blocks Board posts and filing new reports, so a suspended
             player can&apos;t retaliate against whoever reported them. Banned (Level 2) blocks everything.
           </QA>
         </Category>
@@ -155,8 +155,9 @@ export default async function FaqPage() {
             reach out in the Discord server above.
           </QA>
           <QA q="Is this affiliated with Japan's Smash Ladder / Smashmate?">
-            No — this is an independent, separately-run project built for the NA scene. Any naming similarity to
-            existing Japanese matchmaking platforms is coincidental.
+            No — this is an independent, separately-run project built for the NA scene. It borrows its name as a
+            hat-tip to Japan&apos;s long-running online matchmaking platform, but the two projects are not connected in
+            any way.
           </QA>
           <QA q="Do you use AI to help build and run this site?">
             Yes. A lot of the code, bug fixes, and day-to-day maintenance (deploys, moderation tooling, this FAQ entry
@@ -252,7 +253,7 @@ function FaqPageEs() {
           </QA>
           <QA q="¿Cuál es la diferencia real entre suspendido y baneado?">
             Suspendido (Nivel 1) todavía te deja jugar rankeado — esa es la actividad principal, y las disputas ya le
-            dan a los malos resultados su propio camino de corrección — pero bloquea free battle y presentar nuevos
+            dan a los malos resultados su propio camino de corrección — pero bloquea el Tablón y presentar nuevos
             reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó. Baneado (Nivel
             2) bloquea todo.
           </QA>
@@ -302,7 +303,8 @@ function FaqPageEs() {
           </QA>
           <QA q="¿Esto está afiliado con Smash Ladder / Smashmate de Japón?">
             No — este es un proyecto independiente, gestionado por separado, construido para la escena de Norteamérica.
-            Cualquier parecido en el nombre con plataformas de matchmaking japonesas ya existentes es coincidencia.
+            Toma su nombre como un guiño a la plataforma japonesa de matchmaking en línea, pero los dos proyectos no
+            están conectados de ninguna manera.
           </QA>
           <QA q="¿Usan IA para construir y mantener este sitio?">
             Sí. Gran parte del código, corrección de bugs, y mantenimiento del día a día (despliegues, herramientas de

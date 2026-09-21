@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/db";
+import { siteOrigin } from "@/lib/site-url";
 
-const SITE_URL = "https://smash-ladder-na.vercel.app";
-
+// Invite links point at whichever origin is actually serving the site — see
+// lib/site-url.ts for how that's resolved.
 export function referralLink(userId: string) {
-  return `${SITE_URL}/?ref=${userId}`;
+  return `${siteOrigin()}/?ref=${userId}`;
 }
 
 // Validates a ref cookie's value before it's trusted as a real referrer —

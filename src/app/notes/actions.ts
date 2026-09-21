@@ -39,14 +39,13 @@ export async function updateMatchupNoteAction(
 
 export type GuideFormState = { error: string | null };
 
-export async function createGuideAction(
-  character: string,
-  _prevState: GuideFormState,
-  formData: FormData,
-): Promise<GuideFormState> {
+// The character comes from the form rather than a bound argument: the grouped
+// view posts it as a hidden field for the row it's in, and the ungrouped
+// Guides tab posts whatever the writer picked from its character dropdown.
+export async function createGuideAction(_prevState: GuideFormState, formData: FormData): Promise<GuideFormState> {
   const userId = await requireUserId();
   try {
-    await createCharacterGuide(userId, character, String(formData.get("content") ?? ""));
+    await createCharacterGuide(userId, String(formData.get("character") ?? ""), String(formData.get("content") ?? ""));
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }
