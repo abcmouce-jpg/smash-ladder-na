@@ -1,11 +1,5 @@
 import { prisma } from "../src/lib/db";
-import {
-  ConfirmationMethod,
-  MatchStatus,
-  PairingMethod,
-  PostStatus,
-  TournamentStatus,
-} from "../src/generated/prisma/enums";
+import { ConfirmationMethod, MatchStatus, PairingMethod, TournamentStatus } from "../src/generated/prisma/enums";
 
 const SEED_USERS = [
   {

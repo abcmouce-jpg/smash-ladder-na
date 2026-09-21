@@ -67,6 +67,65 @@ function compareRows(rows: Row[], key: SortKey, dir: "asc" | "desc") {
   }
 }
 
+// Header link for one sortable column: toggles that column's direction, or
+// falls back to the column's own default when switching to it from another.
+function headerHref(col: SortKey, activeKey: SortKey | null, activeDir: "asc" | "desc" | null): string {
+  const direction = activeKey === col ? (activeDir === "asc" ? "desc" : "asc") : DEFAULT_DIRECTION[col];
+  const params = new URLSearchParams({ tab: "characters", sort: col, dir: direction });
+  return `?${params.toString()}`;
+}
+
+// Declared at module scope rather than inside StatsCharactersSection: a
+// component defined during render is a brand-new function identity every time,
+// so React unmounts and remounts the subtree on each pass instead of
+// reconciling it. The active sort is passed in for the same reason.
+function HeaderLink({
+  label,
+  col,
+  className,
+  sub,
+  activeKey,
+  activeDir,
+}: {
+  label: string;
+  col: SortKey;
+  className?: string;
+  sub?: string;
+  /** Column currently sorted on, or null while the roster order is intact. */
+  activeKey: SortKey | null;
+  activeDir: "asc" | "desc" | null;
+}) {
+  const active = activeKey === col;
+  return (
+    <Link
+      href={headerHref(col, activeKey, activeDir)}
+      prefetch={false}
+      aria-sort={active ? (activeDir === "asc" ? "ascending" : "descending") : undefined}
+      className={cn(
+        "group inline-flex items-center gap-1 transition-colors hover:text-foreground",
+        active ? "font-medium text-foreground" : "text-muted-foreground",
+        className,
+      )}
+    >
+      <span className="flex flex-col leading-tight">
+        <span>{label}</span>
+        {sub && <span className="text-xs font-normal text-muted-foreground">{sub}</span>}
+      </span>
+      <span className="flex flex-col">
+        {active ? (
+          activeDir === "asc" ? (
+            <ArrowUp className="size-3" aria-hidden />
+          ) : (
+            <ArrowDown className="size-3" aria-hidden />
+          )
+        ) : (
+          <span aria-hidden className="size-3 opacity-0 transition-opacity group-hover:opacity-50" />
+        )}
+      </span>
+    </Link>
+  );
+}
+
 export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; sort?: string; dir?: string }) {
   const isValidSort = sort && (SORT_KEYS as readonly string[]).includes(sort as SortKey);
   const sortKey: SortKey | null = isValidSort ? (sort as SortKey) : null;
@@ -179,54 +238,6 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
     compareRows(rows, sortKey, activeDir ?? "desc");
   }
 
-  const headerHref = (key: SortKey): string => {
-    const direction = sortKey === key ? (activeDir === "asc" ? "desc" : "asc") : DEFAULT_DIRECTION[key];
-    const params = new URLSearchParams({ tab: "characters", sort: key, dir: direction });
-    return `?${params.toString()}`;
-  };
-
-  const HeaderLink = ({
-    label,
-    col,
-    className,
-    sub,
-  }: {
-    label: string;
-    col: SortKey;
-    className?: string;
-    sub?: string;
-  }) => {
-    const active = sortKey === col;
-    return (
-      <Link
-        href={headerHref(col)}
-        prefetch={false}
-        aria-sort={active ? (activeDir === "asc" ? "ascending" : "descending") : undefined}
-        className={cn(
-          "group inline-flex items-center gap-1 transition-colors hover:text-foreground",
-          active ? "font-medium text-foreground" : "text-muted-foreground",
-          className,
-        )}
-      >
-        <span className="flex flex-col leading-tight">
-          <span>{label}</span>
-          {sub && <span className="text-xs font-normal text-muted-foreground">{sub}</span>}
-        </span>
-        <span className="flex flex-col">
-          {active ? (
-            activeDir === "asc" ? (
-              <ArrowUp className="size-3" aria-hidden />
-            ) : (
-              <ArrowDown className="size-3" aria-hidden />
-            )
-          ) : (
-            <span aria-hidden className="size-3 opacity-0 transition-opacity group-hover:opacity-50" />
-          )}
-        </span>
-      </Link>
-    );
-  };
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -262,7 +273,12 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
             <thead>
               <tr className="border-b border-border text-muted-foreground">
                 <th className="py-2 pl-4 pr-2 text-left">
-                  <HeaderLink label={lang === "es" ? "Personaje" : "Character"} col="alpha" />
+                  <HeaderLink
+                    label={lang === "es" ? "Personaje" : "Character"}
+                    col="alpha"
+                    activeKey={sortKey}
+                    activeDir={activeDir}
+                  />
                 </th>
                 <th className="py-2 px-2 text-right">
                   <HeaderLink
@@ -270,19 +286,35 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                     sub={lang === "es" ? "mains + secundarios" : "Mains + Secondaries"}
                     col="players"
                     className="justify-end"
+                    activeKey={sortKey}
+                    activeDir={activeDir}
                   />
                 </th>
                 <th className="py-2 px-2 text-right tabular-nums">
-                  <HeaderLink label="Mains" col="mains" className="justify-end" />
+                  <HeaderLink
+                    label="Mains"
+                    col="mains"
+                    className="justify-end"
+                    activeKey={sortKey}
+                    activeDir={activeDir}
+                  />
                 </th>
                 <th className="py-2 px-2 text-right tabular-nums">
-                  <HeaderLink label={lang === "es" ? "Juegos" : "Games"} col="games" className="justify-end" />
+                  <HeaderLink
+                    label={lang === "es" ? "Juegos" : "Games"}
+                    col="games"
+                    className="justify-end"
+                    activeKey={sortKey}
+                    activeDir={activeDir}
+                  />
                 </th>
                 <th className="py-2 px-2 text-right tabular-nums">
                   <HeaderLink
                     label={lang === "es" ? "Tasa de victorias" : "Win rate"}
                     col="winrate"
                     className="justify-end"
+                    activeKey={sortKey}
+                    activeDir={activeDir}
                   />
                 </th>
                 <th className="py-2 pr-4 pl-2 text-right tabular-nums">
@@ -290,6 +322,8 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                     label={lang === "es" ? "Clasificación media" : "Avg Rating"}
                     col="rating"
                     className="justify-end"
+                    activeKey={sortKey}
+                    activeDir={activeDir}
                   />
                 </th>
               </tr>
