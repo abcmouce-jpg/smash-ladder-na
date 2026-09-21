@@ -31,6 +31,7 @@ const matchFeedSelect = {
   player1: { select: feedPlayerSelect },
   player2: { select: feedPlayerSelect },
   games: {
+    orderBy: { gameNumber: "asc" },
     select: {
       gameNumber: true,
       finalStage: true,

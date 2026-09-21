@@ -142,4 +142,42 @@ describe("getMatchFeed", () => {
     expect(entry?.player1.currentCharacter).toBe("Fox");
     expect(entry?.player2.currentCharacter).toBe("Marth");
   });
+
+  // Regression: games.select had no orderBy, so Postgres could hand back
+  // rows in whatever order it liked (often insertion order, not gameNumber
+  // order) — created game 2 first here specifically to defeat any
+  // insertion-order coincidence and actually exercise the sort.
+  it("returns games in ascending gameNumber order regardless of creation order", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: player.id, player2Id: opponent.id, status: MatchStatus.REPORTED, expiresAt },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: opponent.id,
+        actorAStrikes: 1,
+        actorBId: player.id,
+        actorBStrikes: 2,
+        winnerId: opponent.id,
+      },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: player.id,
+        actorAStrikes: 1,
+        actorBId: opponent.id,
+        actorBStrikes: 2,
+        winnerId: player.id,
+      },
+    });
+
+    const entry = (await getMatchFeed()).find((e) => e.id === match.id);
+    expect(entry?.games.map((g) => g.gameNumber)).toEqual([1, 2]);
+  });
 });
