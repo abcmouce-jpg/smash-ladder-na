@@ -35,6 +35,8 @@ export function MatchesByHourChart({
     return `${display}${period}`;
   };
 
+  const perDaySuffix = lang === "es" ? "/día" : "/day";
+
   return (
     <div>
       <div role="img" aria-label={lang === "es" ? "Partidas promedio por hora" : "Average matches by hour"}>
@@ -44,11 +46,11 @@ export function MatchesByHourChart({
             return (
               <div
                 key={hour}
-                title={`${hourLabel(hour)} — ${avg.toFixed(1)}/día`}
+                title={`${hourLabel(hour)} — ${avg.toFixed(1)}${perDaySuffix}`}
                 className="flex h-full flex-1 flex-col justify-end"
               >
                 <div
-                  className={`w-full rounded-t-sm ${hour === 0 ? "" : ""} ${
+                  className={`w-full rounded-t-sm ${
                     avg >= max * 0.75 ? "bg-primary" : avg >= max * 0.4 ? "bg-primary/60" : "bg-primary/30"
                   }`}
                   style={{ height: `${pct}%` }}

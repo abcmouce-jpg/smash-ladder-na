@@ -1,21 +1,8 @@
 import { prisma } from "@/lib/db";
+import { siteOrigin } from "@/lib/site-url";
 
-// Where invite links point. Deliberately not a constant baked into the source:
-// an invite has to name whichever origin is actually serving the site —
-// production, a custom domain, or a preview deployment — and that differs per
-// environment. SITE_URL is the explicit override; otherwise Vercel's own
-// VERCEL_PROJECT_PRODUCTION_URL covers deployed environments with no extra
-// configuration, and localhost stands in for dev. Resolved per call rather
-// than cached at module load so a process (or a test) sees the environment
-// it's actually running with.
-function siteOrigin(): string {
-  const configured = process.env.SITE_URL?.trim();
-  if (configured) return configured.replace(/\/+$/, "");
-  const vercelDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  if (vercelDomain) return `https://${vercelDomain.replace(/\/+$/, "")}`;
-  return "http://localhost:3000";
-}
-
+// Invite links point at whichever origin is actually serving the site — see
+// lib/site-url.ts for how that's resolved.
 export function referralLink(userId: string) {
   return `${siteOrigin()}/?ref=${userId}`;
 }

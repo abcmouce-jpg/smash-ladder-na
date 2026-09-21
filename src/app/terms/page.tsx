@@ -44,7 +44,7 @@ export default async function TermsPage() {
               Otros jugadores pueden reportar mala conducta. Los reportes son revisados por mods antes de tomar
               cualquier acción — presentar un reporte por sí solo no hace nada. Las cuentas que acumulan suficientes
               reportes confirmados por mods se suspenden (solo se bloquea el juego rankeado; el Tablón y nuevos reportes
-              también se bloquean) o se banean (todo bloqueado), en una escala gradual.
+              también se bloquean) o se banean (todo bloqueado), en una escala gradual. Consulta la{" "}
               <a href="/rules" className="underline">
                 página de Reglas
               </a>{" "}

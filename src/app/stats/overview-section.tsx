@@ -1,4 +1,4 @@
-import { getMatchesByHour, getMatchesPerDay } from "@/lib/public-stats";
+import { getLadderActivity } from "@/lib/public-stats";
 import { Card, CardContent } from "@/components/ui/card";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { MatchesByHourChart } from "@/components/matches-by-hour-chart";
@@ -8,10 +8,8 @@ import type { Lang } from "@/lib/i18n";
 const WINDOW_DAYS = 90;
 
 export async function StatsOverviewSection({ lang }: { lang: Lang }) {
-  const [timestamps, { hourlyCounts }] = await Promise.all([
-    getMatchesPerDay(WINDOW_DAYS),
-    getMatchesByHour(WINDOW_DAYS),
-  ]);
+  // One read feeds both charts below — see getLadderActivity.
+  const { timestamps, hourlyCounts } = await getLadderActivity(WINDOW_DAYS);
 
   return (
     <div className="flex flex-col gap-8">

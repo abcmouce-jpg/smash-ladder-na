@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { applyTheme, getStoredTheme } from "@/lib/theme";
 
-// Always-mounted safety net, separate from ThemeToggle (which only exists
+// Always-mounted safety net, separate from ThemeMenu (which only exists
 // in the DOM while its dropdown is open, so it can't be relied on to fix
 // this itself). The inline anti-FOUC script in layout.tsx already applies
 // the stored theme before the first paint, but that only runs once — if

@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import { Activity, MapPin, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
@@ -15,6 +14,7 @@ import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { LocalTime } from "@/components/local-time";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
+import { SectionHeading } from "@/components/section-heading";
 import { Card, CardContent } from "@/components/ui/card";
 import { LiveStreamProvider } from "@/components/live-streams/selection";
 import { LiveStreamStage } from "@/components/live-streams/stage";
@@ -27,20 +27,6 @@ export const metadata: Metadata = {
   description: "Liga clasificatoria y emparejamiento de Norteamérica para Smash, en español.",
   alternates: { languages: { "en-US": "/" } },
 };
-
-// Shared home section header: small-caps label with the accent tick on the
-// left, optional action link on the right.
-function SectionHeading({ label, action }: { label: string; action?: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <h2 className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-        <span aria-hidden className="h-3.5 w-1 rounded-full bg-primary" />
-        {label}
-      </h2>
-      {action}
-    </div>
-  );
-}
 
 // Kept as its own crawlable route for SEO — a first-touch landing page for
 // Spanish-language search/social traffic — even though "/" now renders the
