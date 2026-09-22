@@ -9,6 +9,10 @@ import { echoGroupCanonical, echoGroupLabel, MATCHUP_CHARACTERS, type SmashChara
 import type { Lang } from "@/lib/i18n";
 import type { GuideActionState, GuideFormState } from "@/app/notes/actions";
 
+// Guides per page on the ungrouped tab. Guides can run long, so this is set
+// well below the leaderboard's 50 to keep a page scannable.
+const PAGE_SIZE = 10;
+
 // The ungrouped half of the notes page: every community guide in one ranked
 // list rather than filed under a character row, each tagged with the character
 // it's about and filterable by those tags. The tag is the echo group's label
@@ -25,6 +29,7 @@ export function GuidesExplorer({
   voteOnGuideAction,
   flagGuideAction,
   importGuideAction,
+  initialCharacter = null,
   lang,
 }: {
   guides: Guide[];
@@ -39,10 +44,15 @@ export function GuidesExplorer({
   voteOnGuideAction: (guideId: string, value: 1 | -1) => Promise<GuideActionState>;
   flagGuideAction: (guideId: string) => Promise<GuideActionState>;
   importGuideAction: (guideId: string) => Promise<GuideActionState>;
+  /** Character to pre-filter to, from the ?character= param — set by the
+   *  "Show more guides" link on a My Notes row. Already validated/canonical
+   *  by the page; null means "no filter". */
+  initialCharacter?: string | null;
   lang: Lang;
 }) {
   const [search, setSearch] = useState("");
-  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [activeTag, setActiveTag] = useState<string | null>(initialCharacter);
+  const [page, setPage] = useState(1);
   const [writing, setWriting] = useState(false);
   const notedSet = useMemo(() => new Set(notedCharacters), [notedCharacters]);
 
@@ -62,6 +72,13 @@ export function GuidesExplorer({
     });
   }, [guides, activeTag, search]);
 
+  // Paginate after filtering rather than in the query, since search/tag are
+  // client-side. `currentPage` is derived (clamped) so a filter that shrinks
+  // the list can't strand the viewer on an out-of-range page.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   const [createState, createFormAction, createPending] = useActionState(createGuideAction, { error: null });
   const submittedRef = useRef(false);
 
@@ -80,7 +97,10 @@ export function GuidesExplorer({
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           placeholder={lang === "es" ? "Buscar guías…" : "Search guides…"}
           className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
         />
@@ -89,7 +109,10 @@ export function GuidesExplorer({
             {lang === "es" ? "Personaje" : "Character"}
             <CharacterSelect
               value={activeTag ?? ""}
-              onChange={(value) => setActiveTag(value || null)}
+              onChange={(value) => {
+                setActiveTag(value || null);
+                setPage(1);
+              }}
               characters={tags}
               placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
               clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
@@ -110,25 +133,60 @@ export function GuidesExplorer({
           {lang === "es" ? "Ninguna guía coincide con esos filtros." : "No guides match those filters."}
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {filtered.map((guide) => (
-            <GuideCard
-              key={guide.id}
-              guide={guide}
-              userId={userId}
-              hasOwnNote={notedSet.has(echoGroupCanonical(guide.character as SmashCharacter))}
-              maxLength={maxLength}
-              editAction={editGuideAction}
-              deleteGuide={deleteGuideAction}
-              voteOnGuide={voteOnGuideAction}
-              flagGuideAction={flagGuideAction}
-              importGuide={importGuideAction}
-              tagLabel={echoGroupLabel(guide.character as SmashCharacter)}
-              tagIconName={echoGroupCanonical(guide.character as SmashCharacter)}
-              lang={lang}
-            />
-          ))}
-        </ul>
+        <>
+          <ul className="flex flex-col gap-2">
+            {paged.map((guide) => (
+              <GuideCard
+                key={guide.id}
+                guide={guide}
+                userId={userId}
+                hasOwnNote={notedSet.has(echoGroupCanonical(guide.character as SmashCharacter))}
+                maxLength={maxLength}
+                collapsible
+                editAction={editGuideAction}
+                deleteGuide={deleteGuideAction}
+                voteOnGuide={voteOnGuideAction}
+                flagGuideAction={flagGuideAction}
+                importGuide={importGuideAction}
+                tagLabel={echoGroupLabel(guide.character as SmashCharacter)}
+                tagIconName={echoGroupCanonical(guide.character as SmashCharacter)}
+                lang={lang}
+              />
+            ))}
+          </ul>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span className="text-xs text-muted-foreground">
+              {lang === "es"
+                ? `${filtered.length} ${filtered.length === 1 ? "guía" : "guías"}`
+                : `${filtered.length} guide${filtered.length === 1 ? "" : "s"}`}
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  {lang === "es" ? "← Anterior" : "← Previous"}
+                </Button>
+                <span className="text-muted-foreground tabular-nums">
+                  {lang === "es" ? `Página ${currentPage} de ${totalPages}` : `Page ${currentPage} of ${totalPages}`}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  {lang === "es" ? "Siguiente →" : "Next →"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {userId &&
