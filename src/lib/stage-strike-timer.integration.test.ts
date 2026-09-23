@@ -5,7 +5,8 @@ import {
   strikeGameStage,
   unstrikeLastGameStage,
   STRIKE_TIMEOUT_MS,
-  CHARACTER_TIMEOUT_MS,
+  AFK_TIMER_MS,
+  CHARACTER_PICK_GRACE_MS,
 } from "@/lib/match-games";
 import { createTestUser } from "@/test/factories";
 
@@ -327,30 +328,8 @@ describe("stale turn auto-resolution", () => {
   });
 });
 
-describe("stale character-pick auto-resolution", () => {
-  it("does nothing before the character-select timeout elapses", async () => {
-    const p1 = await createTestUser();
-    const p2 = await createTestUser();
-    const match = await createMatch(p1.id, p2.id);
-    await prisma.matchGame.create({
-      data: {
-        matchId: match.id,
-        gameNumber: 1,
-        actorAId: p1.id,
-        actorAStrikes: 1,
-        actorACharacter: "Mario",
-        actorBId: p2.id,
-        actorBStrikes: 2,
-        stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
-      },
-    });
-
-    const games = await getMatchGames(match.id);
-    expect(games[0].winnerId).toBeNull();
-  });
-
-  it("forfeits the whole match to whichever player locked in, and dings the ghost's noShowCount, once the timeout elapses", async () => {
+describe("character-pick AFK timer resolution", () => {
+  it("does nothing while the AFK timer is still counting down", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -364,8 +343,31 @@ describe("stale character-pick auto-resolution", () => {
         actorBId: p2.id,
         actorBStrikes: 2,
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        // p1 already locked in — the deadline is the end of p2's own window.
-        characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+        afkTimerStartedById: p1.id,
+        afkTimerDeadline: new Date(Date.now() + AFK_TIMER_MS),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games[0].winnerId).toBeNull();
+  });
+
+  it("forfeits the whole match to whoever started the timer, and dings the ghost's noShowCount, once it elapses", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorACharacter: "Mario", // p1 locked in and called the timer; p2 never did
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
+        afkTimerStartedById: p1.id,
+        afkTimerDeadline: new Date(Date.now() - 1000),
       },
     });
 
@@ -387,7 +389,7 @@ describe("stale character-pick auto-resolution", () => {
     expect(updatedMatch.reportedWinnerId).toBe(p1.id);
   });
 
-  it("does nothing once the character-select timeout has elapsed if neither player locked in", async () => {
+  it("does nothing however long the pick phase has been unresolved if no timer was ever started", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -397,18 +399,23 @@ describe("stale character-pick auto-resolution", () => {
         gameNumber: 1,
         actorAId: p1.id,
         actorAStrikes: 1,
+        actorACharacter: "Mario", // only one side ever locked in
         actorBId: p2.id,
         actorBStrikes: 2,
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+        // Long past the grace period — but asking for a timer is opt-in, so
+        // nothing here forfeits on its own.
+        characterPickGraceUntil: new Date(Date.now() - CHARACTER_PICK_GRACE_MS - 1000),
       },
     });
 
     const games = await getMatchGames(match.id);
     expect(games[0].winnerId).toBeNull();
+    const updatedP2 = await prisma.user.findUniqueOrThrow({ where: { id: p2.id } });
+    expect(updatedP2.noShowCount).toBe(0);
   });
 
-  it("does nothing once both characters are already locked in, no matter how old the game row is", async () => {
+  it("does nothing once both characters are locked in, even with a stale timer left over", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -423,7 +430,8 @@ describe("stale character-pick auto-resolution", () => {
         actorBStrikes: 2,
         actorBCharacter: "Luigi",
         stagesRemaining: ["Battlefield", "Small Battlefield", "Smashville"],
-        characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000),
+        afkTimerStartedById: p1.id,
+        afkTimerDeadline: new Date(Date.now() - 1000),
       },
     });
 

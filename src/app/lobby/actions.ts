@@ -16,6 +16,7 @@ import {
   setZenMode,
 } from "@/lib/account";
 import {
+  beginCharacterAfkTimer,
   pickGameCharacter,
   pickGameStage,
   pickSameStage,
@@ -62,6 +63,11 @@ const STALE_GAME_ERRORS = new Set([
   "Both players must lock in their character before picking a stage",
   "No previous game to repeat",
   "That stage isn't available this game",
+  "Both players have already picked their character",
+  "It's your turn to pick your character",
+  "Your opponent has already picked their character",
+  "An AFK timer is already running",
+  "Give your opponent a little more time before starting an AFK timer",
 ]);
 
 async function ignoringStaleGameRaces(fn: () => Promise<void>) {
@@ -186,6 +192,16 @@ export async function pickCharacter(matchId: string, gameNumber: number, formDat
   const character = String(formData.get("character") ?? "");
   const moveset = String(formData.get("moveset") ?? "");
   await ignoringStaleGameRaces(() => pickGameCharacter(userId, matchId, gameNumber, character, moveset));
+  revalidatePath("/lobby");
+}
+
+// The waiting player's opt-in countdown against a side that still hasn't locked
+// in a character — nothing auto-forfeits a set over a character pick until one
+// of these has been started and run out (see beginCharacterAfkTimer).
+export async function startAfkTimer(matchId: string, gameNumber: number) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => beginCharacterAfkTimer(userId, matchId, gameNumber));
   revalidatePath("/lobby");
 }
 

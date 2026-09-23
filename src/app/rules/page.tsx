@@ -133,12 +133,14 @@ export default async function RulesPage() {
             The free cancel stops working the moment a game has a decided winner or either side has reported one — at
             that point backing out always means Surrender, from either side, for the rest of the set. If your opponent
             goes quiet mid-set instead of surrendering yourself, you generally don&apos;t need to do anything: if they
-            stall their stage strikes, their turn is resolved for them after a few minutes and the set continues
-            without erasing anything already decided. Character picks are stricter — if one side has locked a
-            character in and the other never does, the whole set is forfeited to whoever locked in, not just the game
-            they were on. If you&apos;d rather not wait, or you and your opponent both want to call the whole set off
-            instead, either of you can request a mutual cancel from the match screen; once the other side agrees, it
-            cancels immediately with no rating impact for either player, no matter how far the set got.
+            stall their stage strikes, their turn is resolved for them after a few minutes and the set continues without
+            erasing anything already decided. Character picks are the exception: there&apos;s no automatic timeout, so
+            taking your time never forfeits anything by itself. Once a few minutes pass with a pick still unresolved,
+            the player who is waiting on the other side can start an AFK timer against them — if that timer runs out,
+            the whole set is forfeited to whoever started it, not just the game they were on. If you&apos;d rather not
+            wait, or you and your opponent both want to call the whole set off instead, either of you can request a
+            mutual cancel from the match screen; once the other side agrees, it cancels immediately with no rating
+            impact for either player, no matter how far the set got.
           </p>
         </Section>
 
@@ -355,10 +357,14 @@ function RulesPageEs() {
             dos lados, por el resto de la partida. Si tu rival se queda callado a mitad de la partida en vez de rendirse
             tú mismo, en general no necesitas hacer nada: un rival que no responde pierde automáticamente su turno
             después de unos minutos (elección de personaje o descarte de escenario, lo que sea que tenga pendiente) y la
-            partida continúa sin borrar nada ya decidido. Si prefieres no esperar, o tú y tu rival quieren cancelar toda
-            la partida de mutuo acuerdo, cualquiera de los dos puede pedir una cancelación mutua desde la pantalla de
-            partida; en cuanto el otro lado acepta, se cancela de inmediato sin afectar la clasificación de ninguno, sin
-            importar qué tan avanzada estuviera la partida.
+            partida continúa sin borrar nada ya decidido. La elección de personaje es la excepción: no hay tiempo límite
+            automático, así que tomarte tu tiempo nunca te hace perder nada por sí solo. Cuando pasan unos minutos y la
+            elección sigue sin resolverse, el jugador que está esperando puede iniciar un temporizador de inactividad —
+            si ese temporizador se agota, el set completo se le concede a quien lo inició, no solo el juego en el que
+            estaban. Si prefieres no esperar, o tú y tu rival quieren cancelar toda la partida de mutuo acuerdo,
+            cualquiera de los dos puede pedir una cancelación mutua desde la pantalla de partida; en cuanto el otro lado
+            acepta, se cancela de inmediato sin afectar la clasificación de ninguno, sin importar qué tan avanzada
+            estuviera la partida.
           </p>
         </Section>
 

@@ -8,11 +8,13 @@ import {
   pickGameStage,
   pickSameStage,
   pickGameCharacter,
+  beginCharacterAfkTimer,
   getCurrentGame,
   getMatchGames,
   reportGameResult,
   escalateGameDispute,
-  CHARACTER_TIMEOUT_MS,
+  AFK_TIMER_MS,
+  CHARACTER_PICK_GRACE_MS,
   REPORT_TIMEOUT_MS,
 } from "@/lib/match-games";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
@@ -23,26 +25,26 @@ async function createMatch(p1: string, p2: string) {
   });
 }
 
-describe("auto-forfeit for a stale character pick", () => {
-  it("shares one pick window between both players on game 1", async () => {
+describe("character picks have no starting auto-forfeit clock", () => {
+  it("shares one grace anchor between both players on game 1", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await startFirstGame(p1.id, match.id);
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
-    const sharedDeadline = game.characterPickDeadline.getTime();
+    const sharedGrace = game.characterPickGraceUntil.getTime();
 
     await pickGameCharacter(game.actorAId, match.id, 1, "Mario"); // only one side locks in
 
-    // Game 1 is a blind simultaneous pick — the first lock-in must NOT restart
-    // the clock, or the player still deciding would be racing a fresh window
-    // the other one never got.
+    // Game 1 is a blind simultaneous pick — the first lock-in must NOT re-arm
+    // the grace anchor, or the player still deciding would be racing a fresh
+    // window the other one never got.
     const afterFirstPick = await getCurrentGame(match.id);
-    expect(afterFirstPick?.characterPickDeadline.getTime()).toBe(sharedDeadline);
+    expect(afterFirstPick?.characterPickGraceUntil.getTime()).toBe(sharedGrace);
   });
 
-  it("still gives the second picker a fresh window on games 2+", async () => {
+  it("re-arms the grace anchor for the second picker on games 2+", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -56,9 +58,9 @@ describe("auto-forfeit for a stale character pick", () => {
         actorBStrikes: 0,
         stagesRemaining: ["Final Destination"],
         struckStages: ["Battlefield", "Small Battlefield", "Smashville"],
-        // actorA's own window is nearly up. actorB can't even pick until
-        // actorA locks in, so their clock has to start from that lock-in.
-        characterPickDeadline: new Date(Date.now() + 1000),
+        // actorA's own grace is nearly up. actorB can't even pick until actorA
+        // locks in, so their grace has to start from that lock-in.
+        characterPickGraceUntil: new Date(Date.now() + 1000),
       },
     });
 
@@ -67,27 +69,119 @@ describe("auto-forfeit for a stale character pick", () => {
     const updated = await prisma.matchGame.findUniqueOrThrow({
       where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
     });
-    expect(updated.characterPickDeadline.getTime()).toBeGreaterThan(Date.now() + 1000);
+    expect(updated.characterPickGraceUntil.getTime()).toBeGreaterThan(Date.now() + 1000);
   });
 
-  it("forfeits the whole match to whoever locked in once the other side's window has elapsed", async () => {
+  it("never forfeits on its own, however long the pick phase sits unresolved", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await startFirstGame(p1.id, match.id);
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
-    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
-    // The first pick reset the deadline to now + CHARACTER_TIMEOUT_MS; fast-
-    // forward past the second player's own window.
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario"); // a side locks in; the other never does
+    // Way past the grace period, but nobody ever asked for an AFK timer.
     await prisma.matchGame.update({
       where: { id: game.id },
-      data: { characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+      data: { characterPickGraceUntil: new Date(Date.now() - CHARACTER_PICK_GRACE_MS - 1000) },
     });
 
     const games = await getMatchGames(match.id);
-    const resolved = games.find((g) => g.gameNumber === 1);
-    expect(resolved?.winnerId).toBe(game.actorAId);
+    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).not.toBe("CONFIRMED");
+    expect(updatedMatch.reportedWinnerId).toBeNull();
+  });
+});
+
+describe("beginCharacterAfkTimer", () => {
+  async function startGameOne() {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    return { p1, p2, match, game };
+  }
+
+  async function elapseGracePeriod(gameId: string) {
+    await prisma.matchGame.update({
+      where: { id: gameId },
+      data: { characterPickGraceUntil: new Date(Date.now() - 1000) },
+    });
+  }
+
+  it("refuses before the grace period has elapsed", async () => {
+    const { match, game } = await startGameOne();
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario"); // waiting player did their part
+
+    // The starter has to be the side that already picked (or is blocked), so
+    // actorA is the one who can ask here — but not yet.
+    await expect(beginCharacterAfkTimer(game.actorAId, match.id, 1)).rejects.toThrow(/more time/i);
+  });
+
+  it("refuses when the player still owes their own pick", async () => {
+    const { match, game } = await startGameOne();
+    await elapseGracePeriod(game.id);
+
+    // Game 1 is simultaneous: a side that hasn't locked in yet can still pick,
+    // so it has no standing to call its opponent AFK.
+    await expect(beginCharacterAfkTimer(game.actorAId, match.id, 1)).rejects.toThrow(/your turn/i);
+  });
+
+  it("refuses once both sides have locked in", async () => {
+    const { match, game } = await startGameOne();
+    // actorA locks in, then actorB does too — the timer is moot at that point.
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    await pickGameCharacter(game.actorBId, match.id, 1, "Luigi");
+    await elapseGracePeriod(game.id);
+
+    await expect(beginCharacterAfkTimer(game.actorAId, match.id, 1)).rejects.toThrow(/already picked/i);
+  });
+
+  it("records who started it and when it expires", async () => {
+    const { match, game } = await startGameOne();
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    await elapseGracePeriod(game.id);
+
+    const before = Date.now();
+    await beginCharacterAfkTimer(game.actorAId, match.id, 1);
+
+    const updated = await getCurrentGame(match.id);
+    expect(updated?.afkTimerStartedById).toBe(game.actorAId);
+    expect(updated?.afkTimerDeadline?.getTime()).toBeGreaterThanOrEqual(before + AFK_TIMER_MS);
+  });
+});
+
+describe("an expired AFK timer forfeits the whole set", () => {
+  async function startTimerThenExpire() {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    // The side that stays present locks in, then calls the AFK timer on the side
+    // that never does — actorA is actorB's opponent, so the target is actorB.
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: { characterPickGraceUntil: new Date(Date.now() - 1000) },
+    });
+    await beginCharacterAfkTimer(game.actorAId, match.id, 1);
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: { afkTimerDeadline: new Date(Date.now() - 1000) },
+    });
+    return { p1, p2, match, game };
+  }
+
+  it("awards the set to whoever started the timer once it runs out", async () => {
+    const { match, game } = await startTimerThenExpire();
+
+    const games = await getMatchGames(match.id);
+    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBe(game.actorAId);
     // A ghost who never locked in isn't coming back for game 2 either — the
     // whole match is forfeited, not just this one game.
     expect(games.find((g) => g.gameNumber === 2)).toBeUndefined();
@@ -95,13 +189,11 @@ describe("auto-forfeit for a stale character pick", () => {
     expect(updatedMatch.status).toBe("CONFIRMED");
     expect(updatedMatch.reportedWinnerId).toBe(game.actorAId);
 
-    const opponent = await prisma.user.findUniqueOrThrow({
-      where: { id: game.actorAId === p1.id ? p2.id : p1.id },
-    });
-    expect(opponent.noShowCount).toBe(1);
-    expect(opponent.recentTimeoutCount).toBe(1);
-    expect(opponent.queueCooldownUntil).not.toBeNull();
-    expect(opponent.queueCooldownUntil!.getTime()).toBeGreaterThan(Date.now());
+    const ghost = await prisma.user.findUniqueOrThrow({ where: { id: game.actorBId } });
+    expect(ghost.noShowCount).toBe(1);
+    expect(ghost.recentTimeoutCount).toBe(1);
+    expect(ghost.queueCooldownUntil).not.toBeNull();
+    expect(ghost.queueCooldownUntil!.getTime()).toBeGreaterThan(Date.now());
   });
 
   it("escalates the cooldown on a second timeout", async () => {
@@ -114,12 +206,17 @@ describe("auto-forfeit for a stale character pick", () => {
     await startFirstGame(p2.id, match.id);
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
-    // p1 (the non-ghost) locks in; p2 stays a no-show.
-    const nonGhostId = game.actorAId === p2.id ? game.actorBId : game.actorAId;
-    await pickGameCharacter(nonGhostId, match.id, 1, "Mario");
+    // p1 (the one who stays) locks in; p2 stays a no-show.
+    const presentId = game.actorAId === p2.id ? game.actorBId : game.actorAId;
+    await pickGameCharacter(presentId, match.id, 1, "Mario");
     await prisma.matchGame.update({
       where: { id: game.id },
-      data: { characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+      data: { characterPickGraceUntil: new Date(Date.now() - 1000) },
+    });
+    await beginCharacterAfkTimer(presentId, match.id, 1);
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: { afkTimerDeadline: new Date(Date.now() - 1000) },
     });
 
     await getMatchGames(match.id);
@@ -129,20 +226,52 @@ describe("auto-forfeit for a stale character pick", () => {
     expect(ghost.noShowCount).toBe(1);
   });
 
-  it("does nothing when neither side has locked in yet, even past the deadline", async () => {
+  it("does nothing when the timer's target actually locked in (write raced the pick)", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
     await startFirstGame(p1.id, match.id);
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1 to exist");
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    // Simulate the losing half of the race: the target's lock-in landed, but the
+    // timer that was being started around the same time is still sitting there.
     await prisma.matchGame.update({
       where: { id: game.id },
-      data: { characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+      data: {
+        actorBCharacter: "Luigi",
+        afkTimerStartedById: game.actorAId,
+        afkTimerDeadline: new Date(Date.now() - 1000),
+      },
     });
 
     const games = await getMatchGames(match.id);
     expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+    const updated = await getCurrentGame(match.id);
+    expect(updated?.afkTimerDeadline).toBeNull();
+    expect(updated?.afkTimerStartedById).toBeNull();
+  });
+
+  it("is cleared by an in-time pick, re-arming the grace anchor", async () => {
+    const { match, game } = await startTimerThenExpire();
+    // Put the deadline back in the future — this is the target answering in time.
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: {
+        afkTimerDeadline: new Date(Date.now() + AFK_TIMER_MS),
+        characterPickGraceUntil: new Date(Date.now() - 1000),
+      },
+    });
+
+    await pickGameCharacter(game.actorBId, match.id, 1, "Luigi"); // the target answers
+
+    const updated = await getCurrentGame(match.id);
+    expect(updated?.afkTimerStartedById).toBeNull();
+    expect(updated?.afkTimerDeadline).toBeNull();
+    expect(updated?.characterPickGraceUntil.getTime()).toBeGreaterThan(Date.now());
+    // Both sides are locked in now, so the stage phase proceeds instead.
+    expect(updated?.actorACharacter).not.toBeNull();
+    expect(updated?.actorBCharacter).not.toBeNull();
   });
 });
 
