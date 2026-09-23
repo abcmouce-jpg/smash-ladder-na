@@ -23,7 +23,7 @@ type Role = "USER" | "MOD" | "ADMIN";
 const PRIMARY_LINKS = [
   { href: "/lobby", en: "Lobby", es: "Sala", Icon: Swords },
   { href: "/live", en: "Live", es: "En vivo", Icon: Radio },
-  { href: "/board", en: "Board", es: "Tablón", Icon: Users },
+  { href: "/friendlies", en: "Friendlies", es: "Amistosos", Icon: Users },
   { href: "/leaderboard", en: "Leaderboard", es: "Clasificación", Icon: Trophy },
   { href: "/stats", en: "Stats", es: "Estadísticas", Icon: BarChart3 },
   { href: "/notes", en: "Notes", es: "Notas", Icon: NotebookPen },

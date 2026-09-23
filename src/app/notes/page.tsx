@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { getMatchupNotes, getNotedCharacters, MAX_MATCHUP_NOTE_LENGTH } from "@/lib/matchup-notes";
 import { getAllCharacterGuides, getAllGuides, MAX_GUIDE_LENGTH } from "@/lib/character-guides";
 import { getSubscribedCharacters } from "@/lib/character-guide-subscriptions";
+import { echoGroupCanonical, isMatchupCharacter, type SmashCharacter } from "@/lib/characters";
 import { getLang, type Lang } from "@/lib/i18n";
 import { PageHeading } from "@/components/page-heading";
 import { SectionTabs } from "@/components/section-tabs";
@@ -34,10 +35,22 @@ export const metadata: Metadata = {
 const VALID_TABS = ["matchups", "guides"] as const;
 type NotesTab = (typeof VALID_TABS)[number];
 
-export default async function NotesPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const [{ tab: tabParam }, session, lang] = await Promise.all([searchParams, auth(), getLang()]);
+export default async function NotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; character?: string }>;
+}) {
+  const [{ tab: tabParam, character: characterParam }, session, lang] = await Promise.all([searchParams, auth(), getLang()]);
   const userId = session?.user?.id ?? null;
   const tab: NotesTab = VALID_TABS.includes((tabParam ?? "") as NotesTab) ? (tabParam as NotesTab) : "matchups";
+
+  // The Guides tab can be deep-linked to one character — that's how a My Notes
+  // row's "Show more guides" link lands on the full list for it. Folding echoes
+  // into their base fighter matches the key guides are tagged and grouped by,
+  // and anything else (incl. "Random") is dropped so a hand-edited URL can't
+  // pre-filter to a tag that doesn't exist.
+  const canonicalCharacter = characterParam ? echoGroupCanonical(characterParam as SmashCharacter) : null;
+  const initialGuideCharacter = canonicalCharacter && isMatchupCharacter(canonicalCharacter) ? canonicalCharacter : null;
 
   // One blurb per tab, sitting in the heading block the way the Stats page
   // does it — the two views need different framing.
@@ -65,7 +78,11 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
         ]}
       />
       <div className="mt-6">
-        {tab === "matchups" ? <MatchupsTab userId={userId} lang={lang} /> : <GuidesTab userId={userId} lang={lang} />}
+        {tab === "matchups" ? (
+          <MatchupsTab userId={userId} lang={lang} />
+        ) : (
+          <GuidesTab userId={userId} lang={lang} initialCharacter={initialGuideCharacter} />
+        )}
       </div>
     </main>
   );
@@ -109,7 +126,15 @@ async function MatchupsTab({ userId, lang }: { userId: string | null; lang: Lang
   );
 }
 
-async function GuidesTab({ userId, lang }: { userId: string | null; lang: Lang }) {
+async function GuidesTab({
+  userId,
+  lang,
+  initialCharacter,
+}: {
+  userId: string | null;
+  lang: Lang;
+  initialCharacter: string | null;
+}) {
   const [guides, notedCharacters] = await Promise.all([
     getAllGuides(userId),
     userId ? getNotedCharacters(userId) : Promise.resolve([]),
@@ -127,6 +152,7 @@ async function GuidesTab({ userId, lang }: { userId: string | null; lang: Lang }
       voteOnGuideAction={voteOnGuideAction}
       flagGuideAction={flagGuideAction}
       importGuideAction={importGuideAction}
+      initialCharacter={initialCharacter}
       lang={lang}
     />
   );

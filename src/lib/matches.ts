@@ -216,7 +216,7 @@ export async function cancelMatch(userId: string, matchId: string) {
     });
     await sendDiscordDM(
       updatedUser.discordId,
-      `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — you've cancelled ${updatedUser.cancelCount} matches, which crosses the threshold for a cancel-abuse pattern. Board posts and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
+      `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — you've cancelled ${updatedUser.cancelCount} matches, which crosses the threshold for a cancel-abuse pattern. Posting on Friendlies and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
     );
   } else if (justCrossedWarning) {
     await sendDiscordDM(
