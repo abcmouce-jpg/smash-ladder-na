@@ -12,19 +12,19 @@ import { AdSlot } from "@/components/ad-slot";
 import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 
-export default async function BoardPage() {
+export default async function FriendliesPage() {
   const [session, lang] = await Promise.all([auth(), getLang()]);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
       <PageHeading
         icon={Users}
-        title={lang === "es" ? "Tablón" : "Board"}
+        title={lang === "es" ? "Amistosos" : "Friendlies"}
         description={
           lang === "es" ? (
             <>
-              Un tablón para amistosos casuales sin clasificación — no hay puntos en juego y no hay emparejamiento
-              automático. Es lo opuesto a la cola rankeada de la{" "}
+              Publica lo que buscas y arma amistosos casuales sin clasificación — no hay puntos en juego ni
+              emparejamiento automático. Es lo opuesto a la cola rankeada de la{" "}
               <Link href="/lobby" className="underline hover:text-foreground">
                 Sala
               </Link>
@@ -32,8 +32,8 @@ export default async function BoardPage() {
             </>
           ) : (
             <>
-              A bulletin board for casual, unranked friendlies — no rating on the line, and no auto-matching. It&apos;s
-              the opposite of the{" "}
+              Post what you&apos;re looking for and get casual, unranked friendlies going — no rating on the line, and
+              no auto-matching. It&apos;s the opposite of the{" "}
               <Link href="/lobby" className="underline hover:text-foreground">
                 Lobby
               </Link>
@@ -48,7 +48,7 @@ export default async function BoardPage() {
             <>
               <li>1. Publica qué buscas (matchup, disponibilidad, etc).</li>
               <li>2. Tu publicación se anuncia en el Discord de la comunidad.</li>
-              <li>3. Quien esté interesado te contacta por Discord — el Tablón solo hace la presentación.</li>
+              <li>3. Quien esté interesado te contacta por Discord — esta página solo hace la presentación.</li>
               <li>
                 4. Las publicaciones expiran solas después de 24 horas; ciérrala y vuelve a publicar cuando quieras.
               </li>
@@ -57,7 +57,7 @@ export default async function BoardPage() {
             <>
               <li>1. Post what you&apos;re looking for (matchup, availability, etc).</li>
               <li>2. Your post gets announced in the community Discord.</li>
-              <li>3. Whoever&apos;s interested reaches out on Discord — the Board just makes the introduction.</li>
+              <li>3. Whoever&apos;s interested reaches out on Discord — this page just makes the introduction.</li>
               <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
             </>
           )}
@@ -70,12 +70,12 @@ export default async function BoardPage() {
             <p className="text-sm text-muted-foreground">
               {lang === "es"
                 ? "Inicia sesión con Discord (arriba a la derecha) para publicar o unirte a un post."
-                : "Sign in with Discord (top right) to post or join a board post."}
+                : "Sign in with Discord (top right) to post or join a post."}
             </p>
           </CardContent>
         </Card>
       ) : (
-        <BoardActionsPanel userId={session.user.id} lang={lang} />
+        <FriendliesActionsPanel userId={session.user.id} lang={lang} />
       )}
 
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_FREE_BATTLE} />
@@ -83,7 +83,7 @@ export default async function BoardPage() {
   );
 }
 
-async function BoardActionsPanel({ userId, lang }: { userId: string; lang: Lang }) {
+async function FriendliesActionsPanel({ userId, lang }: { userId: string; lang: Lang }) {
   const [ownPost, achievedTiers] = await Promise.all([getOwnActivePost(userId), getAchievedFreeBattleTiers(userId)]);
 
   return (
@@ -210,8 +210,8 @@ async function OwnPostCard({
         )}
         <p className="mt-2 text-xs text-muted-foreground">
           {lang === "es"
-            ? "Contáctalo por Discord para acordar el código de sala — el Tablón no lleva registro de la partida en sí."
-            : "Reach out to them on Discord to set up your room code — the Board doesn't track the game itself."}
+            ? "Contáctalo por Discord para acordar el código de sala — esta página no lleva registro de la partida en sí."
+            : "Reach out to them on Discord to set up your room code — this page doesn't track the game itself."}
         </p>
         <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
           <Button type="submit" variant="outline" size="sm">

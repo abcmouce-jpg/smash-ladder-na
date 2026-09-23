@@ -115,7 +115,7 @@ export async function notifyMatchmakingSubscribers(
   if (recipients.length === 0) return;
   await sendDiscordDMsSequentially(
     recipients,
-    `🔔 New Board post matching your interests — **${author.username}**: "${post.comment}"\n${siteOrigin()}/board`,
+    `🔔 New Friendlies post matching your interests — **${author.username}**: "${post.comment}"\n${siteOrigin()}/friendlies`,
   );
 }
 
@@ -184,7 +184,7 @@ export async function createPost(userId: string, comment: string, minTier: FreeB
     const tagSuffix = tags ? ` (${tags})` : "";
     const messageId = await sendDiscordWebhookMessage(
       webhookUrl,
-      `${rolePrefix}🎮 **${author.username}** is looking for a game on the Board${tagSuffix}: "${trimmed}"\n${siteOrigin()}/board`,
+      `${rolePrefix}🎮 **${author.username}** is looking for a game on Friendlies${tagSuffix}: "${trimmed}"\n${siteOrigin()}/friendlies`,
     );
     // Recorded after the fact rather than in the initial create — the
     // message doesn't exist (so has no id) until after the post row does.
@@ -247,6 +247,6 @@ export async function claimPost(userId: string, postId: string) {
     prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
   ]);
   if (author && claimer) {
-    await sendDiscordDM(author.discordId, `🙋 ${claimer.username} is in on your Board post!`);
+    await sendDiscordDM(author.discordId, `🙋 ${claimer.username} is in on your Friendlies post!`);
   }
 }
