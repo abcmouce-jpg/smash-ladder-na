@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 // Shared page header: a small tinted icon tile next to the title gives each
-// section a quick visual anchor (Board, Sets, Stats, …) without leaning on
+// section a quick visual anchor (Friendlies, Sets, Stats, …) without leaning on
 // gradients or glass effects. `action` reserves the right side for a link or
 // button; anything extra can be passed as `children` below the title.
 export function PageHeading({

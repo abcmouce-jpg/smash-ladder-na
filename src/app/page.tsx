@@ -7,7 +7,7 @@ import { Activity, MapPin, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
-import { getBoardPosts } from "@/lib/home-feed";
+import { getFriendliesPosts } from "@/lib/home-feed";
 import { getMatchFeed } from "@/lib/match-feed";
 import { serializeSetEntry } from "@/lib/set-entry";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export default async function Home() {
     getPublicStats(),
     getLang(),
     getMatchFeed(),
-    getBoardPosts(6),
+    getFriendliesPosts(6),
     getMatchesPerDay(30),
   ]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
@@ -205,7 +205,7 @@ export default async function Home() {
       )}
 
       <div className="mt-10">
-        <SectionHeading label={lang === "es" ? "Publicaciones del Tablón" : "Board posts"} />
+        <SectionHeading label={lang === "es" ? "Amistosos" : "Friendlies"} />
         {posts.length > 0 ? (
           <Card className="mt-3 divide-y divide-border overflow-hidden py-0">
             {posts.map((post) => (
@@ -256,17 +256,17 @@ export default async function Home() {
                   : "No one's looking for a game right now — be the first to post."}
               </p>
               <Button asChild variant="secondary" size="sm" className="mt-3">
-                <Link href="/board">{lang === "es" ? "Abrir el Tablón" : "Open the Board"}</Link>
+                <Link href="/friendlies">{lang === "es" ? "Abrir Amistosos" : "Open Friendlies"}</Link>
               </Button>
             </CardContent>
           </Card>
         )}
         {user ? (
           <Link
-            href="/board"
+            href="/friendlies"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            {lang === "es" ? "Publica en el Tablón →" : "Post on the Board →"}
+            {lang === "es" ? "Publica en Amistosos →" : "Post on Friendlies →"}
           </Link>
         ) : (
           <a

@@ -110,8 +110,8 @@ export default async function FaqPage() {
           </QA>
           <QA q="What's the actual difference between suspended and banned?">
             Suspended (Level 1) still lets you play ranked — that&apos;s the core activity, and disputes already give
-            bad results their own path to correction — but blocks Board posts and filing new reports, so a suspended
-            player can&apos;t retaliate against whoever reported them. Banned (Level 2) blocks everything.
+            bad results their own path to correction — but blocks posting on Friendlies and filing new reports, so a
+            suspended player can&apos;t retaliate against whoever reported them. Banned (Level 2) blocks everything.
           </QA>
         </Category>
 
@@ -253,9 +253,9 @@ function FaqPageEs() {
           </QA>
           <QA q="¿Cuál es la diferencia real entre suspendido y baneado?">
             Suspendido (Nivel 1) todavía te deja jugar rankeado — esa es la actividad principal, y las disputas ya le
-            dan a los malos resultados su propio camino de corrección — pero bloquea el Tablón y presentar nuevos
-            reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó. Baneado (Nivel
-            2) bloquea todo.
+            dan a los malos resultados su propio camino de corrección — pero bloquea publicar en Amistosos y presentar
+            nuevos reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó.
+            Baneado (Nivel 2) bloquea todo.
           </QA>
         </Category>
 

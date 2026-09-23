@@ -70,7 +70,7 @@ export async function requireActiveUser(userId: string) {
   const status = await liftExpiredSuspension(userId, user);
   if (status === UserStatus.SUSPENDED) {
     throw new Error(
-      "Your account is suspended — board posts and reporting are unavailable, but ranked play still works.",
+      "Your account is suspended — posting on Friendlies and reporting are unavailable, but ranked play still works.",
     );
   }
   requireRegionUnlocked(user.region);
