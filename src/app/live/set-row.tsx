@@ -10,7 +10,15 @@ import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { STATUS_LABEL, STATUS_VARIANT, type FeedPlayer, type SerializedSetEntry } from "@/lib/set-entry";
+import {
+  STATUS_LABEL,
+  STATUS_VARIANT,
+  getUnfinishedGame,
+  isSetLive,
+  type FeedPlayer,
+  type SerializedSetEntry,
+  type UnfinishedGame,
+} from "@/lib/set-entry";
 import { OpenStreamButton } from "@/components/live-streams/open-stream-button";
 
 // Expandable feed row. The collapsed header summarizes the set (both
@@ -25,10 +33,9 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
   const [open, setOpen] = useState(false);
   const label = STATUS_LABEL[entry.status];
   const decidedGames = entry.games.filter((g) => g.winnerId !== null);
-  const ongoingGame = entry.games.find((g) => g.winnerId === null) ?? null;
-  const hasGames = decidedGames.length > 0 || ongoingGame !== null;
-  const unstreamedInProgress =
-    !entry.hasLiveStreamer && (entry.status === "PENDING_REPORT" || entry.status === "REPORTED");
+  const unfinishedGame = getUnfinishedGame(entry);
+  const hasGames = decidedGames.length > 0 || unfinishedGame !== null;
+  const unstreamedInProgress = !entry.hasLiveStreamer && isSetLive(entry.status);
 
   return (
     <Card className={cn("relative overflow-hidden py-0", entry.hasLiveStreamer && "border-red-500/30")}>
@@ -116,12 +123,16 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
                   <GameLine key={game.gameNumber} entry={entry} game={game} lang={lang} />
                 ))}
               </div>
-              {ongoingGame && (
+              {unfinishedGame && (
                 <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span aria-hidden className="size-1.5 rounded-full bg-muted-foreground/60" />
-                  {lang === "es"
-                    ? `Juego ${ongoingGame.gameNumber} en curso…`
-                    : `Game ${ongoingGame.gameNumber} in progress…`}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "size-1.5 shrink-0 rounded-full",
+                      unfinishedGame.inProgress ? "bg-muted-foreground/60" : "border border-muted-foreground/40",
+                    )}
+                  />
+                  {unfinishedGameLabel(unfinishedGame, lang)}
                 </p>
               )}
             </>
@@ -137,6 +148,17 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
       )}
     </Card>
   );
+}
+
+// Copy for the set's undecided game. Only a set that's still live gets the
+// running "in progress" line; one that ended with the game still open — a
+// surrender/forfeit, a cancellation, an expiry — says so instead of claiming
+// a clock is still running on a finished set.
+function unfinishedGameLabel({ gameNumber, inProgress }: UnfinishedGame, lang: Lang) {
+  if (inProgress) {
+    return lang === "es" ? `Juego ${gameNumber} en curso…` : `Game ${gameNumber} in progress…`;
+  }
+  return lang === "es" ? `Juego ${gameNumber} — sin terminar` : `Game ${gameNumber} — not finished`;
 }
 
 // Link out to a side's Twitch stream, shown when that side is flagged live.
