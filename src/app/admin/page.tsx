@@ -3,52 +3,8 @@ import { Activity, AlertTriangle, Ban, Flag, Gauge, Radio, Shield, Swords, Timer
 import { auth } from "@/auth";
 import { getAdminOverview } from "@/lib/admin-stats";
 import { getSuspendWatchlist } from "@/lib/admin-watchlist";
-import { Card, CardContent } from "@/components/ui/card";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  href,
-  tone,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  href?: string;
-  tone?: "warning" | "destructive";
-}) {
-  const inner = (
-    <CardContent className="flex items-center gap-3 py-4">
-      <Icon
-        className={`size-5 ${
-          tone === "destructive"
-            ? "text-destructive"
-            : tone === "warning"
-              ? "text-amber-600 dark:text-amber-400"
-              : "text-muted-foreground"
-        }`}
-      />
-      <div>
-        <p className="text-xl font-semibold tabular-nums leading-none">{value}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-      </div>
-    </CardContent>
-  );
-
-  return (
-    <Card className="py-0">
-      {href ? (
-        <Link href={href} className="block hover:bg-accent/50">
-          {inner}
-        </Link>
-      ) : (
-        inner
-      )}
-    </Card>
-  );
-}
 
 export default async function AdminOverviewPage() {
   const session = await auth();
