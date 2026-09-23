@@ -146,6 +146,138 @@ describe("auto-forfeit for a stale character pick", () => {
   });
 });
 
+// The one deliberate difference from the original behaviour: a games-2+ pick
+// timeout resolves the GAME, not the set. Only the side that stalled falls back
+// to what they played in the previous game — the other side's pick, including a
+// fresh counterpick, stands. Game 1 above still forfeits outright.
+describe("a games-2+ character timeout defaults the stalled side", () => {
+  // p1 wins game 1 (so it also picks first on game 2) and plays Mario there,
+  // while p2 played `p2GameOne`. `seatsFlipped` puts p1 in actorB on game 1, so
+  // p2's character has to be found by player rather than by seat.
+  async function setupStaleGameTwo(
+    p2GameOne: { character: string; moveset: string | null } = { character: "Luigi", moveset: null },
+    seatsFlipped = false,
+  ) {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: seatsFlipped ? p2.id : p1.id,
+        actorAStrikes: 1,
+        actorACharacter: seatsFlipped ? p2GameOne.character : "Mario",
+        actorAMoveset: seatsFlipped ? p2GameOne.moveset : null,
+        actorBId: seatsFlipped ? p1.id : p2.id,
+        actorBStrikes: 2,
+        actorBCharacter: seatsFlipped ? "Mario" : p2GameOne.character,
+        actorBMoveset: seatsFlipped ? null : p2GameOne.moveset,
+        stagesRemaining: [...GAME_ONE_STAGES],
+        finalStage: "Battlefield",
+        winnerId: p1.id,
+      },
+    });
+    const game = await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p1.id, // the previous game's winner, who picks first
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        stagesRemaining: [...COUNTERPICK_STAGES],
+        characterPickDeadline: new Date(Date.now() - 1000),
+      },
+    });
+    return { p1, p2, match, game };
+  }
+
+  function expirePickClock(gameId: string) {
+    return prisma.matchGame.update({
+      where: { id: gameId },
+      data: { characterPickDeadline: new Date(Date.now() - 1000) },
+    });
+  }
+
+  it("keeps the pick the other side already made", async () => {
+    const { p1, p2, match, game } = await setupStaleGameTwo();
+    await pickGameCharacter(p1.id, match.id, 2, "Fox"); // actorA counterpicks; actorB never picks
+    await expirePickClock(game.id); // actorB's own window (re-armed by that pick) runs out
+
+    const games = await getMatchGames(match.id);
+    const resolved = games.find((g) => g.gameNumber === 2);
+    // actorA's counterpick is a deliberate choice and survives actorB's timeout;
+    // only the stalled slot falls back to the previous game.
+    expect(resolved?.actorACharacter).toBe("Fox");
+    expect(resolved?.actorBCharacter).toBe("Luigi");
+    // The stage still comes from the previous game, so there's no striking to sit
+    // through with an absent opponent.
+    expect(resolved?.finalStage).toBe("Battlefield");
+    expect(resolved?.winnerId).toBeNull();
+
+    // Nothing is decided and nobody is charged for it — the set just continues.
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).not.toBe("CONFIRMED");
+    expect(updatedMatch.reportedWinnerId).toBeNull();
+    for (const user of [p1, p2]) {
+      const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+      expect(updated.noShowCount).toBe(0);
+      expect(updated.queueCooldownUntil).toBeNull();
+    }
+  });
+
+  it("falls back by player, not by seat, when the seats flipped", async () => {
+    const { p1, p2, match, game } = await setupStaleGameTwo({ character: "Falco", moveset: null }, true);
+    await pickGameCharacter(p1.id, match.id, 2, "Fox");
+    await expirePickClock(game.id);
+
+    const games = await getMatchGames(match.id);
+    const resolved = games.find((g) => g.gameNumber === 2);
+    expect(resolved?.actorAId).toBe(p1.id);
+    expect(resolved?.actorBId).toBe(p2.id);
+    // p2 played Falco as game 1's actorA while p1 played Mario as its actorB.
+    // Game 2's actorB is p2, so the fallback has to be Falco — a seat-based copy
+    // would have grabbed Mario instead.
+    expect(resolved?.actorBCharacter).toBe("Falco");
+  });
+
+  it("carries a Mii's moveset along with the fallback", async () => {
+    const { p1, match, game } = await setupStaleGameTwo({ character: "Mii Brawler", moveset: "1221" });
+    await pickGameCharacter(p1.id, match.id, 2, "Fox");
+    await expirePickClock(game.id);
+
+    const games = await getMatchGames(match.id);
+    const resolved = games.find((g) => g.gameNumber === 2);
+    expect(resolved?.actorBCharacter).toBe("Mii Brawler");
+    expect(resolved?.actorBMoveset).toBe("1221");
+  });
+
+  it("does nothing while the pick clock is still running", async () => {
+    const { p1, match } = await setupStaleGameTwo();
+    // The actorA lock-in re-arms the clock for actorB, so it is still running.
+    await pickGameCharacter(p1.id, match.id, 2, "Fox");
+
+    const games = await getMatchGames(match.id);
+    const untouched = games.find((g) => g.gameNumber === 2);
+    expect(untouched?.actorACharacter).toBe("Fox");
+    expect(untouched?.actorBCharacter).toBeNull();
+    expect(untouched?.finalStage).toBeNull();
+  });
+
+  it("does nothing when nobody on the game locked in", async () => {
+    const { match, game } = await setupStaleGameTwo();
+    await expirePickClock(game.id); // actorA never picked either
+    // There is no stalled window to resolve from — same as game 1, this falls
+    // through to the match-level no-report expiry.
+    const games = await getMatchGames(match.id);
+    const untouched = games.find((g) => g.gameNumber === 2);
+    expect(untouched?.actorACharacter).toBeNull();
+    expect(untouched?.actorBCharacter).toBeNull();
+    expect(untouched?.finalStage).toBeNull();
+  });
+});
+
 describe("pickGameCharacter with a Mii moveset", () => {
   it("stores a valid moveset alongside a Mii pick", async () => {
     const p1 = await createTestUser();

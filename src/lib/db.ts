@@ -1,7 +1,17 @@
+import { existsSync } from "node:fs";
 import { config } from "dotenv";
 
-config();
-if (!process.env.DATABASE_URL) config({ path: ".env.development" });
+// Same lookup order as prisma.config.ts (and Next.js): the per-environment files
+// are read before the shared `.env` so the first one to define a key wins. In
+// the Next runtime this is already a no-op — the framework populated
+// process.env before this module ran — but scripts run directly through `tsx`
+// import this file first, and without the matching order they'd read the
+// production credentials in `.env` instead of the local database
+// `.env.development` points at. Pass DATABASE_URL inline to target a specific
+// database from a script.
+for (const file of [".env.development.local", ".env.local", ".env.development", ".env"]) {
+  if (existsSync(file)) config({ path: file });
+}
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 

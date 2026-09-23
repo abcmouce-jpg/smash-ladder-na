@@ -75,8 +75,9 @@ Discord OAuth.
    Open [http://localhost:3000](http://localhost:3000) — click "Sign in" and enter any username.
 
 The checked-in `.env.development` file has everything pre-configured for this local setup. If
-you want to use a remote database or real Discord OAuth instead, copy `.env.example` to `.env`
-and fill in the values.
+you want to use a remote database or real Discord OAuth instead, copy `.env.example` to
+`.env.local` and fill in the values — it's the highest-precedence file, and Prisma's config reads
+the env files in the same order Next.js does (see `prisma.config.ts`), so migrations follow it too.
 
 ### Working with realistic data locally
 

@@ -964,12 +964,12 @@ function MatchFooterActions({
         <p className="text-xs text-muted-foreground">
           {lang === "es"
             ? gameDecided
-              ? `Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si ${opponentName} deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos, o el set completo si nunca elige personaje.`
+              ? `Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si ${opponentName} deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección de personaje estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje que usó en el juego anterior.`
               : opponentEngaged
                 ? `${opponentName} ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis.`
                 : `${opponentName} aún no se presenta. Cancelar ahora es gratis.`
             : gameDecided
-              ? `A game is already decided, so leaving now counts as a surrender (a loss). If ${opponentName} goes quiet, you don't need to surrender: they forfeit their turn after a few minutes, or the whole set if it's a character pick they never lock in.`
+              ? `A game is already decided, so leaving now counts as a surrender (a loss). If ${opponentName} goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled character pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character they used in the previous game.`
               : opponentEngaged
                 ? `${opponentName} already started this match, so leaving now counts as a surrender (a loss), not a free cancel.`
                 : `${opponentName} hasn't shown up yet. Cancelling now is free.`}
@@ -1843,16 +1843,33 @@ async function CharacterPickSection({
     userId,
   );
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
-  // forfeits the whole game to whoever's opponent never locked in within this
-  // window. Game 1 is a blind simultaneous pick on ONE clock shared by both
-  // sides: it starts at the game's creation and a lock-in never restarts it,
-  // so both players are always reading the same countdown and the second one
-  // to pick doesn't get a fresh — or shorter — window. Games 2+ pick in order,
-  // so pickGameCharacter does reset characterPickDeadline when actorA locks
-  // in, giving actorB their own full window from their opponent's pick.
+  // resolves the stalled pick once this window closes. Game 1 is a blind
+  // simultaneous pick on ONE clock shared by both sides: it starts at the game's
+  // creation and a lock-in never restarts it, so both players are always reading
+  // the same countdown and the second one to pick doesn't get a fresh — or
+  // shorter — window. Games 2+ pick in order, so pickGameCharacter does reset
+  // characterPickDeadline when actorA locks in, giving actorB their own full
+  // window from their opponent's pick.
   const pickDeadline = new Date(game.characterPickDeadline.getTime());
   const secondsLeft = secondsUntil(pickDeadline);
   const deadline = pickDeadline.toISOString();
+  // What running out of time actually costs differs by game (see
+  // autoResolveStaleCharacterPick): game 1 forfeits the set to whoever locked in,
+  // games 2+ fall back to the character they played in the previous game — while
+  // a pick their opponent already made stands.
+  const isGameOne = game.gameNumber === 1;
+  const timeoutCost = isGameOne
+    ? { es: "pierdes este set por abandono", en: "you forfeit this set" }
+    : { es: "se usa tu personaje del último juego", en: "your character from the last game is used" };
+  const expiredNote = isGameOne
+    ? {
+        es: "Pasó el plazo. Elige ahora o pierdes el set por abandono.",
+        en: "You're past the deadline. Pick now or you forfeit the set.",
+      }
+    : {
+        es: "Pasó el plazo. Elige ahora o se usa tu personaje del último juego.",
+        en: "You're past the deadline. Pick now or your character from the last game is used.",
+      };
 
   if (yourCharacter && opponentCharacter) {
     const matchupNote = await getMatchupNote(userId, opponentCharacter);
@@ -1915,12 +1932,21 @@ async function CharacterPickSection({
               </span>
               . Esperando a que {opponentName} elija…{" "}
               {secondsLeft > 0 ? (
-                <>
-                  Ganas el set por abandono si no elige en <Countdown deadline={deadline} />
-                  s.
-                </>
-              ) : (
+                isGameOne ? (
+                  <>
+                    Ganas el set por abandono si no elige en <Countdown deadline={deadline} />
+                    s.
+                  </>
+                ) : (
+                  <>
+                    Si no elige en <Countdown deadline={deadline} />
+                    s, se usa su personaje del último juego.
+                  </>
+                )
+              ) : isGameOne ? (
                 "Pasó el plazo. Esto debería resolverse a tu favor pronto."
+              ) : (
+                "Pasó el plazo. Esto debería resolverse en breve."
               )}
             </>
           ) : (
@@ -1932,12 +1958,21 @@ async function CharacterPickSection({
               </span>
               . Waiting for {opponentName} to pick…{" "}
               {secondsLeft > 0 ? (
-                <>
-                  You win the set by forfeit if they don&apos;t pick in <Countdown deadline={deadline} />
-                  s.
-                </>
-              ) : (
+                isGameOne ? (
+                  <>
+                    You win the set by forfeit if they don&apos;t pick in <Countdown deadline={deadline} />
+                    s.
+                  </>
+                ) : (
+                  <>
+                    If they don&apos;t pick in <Countdown deadline={deadline} />
+                    s, their character from the last game is used.
+                  </>
+                )
+              ) : isGameOne ? (
                 "The deadline passed. This should resolve in your favor soon."
+              ) : (
+                "The deadline passed. This should resolve shortly."
               )}
             </>
           )}
@@ -1961,35 +1996,40 @@ async function CharacterPickSection({
   return (
     <CardContent className={cn("border-t border-border pt-4", INPUT_FOCUS)}>
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? game.gameNumber === 1
-            ? "Elige tu personaje. Queda oculto hasta que ambos elijan."
-            : opponentCharacter
-              ? `${opponentName} eligió ${characterLabel(opponentCharacter, opponentMoveset)}. Elige tu personaje.`
-              : "Elige tu personaje. Vas primero."
-          : game.gameNumber === 1
-            ? "Pick your character. It stays hidden until you both pick."
-            : opponentCharacter
-              ? `${opponentName} picked ${characterLabel(opponentCharacter, opponentMoveset)}. Pick your character.`
-              : "Pick your character. You go first."}{" "}
+        {isGameOne ? (
+          lang === "es" ? (
+            "Elige tu personaje. Queda oculto hasta que ambos elijan."
+          ) : (
+            "Pick your character. It stays hidden until you both pick."
+          )
+        ) : opponentCharacter ? (
+          <>
+            {lang === "es" ? `${opponentName} eligió ` : `${opponentName} picked `}
+            <span className="font-medium text-foreground">
+              <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+              {characterLabel(opponentCharacter, opponentMoveset)}
+            </span>
+            {lang === "es" ? ". Elige tu personaje." : ". Pick your character."}
+          </>
+        ) : lang === "es" ? (
+          "Elige tu personaje. Vas primero."
+        ) : (
+          "Pick your character. You go first."
+        )}{" "}
         {secondsLeft > 0 ? (
           <span className="font-medium text-foreground">
             {lang === "es" ? (
               <>
-                Tienes <Countdown deadline={deadline} />s para elegir o pierdes este set por abandono.
+                Tienes <Countdown deadline={deadline} />s para elegir o {timeoutCost.es}.
               </>
             ) : (
               <>
-                You have <Countdown deadline={deadline} />s to pick or you forfeit this set.
+                You have <Countdown deadline={deadline} />s to pick or {timeoutCost.en}.
               </>
             )}
           </span>
         ) : (
-          <span className="font-medium text-destructive">
-            {lang === "es"
-              ? "Pasaste el plazo. Elige ahora o pierdes el set por abandono."
-              : "You're past the deadline. Pick now or you forfeit the set."}
-          </span>
+          <span className="font-medium text-destructive">{lang === "es" ? expiredNote.es : expiredNote.en}</span>
         )}
       </p>
       {isPracticing && (

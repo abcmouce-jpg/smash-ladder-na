@@ -144,20 +144,86 @@ async function autoResolveStaleTurn(matchId: string) {
 // pickGameCharacter.
 export const CHARACTER_TIMEOUT_MS = 2 * 60 * 1000;
 
-// Lazy, same pattern as autoResolveStaleTurn. Forfeits the WHOLE SET to
-// whichever side actually locked in a character, once the other side has
-// had their CHARACTER_TIMEOUT_MS window (characterPickDeadline — the shared
-// game-1 clock, or the second picker's own window on games 2+, see
-// pickGameCharacter) and still hasn't — mirrors
-// autoConfirmStaleGameReport's "accept whoever showed up, penalize the
-// ghost" philosophy. Ends the whole match rather than just this game (see
-// applyEloAndConfirm below) — a player who's stopped locking in characters
-// is not coming back for the next one either, and continuing to grind
-// through per-game timeouts before the set closes just wastes the present
-// player's time waiting out a ghost who's already gone. If NEITHER side has
-// locked in, this deliberately does nothing: that's rare enough (both
-// players AFK simultaneously) to just fall through to the existing
-// whole-match no-report expiry instead of inventing a second fallback.
+// A games-2+ character timeout doesn't end anything: it defaults the side that
+// stalled to the character they played in the game before, so the set keeps
+// moving instead of someone winning on a clock. A pick the other side already
+// made is a deliberate choice — including a fresh counterpick — and is left
+// exactly as it is.
+//
+// Seats flip between games (actorA is always the previous winner), so the
+// default is looked up by player id rather than by seat. Leaves the game alone
+// if the previous row has nothing to fall back to, which then falls through to
+// the match-level no-report expiry like any other stuck game.
+async function replayPreviousGame(
+  matchId: string,
+  game: {
+    id: string;
+    gameNumber: number;
+    actorAId: string;
+    actorBId: string;
+    actorACharacter: string | null;
+    actorBCharacter: string | null;
+  },
+) {
+  // Reached with exactly one side locked in (see the caller). On these games
+  // that is always actorA, since actorB cannot pick until actorA has — but this
+  // is written for whichever slot is actually open rather than assuming it.
+  const fill = game.actorACharacter === null ? game.actorAId : game.actorBId;
+  const otherCharacter = fill === game.actorAId ? game.actorBCharacter : game.actorACharacter;
+  if (otherCharacter === null) return; // both open — nothing stalled to resolve
+
+  const previous = await prisma.matchGame.findUnique({
+    where: { matchId_gameNumber: { matchId, gameNumber: game.gameNumber - 1 } },
+  });
+  if (!previous) return;
+
+  const character = previous.actorAId === fill ? previous.actorACharacter : previous.actorBCharacter;
+  const moveset = previous.actorAId === fill ? previous.actorAMoveset : previous.actorBMoveset;
+  if (!character) return; // they never played a game to fall back to
+
+  await prisma.matchGame.updateMany({
+    // Compare-and-set on what was just read, so a pick landing between that read
+    // and this write wins rather than being overwritten by the default.
+    where: {
+      id: game.id,
+      finalStage: null,
+      actorACharacter: game.actorACharacter,
+      actorBCharacter: game.actorBCharacter,
+    },
+    data: {
+      ...(fill === game.actorAId
+        ? { actorACharacter: character, actorAMoveset: moveset }
+        : { actorBCharacter: character, actorBMoveset: moveset }),
+      // The stage phase is skipped outright: a stalled pick falls back to the
+      // stage the last game was played on, not a fresh round of striking. If the
+      // previous game somehow has no stage recorded, this is left null and the
+      // normal strike/pick phase runs instead.
+      ...(previous.finalStage ? { finalStage: previous.finalStage } : {}),
+      // Anchors the report clock from now, same as picking a stage does.
+      turnStartedAt: new Date(),
+    },
+  });
+}
+
+// Lazy, same pattern as autoResolveStaleTurn, and the only thing that resolves a
+// stalled character pick. What a timeout DOES depends on the game:
+//
+//   Game 1 — forfeits the WHOLE SET to whichever side actually locked in, once
+//   the other side has had their CHARACTER_TIMEOUT_MS window (the shared game-1
+//   clock, never reset by a lock-in — see pickGameCharacter) and still hasn't.
+//   Mirrors autoConfirmStaleGameReport's "accept whoever showed up, penalize the
+//   ghost" philosophy, and ends the whole match rather than just this game (see
+//   applyEloAndConfirm below): a player who's stopped locking in characters is
+//   not coming back for the next one either. If NEITHER side has locked in, this
+//   deliberately does nothing — that's rare enough (both players AFK at once) to
+//   just fall through to the existing whole-match no-report expiry instead of
+//   inventing a second fallback.
+//
+//   Games 2+ — resolves the GAME rather than the set: both characters and the
+//   stage come from the game just played, so the set continues with the same
+//   matchup instead of someone losing to a clock. Nothing is forfeited and no
+//   cooldown is charged for it; a player who stays quiet through the game itself
+//   is still handled by the report clock below.
 async function autoResolveStaleCharacterPick(match: { id: string; player1Id: string; player2Id: string }) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId: match.id, winnerId: null, finalStage: null },
@@ -170,6 +236,11 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
   const aLocked = game.actorACharacter !== null;
   const bLocked = game.actorBCharacter !== null;
   if (aLocked === bLocked) return; // neither locked in — leave it to the match-level timeout
+
+  if (game.gameNumber > 1) {
+    await replayPreviousGame(match.id, game);
+    return;
+  }
 
   const winnerId = aLocked ? game.actorAId : game.actorBId;
   const ghostId = aLocked ? game.actorBId : game.actorAId;
