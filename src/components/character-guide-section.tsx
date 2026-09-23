@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { ChevronDown, ChevronUp, Flag, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ChevronDown, ChevronUp, Flag, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CharacterIcon } from "@/components/character-icon";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -24,6 +25,7 @@ export type Guide = {
 // stays scannable — the full list for a character lives on the Guides tab.
 // `guides` arrives already ranked (score desc, then newest), matching
 // getVisibleGuides' order, so the head of the array is the top-rated set.
+// Anything past the cut is reachable via the "Show more guides" link below.
 const MAX_GUIDES_PER_CHARACTER = 3;
 
 export function CharacterGuideSection({
@@ -88,6 +90,7 @@ export function CharacterGuideSection({
             userId={userId}
             hasOwnNote={hasOwnNote}
             maxLength={maxLength}
+            collapsible
             editAction={editAction}
             deleteGuide={deleteGuide}
             voteOnGuide={voteOnGuide}
@@ -97,6 +100,19 @@ export function CharacterGuideSection({
           />
         ))}
       </ul>
+
+      {/* Only when there's something past the cut — the link pre-filters the
+          Guides tab to this character (canonical, so an echo's guides show
+          too) rather than making the viewer find the tag themselves. */}
+      {guides.length > MAX_GUIDES_PER_CHARACTER && (
+        <Link
+          href={`/notes?tab=guides&character=${encodeURIComponent(character)}`}
+          className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+        >
+          {lang === "es" ? "Ver más guías" : "Show more guides"}
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
+      )}
 
       {userId && !writing && (
         <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => setWriting(true)}>
@@ -135,6 +151,13 @@ export function CharacterGuideSection({
   );
 }
 
+// Long guides are clamped to a preview height on the Guides tab and the
+// per-character community lists so one wall-of-text post can't push every other
+// guide off the page. The toggle only appears when the content actually
+// overflows the clamp. Kept as a literal class string (not built from a number)
+// so Tailwind's scanner can see it.
+const GUIDE_PREVIEW_CLAMP_CLASS = "line-clamp-10";
+
 // Exported so the ungrouped Guides tab (guides-explorer.tsx) renders the same
 // card. `tagLabel`/`tagIconName` are only passed there — inside a character row
 // the surrounding header already names the fighter.
@@ -151,6 +174,7 @@ export function GuideCard({
   lang,
   tagLabel,
   tagIconName,
+  collapsible = false,
 }: {
   guide: Guide;
   userId: string | null;
@@ -166,6 +190,8 @@ export function GuideCard({
   tagLabel?: string;
   /** Character icon fronting the tag (the group's canonical member). */
   tagIconName?: string;
+  /** Clamp long content to a preview with a show more/less toggle. */
+  collapsible?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -174,6 +200,12 @@ export function GuideCard({
   const [editState, editFormAction, editPending] = useActionState(boundEdit, { error: null });
   const editSubmittedRef = useRef(false);
   const isOwn = userId === guide.authorId;
+  const [contentExpanded, setContentExpanded] = useState(false);
+  const contentRef = useRef<HTMLParagraphElement>(null);
+  // Measured while clamped: the toggle is only worth showing when the content
+  // is taller than the visible box (a single long line wraps past the clamp
+  // just like ten short ones do, so counting newlines wouldn't be enough).
+  const [contentOverflows, setContentOverflows] = useState(false);
   // vote/flag/delete/import aren't <form action>s (they're plain onClick
   // handlers behind useTransition), so unlike the create/edit forms above
   // they have no useActionState to surface a failure through — this fills
@@ -196,6 +228,14 @@ export function GuideCard({
       setEditing(false);
     }
   }, [editState]);
+
+  // Re-measure when the content changes; skipped while expanded, since the
+  // unclamped height tells us nothing about whether a clamp is needed.
+  useEffect(() => {
+    if (!collapsible || contentExpanded) return;
+    const el = contentRef.current;
+    if (el) setContentOverflows(el.scrollHeight > el.clientHeight + 1);
+  }, [collapsible, contentExpanded, guide.content]);
 
   async function handleImport() {
     const ok = hasOwnNote
@@ -242,7 +282,32 @@ export function GuideCard({
         </form>
       ) : (
         <>
-          <p className="whitespace-pre-wrap text-sm text-foreground">{guide.content}</p>
+          <p
+            ref={contentRef}
+            className={
+              collapsible && !contentExpanded
+                ? `${GUIDE_PREVIEW_CLAMP_CLASS} whitespace-pre-wrap text-sm text-foreground`
+                : "whitespace-pre-wrap text-sm text-foreground"
+            }
+          >
+            {guide.content}
+          </p>
+          {collapsible && contentOverflows && (
+            <button
+              type="button"
+              onClick={() => setContentExpanded((value) => !value)}
+              aria-expanded={contentExpanded}
+              className="mt-1 block text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              {contentExpanded
+                ? lang === "es"
+                  ? "Mostrar menos"
+                  : "Show less"
+                : lang === "es"
+                  ? "Mostrar más"
+                  : "Show more"}
+            </button>
+          )}
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="truncate">— {guide.author.username}</span>
             <span className="ml-auto flex items-center gap-0.5">
