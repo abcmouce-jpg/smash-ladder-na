@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { Activity, MapPin, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
-import { getBoardPosts } from "@/lib/home-feed";
+import { getFriendliesPosts } from "@/lib/home-feed";
 import { getMatchFeed } from "@/lib/match-feed";
 import { serializeSetEntry } from "@/lib/set-entry";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ export default async function HomeEs() {
       : null,
     getPublicStats(),
     getMatchFeed(),
-    getBoardPosts(6),
+    getFriendliesPosts(6),
     getMatchesPerDay(30),
   ]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
@@ -185,7 +185,7 @@ export default async function HomeEs() {
       )}
 
       <div className="mt-10">
-        <SectionHeading label="Publicaciones del Tablón" />
+        <SectionHeading label="Amistosos" />
         {posts.length > 0 ? (
           <Card className="mt-3 divide-y divide-border overflow-hidden py-0">
             {posts.map((post) => (
@@ -234,17 +234,17 @@ export default async function HomeEs() {
                 Nadie está buscando partida ahora mismo — sé el primero en publicar.
               </p>
               <Button asChild variant="secondary" size="sm" className="mt-3">
-                <Link href="/board">Abrir el Tablón</Link>
+                <Link href="/friendlies">Abrir Amistosos</Link>
               </Button>
             </CardContent>
           </Card>
         )}
         {user ? (
           <Link
-            href="/board"
+            href="/friendlies"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            Publica en el Tablón →
+            Publica en Amistosos →
           </Link>
         ) : (
           <a

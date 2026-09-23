@@ -21,7 +21,7 @@ const copy = {
       <>
         Competitive Smash has plenty of tournament infrastructure (start.gg and friends) but not much for the
         day-to-day: finding a real ranked opponent outside of an event. This fills that gap — an Elo-style rating,
-        seasonal leaderboards, and a Board for casual friendlies, all built around the North American scene
+        seasonal leaderboards, and Friendlies for casual matches, all built around the North American scene
         specifically.
       </>
     ),
@@ -79,7 +79,7 @@ const copy = {
       <>
         La escena competitiva de Smash tiene mucha infraestructura para torneos (start.gg y similares) pero poco para el
         día a día: encontrar un rival rankeado real fuera de un evento. Esto llena ese vacío — una clasificación estilo
-        Elo, tablas de posiciones por temporada, y un Tablón para partidas casuales, todo construido pensando en la
+        Elo, tablas de posiciones por temporada, y Amistosos para partidas casuales, todo construido pensando en la
         escena de Norteamérica específicamente.
       </>
     ),
