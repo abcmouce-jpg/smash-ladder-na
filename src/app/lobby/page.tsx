@@ -20,7 +20,6 @@ import { currentStreak, getHeadToHead, getPlayerMatchHistory, getTopCharacters }
 import {
   STRIKE_TIMEOUT_MS,
   REPORT_TIMEOUT_MS,
-  afkTimerState,
   bothCharactersLocked,
   characterPickState,
   getMatchGames,
@@ -87,7 +86,6 @@ import {
   runItBack,
   sameBansStrike,
   sendMatchCommentAction,
-  startAfkTimer,
   strikeStage,
   submitRoomCode,
   surrenderMatchAction,
@@ -966,12 +964,12 @@ function MatchFooterActions({
         <p className="text-xs text-muted-foreground">
           {lang === "es"
             ? gameDecided
-              ? `Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si ${opponentName} deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos. En la elección de personaje es opcional — puedes iniciar un temporizador de inactividad cuando se quede callado, y ese temporizador le cuesta el set completo si nunca elige.`
+              ? `Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si ${opponentName} deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección de personaje estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje que usó en el juego anterior.`
               : opponentEngaged
                 ? `${opponentName} ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis.`
                 : `${opponentName} aún no se presenta. Cancelar ahora es gratis.`
             : gameDecided
-              ? `A game is already decided, so leaving now counts as a surrender (a loss). If ${opponentName} goes quiet, you don't need to surrender: they forfeit their turn after a few minutes. Character picks are opt-in — you can start an AFK timer once they go quiet, and that timer costs them the whole set if they never lock in.`
+              ? `A game is already decided, so leaving now counts as a surrender (a loss). If ${opponentName} goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled character pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character they used in the previous game.`
               : opponentEngaged
                 ? `${opponentName} already started this match, so leaving now counts as a surrender (a loss), not a free cancel.`
                 : `${opponentName} hasn't shown up yet. Cancelling now is free.`}
@@ -1042,18 +1040,7 @@ type MatchGameRow = Awaited<ReturnType<typeof getMatchGames>>[number];
 // actually offer). Kept as data so the banner renderer owns all the copy.
 type MatchActionSummary =
   | { kind: "start-game"; gameNumber: number }
-  | {
-      kind: "pick-character";
-      gameNumber: number;
-      mine: boolean;
-      // An AFK timer is running; set regardless of which side started it.
-      afkDeadlineIso: string | null;
-      afkStartedByMe: boolean;
-      canStartAfk: boolean;
-      // When the waiting player's grace period is up (so they can ask for an
-      // AFK timer); null once they can already start one.
-      graceUntilIso: string | null;
-    }
+  | { kind: "pick-character"; gameNumber: number; mine: boolean; deadlineIso: string | null }
   | {
       kind: "stage";
       gameNumber: number;
@@ -1088,18 +1075,29 @@ function matchActionSummary(userId: string, match: Match, games: MatchGameRow[])
 
   if (!bothCharactersLocked(current)) {
     const pick = characterPickState(current, userId);
-    const afk = afkTimerState(current, userId);
-    return {
-      kind: "pick-character",
-      gameNumber,
-      mine: pick.canPickNow,
-      afkDeadlineIso: afk.running ? afk.deadline!.toISOString() : null,
-      afkStartedByMe: afk.afkStartedByMe,
-      canStartAfk: afk.canStart,
-      // Only meaningful while you're the one waiting on them and can't ask for
-      // a timer yet — it's the countdown to when the button appears.
-      graceUntilIso: afk.running || afk.canStart || pick.canPickNow ? null : afk.graceUntil.toISOString(),
-    };
+    if (pick.yourCharacter) {
+      // Locked in yourself — the pick clock now belongs to the opponent. On
+      // game 1 that's the same shared window you both started on; on games
+      // 2+ it restarted when you locked in (see pickGameCharacter).
+      return {
+        kind: "pick-character",
+        gameNumber,
+        mine: false,
+        deadlineIso: current.characterPickDeadline.toISOString(),
+      };
+    }
+    if (pick.canPickNow) {
+      return {
+        kind: "pick-character",
+        gameNumber,
+        mine: true,
+        deadlineIso: current.characterPickDeadline.toISOString(),
+      };
+    }
+    // Games 2+: the previous game's winner (actor A) must lock in before you
+    // can pick. This pre-lock window isn't a per-player clock — nothing
+    // auto-resolves while neither side has locked in — so no countdown.
+    return { kind: "pick-character", gameNumber, mine: false, deadlineIso: null };
   }
 
   const turn = gameTurnState(current);
@@ -1377,46 +1375,25 @@ function MatchActionBanner({
       break;
     }
     case "pick-character": {
-      if (summary.afkDeadlineIso && !summary.afkStartedByMe) {
-        // Your opponent started an AFK timer on you — the only case in the pick
-        // phase where the set is actually on the line, so it leads.
-        tone = "action";
-        kicker = es ? "¡Elige ya!" : "Pick now!";
-        title = es
-          ? `${opponentName} inició un temporizador de inactividad. Elige tu personaje o pierdes el set.`
-          : `${opponentName} started an AFK timer. Pick your character or you forfeit the set.`;
-        deadlineIso = summary.afkDeadlineIso;
-        largeCountdown = true;
-      } else if (summary.mine) {
+      if (summary.mine) {
         tone = "action";
         kicker = es ? "Tu turno" : "Your turn";
         title = es
           ? `Elige tu personaje para el juego ${summary.gameNumber}`
           : `Pick your character for Game ${summary.gameNumber}`;
         detail = es
-          ? "Sin prisa — solo corre un temporizador si tu rival lo pide."
-          : "No rush — a timer only runs if your opponent asks for one.";
+          ? "Ambos eligen personaje primero, luego el escenario."
+          : "Both players pick a character first, then the stage.";
+        deadlineIso = summary.deadlineIso;
+        largeCountdown = true;
       } else {
         tone = "waiting";
         title = es
           ? `Esperando a que ${opponentName} elija personaje…`
           : `Waiting for ${opponentName} to pick a character…`;
-        if (summary.afkDeadlineIso) {
-          // Your own timer counting down against them.
-          detail = es ? "Si no eligen a tiempo, pierden el set." : "If they don't pick in time, they forfeit the set.";
-          deadlineIso = summary.afkDeadlineIso;
-        } else if (summary.canStartAfk) {
-          detail = es
-            ? "Aún no eligen. Puedes iniciar un temporizador de inactividad abajo."
-            : "They still haven't picked. You can start an AFK timer below.";
-        } else if (summary.graceUntilIso) {
-          detail = (
-            <>
-              {es ? "Podrás iniciar un temporizador de inactividad en " : "You can start an AFK timer in "}
-              <Countdown deadline={summary.graceUntilIso} />
-              s.
-            </>
-          );
+        deadlineIso = summary.deadlineIso;
+        if (!deadlineIso) {
+          detail = es ? "Elegirás después de que elija." : "You'll pick after they lock in.";
         }
       }
       break;
@@ -1851,9 +1828,8 @@ async function CharacterPickSection({
     actorAMoveset: string | null;
     actorBCharacter: string | null;
     actorBMoveset: string | null;
-    characterPickGraceUntil: Date;
-    afkTimerStartedById: string | null;
-    afkTimerDeadline: Date | null;
+    createdAt: Date;
+    characterPickDeadline: Date;
   };
   opponentName: string;
   defaultCharacter: string | null;
@@ -1866,8 +1842,34 @@ async function CharacterPickSection({
     game,
     userId,
   );
-  const afk = afkTimerState(game, userId);
-  const afkDeadlineIso = afk.deadline?.toISOString() ?? null;
+  // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
+  // resolves the stalled pick once this window closes. Game 1 is a blind
+  // simultaneous pick on ONE clock shared by both sides: it starts at the game's
+  // creation and a lock-in never restarts it, so both players are always reading
+  // the same countdown and the second one to pick doesn't get a fresh — or
+  // shorter — window. Games 2+ pick in order, so pickGameCharacter does reset
+  // characterPickDeadline when actorA locks in, giving actorB their own full
+  // window from their opponent's pick.
+  const pickDeadline = new Date(game.characterPickDeadline.getTime());
+  const secondsLeft = secondsUntil(pickDeadline);
+  const deadline = pickDeadline.toISOString();
+  // What running out of time actually costs differs by game (see
+  // autoResolveStaleCharacterPick): game 1 forfeits the set to whoever locked in,
+  // games 2+ fall back to the character they played in the previous game — while
+  // a pick their opponent already made stands.
+  const isGameOne = game.gameNumber === 1;
+  const timeoutCost = isGameOne
+    ? { es: "pierdes este set por abandono", en: "you forfeit this set" }
+    : { es: "se usa tu personaje del último juego", en: "your character from the last game is used" };
+  const expiredNote = isGameOne
+    ? {
+        es: "Pasó el plazo. Elige ahora o pierdes el set por abandono.",
+        en: "You're past the deadline. Pick now or you forfeit the set.",
+      }
+    : {
+        es: "Pasó el plazo. Elige ahora o se usa tu personaje del último juego.",
+        en: "You're past the deadline. Pick now or your character from the last game is used.",
+      };
 
   if (yourCharacter && opponentCharacter) {
     const matchupNote = await getMatchupNote(userId, opponentCharacter);
@@ -1917,114 +1919,76 @@ async function CharacterPickSection({
     );
   }
 
-  // Your opponent started a timer against you — the one pick-phase state where
-  // the set is actually on the line, so it leads and keeps the picker visible.
-  if (afk.afkTargetsMe && afkDeadlineIso) {
+  if (yourCharacter && !opponentCharacter) {
     return (
-      <CardContent className={cn("border-t border-border pt-4", INPUT_FOCUS)}>
-        <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
-          <Clock className="mt-0.5 size-4 shrink-0 text-destructive" />
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-destructive">
-              {lang === "es"
-                ? `${opponentName} inició un temporizador de inactividad.`
-                : `${opponentName} started an AFK timer.`}
-            </p>
-            <p className="mt-0.5 text-sm text-foreground">
-              {lang === "es" ? (
-                <>
-                  Elige tu personaje en <Countdown deadline={afkDeadlineIso} />s o pierdes el set.
-                </>
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          {lang === "es" ? (
+            <>
+              Elegiste{" "}
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {characterLabel(yourCharacter, yourMoveset)}
+              </span>
+              . Esperando a que {opponentName} elija…{" "}
+              {secondsLeft > 0 ? (
+                isGameOne ? (
+                  <>
+                    Ganas el set por abandono si no elige en <Countdown deadline={deadline} />
+                    s.
+                  </>
+                ) : (
+                  <>
+                    Si no elige en <Countdown deadline={deadline} />
+                    s, se usa su personaje del último juego.
+                  </>
+                )
+              ) : isGameOne ? (
+                "Pasó el plazo. Esto debería resolverse a tu favor pronto."
               ) : (
-                <>
-                  Pick your character in <Countdown deadline={afkDeadlineIso} />s or you forfeit the set.
-                </>
+                "Pasó el plazo. Esto debería resolverse en breve."
               )}
-            </p>
-          </div>
-        </div>
-        <CharacterPickForm
-          key={game.gameNumber}
-          defaultCharacter={defaultCharacter}
-          defaultMoveset={defaultMoveset}
-          topCharacters={topCharacters}
-          action={pickCharacter.bind(null, matchId, game.gameNumber)}
-          lang={lang}
-        />
+            </>
+          ) : (
+            <>
+              You picked{" "}
+              <span className="font-medium text-foreground">
+                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+                {characterLabel(yourCharacter, yourMoveset)}
+              </span>
+              . Waiting for {opponentName} to pick…{" "}
+              {secondsLeft > 0 ? (
+                isGameOne ? (
+                  <>
+                    You win the set by forfeit if they don&apos;t pick in <Countdown deadline={deadline} />
+                    s.
+                  </>
+                ) : (
+                  <>
+                    If they don&apos;t pick in <Countdown deadline={deadline} />
+                    s, their character from the last game is used.
+                  </>
+                )
+              ) : isGameOne ? (
+                "The deadline passed. This should resolve in your favor soon."
+              ) : (
+                "The deadline passed. This should resolve shortly."
+              )}
+            </>
+          )}
+        </p>
       </CardContent>
     );
   }
 
-  // Waiting on the opponent. This is where the opt-in AFK timer lives: nothing
-  // here auto-forfeits anything until one is started and runs out.
   if (!canPickNow) {
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          {yourCharacter ? (
-            lang === "es" ? (
-              <>
-                Elegiste{" "}
-                <span className="font-medium text-foreground">
-                  <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                  {characterLabel(yourCharacter, yourMoveset)}
-                </span>
-                . Esperando a que {opponentName} elija…
-              </>
-            ) : (
-              <>
-                You picked{" "}
-                <span className="font-medium text-foreground">
-                  <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                  {characterLabel(yourCharacter, yourMoveset)}
-                </span>
-                . Waiting for {opponentName} to pick…
-              </>
-            )
-          ) : lang === "es" ? (
-            `Esperando a que ${opponentName} elija personaje primero. Elegirás después.`
-          ) : (
-            `Waiting for ${opponentName} to pick a character first. You'll pick after they lock in.`
-          )}
+          {lang === "es"
+            ? `Esperando a que ${opponentName} elija personaje primero.`
+            : `Waiting for ${opponentName} to pick a character first.`}
         </p>
-        {afk.running && afkDeadlineIso ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {lang === "es" ? (
-              <>
-                Temporizador de inactividad: pierden el set en <Countdown deadline={afkDeadlineIso} />s si no eligen.
-              </>
-            ) : (
-              <>
-                AFK timer: they forfeit the set in <Countdown deadline={afkDeadlineIso} />s unless they pick.
-              </>
-            )}
-          </p>
-        ) : afk.canStart ? (
-          <form action={startAfkTimer.bind(null, matchId, game.gameNumber)} className="mt-3">
-            <Button type="submit" size="sm" variant="outline">
-              {lang === "es" ? "Iniciar temporizador de inactividad" : "Start AFK timer"}
-            </Button>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {lang === "es"
-                ? `${opponentName} aún no ha elegido personaje. Al iniciarlo, tendrá unos minutos para elegir o pierde el set.`
-                : `${opponentName} hasn't picked their character yet. Starting it gives them a few minutes to pick or they lose the set.`}
-            </p>
-          </form>
-        ) : (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {lang === "es" ? (
-              <>
-                Podrás iniciar un temporizador de inactividad en <Countdown deadline={afk.graceUntil.toISOString()} />s
-                si sigue sin elegir.
-              </>
-            ) : (
-              <>
-                You can start an AFK timer in <Countdown deadline={afk.graceUntil.toISOString()} />s if they still
-                haven&apos;t picked.
-              </>
-            )}
-          </p>
-        )}
       </CardContent>
     );
   }
@@ -2032,35 +1996,42 @@ async function CharacterPickSection({
   return (
     <CardContent className={cn("border-t border-border pt-4", INPUT_FOCUS)}>
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? game.gameNumber === 1
-            ? "Elige tu personaje. Queda oculto hasta que ambos elijan."
-            : opponentCharacter
-              ? `${opponentName} eligió ${characterLabel(opponentCharacter, opponentMoveset)}. Elige tu personaje.`
-              : "Elige tu personaje. Vas primero."
-          : game.gameNumber === 1
-            ? "Pick your character. It stays hidden until you both pick."
-            : opponentCharacter
-              ? `${opponentName} picked ${characterLabel(opponentCharacter, opponentMoveset)}. Pick your character.`
-              : "Pick your character. You go first."}
-      </p>
-      {afk.running && afkDeadlineIso && (
-        // Game 1 only: you can start a timer against them and still owe your own
-        // pick. On later games the starter has always already locked in.
-        <p className="mt-2 text-xs text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Tu temporizador de inactividad contra {opponentName} corre: pierden el set en{" "}
-              <Countdown deadline={afkDeadlineIso} />s si no eligen.
-            </>
+        {isGameOne ? (
+          lang === "es" ? (
+            "Elige tu personaje. Queda oculto hasta que ambos elijan."
           ) : (
-            <>
-              Your AFK timer against {opponentName} is running: they forfeit the set in{" "}
-              <Countdown deadline={afkDeadlineIso} />s unless they pick.
-            </>
-          )}
-        </p>
-      )}
+            "Pick your character. It stays hidden until you both pick."
+          )
+        ) : opponentCharacter ? (
+          <>
+            {lang === "es" ? `${opponentName} eligió ` : `${opponentName} picked `}
+            <span className="font-medium text-foreground">
+              <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+              {characterLabel(opponentCharacter, opponentMoveset)}
+            </span>
+            {lang === "es" ? ". Elige tu personaje." : ". Pick your character."}
+          </>
+        ) : lang === "es" ? (
+          "Elige tu personaje. Vas primero."
+        ) : (
+          "Pick your character. You go first."
+        )}{" "}
+        {secondsLeft > 0 ? (
+          <span className="font-medium text-foreground">
+            {lang === "es" ? (
+              <>
+                Tienes <Countdown deadline={deadline} />s para elegir o {timeoutCost.es}.
+              </>
+            ) : (
+              <>
+                You have <Countdown deadline={deadline} />s to pick or {timeoutCost.en}.
+              </>
+            )}
+          </span>
+        ) : (
+          <span className="font-medium text-destructive">{lang === "es" ? expiredNote.es : expiredNote.en}</span>
+        )}
+      </p>
       {isPracticing && (
         <p className="mt-2 text-xs text-muted-foreground">
           {lang === "es"

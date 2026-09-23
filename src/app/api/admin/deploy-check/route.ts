@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AFK_TIMER_MS, CHARACTER_PICK_GRACE_MS, REPORT_TIMEOUT_MS, STRIKE_TIMEOUT_MS } from "@/lib/match-games";
+import { CHARACTER_TIMEOUT_MS, REPORT_TIMEOUT_MS, STRIKE_TIMEOUT_MS } from "@/lib/match-games";
 
 // Diagnostic-only: lets us confirm what's actually executing in production
 // right now, rather than trusting that a deploy/alias switch took effect —
@@ -7,9 +7,8 @@ import { AFK_TIMER_MS, CHARACTER_PICK_GRACE_MS, REPORT_TIMEOUT_MS, STRIKE_TIMEOU
 // which has already caused Cron Jobs registration to not sync from vercel.json
 // on a plain `vercel deploy --prod`, and character-pick forfeits kept firing
 // at the old ~60s cadence for several minutes after a deploy that raised
-// the character-pick window to 3 minutes. Same CRON_SECRET gate as
-// /api/cron/finalize since this exposes internal config, not because it does
-// anything sensitive.
+// CHARACTER_TIMEOUT_MS to 3 minutes. Same CRON_SECRET gate as /api/cron/finalize
+// since this exposes internal config, not because it does anything sensitive.
 function isAuthorized(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
@@ -23,8 +22,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     now: new Date().toISOString(),
-    characterPickGraceMs: CHARACTER_PICK_GRACE_MS,
-    afkTimerMs: AFK_TIMER_MS,
+    characterTimeoutMs: CHARACTER_TIMEOUT_MS,
     strikeTimeoutMs: STRIKE_TIMEOUT_MS,
     reportTimeoutMs: REPORT_TIMEOUT_MS,
     vercelDeploymentId: process.env.VERCEL_DEPLOYMENT_ID ?? null,

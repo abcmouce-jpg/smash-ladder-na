@@ -11,7 +11,7 @@ import {
 } from "@/lib/lobby";
 import { LobbyEntryStatus } from "@/generated/prisma/enums";
 import { getRoomHostId } from "@/lib/matches";
-import { startFirstGame, getCurrentGame, pickGameCharacter, beginCharacterAfkTimer } from "@/lib/match-games";
+import { startFirstGame, getCurrentGame, pickGameCharacter, CHARACTER_TIMEOUT_MS } from "@/lib/match-games";
 import { blockUser } from "@/lib/blocks";
 import { PairingMethod } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
@@ -568,7 +568,7 @@ describe("updateLobbyRoomCode", () => {
 });
 
 describe("getActiveLobbyEntry resolves stale in-session matches", () => {
-  it("returns a match as CONFIRMED once an expired AFK timer has forfeited it", async () => {
+  it("returns a match as CONFIRMED once a character-pick timeout has forfeited it", async () => {
     const a = await createTestUser();
     const b = await createTestUser();
     const match = await prisma.$transaction((tx) => createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH));
@@ -576,22 +576,16 @@ describe("getActiveLobbyEntry resolves stale in-session matches", () => {
     await startFirstGame(a.id, match.id);
     const game = await getCurrentGame(match.id);
     if (!game) throw new Error("expected game 1");
-    // a side locks in and then calls an AFK timer on the side that never does
-    await pickGameCharacter(game.actorAId, match.id, 1, "Mario");
+    await pickGameCharacter(game.actorAId, match.id, 1, "Mario"); // a side locks in; the other never does
     await prisma.matchGame.update({
       where: { id: game.id },
-      data: { characterPickGraceUntil: new Date(Date.now() - 1000) },
-    });
-    await beginCharacterAfkTimer(game.actorAId, match.id, 1);
-    await prisma.matchGame.update({
-      where: { id: game.id },
-      data: { afkTimerDeadline: new Date(Date.now() - 1000) },
+      data: { characterPickDeadline: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
     });
 
     // The lobby entry itself must surface the forfeit — before the lazy
     // resolvers ran here, it returned the stale in-progress match, so
     // PairedView skipped its ended-state check and offered "start the next
-    // game" on a set that had already been decided (the game-5 AFK timer
+    // game" on a set that had already been decided (the game-5 timeout
     // showed "Start Game 6 stage striking" to the winner).
     const entry = await getActiveLobbyEntry(a.id);
     expect(entry?.match?.status).toBe("CONFIRMED");

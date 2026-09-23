@@ -7,7 +7,6 @@ vi.mock("@/lib/matches", () => ({ applyEloAndConfirm: vi.fn() }));
 vi.mock("@/lib/discord-bot", () => ({ sendDiscordDM: vi.fn() }));
 
 import {
-  afkTimerState,
   characterPickState,
   gameTurnState,
   lastSameBans,
@@ -282,62 +281,6 @@ describe("characterPickState", () => {
       opponentMoveset: "4321",
       canPickNow: true,
     });
-  });
-});
-
-// The gating logic behind the "Start AFK timer" button and its copy — mirrors
-// beginCharacterAfkTimer's own guards, so it's worth pinning down independently.
-describe("afkTimerState", () => {
-  const base = {
-    gameNumber: 1,
-    actorAId: "p1",
-    actorBId: "p2",
-    actorACharacter: null as string | null,
-    actorAMoveset: null as string | null,
-    actorBCharacter: null as string | null,
-    actorBMoveset: null as string | null,
-    characterPickGraceUntil: new Date(Date.now() - 1000), // grace already elapsed
-    afkTimerStartedById: null as string | null,
-    afkTimerDeadline: null as Date | null,
-  };
-  const runningTimer = { afkTimerStartedById: "p1", afkTimerDeadline: new Date(Date.now() + 60_000) };
-
-  it("game 1: the waiting side can start one once it has picked", () => {
-    expect(afkTimerState({ ...base, actorACharacter: "Mario" }, "p1").canStart).toBe(true);
-  });
-
-  it("game 1: a side that still owes its own pick cannot start one", () => {
-    expect(afkTimerState(base, "p1").canStart).toBe(false);
-  });
-
-  it("does not offer it before the grace period elapses", () => {
-    const state = afkTimerState(
-      { ...base, actorACharacter: "Mario", characterPickGraceUntil: new Date(Date.now() + 60_000) },
-      "p1",
-    );
-    expect(state.canStart).toBe(false);
-  });
-
-  it("games 2+: actorB can call it on a stalling actorA", () => {
-    expect(afkTimerState({ ...base, gameNumber: 2 }, "p2").canStart).toBe(true);
-  });
-
-  it("games 2+: actorA cannot start one while it's their own turn to pick first", () => {
-    expect(afkTimerState({ ...base, gameNumber: 2 }, "p1").canStart).toBe(false);
-  });
-
-  it("flags a running timer against its target and blocks starting another", () => {
-    const state = afkTimerState({ ...base, actorACharacter: "Mario", ...runningTimer }, "p2");
-    expect(state.afkTargetsMe).toBe(true);
-    expect(state.afkStartedByMe).toBe(false);
-    expect(state.canStart).toBe(false);
-  });
-
-  it("flags a running timer the caller started and blocks starting another", () => {
-    const state = afkTimerState({ ...base, ...runningTimer }, "p1");
-    expect(state.afkStartedByMe).toBe(true);
-    expect(state.afkTargetsMe).toBe(false);
-    expect(state.canStart).toBe(false);
   });
 });
 

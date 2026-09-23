@@ -126,79 +126,124 @@ async function autoResolveStaleTurn(matchId: string) {
   });
 }
 
-// Character picks have NO starting clock of their own — stalling on your own
-// pick never auto-forfeits anything by itself. Instead, once this grace period
-// has elapsed with the pick phase still unresolved, the player who is waiting
-// on the other side is offered an explicit "start AFK timer?" action (see
-// beginCharacterAfkTimer). Only after they take it does anything auto-resolve.
-// This is deliberately not a random auto-assignment: picking a character for
-// someone is a much bigger deal than picking a stage for them, so the present
-// player has to ask for it rather than the site deciding for the absent one.
+// How long a player has to lock in a character before it costs them the
+// game. Longer than STRIKE_TIMEOUT_MS on purpose: picking a stage is one
+// click among a handful of options already narrowed down, while picking a
+// character means scrolling a full roster and actually deciding — 60s (the
+// original value) turned out to forfeit people who were still reading the
+// list, with no on-screen warning that a clock was even running (see the
+// "Xs left" text in CharacterPickSection). Deliberately not a random
+// assignment either way: picking a character for someone is a much bigger
+// deal than picking a stage for them.
 //
-// Game 1 is a blind simultaneous pick, so both players share ONE grace anchor
-// of this length: it's set when the game row is created and a lock-in never
-// touches it, so the second player to decide isn't racing a fresh window the
-// first one never got. Games 2+ pick sequentially (actorA first, then actorB
-// with actorA's choice visible) and so do get a fresh anchor per picker — see
+// Game 1 is a blind simultaneous pick, so both players share ONE window of
+// this length: it's opened when the game row is created and a lock-in never
+// touches it, so the second player to decide is racing the same clock the
+// first one was. Games 2+ pick sequentially (actorA first, then actorB with
+// actorA's choice visible) and so do get a fresh window per picker — see
 // pickGameCharacter.
-export const CHARACTER_PICK_GRACE_MS = 4 * 60 * 1000;
+export const CHARACTER_TIMEOUT_MS = 2 * 60 * 1000;
 
-// How long the AFK timer gives the stalled side once the waiting player starts
-// it — "choose your character in Y minutes or you forfeit the set" (see
-// beginCharacterAfkTimer). Only the expiry of a timer a player explicitly
-// started resolves the set; nothing else in the pick phase does.
-export const AFK_TIMER_MS = 5 * 60 * 1000;
+// A games-2+ character timeout doesn't end anything: it defaults the side that
+// stalled to the character they played in the game before, so the set keeps
+// moving instead of someone winning on a clock. A pick the other side already
+// made is a deliberate choice — including a fresh counterpick — and is left
+// exactly as it is.
+//
+// Seats flip between games (actorA is always the previous winner), so the
+// default is looked up by player id rather than by seat. Leaves the game alone
+// if the previous row has nothing to fall back to, which then falls through to
+// the match-level no-report expiry like any other stuck game.
+async function replayPreviousGame(
+  matchId: string,
+  game: {
+    id: string;
+    gameNumber: number;
+    actorAId: string;
+    actorBId: string;
+    actorACharacter: string | null;
+    actorBCharacter: string | null;
+  },
+) {
+  // Reached with exactly one side locked in (see the caller). On these games
+  // that is always actorA, since actorB cannot pick until actorA has — but this
+  // is written for whichever slot is actually open rather than assuming it.
+  const fill = game.actorACharacter === null ? game.actorAId : game.actorBId;
+  const otherCharacter = fill === game.actorAId ? game.actorBCharacter : game.actorACharacter;
+  if (otherCharacter === null) return; // both open — nothing stalled to resolve
 
-// Lazy, same pattern as autoResolveStaleTurn. This is the ONLY thing that
-// auto-forfeits a set over a missing character pick, and it only fires once a
-// player has explicitly started an AFK timer against the side that still
-// hasn't locked in (see beginCharacterAfkTimer) and that timer has run out —
-// a pick phase nobody ever started a timer on simply sits there. Forfeits the
-// WHOLE SET to the player who started the timer, not just the game they were
-// on: someone who let the timer expire isn't coming back for the next game
-// either, and grinding through per-game timeouts before the set closes only
-// wastes the present player's time waiting out a ghost. Mirrors
-// autoConfirmStaleGameReport's "accept whoever showed up, penalize the ghost"
-// philosophy.
+  const previous = await prisma.matchGame.findUnique({
+    where: { matchId_gameNumber: { matchId, gameNumber: game.gameNumber - 1 } },
+  });
+  if (!previous) return;
+
+  const character = previous.actorAId === fill ? previous.actorACharacter : previous.actorBCharacter;
+  const moveset = previous.actorAId === fill ? previous.actorAMoveset : previous.actorBMoveset;
+  if (!character) return; // they never played a game to fall back to
+
+  await prisma.matchGame.updateMany({
+    // Compare-and-set on what was just read, so a pick landing between that read
+    // and this write wins rather than being overwritten by the default.
+    where: {
+      id: game.id,
+      finalStage: null,
+      actorACharacter: game.actorACharacter,
+      actorBCharacter: game.actorBCharacter,
+    },
+    data: {
+      ...(fill === game.actorAId
+        ? { actorACharacter: character, actorAMoveset: moveset }
+        : { actorBCharacter: character, actorBMoveset: moveset }),
+      // The stage phase is skipped outright: a stalled pick falls back to the
+      // stage the last game was played on, not a fresh round of striking. If the
+      // previous game somehow has no stage recorded, this is left null and the
+      // normal strike/pick phase runs instead.
+      ...(previous.finalStage ? { finalStage: previous.finalStage } : {}),
+      // Anchors the report clock from now, same as picking a stage does.
+      turnStartedAt: new Date(),
+    },
+  });
+}
+
+// Lazy, same pattern as autoResolveStaleTurn, and the only thing that resolves a
+// stalled character pick. What a timeout DOES depends on the game:
+//
+//   Game 1 — forfeits the WHOLE SET to whichever side actually locked in, once
+//   the other side has had their CHARACTER_TIMEOUT_MS window (the shared game-1
+//   clock, never reset by a lock-in — see pickGameCharacter) and still hasn't.
+//   Mirrors autoConfirmStaleGameReport's "accept whoever showed up, penalize the
+//   ghost" philosophy, and ends the whole match rather than just this game (see
+//   applyEloAndConfirm below): a player who's stopped locking in characters is
+//   not coming back for the next one either. If NEITHER side has locked in, this
+//   deliberately does nothing — that's rare enough (both players AFK at once) to
+//   just fall through to the existing whole-match no-report expiry instead of
+//   inventing a second fallback.
+//
+//   Games 2+ — resolves the GAME rather than the set: both characters and the
+//   stage come from the game just played, so the set continues with the same
+//   matchup instead of someone losing to a clock. Nothing is forfeited and no
+//   cooldown is charged for it; a player who stays quiet through the game itself
+//   is still handled by the report clock below.
 async function autoResolveStaleCharacterPick(match: { id: string; player1Id: string; player2Id: string }) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId: match.id, winnerId: null, finalStage: null },
     orderBy: { gameNumber: "desc" },
   });
   if (!game) return;
+  if (bothCharactersLocked(game)) return;
+  if (Date.now() < game.characterPickDeadline.getTime()) return;
 
-  const starterId = game.afkTimerStartedById;
-  const deadline = game.afkTimerDeadline;
-  if (!starterId || !deadline) return; // no timer was ever started — nothing auto-resolves
-  if (Date.now() < deadline.getTime()) return; // still counting down
+  const aLocked = game.actorACharacter !== null;
+  const bLocked = game.actorBCharacter !== null;
+  if (aLocked === bLocked) return; // neither locked in — leave it to the match-level timeout
 
-  const winnerId = starterId;
-  const ghostId = starterId === game.actorAId ? game.actorBId : game.actorAId;
-
-  // A timer that's still set past its deadline is unanswered by definition: an
-  // in-time lock-in clears both fields (see pickGameCharacter), so the side the
-  // timer was aimed at never responded — award the set to whoever asked for it.
-  //
-  // ...except when a pick raced the timer's own write. The target's lock-in and
-  // this timer can each be written without seeing the other (the pick's clear
-  // only fires if the timer was already there to read), which would leave a
-  // live timer aimed at someone who did respond. Re-checking the target here
-  // covers that: if they did lock in, retire the timer instead of forfeiting on
-  // it, re-arming the grace anchor so whoever is now the last one to pick can be
-  // put on a fresh one. This also sweeps up a stale timer left behind once both
-  // sides have picked.
-  const ghostCharacter = ghostId === game.actorAId ? game.actorACharacter : game.actorBCharacter;
-  if (ghostCharacter !== null) {
-    await prisma.matchGame.updateMany({
-      where: { id: game.id, afkTimerStartedById: starterId },
-      data: {
-        afkTimerStartedById: null,
-        afkTimerDeadline: null,
-        characterPickGraceUntil: new Date(Date.now() + CHARACTER_PICK_GRACE_MS),
-      },
-    });
+  if (game.gameNumber > 1) {
+    await replayPreviousGame(match.id, game);
     return;
   }
+
+  const winnerId = aLocked ? game.actorAId : game.actorBId;
+  const ghostId = aLocked ? game.actorBId : game.actorAId;
 
   const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
@@ -371,7 +416,7 @@ export async function startFirstGame(userId: string, matchId: string) {
       actorBId,
       actorBStrikes: 2,
       stagesRemaining: [...GAME_ONE_STAGES],
-      characterPickGraceUntil: new Date(Date.now() + CHARACTER_PICK_GRACE_MS),
+      characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
     },
   });
 }
@@ -441,15 +486,6 @@ export type CharacterPickGame = {
   actorBMoveset: string | null;
 };
 
-// The opt-in AFK flow around a character pick needs a little more state than
-// the pick itself: when the waiting player's grace period started, and whether
-// a timer has already been started against them.
-export type CharacterPickTimerGame = CharacterPickGame & {
-  characterPickGraceUntil: Date;
-  afkTimerStartedById: string | null;
-  afkTimerDeadline: Date | null;
-};
-
 // Game 1 is a blind pick — neither side sees the other's character until
 // both have locked one in. Games 2+ mirror the stage-strike order: actorA
 // (the previous game's winner) must lock in first, then actorB picks with
@@ -492,33 +528,6 @@ export function characterPickState(
     opponentCharacter: theirCharacter,
     opponentMoveset: theirMoveset,
     canPickNow: yourCharacter === null && (isActorA || actorALockedIn),
-  };
-}
-
-// Everything the UI needs to describe the opt-in AFK timer around a character
-// pick: whether one is running, who it's aimed at, and whether this player can
-// start one right now. `canStart` deliberately mirrors beginCharacterAfkTimer's
-// own guard, so a button that's visible never fails server-side except on a
-// stale-click race — you can only ask for a timer once you've done your own
-// part (picked, or are blocked from picking until they move) and the grace
-// period has elapsed.
-export function afkTimerState(game: CharacterPickTimerGame, userId: string) {
-  const opponentCharacter = userId === game.actorAId ? game.actorBCharacter : game.actorACharacter;
-  const running = game.afkTimerStartedById !== null && game.afkTimerDeadline !== null;
-  const afkStartedByMe = game.afkTimerStartedById === userId;
-  return {
-    running,
-    afkStartedByMe,
-    // An active timer this player is the target of — the one case in the pick
-    // phase where the set is actually on the line.
-    afkTargetsMe: running && !afkStartedByMe,
-    canStart:
-      !running &&
-      opponentCharacter === null &&
-      Date.now() >= game.characterPickGraceUntil.getTime() &&
-      !characterPickState(game, userId).canPickNow,
-    deadline: game.afkTimerDeadline,
-    graceUntil: game.characterPickGraceUntil,
   };
 }
 
@@ -616,17 +625,6 @@ export async function pickGameCharacter(
 
   const isActorA = userId === game.actorAId;
   const opponentAlreadyLocked = (isActorA ? game.actorBCharacter : game.actorACharacter) !== null;
-  // If this pick answers an AFK timer the opponent started, the timer did its
-  // job: clear it and re-arm the grace anchor so whichever side is still
-  // unpicked can be put on a fresh timer after the usual wait.
-  const answersAfkTimer = game.afkTimerStartedById !== null && game.afkTimerStartedById !== userId;
-  // Game 1 runs on a single shared grace anchor (see CHARACTER_PICK_GRACE_MS),
-  // so a plain lock-in leaves it alone — restarting it would hand whoever
-  // picked second a fresh window the first picker never got, on what's supposed
-  // to be a blind simultaneous pick. Games 2+ are sequential instead: the first
-  // lock-in re-arms the anchor so the second picker's grace runs from their
-  // opponent's pick rather than whatever was left of the first picker's.
-  const restartGracePeriod = game.gameNumber !== 1 || answersAfkTimer;
 
   await prisma.matchGame.updateMany({
     where: {
@@ -637,47 +635,21 @@ export async function pickGameCharacter(
       ...(isActorA
         ? { actorACharacter: character, actorAMoveset: storedMoveset }
         : { actorBCharacter: character, actorBMoveset: storedMoveset }),
-      ...(restartGracePeriod ? { characterPickGraceUntil: new Date(Date.now() + CHARACTER_PICK_GRACE_MS) } : {}),
-      ...(answersAfkTimer ? { afkTimerStartedById: null, afkTimerDeadline: null } : {}),
+      // Game 1 runs on a single shared window (see CHARACTER_TIMEOUT_MS), so
+      // this lock-in deliberately leaves the deadline alone — restarting it
+      // here would hand whoever picked second a fresh clock the first picker
+      // never got, on what's supposed to be a blind simultaneous pick.
+      // Games 2+ are sequential instead: the first lock-in does restart the
+      // clock, giving the second picker their own full window rather than
+      // whatever was left of the first picker's. Once both are locked the
+      // pick clock is moot either way — the stage-strike clock below takes
+      // over.
+      ...(game.gameNumber === 1 ? {} : { characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS) }),
       // This pick is the second lock-in — start the stage-strike clock now
       // rather than from whenever the game row was created, which could've
       // been arbitrarily long ago if character selection itself took a while.
       ...(opponentAlreadyLocked ? { turnStartedAt: new Date() } : {}),
     },
-  });
-}
-
-// The waiting player opts in to a countdown against the side that still hasn't
-// locked in — see CHARACTER_PICK_GRACE_MS for why this is opt-in rather than a
-// starting clock. Only a player who is genuinely blocked may start one: you
-// must have done your own part (already picked, or be unable to pick until they
-// move), the grace period must have elapsed, and no timer can already be
-// running. The action is idempotent-ish via the write guard below, so a
-// double-click or a race with the other side can't stack two timers.
-export async function beginCharacterAfkTimer(userId: string, matchId: string, gameNumber: number) {
-  const game = await requireGame(matchId, gameNumber);
-  if (userId !== game.actorAId && userId !== game.actorBId) {
-    throw new Error("Not a participant in this game");
-  }
-  if (bothCharactersLocked(game)) throw new Error("Both players have already picked their character");
-  if (characterPickState(game, userId).canPickNow) throw new Error("It's your turn to pick your character");
-  const opponentCharacter = userId === game.actorAId ? game.actorBCharacter : game.actorACharacter;
-  if (opponentCharacter !== null) throw new Error("Your opponent has already picked their character");
-  if (game.afkTimerDeadline) throw new Error("An AFK timer is already running");
-  if (Date.now() < game.characterPickGraceUntil.getTime()) {
-    throw new Error("Give your opponent a little more time before starting an AFK timer");
-  }
-
-  await prisma.matchGame.updateMany({
-    // The character guard closes the other half of the race the lazy resolver
-    // also defends against: if the opponent locked in between this read and
-    // write, the update matches nothing and no timer is started at all.
-    where: {
-      id: game.id,
-      afkTimerDeadline: null,
-      ...(userId === game.actorAId ? { actorBCharacter: null } : { actorACharacter: null }),
-    },
-    data: { afkTimerStartedById: userId, afkTimerDeadline: new Date(Date.now() + AFK_TIMER_MS) },
   });
 }
 
@@ -1278,7 +1250,7 @@ async function progressSet(
       actorBId: loserId,
       actorBStrikes: 0,
       stagesRemaining: [...COUNTERPICK_STAGES],
-      characterPickGraceUntil: new Date(Date.now() + CHARACTER_PICK_GRACE_MS),
+      characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
     },
   });
   return null;
@@ -1311,11 +1283,7 @@ export async function realignNextGameActors(
     nextGame.actorACharacter === null &&
     nextGame.actorBCharacter === null &&
     nextGame.struckStages.length === 0 &&
-    nextGame.finalStage === null &&
-    // An AFK timer counts as activity: it names the player who asked for it, so
-    // re-seating the side that started it would silently point the pending
-    // forfeit at the wrong person.
-    nextGame.afkTimerStartedById === null;
+    nextGame.finalStage === null;
   if (!untouched) return;
 
   await tx.matchGame.update({
