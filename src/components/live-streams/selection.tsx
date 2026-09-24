@@ -22,13 +22,15 @@ export function resolveLiveStream(entries: SerializedSetEntry[], selection: Live
   if (selection) {
     const entry = entries.find((e) => e.id === selection.matchId);
     if (entry) {
-      const player =
-        selection.playerId === entry.player1.id
-          ? entry.player1
-          : selection.playerId === entry.player2.id
-            ? entry.player2
-            : null;
-      if (player?.twitchUsername) return { entry, player };
+      // Only a side the feed still reports as live. A stale pick — that channel
+      // went offline since the last poll, or the other side of the set is the
+      // one still streaming — must not keep an offline embed on screen.
+      if (selection.playerId === entry.player1.id && entry.player1Live && entry.player1.twitchUsername) {
+        return { entry, player: entry.player1 };
+      }
+      if (selection.playerId === entry.player2.id && entry.player2Live && entry.player2.twitchUsername) {
+        return { entry, player: entry.player2 };
+      }
     }
   }
 

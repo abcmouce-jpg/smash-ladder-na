@@ -3,10 +3,14 @@ const STREAMS_URL = "https://api.twitch.tv/helix/streams";
 
 // Dev-only showcase switch: when MOCK_LIVE_TWITCH=1 (see .env.development),
 // every queried channel counts as live without calling Twitch's API. Lets the
-// "Live on Twitch" row, the sets feed carousel, and profile embeds be
-// developed/demoed against seeded users instead of needing real live
-// channels. Never set in production.
-const mockLiveTwitch = process.env.MOCK_LIVE_TWITCH === "1";
+// home page carousel, the Live page's pinned player, and the profile embeds be
+// developed/demoed against seeded users instead of needing real live channels.
+//
+// Production ignores the flag outright. It's meant for .env.development only,
+// but .env is loaded in every environment — so gating on NODE_ENV here is what
+// stops a stray/leftover MOCK_LIVE_TWITCH from making a deployed site advertise
+// offline channels as live on every page (see .env.example).
+const mockLiveTwitch = process.env.NODE_ENV !== "production" && process.env.MOCK_LIVE_TWITCH === "1";
 
 // App access token (client-credentials grant) — no user involved, distinct
 // from the OAuth user-token flow in twitch-oauth.ts. Only used to call
