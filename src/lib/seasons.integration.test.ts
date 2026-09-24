@@ -109,7 +109,7 @@ describe("getPlayerSeasonAchievements", () => {
     expect(achievements[1].label).toBe("🥉 Season 1 3rd Place");
   });
 
-  it("excludes finishes outside the top 3", async () => {
+  it("excludes finishes outside the top 3 for a normal season", async () => {
     const player = await createTestUser();
     const season = await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
     await prisma.seasonStanding.create({
@@ -118,6 +118,30 @@ describe("getPlayerSeasonAchievements", () => {
 
     const achievements = await getPlayerSeasonAchievements(player.id);
     expect(achievements).toHaveLength(0);
+  });
+
+  it("still awards a Preseason Participant badge outside the top 3, unlike a normal season", async () => {
+    const player = await createTestUser();
+    const preseason = await prisma.season.create({ data: { name: PRE_SEASON_NAME, startsAt: before } });
+    await prisma.seasonStanding.create({
+      data: { seasonId: preseason.id, userId: player.id, finalRating: 1550, gamesPlayed: 20, rank: 47 },
+    });
+
+    const achievements = await getPlayerSeasonAchievements(player.id);
+    expect(achievements).toHaveLength(1);
+    expect(achievements[0].label).toBe("Preseason Participant");
+  });
+
+  it("awards both the medal and the Preseason Participant badge for a top-3 preseason finish", async () => {
+    const player = await createTestUser();
+    const preseason = await prisma.season.create({ data: { name: PRE_SEASON_NAME, startsAt: before } });
+    await prisma.seasonStanding.create({
+      data: { seasonId: preseason.id, userId: player.id, finalRating: 2000, gamesPlayed: 60, rank: 1 },
+    });
+
+    const achievements = await getPlayerSeasonAchievements(player.id);
+    expect(achievements).toHaveLength(2);
+    expect(achievements.map((a) => a.label).sort()).toEqual(["Preseason Participant", "🥇 Preseason Champion"].sort());
   });
 
   it("returns an empty list for a player with no season standings", async () => {

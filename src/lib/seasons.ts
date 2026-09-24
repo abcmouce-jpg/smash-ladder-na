@@ -82,18 +82,37 @@ const PLACEMENT_LABEL = ["Champion", "Runner-up", "3rd Place"];
 // entries (see rank-tier.ts) so a top-3 finish shows up in the same profile
 // achievements grid as everything else, instead of needing its own section —
 // always achieved:true since a row only exists here if it was actually earned.
+// The preseason gets one more on top: EVERY standing row, not just top-3, is
+// also a "Preseason Participant" badge — being there for the very first one
+// is worth commemorating regardless of where you placed, unlike a normal
+// season's rank medals.
 export async function getPlayerSeasonAchievements(userId: string): Promise<Achievement[]> {
   const standings = await prisma.seasonStanding.findMany({
-    where: { userId, rank: { lte: 3 } },
+    where: { userId, OR: [{ rank: { lte: 3 } }, { season: { name: PRE_SEASON_NAME } }] },
     orderBy: { season: { startsAt: "desc" } },
     include: { season: { select: { name: true } } },
   });
-  return standings.map((s) => ({
-    id: `season-${s.seasonId}-rank${s.rank}`,
-    label: `${PLACEMENT_MEDAL[s.rank - 1]} ${s.season.name} ${PLACEMENT_LABEL[s.rank - 1]}`,
-    description: `Finished rank ${s.rank} of ${s.season.name}, final rating ${s.finalRating}.`,
-    achieved: true,
-  }));
+
+  const achievements: Achievement[] = [];
+  for (const s of standings) {
+    if (s.rank <= 3) {
+      achievements.push({
+        id: `season-${s.seasonId}-rank${s.rank}`,
+        label: `${PLACEMENT_MEDAL[s.rank - 1]} ${s.season.name} ${PLACEMENT_LABEL[s.rank - 1]}`,
+        description: `Finished rank ${s.rank} of ${s.season.name}, final rating ${s.finalRating}.`,
+        achieved: true,
+      });
+    }
+    if (s.season.name === PRE_SEASON_NAME) {
+      achievements.push({
+        id: `season-${s.seasonId}-preseason-participant`,
+        label: "Preseason Participant",
+        description: "Played enough ranked sets during the Preseason to make the final standings.",
+        achieved: true,
+      });
+    }
+  }
+  return achievements;
 }
 
 export async function getSeasonStandings(seasonId: string) {

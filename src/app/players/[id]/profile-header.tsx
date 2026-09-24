@@ -10,7 +10,8 @@ import { BlockUserButton } from "@/components/block-user-button";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
-import { pointsToNextTier } from "@/lib/rank-tier";
+import { getRankTier, pointsToNextTier } from "@/lib/rank-tier";
+import { SITE_URL } from "@/lib/site";
 import type { Lang } from "@/lib/i18n";
 import type { BlockState } from "../actions";
 
@@ -49,6 +50,18 @@ export function PlayerProfileHeader({
   lang: Lang;
 }) {
   const inMatch = currentMatch !== null;
+
+  const tier = getRankTier(player.rating, player.gamesPlayed);
+  const ratingLabel = tier ? `${player.rating} (${tier.name})` : `${player.rating}`;
+  const shareText =
+    lang === "es"
+      ? isOwnProfile
+        ? `¡Tengo ${ratingLabel} de clasificación en Smash Ladder NA!`
+        : `${player.username} tiene ${ratingLabel} de clasificación en Smash Ladder NA.`
+      : isOwnProfile
+        ? `I'm rated ${ratingLabel} on Smash Ladder NA!`
+        : `${player.username} is rated ${ratingLabel} on Smash Ladder NA.`;
+  const tweetIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareText} ${SITE_URL}/players/${player.id}`)}`;
 
   return (
     <>
@@ -179,16 +192,30 @@ export function PlayerProfileHeader({
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <a
-            href={`/players/${player.id}/opengraph-image`}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={lang === "es" ? "Compartir tarjeta de clasificación" : "Share rank card"}
-            title={lang === "es" ? "Compartir tarjeta de clasificación" : "Share rank card"}
-            className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Share2 className="size-4" />
-          </a>
+          <div className="flex items-center gap-1">
+            <a
+              href={`/players/${player.id}/opengraph-image`}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={lang === "es" ? "Compartir tarjeta de clasificación" : "Share rank card"}
+              title={lang === "es" ? "Compartir tarjeta de clasificación" : "Share rank card"}
+              className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Share2 className="size-4" />
+            </a>
+            <a
+              href={tweetIntentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={lang === "es" ? "Compartir en X" : "Share on X"}
+              title={lang === "es" ? "Compartir en X" : "Share on X"}
+              className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </a>
+          </div>
           {viewerId &&
             !isOwnProfile &&
             (blocked ? (

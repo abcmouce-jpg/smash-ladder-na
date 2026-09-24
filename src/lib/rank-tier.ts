@@ -220,6 +220,37 @@ export function computeAchievements(stats: {
   ];
 }
 
+const RATING_MILESTONE_STEP = 100;
+const RATING_MILESTONE_START = 1600; // first milestone above the 1500 starting rating
+
+// Every 100-point milestone the player has ever reached (peak, not current —
+// same reasoning as hasReachedTier: a dip afterward shouldn't take back an
+// achievement), plus exactly one more as the next goal to chase. Unlike
+// computeAchievements' fixed set, an unbounded "list every future milestone
+// too" wouldn't make sense since the ladder has no rating ceiling — capping
+// the unearned side at just the next one keeps this from growing forever for
+// a top player while still giving everyone else something to aim at.
+export function computeRatingMilestoneAchievements(peakRating: number | null): Achievement[] {
+  const peak = peakRating ?? -Infinity;
+  const highestReached =
+    peak >= RATING_MILESTONE_START
+      ? Math.floor(peak / RATING_MILESTONE_STEP) * RATING_MILESTONE_STEP
+      : RATING_MILESTONE_START - RATING_MILESTONE_STEP;
+
+  const achievements: Achievement[] = [];
+  for (let m = RATING_MILESTONE_START; m <= highestReached; m += RATING_MILESTONE_STEP) {
+    achievements.push({ id: `rating-${m}`, label: `Reached ${m}`, description: `Reach a rating of ${m}.`, achieved: true });
+  }
+  const nextGoal = highestReached + RATING_MILESTONE_STEP;
+  achievements.push({
+    id: `rating-${nextGoal}`,
+    label: `Reached ${nextGoal}`,
+    description: `Reach a rating of ${nextGoal}.`,
+    achieved: false,
+  });
+  return achievements;
+}
+
 // Achieved achievements first, unearned ones after — within each group the
 // relative order is left untouched
 export function achievementComparator(a: Achievement, b: Achievement): number {

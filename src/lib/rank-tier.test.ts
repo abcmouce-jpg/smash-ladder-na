@@ -6,6 +6,7 @@ import {
   pointsToNextTier,
   RANK_TIERS,
   achievementComparator,
+  computeRatingMilestoneAchievements,
   type Achievement,
 } from "./rank-tier";
 
@@ -189,5 +190,47 @@ describe("achievementComparator", () => {
   it("leaves an all-unachieved list untouched", () => {
     const list = [achievement("a", false), achievement("b", false), achievement("c", false)];
     expect([...list].sort(achievementComparator).map((a) => a.id)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("computeRatingMilestoneAchievements", () => {
+  it("gives a never-played player just the 1600 goal, unachieved", () => {
+    const result = computeRatingMilestoneAchievements(null);
+    expect(result).toEqual([
+      { id: "rating-1600", label: "Reached 1600", description: "Reach a rating of 1600.", achieved: false },
+    ]);
+  });
+
+  it("gives no achieved milestones below the first one, only the 1600 goal", () => {
+    const result = computeRatingMilestoneAchievements(1550);
+    expect(result.filter((a) => a.achieved)).toHaveLength(0);
+    expect(result).toEqual([expect.objectContaining({ id: "rating-1600", achieved: false })]);
+  });
+
+  it("marks every 100-point step up to the rounded-down peak as achieved, plus one unachieved goal above it", () => {
+    const result = computeRatingMilestoneAchievements(1750);
+    expect(result.map((a) => [a.id, a.achieved])).toEqual([
+      ["rating-1600", true],
+      ["rating-1700", true],
+      ["rating-1800", false],
+    ]);
+  });
+
+  it("treats a peak that lands exactly on a milestone as achieved for that one", () => {
+    const result = computeRatingMilestoneAchievements(1800);
+    expect(result.map((a) => [a.id, a.achieved])).toEqual([
+      ["rating-1600", true],
+      ["rating-1700", true],
+      ["rating-1800", true],
+      ["rating-1900", false],
+    ]);
+  });
+
+  it("never runs off toward the (nonexistent) rating ceiling for a very high peak", () => {
+    const result = computeRatingMilestoneAchievements(2450);
+    expect(result[result.length - 1]).toEqual(
+      expect.objectContaining({ id: "rating-2500", achieved: false }),
+    );
+    expect(result.every((a) => a.achieved || a.id === "rating-2500")).toBe(true);
   });
 });

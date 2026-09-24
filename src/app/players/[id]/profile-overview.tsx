@@ -21,7 +21,7 @@ import {
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
 import { getLeaderboardRank } from "@/lib/leaderboard";
 import { getPlayerSeasonAchievements } from "@/lib/seasons";
-import { achievementComparator, computeAchievements } from "@/lib/rank-tier";
+import { achievementComparator, computeAchievements, computeRatingMilestoneAchievements } from "@/lib/rank-tier";
 import type { Lang } from "@/lib/i18n";
 import {
   adminCorrectOldResultAction,
@@ -137,9 +137,12 @@ export async function ProfileOverviewSection({
   const winRate = realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
-  const achievements = [...computeAchievements(careerStats), ...matchAchievements, ...seasonAchievements].sort(
-    achievementComparator,
-  );
+  const achievements = [
+    ...computeAchievements(careerStats),
+    ...computeRatingMilestoneAchievements(careerStats.peakRating),
+    ...matchAchievements,
+    ...seasonAchievements,
+  ].sort(achievementComparator);
 
   return (
     <>
