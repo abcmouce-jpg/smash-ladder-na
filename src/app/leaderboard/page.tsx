@@ -93,7 +93,7 @@ export default async function LeaderboardPage({
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
   const viewerId = session?.user?.id ?? null;
-  // Null for every season but the preseason — see getSeasonEndsAt.
+  // Null for a season with no scheduledEndAt (manual-only) — see getSeasonEndsAt.
   const seasonEndsAt = getSeasonEndsAt(season);
 
   return (

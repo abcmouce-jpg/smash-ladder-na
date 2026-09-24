@@ -36,9 +36,14 @@ export default async function SeasonsAdminPage() {
             <Badge variant="success">active</Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Started {active.startsAt.toLocaleDateString()}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {active.scheduledEndAt
+              ? `Auto-ends ${active.scheduledEndAt.toLocaleString()}`
+              : "No scheduled end — manual only"}
+          </p>
           <div className="mt-3">
             {!SEASON_MANAGER_USER_ID || session.user.id === SEASON_MANAGER_USER_ID ? (
-              <EndSeasonButton action={endSeason.bind(null, "")} seasonName={active.name} />
+              <EndSeasonButton action={endSeason} seasonName={active.name} />
             ) : (
               <p className="text-xs text-muted-foreground">Ending a season is restricted to one admin for now.</p>
             )}

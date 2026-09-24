@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
+import { MatchStatus } from "@/generated/prisma/enums";
+import { sendDiscordDM } from "@/lib/discord-bot";
 import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
 
 // Pre-season launch announcement, shown site-wide until this passes.
@@ -28,15 +31,21 @@ export function hasPreSeasonStarted() {
 }
 
 // When the active season is expected to end, for display (the leaderboard's
-// countdown) — null when there's nothing to count down to. A season's endsAt
-// is only ever stamped at rollover (endActiveSeasonAndStartNext), so the
-// active row's own endsAt is normally null; the preseason is the exception
-// because its fixed length is announced up front, even though the actual
-// rollover still happens manually on the admin Seasons page. Any future
-// season with a known endsAt gets a countdown for free.
-export function getSeasonEndsAt(season: { name: string; endsAt: Date | null }): Date | null {
-  if (season.endsAt) return season.endsAt;
-  return season.name === PRE_SEASON_NAME ? PRE_SEASON_EXPECTED_END_AT : null;
+// countdown) and for endActiveSeasonIfDue's auto-rollover check — null when
+// there's nothing to count down to. A season's endsAt is only ever stamped
+// once it's actually over (endActiveSeasonAndStartNext); scheduledEndAt is
+// the announced rollover time for a still-active season, set at creation
+// (see the admin Seasons form) so a countdown and auto-rollover both work
+// for any season, not just the preseason.
+export function getSeasonEndsAt(season: { endsAt: Date | null; scheduledEndAt: Date | null }): Date | null {
+  return season.endsAt ?? season.scheduledEndAt;
+}
+
+// Split out from the SeasonEndingBanner server component so its render body
+// never calls Date.now() directly — components must stay pure per React's
+// rules, even server-only ones.
+export function isWithinSeasonEndingWindow(endsAt: Date, windowMs: number, now = new Date()) {
+  return endsAt.getTime() - now.getTime() <= windowMs;
 }
 
 // Temporary: ending a season resets EVERYONE's rating, and enough people
@@ -95,11 +104,43 @@ export async function getSeasonStandings(seasonId: string) {
   });
 }
 
+// Matches still open at rollover would otherwise get stamped with the *new*
+// season's id and Elo'd against the post-reset 1500 baseline the moment
+// they're confirmed (seasonId and rating are both read fresh at confirm
+// time — see applyEloAndConfirm) — silently corrupting the new season's
+// opening ratings with a result that started under the old one. Cancelling
+// them here, in the same transaction as the reset, closes that window
+// completely. No cancelCount/wired-trust impact either side — same as
+// requestMutualCancel, this isn't either player's fault.
+async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
+  const unresolved = await tx.ratingMatch.findMany({
+    where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
+    select: {
+      id: true,
+      player1: { select: { discordId: true } },
+      player2: { select: { discordId: true } },
+    },
+  });
+  if (unresolved.length === 0) return [];
+
+  await tx.ratingMatch.updateMany({
+    where: { id: { in: unresolved.map((m) => m.id) } },
+    data: { status: MatchStatus.CANCELLED },
+  });
+  return unresolved.flatMap((m) => [m.player1.discordId, m.player2.discordId]);
+}
+
 // Snapshots the current leaderboard as this season's final standings, then
 // resets rating/gamesPlayed for everyone so the next season starts fresh —
 // a full reset rather than a soft regression toward the mean, to keep the
-// rollover simple and predictable.
-export async function endActiveSeasonAndStartNext(nextName?: string, now = new Date()) {
+// rollover simple and predictable. nextScheduledEndAt announces the next
+// season's own rollover time (for its countdown and endActiveSeasonIfDue);
+// omit it to leave the next season manual-only, same as before this existed.
+export async function endActiveSeasonAndStartNext(
+  nextName?: string,
+  now = new Date(),
+  nextScheduledEndAt?: Date | null,
+) {
   const active = await getActiveSeason();
   if (!active) throw new Error("No active season");
 
@@ -109,7 +150,7 @@ export async function endActiveSeasonAndStartNext(nextName?: string, now = new D
     select: { id: true, rating: true, gamesPlayed: true },
   });
 
-  await prisma.$transaction(async (tx) => {
+  const cancelledMatchDiscordIds = await prisma.$transaction(async (tx) => {
     await tx.season.update({ where: { id: active.id }, data: { endsAt: now } });
 
     if (standings.length > 0) {
@@ -127,8 +168,35 @@ export async function endActiveSeasonAndStartNext(nextName?: string, now = new D
     await tx.user.updateMany({ data: { rating: 1500, gamesPlayed: 0 } });
 
     const seasonCount = await tx.season.count();
-    await tx.season.create({ data: { name: nextName ?? `Season ${seasonCount + 1}`, startsAt: now } });
+    await tx.season.create({
+      data: { name: nextName ?? `Season ${seasonCount + 1}`, startsAt: now, scheduledEndAt: nextScheduledEndAt ?? null },
+    });
+
+    return cancelUnresolvedMatches(tx);
   });
+
+  // Promise.all, not sendDiscordDMsSequentially — a rollover only ever
+  // catches however many matches were in flight at that moment (a handful at
+  // most in practice), not the large bulk lists that helper's rate-limiting
+  // delay exists for.
+  await Promise.all(
+    cancelledMatchDiscordIds.map((discordId) =>
+      sendDiscordDM(
+        discordId,
+        `🔄 Your in-progress match was cancelled — "${active.name}" just ended and ratings reset for the new season. No rating impact either way.`,
+      ),
+    ),
+  );
+}
+
+// Polled from the cron route on every tick. Fires the moment the active
+// season's announced scheduledEndAt passes — false (no-op) for a season with
+// no scheduledEndAt, which stays fully manual via the admin Seasons page.
+export async function endActiveSeasonIfDue(now = new Date()) {
+  const active = await getActiveSeason();
+  if (!active?.scheduledEndAt || now < active.scheduledEndAt) return false;
+  await endActiveSeasonAndStartNext(undefined, now);
+  return true;
 }
 
 // Polled from the cron route on every tick. Whatever season was active

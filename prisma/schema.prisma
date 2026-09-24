@@ -489,6 +489,13 @@ model Season {
   name     String
   startsAt DateTime  @default(now())
   endsAt   DateTime?
+  // Announced rollover time for the currently active season, if this season
+  // has one — null means "manual only" (no auto-rollover, no countdown).
+  // Meaningless once endsAt is set, since the season is over by then. Set at
+  // creation (see endActiveSeasonAndStartNext / the admin Seasons form) and
+  // read by both getSeasonEndsAt (leaderboard countdown) and
+  // endActiveSeasonIfDue (the cron auto-rollover check).
+  scheduledEndAt DateTime?
 
   matches   RatingMatch[]
   standings SeasonStanding[]

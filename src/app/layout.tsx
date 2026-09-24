@@ -8,6 +8,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { RegionSetupBanner } from "@/components/region-setup-banner";
 import { QueueStatusBanner } from "@/components/queue-status-banner";
 import { PreSeasonBanner } from "@/components/pre-season-banner";
+import { SeasonEndingBanner } from "@/components/season-ending-banner";
 import { ThemeSync } from "@/components/theme-sync";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import { Toaster } from "@/components/ui/sonner";
@@ -108,6 +109,7 @@ export default async function RootLayout({
         )}
         {!isStreamOverlay && <SiteHeader />}
         {!isStreamOverlay && <PreSeasonBanner />}
+        {!isStreamOverlay && <SeasonEndingBanner />}
         {!isStreamOverlay && <RegionSetupBanner />}
         {!isStreamOverlay && <QueueStatusBanner />}
         {children}
