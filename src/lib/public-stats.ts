@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/db";
-import { MatchStatus } from "@/generated/prisma/enums";
+import { Prisma } from "@/generated/prisma/client";
+import { MatchStatus, UserStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
+import { DELETED_USERNAME } from "@/lib/account";
+import { getActiveSeason } from "@/lib/seasons";
 import { startOfDayInTimeZone, LADDER_TIME_ZONE } from "@/lib/timezone";
 
 // Single definition of "matches today" shared by the homepage, the Sets
@@ -142,4 +145,110 @@ export async function getLadderActivity(days: number): Promise<LadderActivity> {
 // visitor's timezone and only the browser knows that.
 export async function getMatchesPerDay(days = 30) {
   return (await getLadderActivity(days)).timestamps;
+}
+
+// Candidate bin widths, narrowest first. The narrowest width that still keeps
+// the whole spread within MAX_RATING_BINS columns wins, so a tight ladder gets
+// fine 25-point bins while a wide one coarsens up instead of overflowing. Every
+// step (and every rank-tier floor in RANK_TIERS) is a multiple of 25, so a
+// bucket can never straddle two tiers.
+const RATING_BIN_STEPS = [25, 50, 100, 200, 250, 500, 1000];
+const MAX_RATING_BINS = 28;
+
+export type RatingBucket = {
+  /** Inclusive lower bound of the bucket. */
+  min: number;
+  /** Inclusive upper bound (min + binSize - 1). */
+  max: number;
+  count: number;
+};
+
+export type RatingDistribution = {
+  buckets: RatingBucket[];
+  /** Ranked players covered by the buckets. */
+  total: number;
+  average: number;
+  median: number;
+};
+
+// The population every "ranked player" number is counted from: enough games to
+// appear on the leaderboard, not banned, not a self-deleted account. Shared by
+// getRatingDistribution and getStatsTotals so the two can't drift into showing
+// different headcounts.
+const RANKED_PLAYER_WHERE = {
+  gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
+  status: { not: UserStatus.BANNED },
+  username: { not: DELETED_USERNAME },
+} satisfies Prisma.UserWhereInput;
+
+// Histogram population for the Stats overview: every ranked player's *current*
+// rating, using the same inclusion rules as the leaderboard (getLeaderboardPlayers)
+// so the two never show a different headcount. Ratings are already season-scoped,
+// since the season rollover resets User.rating, so this needs no season filter.
+//
+// Binning happens here rather than in the chart because it depends only on the
+// data (unlike the per-day chart's viewer-timezone buckets) — the empty buckets
+// between the extremes are kept so the shape reads as a continuous distribution.
+export async function getRatingDistribution(): Promise<RatingDistribution> {
+  const players = await prisma.user.findMany({
+    where: RANKED_PLAYER_WHERE,
+    select: { rating: true },
+  });
+
+  const ratings = players.map((p) => p.rating).sort((a, b) => a - b);
+  const total = ratings.length;
+  if (total === 0) return { buckets: [], total: 0, average: 0, median: 0 };
+
+  const min = ratings[0];
+  const max = ratings[total - 1];
+  const binSize =
+    RATING_BIN_STEPS.find((step) => (max - min) / step <= MAX_RATING_BINS) ??
+    RATING_BIN_STEPS[RATING_BIN_STEPS.length - 1];
+
+  // Snap the edges to bin boundaries so the first and last buckets fully
+  // contain the extreme ratings rather than clipping them into partial bins.
+  const start = Math.floor(min / binSize) * binSize;
+  const end = Math.ceil((max + 1) / binSize) * binSize;
+
+  const buckets: RatingBucket[] = [];
+  for (let lower = start; lower < end; lower += binSize) {
+    buckets.push({ min: lower, max: lower + binSize - 1, count: 0 });
+  }
+  for (const rating of ratings) {
+    buckets[Math.floor((rating - start) / binSize)].count++;
+  }
+
+  const middle = Math.floor(total / 2);
+  const median = total % 2 === 1 ? ratings[middle] : Math.round((ratings[middle - 1] + ratings[middle]) / 2);
+  const average = Math.round(ratings.reduce((sum, rating) => sum + rating, 0) / total);
+
+  return { buckets, total, average, median };
+}
+
+export type StatsTotals = {
+  matchesThisSeason: number;
+  matchesAllTime: number;
+  rankedPlayers: number;
+};
+
+// Headline totals for the Stats overview cards.
+//
+// "Matches" counts confirmed sets, the same unit getLadderActivity and the
+// activity charts use — not every RatingMatch row, which would also sweep in
+// pending/expired/abandoned ones. A confirmed match always carries a seasonId
+// (stamped at confirm time, see applyEloAndConfirm), so the season figure is
+// simply the all-time count scoped to the active season and stays a clean
+// subset of it.
+export async function getStatsTotals(): Promise<StatsTotals> {
+  const activeSeason = await getActiveSeason();
+
+  const [matchesThisSeason, matchesAllTime, rankedPlayers] = await Promise.all([
+    activeSeason
+      ? prisma.ratingMatch.count({ where: { status: MatchStatus.CONFIRMED, seasonId: activeSeason.id } })
+      : Promise.resolve(0),
+    prisma.ratingMatch.count({ where: { status: MatchStatus.CONFIRMED } }),
+    prisma.user.count({ where: RANKED_PLAYER_WHERE }),
+  ]);
+
+  return { matchesThisSeason, matchesAllTime, rankedPlayers };
 }
