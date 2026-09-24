@@ -9,6 +9,7 @@ import {
   endActiveSeasonAndStartNext,
   endActiveSeasonIfDue,
   launchPreSeasonIfDue,
+  PRE_SEASON_NAME,
   PRE_SEASON_STARTS_AT,
 } from "@/lib/seasons";
 import { createTestUser } from "@/test/factories";
@@ -215,5 +216,15 @@ describe("endActiveSeasonIfDue", () => {
 
     const cancelledMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: inFlight.id } });
     expect(cancelledMatch.status).toBe("CANCELLED");
+  });
+
+  it('names the season after the preseason "Season 1", not the generic count-based default', async () => {
+    const scheduledEndAt = new Date(before.getTime() + 60 * 60 * 1000);
+    await prisma.season.create({ data: { name: PRE_SEASON_NAME, startsAt: before, scheduledEndAt } });
+
+    await endActiveSeasonIfDue(new Date(scheduledEndAt.getTime() + 60_000));
+
+    const active = await getActiveSeason();
+    expect(active?.name).toBe("Season 1");
   });
 });

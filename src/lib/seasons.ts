@@ -195,7 +195,12 @@ export async function endActiveSeasonAndStartNext(
 export async function endActiveSeasonIfDue(now = new Date()) {
   const active = await getActiveSeason();
   if (!active?.scheduledEndAt || now < active.scheduledEndAt) return false;
-  await endActiveSeasonAndStartNext(undefined, now);
+  // The generic `Season ${count + 1}` default counts the preseason itself,
+  // which would otherwise land on "Season 2" for the first real season —
+  // named explicitly here so the one auto-triggered rollover anyone's likely
+  // to actually see unattended still reads right.
+  const nextName = active.name === PRE_SEASON_NAME ? "Season 1" : undefined;
+  await endActiveSeasonAndStartNext(nextName, now);
   return true;
 }
 
