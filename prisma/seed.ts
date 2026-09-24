@@ -264,11 +264,12 @@ async function main() {
   console.log(`Seeded ${friendliesPosts.length} open Friendlies posts.`);
 
   // Four in-progress, streamed sets (users with twitchUsername set become
-  // "live" when MOCK_LIVE_TWITCH=1 in .env.development — see twitch-helix.ts)
-  // so the live sections have plenty to drive them. seed-live-1..3 have BOTH
-  // sides streaming — two channels per set, for the per-stream thumbnails on
-  // the home carousel — while seed-live-4 has a single streamer. Plus one 0-0
-  // set that hasn't started for the empty-progress state.
+  // "live" when MOCK_LIVE_TWITCH=1 — see twitch-helix.ts; off by default) so
+  // the live sections have plenty to drive them. seed-live-1..3 have BOTH sides
+  // streaming — two channels per set, for the per-stream thumbnails on the home
+  // carousel and each side's "Open stream" button — while seed-live-4 has a
+  // single streamer. Plus one 0-0 set that hasn't started for the
+  // empty-progress state.
   const liveSets = [
     {
       id: "seed-live-1",
