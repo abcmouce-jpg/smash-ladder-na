@@ -94,7 +94,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             requestHeaders.get("x-vercel-ip-country-region"),
           );
 
-      const discordUsername = discordProfile.global_name ?? discordProfile.username;
+      // global_name is Discord's user-chosen display name, while username is
+      // the actual handle (e.g. "foxmain_east"). The profile shows the handle,
+      // so that's what discordUsername tracks; the display name is only used
+      // as the default site username for a brand-new account.
+      const discordUsername = discordProfile.username;
+      const discordDisplayName = discordProfile.global_name ?? discordUsername;
       await prisma.user.upsert({
         where: { discordId: discordProfile.id },
         // username is intentionally excluded here — players can rename
@@ -112,7 +117,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
         create: {
           discordId: discordProfile.id,
-          username: discordUsername,
+          username: discordDisplayName,
           discordUsername,
           avatarUrl: discordProfile.image_url,
           email: discordProfile.email ?? undefined,

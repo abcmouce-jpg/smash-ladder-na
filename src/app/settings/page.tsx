@@ -489,10 +489,10 @@ function HideDiscordUsernameForm({
           {lang === "es" ? "Ocultar mi Discord de mi perfil" : "Hide my Discord from my profile"}
           <span className="block text-xs font-normal text-muted-foreground">
             {lang === "es"
-              ? `Tu perfil muestra el nombre de tu cuenta de Discord${
+              ? `Tu perfil muestra tu nombre de usuario de Discord${
                   discordUsername ? ` (${discordUsername})` : ""
                 }, incluso si es igual a tu nombre de usuario aquí. Actívalo para ocultarlo de los demás.`
-              : `Your profile shows your Discord account name${
+              : `Your profile shows your Discord username${
                   discordUsername ? ` (${discordUsername})` : ""
                 }, even when it matches your username here. Turn this on to hide it from everyone else.`}
           </span>

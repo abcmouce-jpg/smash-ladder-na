@@ -414,6 +414,7 @@ describe("getSeasonStats", () => {
     expect(stats?.seasonName).toBe("Season 1");
     expect(stats?.totalWins).toBe(1);
     expect(stats?.totalLosses).toBe(1);
+    expect(stats?.setsPlayed).toBe(2);
   });
 
   it("peaks at the highest rating reached within the active season", async () => {
@@ -489,6 +490,7 @@ describe("getSeasonStats", () => {
     const stats = await getSeasonStats(player.id);
     expect(stats?.totalWins).toBe(1);
     expect(stats?.totalLosses).toBe(1);
+    expect(stats?.setsPlayed).toBe(2);
     expect(stats?.bestWinStreak).toBe(1);
   });
 
