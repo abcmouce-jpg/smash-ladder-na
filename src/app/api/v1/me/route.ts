@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveApiUser } from "@/lib/api-tokens";
 import { prisma } from "@/lib/db";
+import { formatRating } from "@/lib/rating-format";
 
 export async function GET(request: Request) {
   const userId = await resolveApiUser(request);
@@ -12,5 +13,5 @@ export async function GET(request: Request) {
   });
   if (!me) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json(me);
+  return NextResponse.json({ ...me, rating: formatRating(me.rating) });
 }

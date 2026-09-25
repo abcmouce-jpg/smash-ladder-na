@@ -12,6 +12,7 @@ import { StagePickHighlight } from "@/components/stage-pick-highlight";
 import { getLang } from "@/lib/i18n";
 import { bothCharactersLocked } from "@/lib/match-games";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES, stageImagePath } from "@/lib/stages";
+import { formatRating } from "@/lib/rating-format";
 
 // How long the picked stage stays highlighted on stream once it's picked,
 // and how long the server keeps rendering the highlight card — the window
@@ -220,7 +221,9 @@ export default async function StreamOverlayPage({
             <RankBadge rating={user.rating} gamesPlayed={user.gamesPlayed} className="text-md mx-3 px-3 py-1" />
             <div className="mt-1 flex items-baseline gap-4">
               <Trophy className="size-8 text-white drop-shadow-lg" />
-              <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">{user.rating}</span>
+              <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">
+                {formatRating(user.rating)}
+              </span>
             </div>
             <div className="mt-1.5 flex items-center gap-4">
               {rank && (
@@ -275,7 +278,7 @@ export default async function StreamOverlayPage({
                         <span className="text-base font-semibold tabular-nums">{streak}</span>
                       </span>
                     )}
-                    <span className="text-base text-white/50 tabular-nums">{user.rating}</span>
+                    <span className="text-base text-white/50 tabular-nums">{formatRating(user.rating)}</span>
                   </span>
                 </div>
                 <div className="flex shrink-0">{userCharacter && <CharacterIcon name={userCharacter} size={48} />}</div>
@@ -296,7 +299,9 @@ export default async function StreamOverlayPage({
                 <div className="flex flex-col items-start">
                   <span className="truncate text-3xl font-bold text-white drop-shadow-sm">{opponentUsername}</span>
                   <span className="flex items-center gap-1.5">
-                    <span className="text-base text-white/50 tabular-nums">{opponentRating}</span>
+                    <span className="text-base text-white/50 tabular-nums">
+                      {opponentRating === null ? null : formatRating(opponentRating)}
+                    </span>
                     {opponentStreak !== null && opponentStreak > 0 && (
                       <span className="flex items-center gap-0.5 text-orange-400">
                         <Flame className="size-4 fill-orange-400" />
@@ -340,7 +345,7 @@ export default async function StreamOverlayPage({
                       }`}
                     >
                       {match.delta >= 0 ? "+" : ""}
-                      {match.delta}
+                      {formatRating(match.delta)}
                     </span>
                   </div>
                 ))
@@ -409,13 +414,7 @@ export default async function StreamOverlayPage({
 
         {/* Branding */}
         <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm">
-          <Image
-            src="/smash_ladder_icon_white.png"
-            alt=""
-            width={256}
-            height={256}
-            className={`block size-12`}
-          />
+          <Image src="/smash_ladder_icon_white.png" alt="" width={256} height={256} className={`block size-12`} />
           <span className={`font-semibold tracking-tight text-white text-xl`}>
             Smash Ladder <span className="text-primary">NA</span>
           </span>

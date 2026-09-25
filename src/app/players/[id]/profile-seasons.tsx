@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { getActiveSeason, listPastSeasons } from "@/lib/seasons";
 import { getPlayerSeasonRecords } from "@/lib/profile-stats";
+import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
 
 const PLACEMENT_MEDALS = ["🥇", "🥈", "🥉"] as const;
@@ -98,13 +99,13 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
                             : "3rd Place"}
                     </span>
                     <span className="font-normal text-muted-foreground tabular-nums">
-                      — {standing.finalRating} {lang === "es" ? "de clasificación" : "rating"}
+                      — {formatRating(standing.finalRating)} {lang === "es" ? "de clasificación" : "rating"}
                     </span>
                   </>
                 ) : lang === "es" ? (
-                  `Finalizó en el #${standing.rank} con ${standing.finalRating} de clasificación`
+                  `Finalizó en el #${standing.rank} con ${formatRating(standing.finalRating)} de clasificación`
                 ) : (
-                  `Finished #${standing.rank} with ${standing.finalRating} rating`
+                  `Finished #${standing.rank} with ${formatRating(standing.finalRating)} rating`
                 )}
               </p>
             )}

@@ -3,6 +3,7 @@ import { join } from "path";
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
 import { getRankTier } from "@/lib/rank-tier";
+import { formatRating } from "@/lib/rating-format";
 import { getCareerStats } from "@/lib/players";
 import { characterIconSlug } from "@/lib/character-icons";
 
@@ -121,7 +122,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             >
               {tier ? tier.name.toUpperCase() : "PROVISIONAL"}
             </div>
-            <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>{player.rating} rating</div>
+            <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>{formatRating(player.rating)} rating</div>
             {characterIcon && <img src={characterIcon} width={44} height={44} style={{ borderRadius: 8 }} alt="" />}
           </div>
         </div>
@@ -140,7 +141,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
-            {career.peakRating ?? "—"}
+            {career.peakRating != null ? formatRating(career.peakRating) : "—"}
           </div>
           <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>PEAK RATING</div>
         </div>

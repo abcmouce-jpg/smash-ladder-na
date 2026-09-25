@@ -4,6 +4,7 @@ import { Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getSeasonStandings } from "@/lib/seasons";
 import { Card } from "@/components/ui/card";
+import { formatRating } from "@/lib/rating-format";
 import { getLang } from "@/lib/i18n";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -48,7 +49,7 @@ export default async function SeasonStandingsPage({ params }: { params: Promise<
                     {s.user.username}
                   </Link>
                 </td>
-                <td className="py-2 text-right font-medium tabular-nums">{s.finalRating}</td>
+                <td className="py-2 text-right font-medium tabular-nums">{formatRating(s.finalRating)}</td>
                 <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{s.gamesPlayed}</td>
               </tr>
             ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useState } from "react";
+import { formatRating } from "@/lib/rating-format";
 
 type Point = { date: string; rating: number };
 
@@ -249,8 +250,8 @@ export function RatingChart({ points }: { points: Point[] }) {
 
       <div className="flex h-5 items-center justify-center text-xs text-muted-foreground">
         {hovered
-          ? `${formatDate(hovered.date, tz)} — ${hovered.rating} rating`
-          : `${condensed[0].rating} → ${condensed[condensed.length - 1].rating} over last ${condensed.length} matches`}
+          ? `${formatDate(hovered.date, tz)} — ${formatRating(hovered.rating)} rating`
+          : `${formatRating(condensed[0].rating)} → ${formatRating(condensed[condensed.length - 1].rating)} over last ${condensed.length} matches`}
       </div>
 
       <details className="mt-2 text-xs">
@@ -267,7 +268,7 @@ export function RatingChart({ points }: { points: Point[] }) {
               {[...condensed].reverse().map((p) => (
                 <tr key={p.date} className="border-t border-border/60">
                   <td className="py-1">{formatDate(p.date, tz)}</td>
-                  <td className="py-1 text-right tabular-nums">{p.rating}</td>
+                  <td className="py-1 text-right tabular-nums">{formatRating(p.rating)}</td>
                 </tr>
               ))}
             </tbody>

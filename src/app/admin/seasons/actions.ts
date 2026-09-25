@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { SEASON_MANAGER_USER_ID, endActiveSeasonAndStartNext } from "@/lib/seasons";
+import { RatingAlgorithm } from "@/generated/prisma/enums";
+import { NEXT_SEASON_ALGORITHM, SEASON_MANAGER_USER_ID, endActiveSeasonAndStartNext } from "@/lib/seasons";
 
 async function requireModerator() {
   const session = await auth();
@@ -34,7 +35,14 @@ export async function endSeason(formData: FormData) {
       ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
       : null;
 
-  await endActiveSeasonAndStartNext(nextName, new Date(), nextScheduledEndAt);
+  // Which rating system the new season runs on. Anything unrecognised (or a
+  // stale form) falls back to the site default rather than erroring — the only
+  // valid values are the RatingAlgorithm members.
+  const algorithmRaw = formData.get("nextAlgorithm") as string | null;
+  const nextAlgorithm =
+    algorithmRaw && algorithmRaw in RatingAlgorithm ? (algorithmRaw as RatingAlgorithm) : NEXT_SEASON_ALGORITHM;
+
+  await endActiveSeasonAndStartNext(nextName, new Date(), nextScheduledEndAt, nextAlgorithm);
   revalidatePath("/admin/seasons");
   revalidatePath("/leaderboard");
 }

@@ -6,6 +6,7 @@ import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 import { getLang } from "@/lib/i18n";
+import { formatRating } from "@/lib/rating-format";
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -69,7 +70,7 @@ export default async function StreamLeaderboardPage({
               <td className="py-1 pr-2">
                 <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
               </td>
-              <td className="py-1 text-right font-medium tabular-nums">{player.rating}</td>
+              <td className="py-1 text-right font-medium tabular-nums">{formatRating(player.rating)}</td>
             </tr>
           ))}
         </tbody>

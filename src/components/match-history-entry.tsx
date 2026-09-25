@@ -10,6 +10,7 @@ import { LocalTime } from "@/components/local-time";
 import { MatchChatLog } from "@/components/match-chat-log";
 import { cn } from "@/lib/utils";
 import type { MatchHistoryEntryData } from "@/lib/players";
+import { formatRating } from "@/lib/rating-format";
 
 // The page hands this component the same entry getPlayerMatchHistory
 // returns, except confirmedAt must be serialized to an ISO string first
@@ -173,18 +174,18 @@ export function MatchHistoryEntry({
               // doesn't say what ±12 meant at that point in the ladder.
               <span className="flex items-baseline gap-1.5 text-xs tabular-nums" title={ratingTrailTitle}>
                 <span className="text-muted-foreground">
-                  {match.ratingBefore} → {match.ratingAfter}
+                  {formatRating(match.ratingBefore ?? 0)} → {formatRating(match.ratingAfter ?? 0)}
                 </span>
                 <span className={deltaClass}>
                   {delta > 0 ? "+" : ""}
-                  {delta}
+                  {formatRating(delta)}
                 </span>
               </span>
             ) : (
               match.ratingBefore != null && (
                 <span className={deltaClass}>
                   {delta > 0 ? "+" : ""}
-                  {delta}
+                  {formatRating(delta)}
                 </span>
               )
             )}

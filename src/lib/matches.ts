@@ -1,6 +1,13 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { LobbyEntryStatus, MatchStatus, ConfirmationMethod, PairingMethod, UserStatus } from "@/generated/prisma/enums";
+import {
+  LobbyEntryStatus,
+  MatchStatus,
+  ConfirmationMethod,
+  PairingMethod,
+  RatingAlgorithm,
+  UserStatus,
+} from "@/generated/prisma/enums";
 import {
   CANCEL_SUSPEND_DURATION_HOURS,
   isCancelSuspendThreshold,
@@ -10,6 +17,7 @@ import {
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
+import { applyGlicko2Result } from "@/lib/glicko2";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 
@@ -32,7 +40,7 @@ export const matchWithPlayers = {
       avatarUrl: true,
       rating: true,
       // Shown instead of `rating` on the lobby match view when this side is
-      // isPracticing — that's the number actually feeding this match's Elo
+      // isPracticing — that's the number actually feeding this match's rating
       // math (see applyEloAndConfirm), and showing the main rating instead
       // was confusing the opponent about why so little rating moved.
       practiceRating: true,
@@ -454,6 +462,42 @@ export function eloDelta(games: number, score: number, expected: number): number
   return score === 1 ? Math.max(1, clamped) : clamped;
 }
 
+// A player's full rating state at one moment: the number shown everywhere
+// (`rating`) plus the two extra parameters Glicko-2 needs but Elo does not
+// (rating deviation and volatility). Elo seasons carry rd/volatility through
+// untouched, so this is a superset that both algorithms can live in.
+type RatingState = { rating: number; rd: number; volatility: number };
+
+// The one place a season's algorithm is dispatched on. Elo keeps its existing
+// rounding (ratings stay whole numbers there, exactly as before); Glicko-2
+// keeps full precision — the caller decides how to present it.
+function nextRatingStates(
+  algorithm: RatingAlgorithm,
+  p1: RatingState,
+  p2: RatingState,
+  p1Score: 0 | 1,
+  p1Games: number,
+  p2Games: number,
+): { p1: RatingState; p2: RatingState } {
+  if (algorithm === RatingAlgorithm.GLICKO2) {
+    return applyGlicko2Result(p1, p2, p1Score);
+  }
+
+  const expected1 = expectedScore(p1.rating, p2.rating);
+  return {
+    p1: {
+      rating: Math.round(p1.rating + eloDelta(p1Games, p1Score, expected1)),
+      rd: p1.rd,
+      volatility: p1.volatility,
+    },
+    p2: {
+      rating: Math.round(p2.rating + eloDelta(p2Games, 1 - p1Score, 1 - expected1)),
+      rd: p2.rd,
+      volatility: p2.volatility,
+    },
+  };
+}
+
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.
 // Shared by self-confirmation (both players agree) and the cron finalizer's
 // auto-timeout path (only one player reported before the match expired).
@@ -477,26 +521,28 @@ export async function applyEloAndConfirm(
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
   const seasonId = season?.id ?? (await tx.season.create({ data: { name: "Season 1" } })).id;
+  // Which math this match is rated with (see nextRatingStates). A season with
+  // no algorithm can only be one that predates the column — treat it as Elo,
+  // exactly the behavior such a season already had.
+  const algorithm = season?.algorithm ?? RatingAlgorithm.ELO;
 
   // A side that queued isPracticing reads from and writes to its separate
-  // practiceRating/practiceGamesPlayed track instead of rating/gamesPlayed —
-  // independently per side, since a practicing player can face a normal
-  // opponent. Both pools are the same 1500-baseline Elo scale, so comparing
-  // one side's practiceRating against the other's main rating is valid math,
-  // not a units mismatch.
-  const p1Rating = matchRow.player1IsPracticing ? p1.practiceRating : p1.rating;
-  const p2Rating = matchRow.player2IsPracticing ? p2.practiceRating : p2.rating;
+  // practice track instead of rating/gamesPlayed — independently per side,
+  // since a practicing player can face a normal opponent. Both pools are the
+  // same 1500-baseline scale, so comparing one side's practiceRating against
+  // the other's main rating is valid math, not a units mismatch. Same split
+  // applies to the Glicko-2 rd/volatility parameters.
+  const p1State: RatingState = matchRow.player1IsPracticing
+    ? { rating: p1.practiceRating, rd: p1.practiceRatingDeviation, volatility: p1.practiceRatingVolatility }
+    : { rating: p1.rating, rd: p1.ratingDeviation, volatility: p1.ratingVolatility };
+  const p2State: RatingState = matchRow.player2IsPracticing
+    ? { rating: p2.practiceRating, rd: p2.practiceRatingDeviation, volatility: p2.practiceRatingVolatility }
+    : { rating: p2.rating, rd: p2.ratingDeviation, volatility: p2.ratingVolatility };
   const p1Games = matchRow.player1IsPracticing ? p1.practiceGamesPlayed : p1.gamesPlayed;
   const p2Games = matchRow.player2IsPracticing ? p2.practiceGamesPlayed : p2.gamesPlayed;
 
   const p1Won = winnerId === p1.id;
-  const expected1 = expectedScore(p1Rating, p2Rating);
-  const expected2 = 1 - expected1;
-  const score1 = p1Won ? 1 : 0;
-  const score2 = p1Won ? 0 : 1;
-
-  const p1After = Math.round(p1Rating + eloDelta(p1Games, score1, expected1));
-  const p2After = Math.round(p2Rating + eloDelta(p2Games, score2, expected2));
+  const { p1: p1Next, p2: p2Next } = nextRatingStates(algorithm, p1State, p2State, p1Won ? 1 : 0, p1Games, p2Games);
 
   await tx.ratingMatch.update({
     where: { id: match.id },
@@ -510,24 +556,52 @@ export async function applyEloAndConfirm(
       confirmedAt: new Date(),
       confirmationMethod,
       seasonId,
-      player1RatingBefore: p1Rating,
-      player1RatingAfter: p1After,
-      player2RatingBefore: p2Rating,
-      player2RatingAfter: p2After,
+      player1RatingBefore: p1State.rating,
+      player1RatingAfter: p1Next.rating,
+      player1RdBefore: p1State.rd,
+      player1RdAfter: p1Next.rd,
+      player1VolatilityBefore: p1State.volatility,
+      player1VolatilityAfter: p1Next.volatility,
+      player2RatingBefore: p2State.rating,
+      player2RatingAfter: p2Next.rating,
+      player2RdBefore: p2State.rd,
+      player2RdAfter: p2Next.rd,
+      player2VolatilityBefore: p2State.volatility,
+      player2VolatilityAfter: p2Next.volatility,
     },
   });
 
   await tx.user.update({
     where: { id: p1.id },
     data: matchRow.player1IsPracticing
-      ? { practiceRating: p1After, practiceGamesPlayed: { increment: 1 } }
-      : { rating: p1After, gamesPlayed: { increment: 1 } },
+      ? {
+          practiceRating: p1Next.rating,
+          practiceRatingDeviation: p1Next.rd,
+          practiceRatingVolatility: p1Next.volatility,
+          practiceGamesPlayed: { increment: 1 },
+        }
+      : {
+          rating: p1Next.rating,
+          ratingDeviation: p1Next.rd,
+          ratingVolatility: p1Next.volatility,
+          gamesPlayed: { increment: 1 },
+        },
   });
   await tx.user.update({
     where: { id: p2.id },
     data: matchRow.player2IsPracticing
-      ? { practiceRating: p2After, practiceGamesPlayed: { increment: 1 } }
-      : { rating: p2After, gamesPlayed: { increment: 1 } },
+      ? {
+          practiceRating: p2Next.rating,
+          practiceRatingDeviation: p2Next.rd,
+          practiceRatingVolatility: p2Next.volatility,
+          practiceGamesPlayed: { increment: 1 },
+        }
+      : {
+          rating: p2Next.rating,
+          ratingDeviation: p2Next.rd,
+          ratingVolatility: p2Next.volatility,
+          gamesPlayed: { increment: 1 },
+        },
   });
 
   // RatingHistory backs the main "rating over time" chart and peak-rating
@@ -537,12 +611,24 @@ export async function applyEloAndConfirm(
     ...(matchRow.player1IsPracticing
       ? []
       : [
-          { userId: p1.id, matchId: match.id, ratingBefore: p1Rating, ratingAfter: p1After, delta: p1After - p1Rating },
+          {
+            userId: p1.id,
+            matchId: match.id,
+            ratingBefore: p1State.rating,
+            ratingAfter: p1Next.rating,
+            delta: p1Next.rating - p1State.rating,
+          },
         ]),
     ...(matchRow.player2IsPracticing
       ? []
       : [
-          { userId: p2.id, matchId: match.id, ratingBefore: p2Rating, ratingAfter: p2After, delta: p2After - p2Rating },
+          {
+            userId: p2.id,
+            matchId: match.id,
+            ratingBefore: p2State.rating,
+            ratingAfter: p2Next.rating,
+            delta: p2Next.rating - p2State.rating,
+          },
         ]),
   ];
   if (historyRows.length > 0) {
@@ -564,48 +650,80 @@ export async function applyEloAndConfirm(
   // computeTierChange itself is pure/cheap — fine to call before the
   // transaction has committed, only the Discord side needs to wait.
   if (!matchRow.player1IsPracticing) {
-    deferTierChange(computeTierChange(p1.id, p1.discordId, p1.username, match.id, p1Rating, p1After, p1Games));
+    deferTierChange(
+      computeTierChange(p1.id, p1.discordId, p1.username, match.id, p1State.rating, p1Next.rating, p1Games),
+    );
   }
   if (!matchRow.player2IsPracticing) {
-    deferTierChange(computeTierChange(p2.id, p2.discordId, p2.username, match.id, p2Rating, p2After, p2Games));
+    deferTierChange(
+      computeTierChange(p2.id, p2.discordId, p2.username, match.id, p2State.rating, p2Next.rating, p2Games),
+    );
   }
 }
 
 // Only reachable while `match` is still each player's most recent CONFIRMED
-// match (enforced by callers) — recomputes Elo from the SAME pre-match
-// ratings the original confirmation used (player{1,2}RatingBefore), just
-// with the winner swapped, then overwrites in place. Never touches
-// gamesPlayed (this isn't a new game) and never revisits any other match,
-// so it can't disturb a later match that already built on this one's result.
+// match (enforced by callers) — recomputes the rating from the SAME pre-match
+// state the original confirmation used (player{1,2}RatingBefore, plus the
+// Glicko-2 rd/volatility snapshots for a GLICKO2 season), just with the winner
+// swapped, then overwrites in place. Never touches gamesPlayed (this isn't a
+// new game) and never revisits any other match, so it can't disturb a later
+// match that already built on this one's result.
 export async function applyCorrection(
   tx: Prisma.TransactionClient,
   match: {
     id: string;
     player1Id: string;
     player2Id: string;
+    seasonId: string | null;
     player1RatingBefore: number | null;
     player2RatingBefore: number | null;
+    player1RdBefore: number | null;
+    player2RdBefore: number | null;
+    player1VolatilityBefore: number | null;
+    player2VolatilityBefore: number | null;
   },
   winnerId: string,
 ) {
   const p1 = await tx.user.findUniqueOrThrow({ where: { id: match.player1Id } });
   const p2 = await tx.user.findUniqueOrThrow({ where: { id: match.player2Id } });
+  // The match's own season decides the math. isMostRecentConfirmedMatch
+  // already guarantees it's the active season, so this reads the algorithm off
+  // the row rather than doing a second active-season lookup.
+  const seasonAlgorithm = match.seasonId
+    ? (await tx.season.findUnique({ where: { id: match.seasonId }, select: { algorithm: true } }))?.algorithm
+    : null;
+  const algorithm = seasonAlgorithm ?? RatingAlgorithm.ELO;
+
   // gamesPlayed already carries this match's own +1 from the original
   // confirmation — subtract it back out to match the kFactor tier the
   // original calculation used.
-  const p1RatingBefore = match.player1RatingBefore ?? p1.rating;
-  const p2RatingBefore = match.player2RatingBefore ?? p2.rating;
   const p1GamesBefore = Math.max(0, p1.gamesPlayed - 1);
   const p2GamesBefore = Math.max(0, p2.gamesPlayed - 1);
 
-  const p1Won = winnerId === p1.id;
-  const expected1 = expectedScore(p1RatingBefore, p2RatingBefore);
-  const expected2 = 1 - expected1;
-  const score1 = p1Won ? 1 : 0;
-  const score2 = p1Won ? 0 : 1;
+  // Full pre-match state as recorded at confirmation. For Glicko-2 this is the
+  // only way back to an exact recompute — a plain rating delta doesn't capture
+  // how RD/volatility moved. Falls back to the live values for a row with no
+  // snapshots (any match confirmed before those columns existed).
+  const p1Before: RatingState = {
+    rating: match.player1RatingBefore ?? p1.rating,
+    rd: match.player1RdBefore ?? p1.ratingDeviation,
+    volatility: match.player1VolatilityBefore ?? p1.ratingVolatility,
+  };
+  const p2Before: RatingState = {
+    rating: match.player2RatingBefore ?? p2.rating,
+    rd: match.player2RdBefore ?? p2.ratingDeviation,
+    volatility: match.player2VolatilityBefore ?? p2.ratingVolatility,
+  };
 
-  const p1After = Math.round(p1RatingBefore + eloDelta(p1GamesBefore, score1, expected1));
-  const p2After = Math.round(p2RatingBefore + eloDelta(p2GamesBefore, score2, expected2));
+  const p1Won = winnerId === p1.id;
+  const { p1: p1Next, p2: p2Next } = nextRatingStates(
+    algorithm,
+    p1Before,
+    p2Before,
+    p1Won ? 1 : 0,
+    p1GamesBefore,
+    p2GamesBefore,
+  );
 
   await tx.ratingMatch.update({
     where: { id: match.id },
@@ -613,8 +731,12 @@ export async function applyCorrection(
       reportedWinnerId: winnerId,
       secondReportWinnerId: winnerId,
       confirmationMethod: ConfirmationMethod.CORRECTED,
-      player1RatingAfter: p1After,
-      player2RatingAfter: p2After,
+      player1RatingAfter: p1Next.rating,
+      player2RatingAfter: p2Next.rating,
+      player1RdAfter: p1Next.rd,
+      player1VolatilityAfter: p1Next.volatility,
+      player2RdAfter: p2Next.rd,
+      player2VolatilityAfter: p2Next.volatility,
       correctionWinnerId: null,
       correctionReportedById: null,
       correctionReportedAt: null,
@@ -625,13 +747,31 @@ export async function applyCorrection(
     },
   });
 
-  await tx.user.update({ where: { id: p1.id }, data: { rating: p1After } });
-  await tx.user.update({ where: { id: p2.id }, data: { rating: p2After } });
+  await tx.user.update({
+    where: { id: p1.id },
+    data: { rating: p1Next.rating, ratingDeviation: p1Next.rd, ratingVolatility: p1Next.volatility },
+  });
+  await tx.user.update({
+    where: { id: p2.id },
+    data: { rating: p2Next.rating, ratingDeviation: p2Next.rd, ratingVolatility: p2Next.volatility },
+  });
 
   await tx.ratingHistory.createMany({
     data: [
-      { userId: p1.id, matchId: match.id, ratingBefore: p1.rating, ratingAfter: p1After, delta: p1After - p1.rating },
-      { userId: p2.id, matchId: match.id, ratingBefore: p2.rating, ratingAfter: p2After, delta: p2After - p2.rating },
+      {
+        userId: p1.id,
+        matchId: match.id,
+        ratingBefore: p1.rating,
+        ratingAfter: p1Next.rating,
+        delta: p1Next.rating - p1.rating,
+      },
+      {
+        userId: p2.id,
+        matchId: match.id,
+        ratingBefore: p2.rating,
+        ratingAfter: p2Next.rating,
+        delta: p2Next.rating - p2.rating,
+      },
     ],
   });
 }

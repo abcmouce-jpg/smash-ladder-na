@@ -10,6 +10,7 @@ import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatRating } from "@/lib/rating-format";
 import {
   STATUS_LABEL,
   STATUS_VARIANT,
@@ -223,7 +224,7 @@ function Side({
         <span
           className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "sm:justify-end")}
         >
-          <span className="tabular-nums">{player.rating}</span>
+          <span className="tabular-nums">{formatRating(player.rating)}</span>
           {player.region && (
             <span className="flex min-w-0 items-center gap-0.5">
               <MapPin className="size-3 shrink-0" />

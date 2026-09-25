@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus } from "@/generated/prisma/enums";
+import { MatchStatus, RatingAlgorithm } from "@/generated/prisma/enums";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { GLICKO2_INITIAL_RATING, GLICKO2_INITIAL_RD, GLICKO2_INITIAL_VOLATILITY } from "@/lib/glicko2";
+import { formatRating } from "@/lib/rating-format";
 import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
 
 // Pre-season launch announcement, shown site-wide until this passes.
@@ -54,6 +56,13 @@ export function isWithinSeasonEndingWindow(endsAt: Date, windowMs: number, now =
 // check. Revisit once ADMIN grants are reviewed.
 export const SEASON_MANAGER_USER_ID = process.env.SEASON_MANAGER_USER_ID?.trim() || null;
 
+// Which rating system a newly-started season runs on. Every season created from
+// here on starts fresh on Glicko-2 (see endActiveSeasonAndStartNext); a season
+// that's already running keeps whatever its own `algorithm` column says, so
+// this never rewrites the current season. Flip back to ELO to make the next
+// rollover produce an Elo season again.
+export const NEXT_SEASON_ALGORITHM = RatingAlgorithm.GLICKO2;
+
 export async function getActiveSeason() {
   return prisma.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
 }
@@ -99,7 +108,7 @@ export async function getPlayerSeasonAchievements(userId: string): Promise<Achie
       achievements.push({
         id: `season-${s.seasonId}-rank${s.rank}`,
         label: `${PLACEMENT_MEDAL[s.rank - 1]} ${s.season.name} ${PLACEMENT_LABEL[s.rank - 1]}`,
-        description: `Finished rank ${s.rank} of ${s.season.name}, final rating ${s.finalRating}.`,
+        description: `Finished rank ${s.rank} of ${s.season.name}, final rating ${formatRating(s.finalRating)}.`,
         achieved: true,
       });
     }
@@ -155,11 +164,13 @@ async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
 // than a soft regression toward the mean, to keep the rollover simple and
 // predictable. nextScheduledEndAt announces the next season's own rollover
 // time (for its countdown and endActiveSeasonIfDue); omit it to leave the
-// next season manual-only, same as before this existed.
+// next season manual-only, same as before this existed. nextAlgorithm is
+// stamped onto the new season and defaults to NEXT_SEASON_ALGORITHM (Glicko-2).
 export async function endActiveSeasonAndStartNext(
   nextName?: string,
   now = new Date(),
   nextScheduledEndAt?: Date | null,
+  nextAlgorithm: RatingAlgorithm = NEXT_SEASON_ALGORITHM,
 ) {
   const active = await getActiveSeason();
   if (!active) throw new Error("No active season");
@@ -185,8 +196,21 @@ export async function endActiveSeasonAndStartNext(
       });
     }
 
+    // A fresh start: rating back to the 1500 baseline, and Glicko-2 state back
+    // to maximum uncertainty so everyone begins the new season unrated. Elo
+    // ignores rd/volatility, so resetting them here is harmless for an Elo
+    // season and exactly right for the Glicko-2 one starting below.
     await tx.user.updateMany({
-      data: { rating: 1500, gamesPlayed: 0, practiceRating: 1500, practiceGamesPlayed: 0 },
+      data: {
+        rating: GLICKO2_INITIAL_RATING,
+        ratingDeviation: GLICKO2_INITIAL_RD,
+        ratingVolatility: GLICKO2_INITIAL_VOLATILITY,
+        gamesPlayed: 0,
+        practiceRating: GLICKO2_INITIAL_RATING,
+        practiceRatingDeviation: GLICKO2_INITIAL_RD,
+        practiceRatingVolatility: GLICKO2_INITIAL_VOLATILITY,
+        practiceGamesPlayed: 0,
+      },
     });
 
     const seasonCount = await tx.season.count();
@@ -195,6 +219,7 @@ export async function endActiveSeasonAndStartNext(
         name: nextName ?? `Season ${seasonCount + 1}`,
         startsAt: now,
         scheduledEndAt: nextScheduledEndAt ?? null,
+        algorithm: nextAlgorithm,
       },
     });
 
@@ -242,7 +267,10 @@ export async function launchPreSeasonIfDue(now = new Date()) {
   const active = await getActiveSeason();
   if (active) {
     if (active.startsAt >= PRE_SEASON_STARTS_AT) return false;
-    await endActiveSeasonAndStartNext(PRE_SEASON_NAME, now);
+    // The preseason stays on Elo regardless of NEXT_SEASON_ALGORITHM — it's a
+    // fixed trial run whose framing predates Glicko-2, and the Glicko-2 season
+    // that follows it is created by the normal rollover path below.
+    await endActiveSeasonAndStartNext(PRE_SEASON_NAME, now, null, RatingAlgorithm.ELO);
   } else {
     await prisma.season.create({ data: { name: PRE_SEASON_NAME, startsAt: now } });
   }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Trophy } from "lucide-react";
 import { playTierUpChime, playVictoryChime } from "@/lib/sound";
+import { formatRating } from "@/lib/rating-format";
 
 const CONFETTI_COLORS = ["#f43f5e", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"];
 
@@ -109,7 +110,7 @@ export function VictoryCelebration({
         </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums">{displayRating}</p>
         <p className="text-sm font-medium tabular-nums text-primary">
-          {lang === "es" ? `+${delta} de clasificación` : `+${delta} rating`}
+          {lang === "es" ? `+${formatRating(delta)} de clasificación` : `+${formatRating(delta)} rating`}
         </p>
       </div>
     </div>

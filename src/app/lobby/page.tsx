@@ -1,6 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Clock, Loader2, Lock, MapPin, NotebookPen, SlidersHorizontal, Swords, Users, ThumbsUp } from "lucide-react";
+import {
+  Check,
+  Clock,
+  Loader2,
+  Lock,
+  MapPin,
+  NotebookPen,
+  SlidersHorizontal,
+  Swords,
+  Users,
+  ThumbsUp,
+} from "lucide-react";
 import { auth } from "@/auth";
 import { getMatchupNote } from "@/lib/matchup-notes";
 import { prisma } from "@/lib/db";
@@ -36,6 +47,7 @@ import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGION_GROUPS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
+import { formatRating } from "@/lib/rating-format";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
 import { SMASH_CHARACTERS } from "@/lib/characters";
@@ -1240,7 +1252,7 @@ function MatchScoreboard({
             <p className="truncate font-medium">{es ? "Tú" : "You"}</p>
             {!zenMode && (
               <p className="truncate text-sm text-muted-foreground tabular-nums">
-                {es ? `${myRating} de clasificación` : `${myRating} rating`}
+                {es ? `${formatRating(myRating ?? 0)} de clasificación` : `${formatRating(myRating ?? 0)} rating`}
                 {myIsPracticing && (es ? " (práctica)" : " (practice)")}
               </p>
             )}
@@ -1293,7 +1305,7 @@ function MatchScoreboard({
               <p className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground tabular-nums">
                 {!zenMode && (
                   <span>
-                    {es ? `${opponentRating} de clasificación` : `${opponentRating} rating`}
+                    {es ? `${formatRating(opponentRating)} de clasificación` : `${formatRating(opponentRating)} rating`}
                     {opponentIsPracticing && (es ? " (práctica)" : " (practice)")}
                   </span>
                 )}
@@ -2208,8 +2220,8 @@ async function ConfirmedSection({ userId, match, lang }: { userId: string; match
             {lang === "es" ? "Partida confirmada — perdiste" : "Set confirmed — you lost"}
           </p>
           <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-            {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
-            {delta})
+            {formatRating(ratingBefore ?? 0)} → {formatRating(ratingAfter ?? 0)} ({delta >= 0 ? "+" : ""}
+            {formatRating(delta)})
           </p>
         </>
       )}

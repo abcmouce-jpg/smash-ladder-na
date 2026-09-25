@@ -388,11 +388,31 @@ export async function adminCancelMatch(matchId: string) {
         }
         await tx.user.update({
           where: { id: match.player1Id },
-          data: { rating: match.player1RatingBefore, gamesPlayed: { decrement: 1 } },
+          data: {
+            rating: match.player1RatingBefore,
+            gamesPlayed: { decrement: 1 },
+            // A Glicko-2 match needs its whole pre-match state restored, not
+            // just the rating — reversing only the rating would leave RD/
+            // volatility describing a game that no longer counts. An Elo match
+            // stores no rd/volatility snapshots, so those are left untouched.
+            ...(match.player1RdBefore !== null &&
+              match.player1VolatilityBefore !== null && {
+                ratingDeviation: match.player1RdBefore,
+                ratingVolatility: match.player1VolatilityBefore,
+              }),
+          },
         });
         await tx.user.update({
           where: { id: match.player2Id },
-          data: { rating: match.player2RatingBefore, gamesPlayed: { decrement: 1 } },
+          data: {
+            rating: match.player2RatingBefore,
+            gamesPlayed: { decrement: 1 },
+            ...(match.player2RdBefore !== null &&
+              match.player2VolatilityBefore !== null && {
+                ratingDeviation: match.player2RdBefore,
+                ratingVolatility: match.player2VolatilityBefore,
+              }),
+          },
         });
         await tx.ratingHistory.deleteMany({ where: { matchId } });
       }

@@ -10,7 +10,8 @@ import {
   adminCancelMatch,
   adminUndoOldMatch,
 } from "@/lib/disputes";
-import { MatchStatus } from "@/generated/prisma/enums";
+import { MatchStatus, ConfirmationMethod, RatingAlgorithm } from "@/generated/prisma/enums";
+import { applyEloAndConfirm } from "@/lib/matches";
 import { createTestUser } from "@/test/factories";
 
 // isMostRecentConfirmedMatch (the guard behind adminSetGameWinner's and
@@ -723,5 +724,36 @@ describe("adminUndoOldMatch", () => {
 
   it("throws for a match that doesn't exist", async () => {
     await expect(adminUndoOldMatch("nonexistent-id")).rejects.toThrow("not found");
+  });
+});
+
+// Cancelling a CONFIRMED match reverts it in place (adminCancelMatch). In a
+// Glicko-2 season that has to restore the whole pre-match state, not just the
+// rating — reversing only the rating would leave RD/volatility describing a
+// game that no longer counts.
+describe("adminCancelMatch — Glicko-2", () => {
+  it("restores the full pre-match Glicko-2 state", async () => {
+    await prisma.season.create({ data: { name: "Glicko Season", algorithm: RatingAlgorithm.GLICKO2 } });
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const before = await prisma.user.findUniqueOrThrow({ where: { id: p1.id } });
+
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, p1.id, ConfirmationMethod.SELF_CONFIRMED, { winnerId: p1.id, reporterId: p1.id }),
+    );
+
+    const afterWin = await prisma.user.findUniqueOrThrow({ where: { id: p1.id } });
+    expect(afterWin.ratingDeviation).toBeLessThan(before.ratingDeviation);
+
+    await adminCancelMatch(match.id);
+
+    const restored = await prisma.user.findUniqueOrThrow({ where: { id: p1.id } });
+    expect(restored.rating).toBe(before.rating);
+    expect(restored.ratingDeviation).toBeCloseTo(before.ratingDeviation);
+    expect(restored.ratingVolatility).toBeCloseTo(before.ratingVolatility);
+    expect(restored.gamesPlayed).toBe(before.gamesPlayed);
   });
 });
