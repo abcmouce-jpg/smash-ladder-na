@@ -96,6 +96,9 @@ export function PlayerProfileHeader({
                 )}
                 <CharacterUsageIcons usage={characterUsage} />
               </h1>
+              <p className="text-sm tabular-nums text-muted-foreground">
+                {lang === "es" ? `${player.rating} de clasificación` : `${player.rating} rating`}
+              </p>
               {player.isSupporter && (
                 <p className="text-xs text-muted-foreground">
                   {lang === "es"
@@ -103,56 +106,47 @@ export function PlayerProfileHeader({
                     : `${player.username} has donated to support Smash Ladder NA — thank you!`}
                 </p>
               )}
-              <p className="text-sm tabular-nums text-muted-foreground">
-                {lang === "es"
-                  ? `${player.rating} de clasificación · ${player.gamesPlayed} partidas jugadas`
-                  : `${player.rating} rating · ${player.gamesPlayed} sets played`}
-              </p>
             </div>
           </div>
 
-          {(showDiscord || player.twitchUsername || player.startggSlug) && (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3">
-              {showDiscord && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3">
+            {showDiscord && (
+              <Badge variant="outline">
+                <DiscordIcon className="size-3" />
+                {player.discordUsername}
+              </Badge>
+            )}
+            {player.twitchUsername && (
+              <a
+                href={`https://twitch.tv/${player.twitchUsername}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${lang === "es" ? "Canal de Twitch" : "Twitch channel"}: ${
+                  player.twitchDisplayName ?? player.twitchUsername
+                }`}
+              >
                 <Badge variant="outline">
-                  <DiscordIcon className="size-3" />
-                  {player.discordUsername}
+                  <TwitchIcon className="size-3" />
+                  {player.twitchDisplayName ?? player.twitchUsername}
                 </Badge>
-              )}
-              {player.twitchUsername && (
-                <a
-                  href={`https://twitch.tv/${player.twitchUsername}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${lang === "es" ? "Canal de Twitch" : "Twitch channel"}: ${
-                    player.twitchDisplayName ?? player.twitchUsername
-                  }`}
-                >
-                  <Badge variant="outline">
-                    <TwitchIcon className="size-3" />
-                    {player.twitchDisplayName ?? player.twitchUsername}
-                  </Badge>
-                </a>
-              )}
-              {player.startggSlug && (
-                <a href={startggProfileUrl(player.startggSlug)} target="_blank" rel="noopener noreferrer">
-                  <Badge variant="outline">
-                    <StartggIcon className="size-3" />
-                    start.gg
-                  </Badge>
-                </a>
-              )}
-              {player.startggSlug && player.startggPlayerId && (
-                <a href={supermajorProfileUrl(player.startggPlayerId)} target="_blank" rel="noopener noreferrer">
-                  <Badge variant="outline">
-                    <Image src="/supermajor-icon.png" alt="" width={24} height={24} className="size-3" />
-                    supermajor.gg
-                  </Badge>
-                </a>
-              )}
-            </div>
-          )}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              </a>
+            )}
+            {player.startggSlug && (
+              <a href={startggProfileUrl(player.startggSlug)} target="_blank" rel="noopener noreferrer">
+                <Badge variant="outline">
+                  <StartggIcon className="size-3" />
+                  start.gg
+                </Badge>
+              </a>
+            )}
+            {player.startggSlug && player.startggPlayerId && (
+              <a href={supermajorProfileUrl(player.startggPlayerId)} target="_blank" rel="noopener noreferrer">
+                <Badge variant="outline">
+                  <Image src="/supermajor-icon.png" alt="" width={24} height={24} className="size-3" />
+                  supermajor.gg
+                </Badge>
+              </a>
+            )}
             <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
             {nextTier && (
               <span className="text-xs tabular-nums text-muted-foreground">
@@ -196,13 +190,6 @@ export function PlayerProfileHeader({
             <p className="mt-1.5 text-sm tabular-nums text-muted-foreground">
               {lang === "es" ? "Tu récord: " : "Your record: "}
               {headToHead.wins}W–{headToHead.losses}L
-            </p>
-          )}
-          {player.practiceGamesPlayed > 0 && (
-            <p className="mt-1.5 text-xs tabular-nums text-muted-foreground">
-              {lang === "es"
-                ? `${player.practiceRating} de clasificación de práctica · ${player.practiceGamesPlayed} partidas de práctica`
-                : `${player.practiceRating} practice rating · ${player.practiceGamesPlayed} practice sets`}
             </p>
           )}
         </div>

@@ -85,6 +85,10 @@ export async function ProfileOverviewSection({
   playerUsername,
   mainCharacter,
   usage,
+  rating,
+  gamesPlayed,
+  practiceRating,
+  practiceGamesPlayed,
   isOwnProfile,
   isModerator,
   page,
@@ -94,6 +98,10 @@ export async function ProfileOverviewSection({
   playerUsername: string;
   mainCharacter: string | null;
   usage: CharacterUsage[];
+  rating: number;
+  gamesPlayed: number;
+  practiceRating: number;
+  practiceGamesPlayed: number;
   isOwnProfile: boolean;
   isModerator: boolean;
   page: number;
@@ -146,31 +154,8 @@ export async function ProfileOverviewSection({
 
   return (
     <>
-      {chartPoints.length >= 2 && (
-        <Card>
-          <CardContent className="pt-4">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-medium">{lang === "es" ? "Clasificación en el tiempo" : "Rating over time"}</p>
-              <div className="flex gap-2">
-                {winRate !== null && (
-                  <Badge variant="outline" className="tabular-nums">
-                    {lang === "es" ? `${winRate}% de victorias` : `${winRate}% win rate`}
-                  </Badge>
-                )}
-                {streak > 0 && (
-                  <Badge variant="success" className="tabular-nums">
-                    {lang === "es" ? `${streak} victorias seguidas` : `${streak} win streak`}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <RatingChart points={chartPoints.map((p) => ({ date: p.date.toISOString(), rating: p.rating }))} />
-          </CardContent>
-        </Card>
-      )}
-
       {seasonStats && (
-        <Card className="mt-4">
+        <Card>
           <CardContent className="pt-4">
             <p className="text-sm font-medium">
               {lang === "es" ? "Temporada actual" : "Current season"}
@@ -180,6 +165,10 @@ export async function ProfileOverviewSection({
               {lang === "es" ? "Se reinicia al terminar la temporada." : "Resets when the season ends."}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{rating}</p>
+                <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación" : "Rating"}</p>
+              </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">
                   {leaderboardRank.rank ? (
@@ -194,6 +183,10 @@ export async function ProfileOverviewSection({
                 <p className="text-xs text-muted-foreground">
                   {lang === "es" ? "Posición en el ladder" : "Leaderboard rank"}
                 </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{gamesPlayed}</p>
+                <p className="text-xs text-muted-foreground">{lang === "es" ? "Partidas jugadas" : "Sets played"}</p>
               </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">
@@ -215,7 +208,42 @@ export async function ProfileOverviewSection({
                   {lang === "es" ? "Mejor racha de temporada" : "Season best win streak"}
                 </p>
               </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{practiceRating}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Clasificación de práctica" : "Practice rating"}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{practiceGamesPlayed}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Partidas de práctica" : "Practice sets"}
+                </p>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {chartPoints.length >= 2 && (
+        <Card className="mt-4">
+          <CardContent className="pt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium">{lang === "es" ? "Clasificación en el tiempo" : "Rating over time"}</p>
+              <div className="flex gap-2">
+                {winRate !== null && (
+                  <Badge variant="outline" className="tabular-nums">
+                    {lang === "es" ? `${winRate}% de victorias` : `${winRate}% win rate`}
+                  </Badge>
+                )}
+                {streak > 0 && (
+                  <Badge variant="success" className="tabular-nums">
+                    {lang === "es" ? `${streak} victorias seguidas` : `${streak} win streak`}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <RatingChart points={chartPoints.map((p) => ({ date: p.date.toISOString(), rating: p.rating }))} />
           </CardContent>
         </Card>
       )}
