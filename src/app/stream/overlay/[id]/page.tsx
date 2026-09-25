@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Flame, MapPin, Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { getCurrentStreak, getDailyStats, getPlayerMatchHistory } from "@/lib/players";
+import { getCurrentStreak, getDailyStats, getHiddenRatingMatchIds, getPlayerMatchHistory } from "@/lib/players";
 import { getLeaderboardRank } from "@/lib/leaderboard";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { RankBadge } from "@/components/rank-badge";
@@ -109,8 +109,14 @@ export default async function StreamOverlayPage({
   ]);
   // Practice matches now show up in getPlayerMatchHistory (labeled, on the
   // profile page) but there's no room for that label in this compact
-  // broadcast graphic — simplest to just leave them off the overlay.
-  const recentMatches = recentMatchesRaw.filter((m) => !m.isPracticing);
+  // broadcast graphic — simplest to just leave them off the overlay. The
+  // rating change is also hidden for the player's opening sets of the active
+  // season (see getHiddenRatingMatchIds); earlier seasons stay visible.
+  const { changeIds } = await getHiddenRatingMatchIds(user.id);
+  const hiddenChangeIds = new Set(changeIds);
+  const recentMatches = recentMatchesRaw
+    .filter((m) => !m.isPracticing)
+    .map((m) => ({ ...m, ratingRevealed: !hiddenChangeIds.has(m.id) }));
 
   const currentMatchGames = currentMatch
     ? await prisma.matchGame.findMany({
@@ -367,7 +373,7 @@ export default async function StreamOverlayPage({
                         match.delta >= 0 ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
-                      {ratingVisible ? (
+                      {match.ratingRevealed ? (
                         <>
                           {match.delta >= 0 ? "+" : ""}
                           {formatRating(match.delta)}

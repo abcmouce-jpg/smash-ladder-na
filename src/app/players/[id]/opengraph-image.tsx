@@ -4,7 +4,7 @@ import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
 import { getRankTier, isRatingVisible, PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
-import { getCareerStats } from "@/lib/players";
+import { getCareerStats, getHiddenRatingMatchIds } from "@/lib/players";
 import { characterIconSlug } from "@/lib/character-icons";
 
 export const alt = "Smash Ladder NA rank card";
@@ -69,9 +69,14 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     );
   }
 
-  const [career, tier] = await Promise.all([getCareerStats(id), getRankTier(player.rating, player.gamesPlayed)]);
-  // Link-preview images are crawled and cached publicly, so a provisional
-  // player's rating (and peak) is left off entirely rather than embedded.
+  const { valueIds } = await getHiddenRatingMatchIds(id);
+  const [career, tier] = await Promise.all([
+    getCareerStats(id, valueIds),
+    getRankTier(player.rating, player.gamesPlayed),
+  ]);
+  // Link-preview images are crawled and cached publicly, so the current rating
+  // is left off entirely while provisional; the peak above already reads from
+  // history with the active season's opening sets excluded.
   const ratingVisible = isRatingVisible(player.gamesPlayed, false);
 
   const tierColor = tier ? (TIER_COLORS[tier.name] ?? "#ff6e50") : "#6b6b70";
@@ -148,7 +153,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
-            {ratingVisible && career.peakRating != null ? formatRating(career.peakRating) : "—"}
+            {career.peakRating != null ? formatRating(career.peakRating) : "—"}
           </div>
           <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>PEAK RATING</div>
         </div>

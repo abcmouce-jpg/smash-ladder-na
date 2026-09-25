@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { liftExpiredSuspension, isDeletedAccountUsername } from "@/lib/account";
 import { getActiveSeason } from "@/lib/seasons";
+import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { startOfDayInTimeZone } from "@/lib/timezone";
 
 // The rating a player has ever reached, not their current one — same
@@ -21,6 +22,55 @@ export async function getPeakRating(userId: string): Promise<number | null> {
 export async function getUserRegion(userId: string): Promise<string | null> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { region: true } });
   return user?.region ?? null;
+}
+
+// The first few sets of a season are the window where a player's rating isn't
+// public yet (see isRatingVisible). Deciding what a single match-history row
+// may show can't lean on the player's *current* status: that would blank a
+// returning player's entire history the moment a new season resets their
+// gamesPlayed, and would also expose their opening sets once they graduate.
+// So the window is per-season — a match is private when it's in the ACTIVE
+// season and falls among the player's first PROVISIONAL_GAMES_THRESHOLD on its
+// track. Earlier seasons are always public: their numbers were public at the
+// time and live on in the season standings.
+//
+// Two sets, because a value and a change have slightly different boundaries:
+//   - changeIds: matches whose before→after (and delta) stay hidden — the whole
+//     opening window, on either track.
+//   - valueIds: matches whose *rating value* stays hidden — one fewer, since
+//     the match that graduates the player produces the first public rating
+//     (the number the current-rating gate starts showing at that point).
+//     Ranked only; RatingHistory holds no practice rows.
+export async function getHiddenRatingMatchIds(userId: string): Promise<{ changeIds: string[]; valueIds: string[] }> {
+  const activeSeason = await getActiveSeason();
+  if (!activeSeason) return { changeIds: [], valueIds: [] };
+
+  const matches = await prisma.ratingMatch.findMany({
+    where: {
+      status: MatchStatus.CONFIRMED,
+      seasonId: activeSeason.id,
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+    },
+    orderBy: [{ confirmedAt: "asc" }, { id: "asc" }],
+    select: { id: true, player1Id: true, player1IsPracticing: true, player2IsPracticing: true },
+  });
+
+  const changeIds: string[] = [];
+  const valueIds: string[] = [];
+  let ranked = 0;
+  let practice = 0;
+  for (const m of matches) {
+    const practicing = m.player1Id === userId ? m.player1IsPracticing : m.player2IsPracticing;
+    if (practicing) {
+      practice++;
+      if (practice <= PROVISIONAL_GAMES_THRESHOLD) changeIds.push(m.id);
+    } else {
+      ranked++;
+      if (ranked <= PROVISIONAL_GAMES_THRESHOLD) changeIds.push(m.id);
+      if (ranked < PROVISIONAL_GAMES_THRESHOLD) valueIds.push(m.id);
+    }
+  }
+  return { changeIds, valueIds };
 }
 
 export async function getPlayerProfile(userId: string) {
@@ -170,6 +220,13 @@ export interface MatchHistoryEntryData {
   ratingAfter: number | null;
   delta: number;
   confirmedAt: Date | null;
+  /**
+   * Whether this match's rating numbers may be shown. Decided per match by the
+   * caller from getHiddenRatingMatchIds — the player's opening sets of the
+   * active season stay hidden, while earlier seasons and later matches don't.
+   * Left undefined by callers that never render the trail.
+   */
+  ratingRevealed?: boolean;
   score: { wins: number; losses: number };
   characters: string[];
   opponentCharacters: string[];
@@ -284,9 +341,15 @@ export async function getPlayerMatchHistory(
 // the server doesn't know the viewer's timezone, and UTC day boundaries can
 // merge matches that fall on different local days (e.g. 10pm and midnight in
 // a timezone behind UTC).
-export async function getRatingChartPoints(userId: string, limit = 50) {
+export async function getRatingChartPoints(userId: string, limit = 50, hiddenRatingMatchIds: readonly string[] = []) {
   const rows = await prisma.ratingHistory.findMany({
-    where: { userId },
+    where: {
+      userId,
+      // The active season's provisional window is filtered out by the caller
+      // (see getHiddenRatingMatchIds); earlier seasons have no entries here and
+      // stay on the chart, so a returning player keeps their history.
+      ...(hiddenRatingMatchIds.length > 0 ? { matchId: { notIn: [...hiddenRatingMatchIds] } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: limit,
     select: { ratingAfter: true, createdAt: true },
@@ -399,7 +462,7 @@ export async function getDailyStats(userId: string) {
 // Deliberately NOT reset by endActiveSeasonAndStartNext — only rating and
 // gamesPlayed reset there. These read from history that survives everywhere,
 // so a player has something that keeps growing across season resets.
-export async function getCareerStats(userId: string) {
+export async function getCareerStats(userId: string, hiddenRatingMatchIds: readonly string[] = []) {
   const [wins, losses, peakRating, seasons, tournaments, resultsInOrder] = await Promise.all([
     prisma.ratingMatch.count({
       where: { status: MatchStatus.CONFIRMED, reportedWinnerId: userId, OR: notPracticingFor(userId) },
@@ -411,7 +474,16 @@ export async function getCareerStats(userId: string) {
         NOT: { reportedWinnerId: userId },
       },
     }),
-    prisma.ratingHistory.aggregate({ where: { userId }, _max: { ratingAfter: true } }),
+    // Lifetime peak, but the active season's provisional window is excluded by
+    // the caller (getHiddenRatingMatchIds) — those early swings aren't public,
+    // while a peak earned in an earlier season stays visible.
+    prisma.ratingHistory.aggregate({
+      where: {
+        userId,
+        ...(hiddenRatingMatchIds.length > 0 ? { matchId: { notIn: [...hiddenRatingMatchIds] } } : {}),
+      },
+      _max: { ratingAfter: true },
+    }),
     prisma.ratingMatch.findMany({
       where: {
         status: MatchStatus.CONFIRMED,
@@ -459,7 +531,7 @@ export async function getCareerStats(userId: string) {
 // the profile — same shape as getCareerStats but scoped to the current
 // season's matches, so these reset along with rating/gamesPlayed at season
 // rollover. Returns null if no season is active (nothing to scope the stats to).
-export async function getSeasonStats(userId: string) {
+export async function getSeasonStats(userId: string, hiddenRatingMatchIds: readonly string[] = []) {
   const activeSeason = await getActiveSeason();
   if (!activeSeason) return null;
 
@@ -482,9 +554,15 @@ export async function getSeasonStats(userId: string) {
     }),
     // Highest rating reached this season — RatingHistory has no seasonId, so
     // scope it through the match the entry belongs to. A player with no
-    // matches yet this season has no rows, hence the null/"—" fallback.
+    // matches yet this season has no rows, hence the null/"—" fallback. The
+    // provisional window is excluded by the caller so the season peak can't
+    // surface an early, not-yet-public number.
     prisma.ratingHistory.aggregate({
-      where: { userId, match: { seasonId: activeSeason.id } },
+      where: {
+        userId,
+        match: { seasonId: activeSeason.id },
+        ...(hiddenRatingMatchIds.length > 0 ? { matchId: { notIn: [...hiddenRatingMatchIds] } } : {}),
+      },
       _max: { ratingAfter: true },
     }),
     prisma.ratingMatch.findMany({
