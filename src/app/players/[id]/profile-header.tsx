@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Cable, ExternalLink, MapPin, Share2, Swords } from "lucide-react";
+import { Cable, MapPin, Share2, Swords } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { DiscordIcon } from "@/components/discord-icon";
+import { StartggIcon } from "@/components/startgg-icon";
 import { TwitchIcon } from "@/components/twitch-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { BlockUserButton } from "@/components/block-user-button";
@@ -110,28 +111,48 @@ export function PlayerProfileHeader({
             </div>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3">
-            {showDiscord && (
-              <Badge variant="outline">
-                <DiscordIcon className="size-3" />
-                {player.discordUsername}
-              </Badge>
-            )}
-            {player.twitchUsername && (
-              <a
-                href={`https://twitch.tv/${player.twitchUsername}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`${lang === "es" ? "Canal de Twitch" : "Twitch channel"}: ${
-                  player.twitchDisplayName ?? player.twitchUsername
-                }`}
-              >
+          {(showDiscord || player.twitchUsername || player.startggSlug) && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3">
+              {showDiscord && (
                 <Badge variant="outline">
-                  <TwitchIcon className="size-3" />
-                  {player.twitchDisplayName ?? player.twitchUsername}
+                  <DiscordIcon className="size-3" />
+                  {player.discordUsername}
                 </Badge>
-              </a>
-            )}
+              )}
+              {player.twitchUsername && (
+                <a
+                  href={`https://twitch.tv/${player.twitchUsername}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${lang === "es" ? "Canal de Twitch" : "Twitch channel"}: ${
+                    player.twitchDisplayName ?? player.twitchUsername
+                  }`}
+                >
+                  <Badge variant="outline">
+                    <TwitchIcon className="size-3" />
+                    {player.twitchDisplayName ?? player.twitchUsername}
+                  </Badge>
+                </a>
+              )}
+              {player.startggSlug && (
+                <a href={startggProfileUrl(player.startggSlug)} target="_blank" rel="noopener noreferrer">
+                  <Badge variant="outline">
+                    <StartggIcon className="size-3" />
+                    start.gg
+                  </Badge>
+                </a>
+              )}
+              {player.startggSlug && player.startggPlayerId && (
+                <a href={supermajorProfileUrl(player.startggPlayerId)} target="_blank" rel="noopener noreferrer">
+                  <Badge variant="outline">
+                    <Image src="/supermajor-icon.png" alt="" width={24} height={24} className="size-3" />
+                    supermajor.gg
+                  </Badge>
+                </a>
+              )}
+            </div>
+          )}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
             {nextTier && (
               <span className="text-xs tabular-nums text-muted-foreground">
@@ -183,41 +204,6 @@ export function PlayerProfileHeader({
                 ? `${player.practiceRating} de clasificación de práctica · ${player.practiceGamesPlayed} partidas de práctica`
                 : `${player.practiceRating} practice rating · ${player.practiceGamesPlayed} practice sets`}
             </p>
-          )}
-          {player.startggSlug && (
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
-              <a
-                href={startggProfileUrl(player.startggSlug)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-              >
-                <svg width="16" height="16" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M1.25 20h7.5A1.25 1.25 0 0 0 10 18.75v-7.5A1.25 1.25 0 0 1 11.25 10h27.5A1.25 1.25 0 0 0 40 8.75V1.25A1.25 1.25 0 0 0 38.75 0H10A10 10 0 0 0 0 10v8.75A1.25 1.25 0 0 0 1.25 20Z"
-                    fill="#3f80ff"
-                  />
-                  <path
-                    d="M38.75 20h-7.5A1.25 1.25 0 0 0 30 21.25v7.5A1.25 1.25 0 0 1 28.75 30H1.25A1.25 1.25 0 0 0 0 31.25v7.5A1.25 1.25 0 0 0 1.25 40H30A10 10 0 0 0 40 30V21.25A1.25 1.25 0 0 0 38.75 20Z"
-                    fill="#ff2768"
-                  />
-                </svg>
-                start.gg
-                <ExternalLink className="size-3" />
-              </a>
-              {player.startggPlayerId && (
-                <a
-                  href={supermajorProfileUrl(player.startggPlayerId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-                >
-                  <Image src="/supermajor-icon.png" alt="Supermajor" width={24} height={24} className="size-4" />
-                  supermajor.gg
-                  <ExternalLink className="size-3" />
-                </a>
-              )}
-            </div>
           )}
         </div>
 
