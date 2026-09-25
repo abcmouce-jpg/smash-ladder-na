@@ -4,7 +4,13 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 
-export function EndSeasonButton({ action, seasonName }: { action: (formData: FormData) => Promise<void>; seasonName: string }) {
+export function EndSeasonButton({
+  action,
+  seasonName,
+}: {
+  action: (formData: FormData) => Promise<void>;
+  seasonName: string;
+}) {
   const [confirm, confirmDialog] = useConfirm();
   const confirmReadyRef = useRef(false);
 
@@ -24,7 +30,7 @@ export function EndSeasonButton({ action, seasonName }: { action: (formData: For
           // dispatch finishes, and confirm() resolves asynchronously.
           const form = e.currentTarget;
           confirm(
-            `End "${seasonName}" and start the next one? This resets EVERYONE's rating to 1500 and sets played to 0. Any unresolved match is cancelled with no rating impact. This can't be undone.`,
+            `End "${seasonName}" and start the next one? This resets EVERYONE's rating and practice rating to 1500 and sets played to 0. Any unresolved match is cancelled with no rating impact. This can't be undone.`,
           ).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;

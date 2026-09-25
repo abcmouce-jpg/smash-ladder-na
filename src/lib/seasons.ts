@@ -150,11 +150,12 @@ async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
 }
 
 // Snapshots the current leaderboard as this season's final standings, then
-// resets rating/gamesPlayed for everyone so the next season starts fresh —
-// a full reset rather than a soft regression toward the mean, to keep the
-// rollover simple and predictable. nextScheduledEndAt announces the next
-// season's own rollover time (for its countdown and endActiveSeasonIfDue);
-// omit it to leave the next season manual-only, same as before this existed.
+// resets rating/gamesPlayed (and the parallel practiceRating/practiceGamesPlayed
+// track) for everyone so the next season starts fresh — a full reset rather
+// than a soft regression toward the mean, to keep the rollover simple and
+// predictable. nextScheduledEndAt announces the next season's own rollover
+// time (for its countdown and endActiveSeasonIfDue); omit it to leave the
+// next season manual-only, same as before this existed.
 export async function endActiveSeasonAndStartNext(
   nextName?: string,
   now = new Date(),
@@ -184,11 +185,17 @@ export async function endActiveSeasonAndStartNext(
       });
     }
 
-    await tx.user.updateMany({ data: { rating: 1500, gamesPlayed: 0 } });
+    await tx.user.updateMany({
+      data: { rating: 1500, gamesPlayed: 0, practiceRating: 1500, practiceGamesPlayed: 0 },
+    });
 
     const seasonCount = await tx.season.count();
     await tx.season.create({
-      data: { name: nextName ?? `Season ${seasonCount + 1}`, startsAt: now, scheduledEndAt: nextScheduledEndAt ?? null },
+      data: {
+        name: nextName ?? `Season ${seasonCount + 1}`,
+        startsAt: now,
+        scheduledEndAt: nextScheduledEndAt ?? null,
+      },
     });
 
     return cancelUnresolvedMatches(tx);

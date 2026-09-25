@@ -207,6 +207,24 @@ describe("endActiveSeasonAndStartNext", () => {
     expect(active?.name).toBe("Season 2");
     expect(active?.scheduledEndAt?.getTime()).toBe(nextEnd.getTime());
   });
+
+  it("resets both the main and practice rating tracks for everyone", async () => {
+    await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+    const player = await createTestUser({
+      rating: 1720,
+      gamesPlayed: 12,
+      practiceRating: 1380,
+      practiceGamesPlayed: 5,
+    });
+
+    await endActiveSeasonAndStartNext("Season 2", after);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.rating).toBe(1500);
+    expect(updated.gamesPlayed).toBe(0);
+    expect(updated.practiceRating).toBe(1500);
+    expect(updated.practiceGamesPlayed).toBe(0);
+  });
 });
 
 describe("endActiveSeasonIfDue", () => {
