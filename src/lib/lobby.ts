@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
@@ -109,7 +110,14 @@ export async function getActiveLobbyEntry(userId: string) {
   const entry = await prisma.ratingLobbyEntry.findFirst({
     where: {
       userId,
-      status: { in: [LobbyEntryStatus.WAITING, LobbyEntryStatus.PAIRED] },
+      // An expired WAITING row isn't a real queue spot: every pairing path
+      // (attemptPairing's candidate query, retryPairForWaitingUser,
+      // sweepLobbyPairing) already requires expiresAt > now, so reporting it as
+      // "still waiting" here only ever showed the player a search that could
+      // never succeed — while also blocking them from requeueing (see
+      // joinLobbyAndTryPair). PAIRED entries aren't subject to the WAITING TTL;
+      // they're bounded by the match itself (MATCH_TTL_MS).
+      OR: [{ status: LobbyEntryStatus.PAIRED }, { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() } }],
     },
     orderBy: { joinedAt: "desc" },
   });
@@ -291,6 +299,26 @@ async function attemptPairing(params: {
   );
 }
 
+// Runs a best-effort notification (a push to both players, or a queue-opportunity
+// ping to candidates) once the response has been sent.
+//
+// push-server documents these as "never throws", but their bodies make
+// unguarded prisma calls, so a transient DB error would have propagated out of
+// joinLobbyAndTryPair *after* the match was already created — failing the
+// Server Action's response and, because that action's error path used to skip
+// revalidatePath, leaving the client with no poller at all until a reload.
+// Deferring them the same way free-battle.ts and character-guides.ts do also
+// stops a slow candidate scan from holding up the re-render that actually shows
+// the player their match. after() throws outside a real request scope
+// (integration tests, one-off scripts) — a deliberate no-op there.
+function deferNotification(notify: () => Promise<unknown>) {
+  try {
+    after(notify);
+  } catch {
+    // See comment above.
+  }
+}
+
 export async function joinLobbyAndTryPair(
   userId: string,
   isPracticing = false,
@@ -319,7 +347,21 @@ export async function joinLobbyAndTryPair(
   ]);
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
-  if (waitingEntry || unresolvedMatch) return getActiveLobbyEntry(userId);
+  if (unresolvedMatch) return getActiveLobbyEntry(userId);
+  if (waitingEntry) {
+    // Still genuinely waiting — same expiry rule getActiveLobbyEntry and every
+    // pairing path now apply — so hand back the current state rather than
+    // queueing this player a second time.
+    if (waitingEntry.expiresAt.getTime() > Date.now()) return getActiveLobbyEntry(userId);
+    // Expired, just not swept yet by the cron finalizer. It still occupies the
+    // unique partial index on (userId) WHERE status = 'WAITING', so retire it
+    // here or the create below fails P2002 and this player can never requeue.
+    // Conditional update, so a concurrent join racing us just sees a no-op.
+    await prisma.ratingLobbyEntry.updateMany({
+      where: { id: waitingEntry.id, status: LobbyEntryStatus.WAITING },
+      data: { status: LobbyEntryStatus.EXPIRED },
+    });
+  }
 
   if (existingRoomCode && !ROOM_CODE_PATTERN.test(existingRoomCode)) {
     throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
@@ -379,8 +421,10 @@ export async function joinLobbyAndTryPair(
     recentOpponents,
   });
 
-  // Notify outside the transaction — a push failure must never roll back (or
-  // delay) the pairing itself. Best-effort internally (see push-server).
+  // Notify outside the transaction — a push failure must never roll back the
+  // pairing itself. Best-effort internally (see push-server), and deferred past
+  // this response via deferNotification so a slow send or a transient error in
+  // one of them can't delay or fail the join either.
   if (!paired) {
     // Nobody to pair with right now — tell anyone who's opted in and could
     // actually match this join (rather than the whole subscriber list) so
@@ -388,22 +432,24 @@ export async function joinLobbyAndTryPair(
     // fired from the join-time path: retryPairForWaitingUser's 5s poll and
     // the cron sweep operate on entries that already went through this
     // check once, so re-notifying there would just spam the same people.
-    await notifyQueueOpportunitySubscribers(
-      userId,
-      {
-        region: myRegion,
-        rating: me.rating,
-        maxMatchDistanceKm: me.maxMatchDistanceKm,
-        wiredConnection: me.wiredConnection,
-        requireWiredOpponent: me.requireWiredOpponent,
-      },
-      myReach,
-      myEffectiveGap,
+    deferNotification(() =>
+      notifyQueueOpportunitySubscribers(
+        userId,
+        {
+          region: myRegion,
+          rating: me.rating,
+          maxMatchDistanceKm: me.maxMatchDistanceKm,
+          wiredConnection: me.wiredConnection,
+          requireWiredOpponent: me.requireWiredOpponent,
+        },
+        myReach,
+        myEffectiveGap,
+      ),
     );
     return newEntry;
   }
   const entry = await getActiveLobbyEntry(userId);
-  await notifyMatchFoundToUsers(paired.player1Id, paired.player2Id);
+  deferNotification(() => notifyMatchFoundToUsers(paired.player1Id, paired.player2Id));
   return entry;
 }
 
@@ -493,7 +539,7 @@ export async function retryPairForWaitingUser(userId: string) {
       blockedIds,
       recentOpponents,
     });
-    if (paired) await notifyMatchFoundToUsers(paired.player1Id, paired.player2Id);
+    if (paired) deferNotification(() => notifyMatchFoundToUsers(paired.player1Id, paired.player2Id));
   } catch (err) {
     console.error("retryPairForWaitingUser failed (non-fatal, will retry next poll or cron sweep):", err);
   }
@@ -668,7 +714,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
         used.add(a.id);
         used.add(b.id);
         paired++;
-        await notifyMatchFoundToUsers(madeMatch.player1Id, madeMatch.player2Id);
+        deferNotification(() => notifyMatchFoundToUsers(madeMatch.player1Id, madeMatch.player2Id));
       }
       break;
     }
