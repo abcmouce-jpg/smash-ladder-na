@@ -49,8 +49,8 @@ export default async function SeasonsAdminPage() {
             )}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Snapshots the current leaderboard (10+ sets) as final standings, then resets everyone&apos;s rating to 1500
-            and sets played to 0.
+            Snapshots the current leaderboard (10+ sets) as final standings, then resets everyone&apos;s rating and
+            practice rating to 1500, and sets played to 0.
           </p>
         </CardContent>
       </Card>

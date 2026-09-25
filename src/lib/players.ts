@@ -455,10 +455,10 @@ export async function getCareerStats(userId: string) {
   };
 }
 
-// The active season's record/peak/streak for the season card on the profile
-// — same shape as getCareerStats but scoped to the current season's matches,
-// so these reset along with rating/gamesPlayed at season rollover. Returns
-// null if no season is active (nothing to scope the stats to).
+// The active season's record/sets-played/peak/streak for the season card on
+// the profile — same shape as getCareerStats but scoped to the current
+// season's matches, so these reset along with rating/gamesPlayed at season
+// rollover. Returns null if no season is active (nothing to scope the stats to).
 export async function getSeasonStats(userId: string) {
   const activeSeason = await getActiveSeason();
   if (!activeSeason) return null;
@@ -514,6 +514,7 @@ export async function getSeasonStats(userId: string) {
     seasonName: activeSeason.name,
     totalWins: wins,
     totalLosses: losses,
+    setsPlayed: wins + losses,
     peakRating: peakRating._max.ratingAfter,
     bestWinStreak,
   };

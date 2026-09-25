@@ -86,7 +86,6 @@ export async function ProfileOverviewSection({
   mainCharacter,
   usage,
   rating,
-  gamesPlayed,
   practiceRating,
   practiceGamesPlayed,
   isOwnProfile,
@@ -99,7 +98,6 @@ export async function ProfileOverviewSection({
   mainCharacter: string | null;
   usage: CharacterUsage[];
   rating: number;
-  gamesPlayed: number;
   practiceRating: number;
   practiceGamesPlayed: number;
   isOwnProfile: boolean;
@@ -185,7 +183,7 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">{gamesPlayed}</p>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.setsPlayed}</p>
                 <p className="text-xs text-muted-foreground">{lang === "es" ? "Partidas jugadas" : "Sets played"}</p>
               </div>
               <div>
