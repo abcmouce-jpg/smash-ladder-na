@@ -13,13 +13,33 @@ export const PRE_SEASON_STARTS_AT = new Date("2026-07-25T18:00:00-04:00");
 
 export const PRE_SEASON_NAME = "Preseason";
 
-// The preseason is a fixed 2-month trial run before Season 1 proper.
-// Announced to players up front, and used as the preseason's scheduledEndAt
-// (see launchPreSeasonIfDue) so the finalize cron rolls it over automatically.
-// Pinned to 2pm ET on the day that 2 months out lands, rather than deriving it
-// from PRE_SEASON_STARTS_AT's own 6pm ET time of day.
-export const PRE_SEASON_DURATION_MONTHS = 2;
+// Every season runs a fixed 2 months. A newly created season is stamped with
+// scheduledEndAt = start + SEASON_DURATION_MONTHS, so the finalize cron rolls
+// it over on its own with no manual step (see endActiveSeasonIfDue).
+export const SEASON_DURATION_MONTHS = 2;
+
+// The preseason runs the same fixed length as any other season; kept as its
+// own name because the preseason copy on the leaderboard/rules pages reads it
+// that way.
+export const PRE_SEASON_DURATION_MONTHS = SEASON_DURATION_MONTHS;
+
+// The preseason's announced end, pinned to 2pm ET on the day that 2 months out
+// lands rather than deriving it from PRE_SEASON_STARTS_AT's own 6pm ET time of
+// day. Used as the preseason's scheduledEndAt (see launchPreSeasonIfDue).
 export const PRE_SEASON_EXPECTED_END_AT = new Date("2026-09-25T14:00:00-04:00");
+
+// Whole-month arithmetic that keeps the day-of-month and time of day, clamping
+// to the target month's last day (Jan 31 + 1 month → Feb 28) instead of letting
+// Date roll over into the following month.
+export function addMonths(date: Date, months: number): Date {
+  const day = date.getUTCDate();
+  const shifted = new Date(date);
+  shifted.setUTCDate(1); // park on the 1st so the month shift can't overflow
+  shifted.setUTCMonth(shifted.getUTCMonth() + months);
+  const lastDayOfTargetMonth = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0)).getUTCDate();
+  shifted.setUTCDate(Math.min(day, lastDayOfTargetMonth));
+  return shifted;
+}
 
 export function hasPreSeasonStarted() {
   return Date.now() >= PRE_SEASON_STARTS_AT.getTime();
@@ -155,10 +175,12 @@ async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
 // resets rating/gamesPlayed (and the parallel practiceRating/practiceGamesPlayed
 // track) for everyone so the next season starts fresh — a full reset rather
 // than a soft regression toward the mean, to keep the rollover simple and
-// predictable. nextScheduledEndAt announces the next season's own rollover
-// time (for its countdown and endActiveSeasonIfDue); omit it to leave the
-// next season manual-only, same as before this existed. nextAlgorithm is
-// stamped onto the new season and defaults to NEXT_SEASON_ALGORITHM (Glicko-2).
+// predictable. Every season runs a fixed 2 months, so by default the next
+// season is stamped with a rollover time of `now` + SEASON_DURATION_MONTHS and
+// keeps rolling over on its own. Pass nextScheduledEndAt to override that
+// length for a deliberate one-off, or null to leave the next season
+// manual-only. nextAlgorithm is stamped onto the new season and defaults to
+// NEXT_SEASON_ALGORITHM (Glicko-2).
 export async function endActiveSeasonAndStartNext(
   nextName?: string,
   now = new Date(),
@@ -211,7 +233,8 @@ export async function endActiveSeasonAndStartNext(
       data: {
         name: nextName ?? `Season ${seasonCount + 1}`,
         startsAt: now,
-        scheduledEndAt: nextScheduledEndAt ?? null,
+        // Omitted → the standard 2-month season; explicit null → manual-only.
+        scheduledEndAt: nextScheduledEndAt === undefined ? addMonths(now, SEASON_DURATION_MONTHS) : nextScheduledEndAt,
         algorithm: nextAlgorithm,
       },
     });
