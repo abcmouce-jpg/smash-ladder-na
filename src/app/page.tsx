@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Activity, MapPin, Users } from "lucide-react";
+import { Activity, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
@@ -11,10 +11,9 @@ import { getFriendliesPosts } from "@/lib/home-feed";
 import { getMatchFeed } from "@/lib/match-feed";
 import { serializeSetEntry } from "@/lib/set-entry";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
-import { LocalTime } from "@/components/local-time";
+import { FriendliesPosts } from "@/components/friendlies-posts";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { Card, CardContent } from "@/components/ui/card";
 import { LiveStreamProvider } from "@/components/live-streams/selection";
@@ -206,61 +205,15 @@ export default async function Home() {
 
       <div className="mt-10">
         <SectionHeading label={lang === "es" ? "Amistosos" : "Friendlies"} />
-        {posts.length > 0 ? (
-          <Card className="mt-3 divide-y divide-border overflow-hidden py-0">
-            {posts.map((post) => (
-              <div key={post.id} className="px-4 py-3">
-                <div className="flex items-center gap-2.5">
-                  {post.author.avatarUrl && (
-                    <Image
-                      src={post.author.avatarUrl}
-                      alt={post.author.username}
-                      width={20}
-                      height={20}
-                      className="shrink-0 rounded-full"
-                    />
-                  )}
-                  <Link
-                    href={`/players/${post.author.id}`}
-                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
-                  >
-                    {post.author.username}
-                  </Link>
-                  <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted-foreground">
-                    <span>{post.author.rating}</span>
-                    <span aria-hidden>·</span>
-                    <LocalTime iso={post.createdAt.toISOString()} />
-                  </span>
-                </div>
-                <p className="mt-1 text-sm leading-snug">{post.comment}</p>
-                {(post.region || post.minTier) && (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {post.region && (
-                      <Badge variant="outline">
-                        <MapPin className="size-3" />
-                        {post.region}
-                      </Badge>
-                    )}
-                    {post.minTier && <Badge variant="outline">{post.minTier}+</Badge>}
-                  </div>
-                )}
-              </div>
-            ))}
-          </Card>
-        ) : (
-          <Card className="mt-3">
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">
-                {lang === "es"
-                  ? "Nadie está buscando partida ahora mismo — sé el primero en publicar."
-                  : "No one's looking for a game right now — be the first to post."}
-              </p>
-              <Button asChild variant="secondary" size="sm" className="mt-3">
-                <Link href="/friendlies">{lang === "es" ? "Abrir Amistosos" : "Open Friendlies"}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <FriendliesPosts
+          posts={posts}
+          lang={lang}
+          emptyAction={
+            <Button asChild variant="secondary" size="sm" className="mt-3">
+              <Link href="/friendlies">{lang === "es" ? "Abrir Amistosos" : "Open Friendlies"}</Link>
+            </Button>
+          }
+        />
         {user ? (
           <Link
             href="/friendlies"

@@ -69,3 +69,7 @@ export async function getFriendliesPosts(limit = 6) {
     },
   });
 }
+
+// Row shape for the shared FriendliesPosts card, derived from the query so
+// the component can't drift from what the query actually returns.
+export type FriendliesPost = Awaited<ReturnType<typeof getFriendliesPosts>>[number];
