@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { Activity, MapPin, Users } from "lucide-react";
+import { Activity, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { getFriendliesPosts } from "@/lib/home-feed";
@@ -12,9 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
-import { LocalTime } from "@/components/local-time";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { SectionHeading } from "@/components/section-heading";
+import { FriendliesPosts } from "@/components/friendlies-posts";
 import { Card, CardContent } from "@/components/ui/card";
 import { LiveStreamProvider } from "@/components/live-streams/selection";
 import { LiveStreamStage } from "@/components/live-streams/stage";
@@ -186,59 +186,15 @@ export default async function HomeEs() {
 
       <div className="mt-10">
         <SectionHeading label="Amistosos" />
-        {posts.length > 0 ? (
-          <Card className="mt-3 divide-y divide-border overflow-hidden py-0">
-            {posts.map((post) => (
-              <div key={post.id} className="px-4 py-3">
-                <div className="flex items-center gap-2.5">
-                  {post.author.avatarUrl && (
-                    <Image
-                      src={post.author.avatarUrl}
-                      alt={post.author.username}
-                      width={20}
-                      height={20}
-                      className="shrink-0 rounded-full"
-                    />
-                  )}
-                  <Link
-                    href={`/players/${post.author.id}`}
-                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
-                  >
-                    {post.author.username}
-                  </Link>
-                  <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted-foreground">
-                    <span>{post.author.rating}</span>
-                    <span aria-hidden>·</span>
-                    <LocalTime iso={post.createdAt.toISOString()} />
-                  </span>
-                </div>
-                <p className="mt-1 text-sm leading-snug">{post.comment}</p>
-                {(post.region || post.minTier) && (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {post.region && (
-                      <Badge variant="outline">
-                        <MapPin className="size-3" />
-                        {post.region}
-                      </Badge>
-                    )}
-                    {post.minTier && <Badge variant="outline">{post.minTier}+</Badge>}
-                  </div>
-                )}
-              </div>
-            ))}
-          </Card>
-        ) : (
-          <Card className="mt-3">
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">
-                Nadie está buscando partida ahora mismo — sé el primero en publicar.
-              </p>
-              <Button asChild variant="secondary" size="sm" className="mt-3">
-                <Link href="/friendlies">Abrir Amistosos</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <FriendliesPosts
+          posts={posts}
+          lang="es"
+          emptyAction={
+            <Button asChild variant="secondary" size="sm" className="mt-3">
+              <Link href="/friendlies">Abrir Amistosos</Link>
+            </Button>
+          }
+        />
         {user ? (
           <Link
             href="/friendlies"

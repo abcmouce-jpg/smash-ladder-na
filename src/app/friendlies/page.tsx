@@ -3,8 +3,11 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import { auth } from "@/auth";
 import { getAchievedFreeBattleTiers, getOwnActivePost, getUserBrief } from "@/lib/free-battle";
+import { getFriendliesPosts } from "@/lib/home-feed";
 import { FREE_BATTLE_TIERS, type FreeBattleTier } from "@/lib/rank-tier";
 import { PageHeading } from "@/components/page-heading";
+import { SectionHeading } from "@/components/section-heading";
+import { FriendliesPosts } from "@/components/friendlies-posts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +16,7 @@ import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 
 export default async function FriendliesPage() {
-  const [session, lang] = await Promise.all([auth(), getLang()]);
+  const [session, lang, posts] = await Promise.all([auth(), getLang(), getFriendliesPosts(20)]);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
@@ -77,6 +80,11 @@ export default async function FriendliesPage() {
       ) : (
         <FriendliesActionsPanel userId={session.user.id} lang={lang} />
       )}
+
+      <div className="mt-10">
+        <SectionHeading label={lang === "es" ? "Publicaciones abiertas" : "Open posts"} />
+        <FriendliesPosts posts={posts} lang={lang} />
+      </div>
 
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_FREE_BATTLE} />
     </main>
