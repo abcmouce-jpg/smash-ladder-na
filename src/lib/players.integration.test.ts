@@ -6,9 +6,11 @@ import {
   getCurrentMatchForUser,
   getCurrentStreak,
   getHeadToHead,
+  getHiddenRatingMatchIds,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getPlayerProfile,
+  getRatingChartPoints,
   getSeasonStats,
   getTopCharacters,
   getTopRivals,
@@ -497,6 +499,145 @@ describe("getSeasonStats", () => {
   it("returns null when no season is active", async () => {
     const player = await createTestUser();
     expect(await getSeasonStats(player.id)).toBeNull();
+  });
+});
+
+describe("getHiddenRatingMatchIds", () => {
+  async function createSeason(name: string, endsAt: Date | null) {
+    return prisma.season.create({ data: { name, endsAt } });
+  }
+
+  async function confirmedMatchInSeason(
+    p1: string,
+    p2: string,
+    seasonId: string,
+    confirmedAt: Date,
+    options: { player1IsPracticing?: boolean } = {},
+  ) {
+    return prisma.ratingMatch.create({
+      data: {
+        player1Id: p1,
+        player2Id: p2,
+        seasonId,
+        status: MatchStatus.CONFIRMED,
+        expiresAt: new Date(),
+        reportedWinnerId: p1,
+        confirmedAt,
+        player1IsPracticing: options.player1IsPracticing ?? false,
+      },
+    });
+  }
+
+  it("hides the active season's opening sets, counting each track separately", async () => {
+    const active = await createSeason("Season 1", null);
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+
+    const ranked: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const m = await confirmedMatchInSeason(player.id, opponent.id, active.id, new Date(base + i * 1000));
+      ranked.push(m.id);
+    }
+    const practice: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const m = await confirmedMatchInSeason(player.id, opponent.id, active.id, new Date(base + 10_000 + i * 1000), {
+        player1IsPracticing: true,
+      });
+      practice.push(m.id);
+    }
+
+    const { changeIds, valueIds } = await getHiddenRatingMatchIds(player.id);
+
+    // The first five sets on each track hide their change; the sixth does not.
+    expect(changeIds).toEqual(expect.arrayContaining([...ranked.slice(0, 5), ...practice.slice(0, 5)]));
+    expect(changeIds).not.toContain(ranked[5]);
+    expect(changeIds).not.toContain(practice[5]);
+
+    // The value window is one shorter (the graduation rating is public), and
+    // practice sets never have a value window — RatingHistory holds no practice rows.
+    expect(valueIds).toEqual(expect.arrayContaining(ranked.slice(0, 4)));
+    expect(valueIds).not.toContain(ranked[4]);
+    expect(valueIds).not.toContain(practice[0]);
+  });
+
+  it("never hides a match from an earlier season", async () => {
+    await createSeason("Season 1", null);
+    const past = await createSeason("Season 0", new Date());
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const m = await confirmedMatchInSeason(player.id, opponent.id, past.id, new Date());
+
+    const { changeIds, valueIds } = await getHiddenRatingMatchIds(player.id);
+    expect(changeIds).not.toContain(m.id);
+    expect(valueIds).not.toContain(m.id);
+  });
+
+  it("hides nothing when no season is active", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    // No season row at all — the match can't carry a seasonId.
+    await createConfirmedMatch(player.id, opponent.id);
+
+    const { changeIds, valueIds } = await getHiddenRatingMatchIds(player.id);
+    expect(changeIds).toEqual([]);
+    expect(valueIds).toEqual([]);
+  });
+});
+
+describe("getRatingChartPoints", () => {
+  async function createSeason(name: string, endsAt: Date | null) {
+    return prisma.season.create({ data: { name, endsAt } });
+  }
+
+  async function createConfirmedMatchInSeason(p1: string, p2: string, seasonId: string, confirmedAt: Date) {
+    return prisma.ratingMatch.create({
+      data: {
+        player1Id: p1,
+        player2Id: p2,
+        seasonId,
+        status: MatchStatus.CONFIRMED,
+        expiresAt: new Date(),
+        confirmedAt,
+      },
+    });
+  }
+
+  it("returns only the active season's points, dropping earlier seasons", async () => {
+    const active = await createSeason("Season 1", null);
+    const past = await createSeason("Season 0", new Date());
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+
+    const pastMatch = await createConfirmedMatchInSeason(player.id, opponent.id, past.id, new Date());
+    await prisma.ratingHistory.create({
+      data: { userId: player.id, matchId: pastMatch.id, ratingBefore: 1400, ratingAfter: 1420, delta: 20 },
+    });
+    const activeMatch = await createConfirmedMatchInSeason(player.id, opponent.id, active.id, new Date());
+    await prisma.ratingHistory.create({
+      data: { userId: player.id, matchId: activeMatch.id, ratingBefore: 1500, ratingAfter: 1510, delta: 10 },
+    });
+
+    const points = await getRatingChartPoints(player.id);
+    expect(points.map((p) => p.rating)).toEqual([1510]);
+  });
+
+  it("omits the caller's hidden provisional matches", async () => {
+    const active = await createSeason("Season 1", null);
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const m = await createConfirmedMatchInSeason(player.id, opponent.id, active.id, new Date());
+    await prisma.ratingHistory.create({
+      data: { userId: player.id, matchId: m.id, ratingBefore: 1500, ratingAfter: 1520, delta: 20 },
+    });
+
+    expect((await getRatingChartPoints(player.id)).map((p) => p.rating)).toEqual([1520]);
+    expect((await getRatingChartPoints(player.id, 50, [m.id])).map((p) => p.rating)).toEqual([]);
+  });
+
+  it("returns nothing when no season is active", async () => {
+    const player = await createTestUser();
+    expect(await getRatingChartPoints(player.id)).toEqual([]);
   });
 });
 

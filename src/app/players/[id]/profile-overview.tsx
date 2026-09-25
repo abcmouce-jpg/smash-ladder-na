@@ -12,6 +12,7 @@ import { AdminMatchOverride } from "@/components/moderation-tools";
 import {
   getCareerStats,
   getCurrentStreak,
+  getHiddenRatingMatchIds,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getRatingChartPoints,
@@ -114,6 +115,13 @@ export async function ProfileOverviewSection({
   page: number;
   lang: Lang;
 }) {
+  // The opening sets of the ACTIVE season are the only thing hidden: a returner
+  // keeps every earlier season's numbers, and those first sets stay hidden even
+  // after they graduate. Computed once here and handed to each query below so
+  // the chart, the peaks and the match-history trails all agree on the window.
+  const { changeIds, valueIds } = await getHiddenRatingMatchIds(id);
+  const hiddenChangeIds = new Set(changeIds);
+
   const [
     recentHistory,
     pageHistory,
@@ -135,9 +143,9 @@ export async function ProfileOverviewSection({
     getPlayerMatchHistory(id),
     getPlayerMatchHistory(id, { limit: MATCH_HISTORY_PAGE_SIZE, skip: (page - 1) * MATCH_HISTORY_PAGE_SIZE }),
     getPlayerMatchCount(id),
-    getRatingChartPoints(id),
-    getCareerStats(id),
-    getSeasonStats(id),
+    getRatingChartPoints(id, 50, valueIds),
+    getCareerStats(id, valueIds),
+    getSeasonStats(id, valueIds),
     getTopRivals(id),
     getMatchHistoryAchievements(id),
     getPlayerSeasonAchievements(id),
@@ -152,16 +160,16 @@ export async function ProfileOverviewSection({
   const winRate = realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
-  // A provisional player's rating (and everything derived from it — the chart,
-  // peak rating, rating-threshold achievements) stays hidden from everyone but
-  // moderators, so the peak is masked to null below rather than leaking through
-  // an unlocked "Reached Elite" badge or a milestone above the starting rating.
+  // Only the current rating is gated on the player's *current* status — it's
+  // the number that isn't public until they graduate. The chart and the peaks
+  // below read history the server already filtered (see getHiddenRatingMatchIds),
+  // so they keep earlier seasons and simply omit the active season's opening
+  // window.
   const ratingVisible = isRatingVisible(gamesPlayed, isModerator);
   const practiceRatingVisible = isRatingVisible(practiceGamesPlayed, isModerator);
-  const visiblePeakRating = ratingVisible ? careerStats.peakRating : null;
   const achievements = [
-    ...computeAchievements({ ...careerStats, peakRating: visiblePeakRating }),
-    ...computeRatingMilestoneAchievements(visiblePeakRating),
+    ...computeAchievements(careerStats),
+    ...computeRatingMilestoneAchievements(careerStats.peakRating),
     ...matchAchievements,
     ...seasonAchievements,
   ].sort(achievementComparator);
@@ -217,15 +225,9 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                {ratingVisible ? (
-                  <p className="text-lg font-semibold tabular-nums">
-                    {seasonStats.peakRating != null ? formatRating(seasonStats.peakRating) : "—"}
-                  </p>
-                ) : (
-                  <p className="text-sm font-medium text-muted-foreground">
-                    <RatingHidden gamesPlayed={gamesPlayed} lang={lang} />
-                  </p>
-                )}
+                <p className="text-lg font-semibold tabular-nums">
+                  {seasonStats.peakRating != null ? formatRating(seasonStats.peakRating) : "—"}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {lang === "es" ? "Clasificación máxima de temporada" : "Season peak rating"}
                 </p>
@@ -259,7 +261,7 @@ export async function ProfileOverviewSection({
         </Card>
       )}
 
-      {ratingVisible && chartPoints.length >= 2 && (
+      {chartPoints.length >= 2 && (
         <Card className="mt-4">
           <CardContent className="pt-4">
             <div className="mb-2 flex items-center justify-between">
@@ -298,15 +300,9 @@ export async function ProfileOverviewSection({
               </p>
             </div>
             <div>
-              {ratingVisible ? (
-                <p className="text-lg font-semibold tabular-nums">
-                  {careerStats.peakRating != null ? formatRating(careerStats.peakRating) : "—"}
-                </p>
-              ) : (
-                <p className="text-sm font-medium text-muted-foreground">
-                  <RatingHidden gamesPlayed={gamesPlayed} lang={lang} />
-                </p>
-              )}
+              <p className="text-lg font-semibold tabular-nums">
+                {careerStats.peakRating != null ? formatRating(careerStats.peakRating) : "—"}
+              </p>
               <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación máxima" : "Peak rating"}</p>
             </div>
             <div>
@@ -414,10 +410,12 @@ export async function ProfileOverviewSection({
                   // Dates can't cross the server→client boundary; the
                   // modal renders it back with LocalTime.
                   confirmedAt: match.confirmedAt?.toISOString() ?? null,
+                  // Per-match reveal (see getHiddenRatingMatchIds): the active
+                  // season's opening sets stay hidden even after graduation.
+                  ratingRevealed: !hiddenChangeIds.has(match.id),
                 }}
                 viewedPlayerName={playerUsername}
-                ratingVisible={ratingVisible}
-                practiceRatingVisible={practiceRatingVisible}
+                canSeeHiddenRatings={isModerator}
                 // Own profile reads their own chat log; a mod reviewing
                 // someone else's profile gets the mod spectator path. The
                 // modal is the only place this renders now.

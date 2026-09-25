@@ -12,7 +12,6 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
-import { RatingHidden } from "@/components/rating-hidden";
 import {
   STATUS_LABEL,
   STATUS_VARIANT,
@@ -242,13 +241,7 @@ function Side({
         <span
           className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "sm:justify-end")}
         >
-          <span className="tabular-nums">
-            {ratingVisible ? (
-              formatRating(player.rating)
-            ) : (
-              <RatingHidden gamesPlayed={player.gamesPlayed} lang={lang} />
-            )}
-          </span>
+          <span className="tabular-nums">{ratingVisible ? formatRating(player.rating) : "Provisional"}</span>
           {player.region && (
             <span className="flex min-w-0 items-center gap-0.5">
               <MapPin className="size-3 shrink-0" />
