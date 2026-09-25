@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
+import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { BlockUserButton } from "@/components/block-user-button";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
@@ -85,9 +86,6 @@ export function PlayerProfileHeader({
               )}
               <CharacterUsageIcons usage={characterUsage} />
             </h1>
-            {player.discordUsername && !player.hideDiscordUsername && (
-              <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
-            )}
             {player.isSupporter && (
               <p className="text-xs text-muted-foreground">
                 {lang === "es"
@@ -100,6 +98,14 @@ export function PlayerProfileHeader({
                 ? `${player.rating} de clasificación · ${player.gamesPlayed} partidas jugadas`
                 : `${player.rating} rating · ${player.gamesPlayed} sets played`}
             </p>
+            {player.discordUsername && !player.hideDiscordUsername && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline">
+                  <DiscordIcon className="size-3" />
+                  {player.discordUsername}
+                </Badge>
+              </div>
+            )}
             {headToHead && (
               <p className="text-sm tabular-nums text-muted-foreground">
                 {lang === "es" ? "Tu récord: " : "Your record: "}
