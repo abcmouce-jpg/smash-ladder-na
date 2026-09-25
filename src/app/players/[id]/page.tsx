@@ -92,6 +92,7 @@ export default async function PlayerProfilePage({
             mainCharacter={player.mainCharacter}
             usage={characterUsage}
             rating={player.rating}
+            gamesPlayed={player.gamesPlayed}
             practiceRating={player.practiceRating}
             practiceGamesPlayed={player.practiceGamesPlayed}
             isOwnProfile={isOwnProfile}

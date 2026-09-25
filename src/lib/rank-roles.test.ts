@@ -21,14 +21,14 @@ describe("computeTierChange", () => {
   });
 
   it("uses the pre-increment games count for oldTier so a provisional reveal is detected", () => {
-    // 9 games before this match (still provisional) -> 10 after (tiered for the first time).
-    const change = computeTierChange("u1", "d1", "Player", "m1", 1550, 1560, 9);
+    // 4 games before this match (still provisional) -> 5 after (tiered for the first time).
+    const change = computeTierChange("u1", "d1", "Player", "m1", 1550, 1560, 4);
     expect(change.oldTier).toBeNull();
     expect(change.newTier).toBe("Fighter");
   });
 
   it("stays provisional on both sides when still under the games threshold after this match", () => {
-    const change = computeTierChange("u1", "d1", "Player", "m1", 1550, 1600, 5);
+    const change = computeTierChange("u1", "d1", "Player", "m1", 1550, 1600, 2);
     expect(change.oldTier).toBeNull();
     expect(change.newTier).toBeNull();
   });

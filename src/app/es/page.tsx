@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
+import { RatingHidden } from "@/components/rating-hidden";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { SectionHeading } from "@/components/section-heading";
 import { FriendliesPosts } from "@/components/friendlies-posts";
@@ -22,6 +23,7 @@ import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { formatRating } from "@/lib/rating-format";
+import { isRatingVisible } from "@/lib/rank-tier";
 
 export const metadata: Metadata = {
   title: "Smash Ladder NA — Liga clasificatoria",
@@ -52,6 +54,9 @@ export default async function HomeEs() {
   ]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const liveEntries = feed.filter((entry) => entry.hasLiveStreamer).map(serializeSetEntry);
+  const ratingVisible = Boolean(
+    me && user && isRatingVisible(me.gamesPlayed, user.role === "MOD" || user.role === "ADMIN"),
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
@@ -105,8 +110,14 @@ export default async function HomeEs() {
 
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
-          Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en{" "}
-          {me.gamesPlayed} partidas.
+          {ratingVisible ? (
+            <>
+              Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en{" "}
+              {me.gamesPlayed} partidas.
+            </>
+          ) : (
+            <RatingHidden gamesPlayed={me.gamesPlayed} lang="es" />
+          )}
         </p>
       )}
 

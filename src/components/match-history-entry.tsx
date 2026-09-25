@@ -87,6 +87,8 @@ export function MatchHistoryEntry({
   match,
   viewedPlayerName,
   chatLogAction,
+  ratingVisible = true,
+  practiceRatingVisible = true,
   children,
   lang = "en",
 }: {
@@ -95,6 +97,15 @@ export function MatchHistoryEntry({
   viewedPlayerName: string;
   /** Bound server action for loading the match's chat, when the viewer may see it. */
   chatLogAction?: ComponentProps<typeof MatchChatLog>["action"];
+  /**
+   * Whether the viewed player's rating numbers may be shown (see
+   * isRatingVisible). False while they're provisional and the viewer isn't a
+   * moderator — the trail is dropped rather than masked, since a
+   * before→after pair is meaningless without the numbers.
+   */
+  ratingVisible?: boolean;
+  /** Same gate for the practice track — a practice entry's before→after are practice ratings. */
+  practiceRatingVisible?: boolean;
   children?: ReactNode;
   lang?: "en" | "es";
 }) {
@@ -103,9 +114,13 @@ export function MatchHistoryEntry({
 
   const { score, delta } = match;
   const hasScore = score.wins > 0 || score.losses > 0;
-  // The arrow needs both ends; a match with no post-rating recorded falls back
-  // to the bare delta rather than drawing "1500 → null".
-  const hasRatingTrail = match.ratingBefore != null && match.ratingAfter != null;
+  // A practice entry's before→after are practice ratings, so it's gated on the
+  // practice count rather than the ranked one. The arrow needs both ends; a
+  // match with no post-rating recorded falls back to the bare delta rather
+  // than drawing "1500 → null". Both are suppressed entirely when the rating
+  // isn't visible.
+  const trailVisible = match.isPracticing ? practiceRatingVisible : ratingVisible;
+  const hasRatingTrail = trailVisible && match.ratingBefore != null && match.ratingAfter != null;
   const deltaClass = cn(
     "text-xs tabular-nums",
     match.isPracticing
@@ -182,6 +197,7 @@ export function MatchHistoryEntry({
                 </span>
               </span>
             ) : (
+              trailVisible &&
               match.ratingBefore != null && (
                 <span className={deltaClass}>
                   {delta > 0 ? "+" : ""}

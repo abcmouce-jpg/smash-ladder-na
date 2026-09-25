@@ -39,11 +39,19 @@ export const matchWithPlayers = {
       username: true,
       avatarUrl: true,
       rating: true,
+      // Gates whether the rating above is shown on the lobby match view — a
+      // provisional player's number stays hidden from non-moderators (see
+      // isRatingVisible).
+      gamesPlayed: true,
       // Shown instead of `rating` on the lobby match view when this side is
       // isPracticing — that's the number actually feeding this match's rating
       // math (see applyEloAndConfirm), and showing the main rating instead
       // was confusing the opponent about why so little rating moved.
       practiceRating: true,
+      // Gates whether the practice rating above is shown — like gamesPlayed
+      // for the main rating, it stays hidden from non-moderators until the
+      // player has enough practice sets (see isRatingVisible).
+      practiceGamesPlayed: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -55,7 +63,9 @@ export const matchWithPlayers = {
       username: true,
       avatarUrl: true,
       rating: true,
+      gamesPlayed: true,
       practiceRating: true,
+      practiceGamesPlayed: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -433,7 +443,10 @@ export async function requestRematch(userId: string, matchId: string) {
   );
 }
 
-// Provisional players (few games) swing faster so their rating converges quickly.
+// New players (few games) swing faster so their rating converges quickly. This
+// is a rating-math decision, deliberately separate from the provisional
+// threshold in rank-tier.ts that governs when a rating becomes public — the
+// two happen to share a value today but are free to diverge.
 export function kFactor(gamesPlayed: number) {
   if (gamesPlayed < 10) return 40;
   if (gamesPlayed < 30) return 32;

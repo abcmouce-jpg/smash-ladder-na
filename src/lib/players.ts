@@ -108,8 +108,8 @@ export async function getCurrentMatchForUser(userId: string) {
       id: true,
       player1Id: true,
       player2Id: true,
-      player1: { select: { id: true, username: true, avatarUrl: true, rating: true } },
-      player2: { select: { id: true, username: true, avatarUrl: true, rating: true } },
+      player1: { select: { id: true, username: true, avatarUrl: true, rating: true, gamesPlayed: true } },
+      player2: { select: { id: true, username: true, avatarUrl: true, rating: true, gamesPlayed: true } },
       games: {
         orderBy: { gameNumber: "asc" },
         select: {

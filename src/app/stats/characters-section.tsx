@@ -138,10 +138,11 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
   const season = await getActiveSeason();
 
   // Same inclusion rules as the per-character leaderboard itself
-  // (getLeaderboardPlayers): the leaderboard's games floor — deliberately
-  // lower than the 10-game tier threshold, so provisional players count —
-  // plus no banned or Discord-self-deleted accounts. Every column scopes to
-  // this same population, and to the active season, since User.gamesPlayed
+  // (getLeaderboardPlayers): the leaderboard's games floor — the same set
+  // count a player needs to move past provisional, so a hidden rating never
+  // lands on a public board — plus no banned or Discord-self-deleted accounts.
+  // Every column scopes to this same population, and to the active season, since
+  // User.gamesPlayed
   // and rating reset at each rollover — the leaderboard is season-scoped
   // too, so all-time games would mix timeframes with the player counts.
   const leaderboardWhere: Prisma.UserWhereInput = {

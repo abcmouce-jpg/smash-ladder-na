@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
-import { getRankTier } from "@/lib/rank-tier";
+import { getRankTier, isRatingVisible, PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import { getCareerStats } from "@/lib/players";
 import { characterIconSlug } from "@/lib/character-icons";
@@ -70,6 +70,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   }
 
   const [career, tier] = await Promise.all([getCareerStats(id), getRankTier(player.rating, player.gamesPlayed)]);
+  // Link-preview images are crawled and cached publicly, so a provisional
+  // player's rating (and peak) is left off entirely rather than embedded.
+  const ratingVisible = isRatingVisible(player.gamesPlayed, false);
 
   const tierColor = tier ? (TIER_COLORS[tier.name] ?? "#ff6e50") : "#6b6b70";
   const characterIcon = characterIconDataUri(player.mainCharacter);
@@ -122,7 +125,11 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             >
               {tier ? tier.name.toUpperCase() : "PROVISIONAL"}
             </div>
-            <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>{formatRating(player.rating)} rating</div>
+            <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>
+              {ratingVisible
+                ? `${formatRating(player.rating)} rating`
+                : `Rating hidden until ${PROVISIONAL_GAMES_THRESHOLD} sets`}
+            </div>
             {characterIcon && <img src={characterIcon} width={44} height={44} style={{ borderRadius: 8 }} alt="" />}
           </div>
         </div>
@@ -141,7 +148,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
-            {career.peakRating != null ? formatRating(career.peakRating) : "—"}
+            {ratingVisible && career.peakRating != null ? formatRating(career.peakRating) : "—"}
           </div>
           <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>PEAK RATING</div>
         </div>

@@ -46,7 +46,7 @@ import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGION_GROUPS, REGION_REFERENCE_CITY } from "@/lib/regions";
-import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
+import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier, isRatingVisible } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
@@ -72,6 +72,7 @@ import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
 import { CancelOrSurrenderButton } from "@/components/cancel-or-surrender-button";
 import { SameBansButton } from "@/components/same-bans-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
+import { RatingHidden } from "@/components/rating-hidden";
 import { DisputeResolutionForm } from "@/components/dispute-resolution-form";
 import { CommentForm } from "@/components/comment-form";
 import { ChatMessages } from "@/components/chat-messages";
@@ -173,6 +174,10 @@ export default async function LobbyPage() {
   // rest of the site uses the standard 3xl.
   const showMatchPanel = !myLeftAt && (isInActiveMatch || matchJustEnded);
   const isWaiting = entry?.status === "WAITING";
+  // Rated ratings stay visible to moderators even while a player is provisional
+  // (see isRatingVisible); the lobby's own match view is the one place a
+  // non-mod player can be looking at another provisional player's number.
+  const viewerIsModerator = session.user.role === "MOD" || session.user.role === "ADMIN";
   // The queue + settings stack only makes sense with no live match to focus on;
   // once a match ends it comes back below the results panel.
   const showQueueArea = !isInActiveMatch;
@@ -196,7 +201,9 @@ export default async function LobbyPage() {
       />
       <PushNudgeBanner lang={lang} />
 
-      {showMatchPanel && entry?.match && <PairedView userId={session.user.id} match={entry.match} lang={lang} />}
+      {showMatchPanel && entry?.match && (
+        <PairedView userId={session.user.id} match={entry.match} viewerIsModerator={viewerIsModerator} lang={lang} />
+      )}
 
       {showQueueArea && (
         <>
@@ -658,7 +665,17 @@ function MatchSettingToggle({
 // page as clutter — that's what the player's own match history on their
 // profile is for. But comments are kept open by default so both players
 // can keep talking; either can end their own view of it via Leave.
-async function PairedView({ userId, match, lang }: { userId: string; match: Match; lang: Lang }) {
+async function PairedView({
+  userId,
+  match,
+  viewerIsModerator,
+  lang,
+}: {
+  userId: string;
+  match: Match;
+  viewerIsModerator: boolean;
+  lang: Lang;
+}) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
   const isPlayer1 = match.player1Id === userId;
   const alreadyReportedConnection = match.connectionReports.length > 0;
@@ -671,7 +688,9 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
       avatarUrl: true,
       zenMode: true,
       rating: true,
+      gamesPlayed: true,
       practiceRating: true,
+      practiceGamesPlayed: true,
       region: true,
     },
   });
@@ -704,7 +723,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <Card>
           {match.status === "CONFIRMED" ? (
-            <ConfirmedSection userId={userId} match={match} lang={lang} />
+            <ConfirmedSection userId={userId} match={match} viewerIsModerator={viewerIsModerator} lang={lang} />
           ) : (
             <TerminatedSection status={match.status} lang={lang} />
           )}
@@ -788,6 +807,7 @@ async function PairedView({ userId, match, lang }: { userId: string; match: Matc
         me={me}
         myIsPracticing={myIsPracticing}
         opponent={opponent}
+        viewerIsModerator={viewerIsModerator}
         opponentStreak={opponentStreak}
         opponentInZenMode={opponentInZenMode}
         opponentIsPracticing={opponentIsPracticing}
@@ -1153,6 +1173,7 @@ function MatchScoreboard({
   me,
   myIsPracticing,
   opponent,
+  viewerIsModerator,
   opponentStreak,
   opponentInZenMode,
   opponentIsPracticing,
@@ -1168,7 +1189,9 @@ function MatchScoreboard({
     username: string;
     avatarUrl: string | null;
     rating: number;
+    gamesPlayed: number;
     practiceRating: number;
+    practiceGamesPlayed: number;
     region: string | null;
   } | null;
   myIsPracticing: boolean;
@@ -1177,9 +1200,12 @@ function MatchScoreboard({
     username: string;
     avatarUrl: string | null;
     rating: number;
+    gamesPlayed: number;
     practiceRating: number;
+    practiceGamesPlayed: number;
     region: string | null;
   };
+  viewerIsModerator: boolean;
   opponentStreak: number;
   opponentInZenMode: boolean;
   opponentIsPracticing: boolean;
@@ -1199,9 +1225,16 @@ function MatchScoreboard({
 
   // Practice sets are rated off practiceRating, not the main ladder rating —
   // showing the main number here is what made players think they were still
-  // on the main ladder (see #115).
+  // on the main ladder (see #115). A player's rating is hidden from
+  // non-moderators until they've played enough sets on that track (see
+  // isRatingVisible) — the ranked count for a ranked set, the practice count
+  // for a practice one.
   const myRating = myIsPracticing ? me?.practiceRating : me?.rating;
   const opponentRating = opponentIsPracticing ? opponent.practiceRating : opponent.rating;
+  const myGamesOnTrack = myIsPracticing ? (me?.practiceGamesPlayed ?? 0) : (me?.gamesPlayed ?? 0);
+  const opponentGamesOnTrack = opponentIsPracticing ? opponent.practiceGamesPlayed : opponent.gamesPlayed;
+  const myRatingVisible = isRatingVisible(myGamesOnTrack, viewerIsModerator);
+  const opponentRatingVisible = isRatingVisible(opponentGamesOnTrack, viewerIsModerator);
 
   const labels: string[] = [];
   const pips = Array.from({ length: SET_GAME_COUNT }, (_, i) => {
@@ -1252,8 +1285,14 @@ function MatchScoreboard({
             <p className="truncate font-medium">{es ? "Tú" : "You"}</p>
             {!zenMode && (
               <p className="truncate text-sm text-muted-foreground tabular-nums">
-                {es ? `${formatRating(myRating ?? 0)} de clasificación` : `${formatRating(myRating ?? 0)} rating`}
-                {myIsPracticing && (es ? " (práctica)" : " (practice)")}
+                {myRatingVisible ? (
+                  <>
+                    {es ? `${formatRating(myRating ?? 0)} de clasificación` : `${formatRating(myRating ?? 0)} rating`}
+                    {myIsPracticing && (es ? " (práctica)" : " (practice)")}
+                  </>
+                ) : (
+                  <RatingHidden gamesPlayed={myGamesOnTrack} lang={lang} practice={myIsPracticing} />
+                )}
               </p>
             )}
             {(myIsPracticing || me?.region) && (
@@ -1305,8 +1344,16 @@ function MatchScoreboard({
               <p className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground tabular-nums">
                 {!zenMode && (
                   <span>
-                    {es ? `${formatRating(opponentRating)} de clasificación` : `${formatRating(opponentRating)} rating`}
-                    {opponentIsPracticing && (es ? " (práctica)" : " (practice)")}
+                    {opponentRatingVisible ? (
+                      <>
+                        {es
+                          ? `${formatRating(opponentRating)} de clasificación`
+                          : `${formatRating(opponentRating)} rating`}
+                        {opponentIsPracticing && (es ? " (práctica)" : " (practice)")}
+                      </>
+                    ) : (
+                      <RatingHidden gamesPlayed={opponentGamesOnTrack} lang={lang} practice={opponentIsPracticing} />
+                    )}
                   </span>
                 )}
                 {opponent.region && (
@@ -2186,22 +2233,44 @@ function ReportGameSection({
   return <CardContent className={cn("border-t border-border pt-4", needsMyReport && INPUT_FOCUS)}>{body}</CardContent>;
 }
 
-async function ConfirmedSection({ userId, match, lang }: { userId: string; match: Match; lang: Lang }) {
+async function ConfirmedSection({
+  userId,
+  match,
+  viewerIsModerator,
+  lang,
+}: {
+  userId: string;
+  match: Match;
+  viewerIsModerator: boolean;
+  lang: Lang;
+}) {
   const won = match.reportedWinnerId === userId;
   const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
   const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
   const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
+  const practicing = match.player1Id === userId ? match.player1IsPracticing : match.player2IsPracticing;
 
-  let celebration: React.ReactNode = null;
-  if (won && ratingBefore !== null && ratingAfter !== null) {
-    const me = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { gamesPlayed: true },
-    });
-    const gamesPlayed = me?.gamesPlayed ?? 10;
-    const tierUp = didTierUp(ratingBefore, ratingAfter, gamesPlayed);
-    const tier = getRankTier(ratingAfter, gamesPlayed);
-    celebration = (
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { gamesPlayed: true, practiceGamesPlayed: true },
+  });
+  // This match moved the practice track when the viewer queued as practicing,
+  // so gate on that track's own count — and hide it the same way as the main
+  // rating (see isRatingVisible). The post-match number is only presented once
+  // the player is past provisional; before that a win shows a plain
+  // confirmation rather than a celebration built around a hidden rating.
+  // Moderators see it throughout.
+  const gamesOnTrack = practicing ? (me?.practiceGamesPlayed ?? 0) : (me?.gamesPlayed ?? 0);
+  const ratingVisible = isRatingVisible(gamesOnTrack, viewerIsModerator);
+
+  let body: React.ReactNode;
+  if (ratingVisible && won && ratingBefore !== null && ratingAfter !== null) {
+    // Practice sets never touch the tier ladder, so a practice win is a plain
+    // victory celebration with no tier-up attached (see the practice-rating
+    // note in applyEloAndConfirm).
+    const tierUp = !practicing && didTierUp(ratingBefore, ratingAfter, gamesOnTrack);
+    const tier = practicing ? null : getRankTier(ratingAfter, gamesOnTrack);
+    body = (
       <VictoryCelebration
         ratingBefore={ratingBefore}
         ratingAfter={ratingAfter}
@@ -2210,23 +2279,33 @@ async function ConfirmedSection({ userId, match, lang }: { userId: string; match
         lang={lang}
       />
     );
-  }
-
-  return (
-    <CardContent className="pt-4">
-      {celebration ?? (
-        <>
-          <p className="text-sm font-medium">
-            {lang === "es" ? "Partida confirmada — perdiste" : "Set confirmed — you lost"}
-          </p>
+  } else {
+    body = (
+      <>
+        <p className="text-sm font-medium">
+          {won
+            ? lang === "es"
+              ? "Partida confirmada — ganaste"
+              : "Set confirmed — you won"
+            : lang === "es"
+              ? "Partida confirmada — perdiste"
+              : "Set confirmed — you lost"}
+        </p>
+        {ratingVisible && ratingBefore !== null && ratingAfter !== null ? (
           <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-            {formatRating(ratingBefore ?? 0)} → {formatRating(ratingAfter ?? 0)} ({delta >= 0 ? "+" : ""}
+            {formatRating(ratingBefore)} → {formatRating(ratingAfter)} ({delta >= 0 ? "+" : ""}
             {formatRating(delta)})
           </p>
-        </>
-      )}
-    </CardContent>
-  );
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">
+            <RatingHidden gamesPlayed={gamesOnTrack} lang={lang} practice={practicing} />
+          </p>
+        )}
+      </>
+    );
+  }
+
+  return <CardContent className="pt-4">{body}</CardContent>;
 }
 
 // Mutual opt-in: whoever clicks second is the one whose click actually
