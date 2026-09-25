@@ -3,19 +3,38 @@ import { notFound } from "next/navigation";
 import { Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getSeasonStandings } from "@/lib/seasons";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { formatRating } from "@/lib/rating-format";
-import { getLang } from "@/lib/i18n";
+import { getLang, type Lang } from "@/lib/i18n";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
+// A season's standings can run long (the preseason snapshots everyone who
+// cleared the games-played floor), so the table pages through them at the
+// same size as the leaderboard's.
+const PAGE_SIZE = 50;
 
-export default async function SeasonStandingsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SeasonStandingsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { id } = await params;
+  const { page: pageParam } = await searchParams;
   const season = await prisma.season.findUnique({ where: { id } });
   if (!season) notFound();
 
-  const [standings, lang] = await Promise.all([getSeasonStandings(id), getLang()]);
+  const requestedPage = Number(pageParam);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+  const [{ standings, totalCount }, lang] = await Promise.all([
+    getSeasonStandings(id, { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
+    getLang(),
+  ]);
   const dateLocale = lang === "es" ? "es-MX" : "en-US";
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -28,7 +47,11 @@ export default async function SeasonStandingsPage({ params }: { params: Promise<
         {season.endsAt?.toLocaleDateString(dateLocale) ?? (lang === "es" ? "actualidad" : "present")}
       </p>
 
-      <Card className="mt-8 overflow-hidden py-0">
+      {totalCount > 0 && (
+        <PaginationBar id={id} page={page} totalPages={totalPages} totalCount={totalCount} lang={lang} />
+      )}
+
+      <Card className="mt-4 overflow-hidden py-0">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
@@ -62,5 +85,63 @@ export default async function SeasonStandingsPage({ params }: { params: Promise<
         )}
       </Card>
     </main>
+  );
+}
+
+function PaginationBar({
+  id,
+  page,
+  totalPages,
+  totalCount,
+  lang,
+}: {
+  id: string;
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  lang: Lang;
+}) {
+  return (
+    <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+      <Badge variant="outline">
+        {lang === "es"
+          ? `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`
+          : `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`}
+      </Badge>
+      {totalPages > 1 && (
+        <div className="flex items-center gap-2 text-sm">
+          <PageLink id={id} page={page - 1} disabled={page <= 1}>
+            {lang === "es" ? "← Anterior" : "← Previous"}
+          </PageLink>
+          <span className="text-muted-foreground tabular-nums">
+            {lang === "es" ? `Página ${page} de ${totalPages}` : `Page ${page} of ${totalPages}`}
+          </span>
+          <PageLink id={id} page={page + 1} disabled={page >= totalPages}>
+            {lang === "es" ? "Siguiente →" : "Next →"}
+          </PageLink>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PageLink({
+  id,
+  page,
+  disabled,
+  children,
+}: {
+  id: string;
+  page: number;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  if (disabled) {
+    return <span className="text-muted-foreground/40">{children}</span>;
+  }
+  return (
+    <Link href={`/seasons/${id}?page=${page}`} prefetch={false} className="hover:underline">
+      {children}
+    </Link>
   );
 }

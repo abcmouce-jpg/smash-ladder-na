@@ -5,6 +5,7 @@ import { MatchStatus, RatingAlgorithm } from "@/generated/prisma/enums";
 import {
   getActiveSeason,
   getPlayerSeasonAchievements,
+  getSeasonStandings,
   getSeasonEndsAt,
   endActiveSeasonAndStartNext,
   endActiveSeasonIfDue,
@@ -181,6 +182,69 @@ describe("getPlayerSeasonAchievements", () => {
     const player = await createTestUser();
     const achievements = await getPlayerSeasonAchievements(player.id);
     expect(achievements).toHaveLength(0);
+  });
+});
+
+// Shared by the getSeasonStandings cases below: a season with five ranked
+// players, ranked 1..5 in rating order.
+async function createSeasonWithStandings() {
+  const season = await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+  const players = await Promise.all(Array.from({ length: 5 }, () => createTestUser()));
+  await prisma.seasonStanding.createMany({
+    data: players.map((p, i) => ({
+      seasonId: season.id,
+      userId: p.id,
+      finalRating: 2000 - i * 25,
+      gamesPlayed: 40 - i,
+      rank: i + 1,
+    })),
+  });
+  return { season, players };
+}
+
+describe("getSeasonStandings", () => {
+  it("returns rank-ordered rows and the full count for just one page", async () => {
+    const { season, players } = await createSeasonWithStandings();
+
+    const { standings, totalCount } = await getSeasonStandings(season.id, { skip: 0, take: 2 });
+
+    expect(totalCount).toBe(5);
+    expect(standings.map((s) => s.rank)).toEqual([1, 2]);
+    expect(standings[0].user.username).toBe(players[0].username);
+  });
+
+  it("pages past the first page without dropping or duplicating a row", async () => {
+    const { season } = await createSeasonWithStandings();
+
+    const { standings, totalCount } = await getSeasonStandings(season.id, { skip: 2, take: 2 });
+
+    expect(totalCount).toBe(5);
+    expect(standings.map((s) => s.rank)).toEqual([3, 4]);
+  });
+
+  it("returns every row when no pagination is given", async () => {
+    const { season } = await createSeasonWithStandings();
+
+    const { standings, totalCount } = await getSeasonStandings(season.id);
+
+    expect(totalCount).toBe(5);
+    expect(standings).toHaveLength(5);
+  });
+
+  it("scopes both the count and the rows to the requested season", async () => {
+    const { players } = await createSeasonWithStandings();
+    const other = await prisma.season.create({ data: { name: "Season 2", startsAt: after } });
+    const otherPlayer = await createTestUser();
+    await prisma.seasonStanding.create({
+      data: { seasonId: other.id, userId: otherPlayer.id, finalRating: 1700, gamesPlayed: 15, rank: 1 },
+    });
+
+    const { standings, totalCount } = await getSeasonStandings(other.id);
+
+    expect(totalCount).toBe(1);
+    expect(standings).toHaveLength(1);
+    expect(standings[0].user.id).toBe(otherPlayer.id);
+    expect(players.some((p) => p.id === standings[0].user.id)).toBe(false);
   });
 });
 
