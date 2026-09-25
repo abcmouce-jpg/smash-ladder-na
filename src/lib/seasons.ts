@@ -137,12 +137,25 @@ export async function getPlayerSeasonAchievements(userId: string): Promise<Achie
   return achievements;
 }
 
-export async function getSeasonStandings(seasonId: string) {
-  return prisma.seasonStanding.findMany({
-    where: { seasonId },
-    orderBy: { rank: "asc" },
-    include: { user: { select: { id: true, username: true } } },
-  });
+// Standings can run long (the preseason snapshots everyone who cleared the
+// games-played floor), so the archive page pages through them. `totalCount`
+// comes back alongside the page so the pager can render without a second
+// count query in the caller. Rows are written once at rollover and never
+// touched again, so a concurrent write splitting the two queries isn't a
+// concern here.
+export async function getSeasonStandings(seasonId: string, pagination: { skip?: number; take?: number } = {}) {
+  const [standings, totalCount] = await Promise.all([
+    prisma.seasonStanding.findMany({
+      where: { seasonId },
+      orderBy: { rank: "asc" },
+      include: { user: { select: { id: true, username: true } } },
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.seasonStanding.count({ where: { seasonId } }),
+  ]);
+
+  return { standings, totalCount };
 }
 
 // Matches still open at rollover would otherwise get stamped with the *new*
