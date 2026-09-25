@@ -14,6 +14,7 @@ import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
 import { getRankTier, pointsToNextTier } from "@/lib/rank-tier";
+import { formatRating } from "@/lib/rating-format";
 import { SITE_URL } from "@/lib/site";
 import type { Lang } from "@/lib/i18n";
 import type { BlockState } from "../actions";
@@ -56,7 +57,7 @@ export function PlayerProfileHeader({
   const showDiscord = Boolean(player.discordUsername && !player.hideDiscordUsername);
 
   const tier = getRankTier(player.rating, player.gamesPlayed);
-  const ratingLabel = tier ? `${player.rating} (${tier.name})` : `${player.rating}`;
+  const ratingLabel = tier ? `${formatRating(player.rating)} (${tier.name})` : `${formatRating(player.rating)}`;
   const shareText =
     lang === "es"
       ? isOwnProfile
@@ -97,7 +98,9 @@ export function PlayerProfileHeader({
                 <CharacterUsageIcons usage={characterUsage} />
               </h1>
               <p className="text-sm tabular-nums text-muted-foreground">
-                {lang === "es" ? `${player.rating} de clasificación` : `${player.rating} rating`}
+                {lang === "es"
+                  ? `${formatRating(player.rating)} de clasificación`
+                  : `${formatRating(player.rating)} rating`}
               </p>
               {player.isSupporter && (
                 <p className="text-xs text-muted-foreground">
@@ -315,7 +318,7 @@ function CurrentMatchCard({
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{myName}</p>
               <p className="text-xs text-muted-foreground tabular-nums">
-                {lang === "es" ? `${myRating} de clasificación` : `${myRating} rating`}
+                {lang === "es" ? `${formatRating(myRating)} de clasificación` : `${formatRating(myRating)} rating`}
               </p>
             </div>
           </div>
@@ -349,7 +352,9 @@ function CurrentMatchCard({
               )}
               {!zenMode && (
                 <p className="text-right text-xs text-muted-foreground tabular-nums">
-                  {lang === "es" ? `${opponent.rating} de clasificación` : `${opponent.rating} rating`}
+                  {lang === "es"
+                    ? `${formatRating(opponent.rating)} de clasificación`
+                    : `${formatRating(opponent.rating)} rating`}
                 </p>
               )}
             </div>

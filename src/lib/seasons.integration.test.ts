@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import * as discordBot from "@/lib/discord-bot";
-import { MatchStatus } from "@/generated/prisma/enums";
+import { MatchStatus, RatingAlgorithm } from "@/generated/prisma/enums";
 import {
   getActiveSeason,
   getPlayerSeasonAchievements,
@@ -268,5 +268,34 @@ describe("endActiveSeasonIfDue", () => {
 
     const active = await getActiveSeason();
     expect(active?.name).toBe("Season 1");
+  });
+});
+
+describe("season rating algorithm", () => {
+  it("starts the next season on Glicko-2 by default, with everyone reset to a fresh, unrated state", async () => {
+    await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+    const player = await createTestUser({
+      rating: 1720,
+      gamesPlayed: 12,
+      ratingDeviation: 80,
+      ratingVolatility: 0.05,
+    });
+
+    await endActiveSeasonAndStartNext("Season 2", after);
+
+    expect((await getActiveSeason())?.algorithm).toBe(RatingAlgorithm.GLICKO2);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.rating).toBe(1500);
+    expect(updated.ratingDeviation).toBe(350);
+    expect(updated.ratingVolatility).toBeCloseTo(0.06);
+  });
+
+  it("stamps an explicitly chosen Elo algorithm instead when asked", async () => {
+    await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+
+    await endActiveSeasonAndStartNext("Season 2", after, null, RatingAlgorithm.ELO);
+
+    expect((await getActiveSeason())?.algorithm).toBe(RatingAlgorithm.ELO);
   });
 });

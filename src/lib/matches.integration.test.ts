@@ -26,7 +26,14 @@ import { blockUser } from "@/lib/blocks";
 import { fileConnectionReport } from "@/lib/reports";
 import { endActiveSeasonAndStartNext } from "@/lib/seasons";
 import { CANCEL_SUSPEND_MIN_CANCELS } from "@/lib/account";
-import { ConfirmationMethod, LobbyEntryStatus, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
+import {
+  ConfirmationMethod,
+  LobbyEntryStatus,
+  MatchStatus,
+  PairingMethod,
+  RatingAlgorithm,
+  UserStatus,
+} from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
 async function createConfirmedMatch(winnerId: string, loserId: string) {
@@ -216,6 +223,105 @@ describe("applyEloAndConfirm", () => {
     const history = await prisma.ratingHistory.findMany({ where: { matchId: match.id } });
     expect(history).toHaveLength(1);
     expect(history[0].userId).toBe(normal.id);
+  });
+});
+
+// The Elo cases above run against an implicit Season 1 (created by
+// applyEloAndConfirm itself, defaulting to ELO). These exercise the other
+// branch of nextRatingStates: an explicitly Glicko-2 season.
+describe("applyEloAndConfirm — Glicko-2 season", () => {
+  async function startGlickoSeason() {
+    return prisma.season.create({ data: { name: "Glicko Season", algorithm: RatingAlgorithm.GLICKO2 } });
+  }
+
+  it("rates the match with Glicko-2 and snapshots the full pre/post state", async () => {
+    await startGlickoSeason();
+    const winner = await createTestUser({ rating: 1500, gamesPlayed: 0 });
+    const loser = await createTestUser({ rating: 1500, gamesPlayed: 0 });
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: winner.id,
+        player2Id: loser.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, winner.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: winner.id,
+        reporterId: winner.id,
+      }),
+    );
+
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    // Both the rating AND the Glicko-2 rd/volatility are recorded on both sides.
+    expect(updatedMatch.player1RdBefore).toBeCloseTo(350);
+    expect(updatedMatch.player1VolatilityBefore).toBeCloseTo(0.06);
+    expect(updatedMatch.player1RdAfter!).toBeLessThan(updatedMatch.player1RdBefore!);
+    expect(updatedMatch.player2RdAfter!).toBeLessThan(updatedMatch.player2RdBefore!);
+
+    const [updatedWinner, updatedLoser] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: winner.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: loser.id } }),
+    ]);
+    // Unlike Elo's Math.round, Glicko-2 keeps fractional precision...
+    expect(updatedWinner.rating % 1).not.toBe(0);
+    expect(updatedWinner.rating).toBe(updatedMatch.player1RatingAfter);
+    expect(updatedWinner.rating).toBeGreaterThan(1500);
+    expect(updatedLoser.rating).toBeLessThan(1500);
+    // ...and the user's live RD matches the snapshot.
+    expect(updatedWinner.ratingDeviation).toBe(updatedMatch.player1RdAfter);
+  });
+
+  it("is not bounded by Elo's MAX_RATING_DELTA for a huge upset", async () => {
+    await startGlickoSeason();
+    const underdog = await createTestUser({ rating: 1000, gamesPlayed: 0 });
+    const favorite = await createTestUser({ rating: 2500, gamesPlayed: 0 });
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: underdog.id,
+        player2Id: favorite.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, underdog.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: underdog.id,
+        reporterId: underdog.id,
+      }),
+    );
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.player1RatingAfter! - updated.player1RatingBefore!).toBeGreaterThan(30);
+  });
+
+  it("recomputes from the stored pre-match state when a result is corrected", async () => {
+    await startGlickoSeason();
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 0 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 0 });
+    const match = await createConfirmedMatch(p1.id, p2.id); // p1 reported as winner
+
+    const first = await requestResultCorrection(p1.id, match.id, p2.id); // p1 now says p2 won
+    expect(first.applied).toBe(false);
+    const applied = await requestResultCorrection(p2.id, match.id, p2.id); // p2 agrees
+    expect(applied.applied).toBe(true);
+
+    const corrected = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(corrected.reportedWinnerId).toBe(p2.id);
+
+    const [u1, u2] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    // The reversal flips who's above/below the 1500 baseline, and the live
+    // ratings track the corrected snapshots exactly.
+    expect(u1.rating).toBeLessThan(1500);
+    expect(u2.rating).toBeGreaterThan(1500);
+    expect(u1.rating).toBe(corrected.player1RatingAfter);
+    expect(u2.rating).toBe(corrected.player2RatingAfter);
   });
 });
 

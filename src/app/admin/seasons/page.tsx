@@ -37,6 +37,9 @@ export default async function SeasonsAdminPage() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Started {active.startsAt.toLocaleDateString()}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
+            Rating system: {active.algorithm === "GLICKO2" ? "Glicko-2" : "Elo"}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {active.scheduledEndAt
               ? `Auto-ends ${active.scheduledEndAt.toLocaleString()}`
               : "No scheduled end — manual only"}
@@ -50,7 +53,8 @@ export default async function SeasonsAdminPage() {
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             Snapshots the current leaderboard (10+ sets) as final standings, then resets everyone&apos;s rating and
-            practice rating to 1500, and sets played to 0.
+            practice rating to 1500, and sets played to 0. The next season starts fresh on the rating system chosen
+            above (Glicko-2 by default).
           </p>
         </CardContent>
       </Card>

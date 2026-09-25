@@ -21,6 +21,7 @@ import { LiveStreamStage } from "@/components/live-streams/stage";
 import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
+import { formatRating } from "@/lib/rating-format";
 
 export const metadata: Metadata = {
   title: "Smash Ladder NA — Liga clasificatoria",
@@ -104,7 +105,7 @@ export default async function HomeEs() {
 
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
-          Tienes una clasificación de <span className="font-medium text-foreground">{me.rating}</span> en{" "}
+          Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en{" "}
           {me.gamesPlayed} partidas.
         </p>
       )}
@@ -172,7 +173,9 @@ export default async function HomeEs() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{p.username}</p>
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        <p className="text-xs tabular-nums text-muted-foreground">{p.rating} de clasificación</p>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          {formatRating(p.rating)} de clasificación
+                        </p>
                         <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
                       </div>
                     </div>

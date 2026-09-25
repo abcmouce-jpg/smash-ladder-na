@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { auth } from "@/auth";
 import { searchPlayersForAdmin } from "@/lib/admin-players";
 import { canManageRoles } from "@/lib/roles";
+import { formatRating } from "@/lib/rating-format";
 import { RoleSelect } from "@/components/admin/role-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -114,7 +115,7 @@ export default async function AdminPlayersPage({
                     )}
                   </td>
                   <td className="py-2 text-muted-foreground">{player.region ?? "—"}</td>
-                  <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
+                  <td className="py-2 text-right font-medium tabular-nums">{formatRating(player.rating)}</td>
                   <td className="py-2 text-right tabular-nums text-muted-foreground">{player.gamesPlayed}</td>
                   <td className="py-2 text-center">
                     <form action={setSupporter.bind(null, player.id, !player.isSupporter)}>

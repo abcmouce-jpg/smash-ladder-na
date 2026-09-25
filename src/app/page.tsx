@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Activity, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getLang } from "@/lib/i18n";
+import { formatRating } from "@/lib/rating-format";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { getFriendliesPosts } from "@/lib/home-feed";
 import { getMatchFeed } from "@/lib/match-feed";
@@ -111,13 +112,13 @@ export default async function Home() {
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
           {lang === "es" ? (
             <>
-              Tienes una clasificación de <span className="font-medium text-foreground">{me.rating}</span> en{" "}
-              {me.gamesPlayed} partidas.
+              Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span>{" "}
+              en {me.gamesPlayed} partidas.
             </>
           ) : (
             <>
-              You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated across {me.gamesPlayed}{" "}
-              sets.
+              You&apos;re <span className="font-medium text-foreground">{formatRating(me.rating)}</span> rated across{" "}
+              {me.gamesPlayed} sets.
             </>
           )}
         </p>
@@ -190,7 +191,7 @@ export default async function Home() {
                       <p className="truncate text-sm font-medium">{p.username}</p>
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         <p className="text-xs tabular-nums text-muted-foreground">
-                          {p.rating} {lang === "es" ? "de clasificación" : "rating"}
+                          {formatRating(p.rating)} {lang === "es" ? "de clasificación" : "rating"}
                         </p>
                         <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
                       </div>

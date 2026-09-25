@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getLang, type Lang } from "@/lib/i18n";
+import { formatRating } from "@/lib/rating-format";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 const PAGE_SIZE = 50;
@@ -326,8 +327,8 @@ export default async function LeaderboardPage({
                         {gapToNext !== null && gapToNext > 0 && (
                           <span className="text-xs font-normal text-muted-foreground">
                             {lang === "es"
-                              ? `${gapToNext} para superar a ${players[index - 1].username}`
-                              : `${gapToNext} to pass ${players[index - 1].username}`}
+                              ? `${formatRating(gapToNext)} para superar a ${players[index - 1].username}`
+                              : `${formatRating(gapToNext)} to pass ${players[index - 1].username}`}
                           </span>
                         )}
                       </Link>
@@ -335,7 +336,7 @@ export default async function LeaderboardPage({
                     <td className="py-2">
                       <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
                     </td>
-                    <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
+                    <td className="py-2 text-right font-medium tabular-nums">{formatRating(player.rating)}</td>
                     <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{player.gamesPlayed}</td>
                   </tr>
                 );

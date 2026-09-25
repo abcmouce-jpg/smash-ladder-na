@@ -117,6 +117,15 @@ enum ConfirmationMethod {
   SURRENDER
 }
 
+// Which rating system a season runs on. Set per season at rollover (see
+// endActiveSeasonAndStartNext) and read at match-confirm time to decide which
+// math applies (see applyEloAndConfirm). A season's matches all share one
+// algorithm, so a match never has to be interpreted under two different rules.
+enum RatingAlgorithm {
+  ELO
+  GLICKO2
+}
+
 enum PostStatus {
   OPEN
   MATCHED
@@ -146,87 +155,94 @@ model Block {
 }
 
 model User {
-  id                   String     @id @default(cuid())
-  discordId            String     @unique
-  username             String
-  discordUsername      String? // Discord's current username (the handle, not the display name), re-synced on every sign-in — independent of `username` (self-editable on this site) so a player's original/current Discord identity stays visible even after renaming here. Null for dev-credentials accounts, which have no real Discord profile.
-  hideDiscordUsername  Boolean    @default(false) // self-declared privacy toggle — hides discordUsername from this player's public profile page. Defaults false because the whole point of syncing the field is that it's visible; does not affect anything else Discord-related (DMs, role sync).
-  avatarUrl            String?
-  email                String?    @unique
-  rating               Int        @default(1500)
-  gamesPlayed          Int        @default(0) // drives isProvisional + K-factor tier
-  noShowCount          Int        @default(0)
-  cancelCount          Int        @default(0)
-  queueCooldownUntil   DateTime? // set on an AFK/no-show forfeit (see applyTimeoutCooldown) — blocks joinLobbyAndTryPair until this passes
-  recentTimeoutCount   Int        @default(0) // escalates the next cooldown; reset to 0 if lastTimeoutAt is older than the reset window
-  lastTimeoutAt        DateTime? // when recentTimeoutCount was last bumped — determines whether the next timeout resets or escalates it
-  misconductScore      Int        @default(0) // bumped only when a mod actions a ConductReport, not on filing
-  suspendedUntil       DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
-  lastKnownIp          String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)
-  lastSignInAt         DateTime? // set only in auth.ts's signIn callback — unlike updatedAt (bumped by any write: rating changes, admin backfills, etc.), this is the one field that only ever reflects an actual sign-in, so it's what "Active in last 24h" on the admin overview keys off of
-  mainCharacter        String? // auto-computed from real play by recomputeCharacterUsage — powers the character-filtered leaderboard and /characters index; display elsewhere reads live usage instead (see getCharacterUsage)
-  secondaryCharacters  String[]   @default([]) // same source as mainCharacter
-  region               String? // self-declared match region; drives distance-based matchmaking
-  preferredLanguage    String? // "es" or null (English, the default) — only controls which landing page ("/" vs "/es") a signed-in visit to "/" bounces to; the rest of the site has no Spanish translation yet, so this isn't a general i18n switch
-  maxMatchDistanceKm   Int?       @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
-  maxRatingGap         Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
-  rematchCooldownHours Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
-  wiredConnection      Boolean    @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
-  requireWiredOpponent Boolean    @default(false) // if set, only match with opponents who have wiredConnection on. Checked per-side against the OTHER side's actual wiredConnection fact — not symmetric like distance/rating gap, since this is a claim about the other person, not a shared value.
-  arenaPassword        String? // self-declared in-game room password override; null means use the ladder-wide default (see DEFAULT_ARENA_PASSWORD in lib/arena.ts). Lets streamers keep theirs off a publicly-documented value.
-  practiceRating          Int     @default(1500) // separate Elo track for matches joined with isPracticing — never touches `rating`/`gamesPlayed`
-  practiceGamesPlayed     Int     @default(0)
-  avoidPracticeOpponents  Boolean @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
-  notifyQueueOpportunities   Boolean   @default(false) // self-declared opt-in; push-notified (see notifyQueueOpportunitySubscribers) when someone joins the queue who could actually match this player, but only while this player has no active RatingLobbyEntry themselves — a small-pool top-rank player's way to hear "someone's here" without having to sit in the queue waiting
+  id                         String          @id @default(cuid())
+  discordId                  String          @unique
+  username                   String
+  discordUsername            String? // Discord's current username (the handle, not the display name), re-synced on every sign-in — independent of `username` (self-editable on this site) so a player's original/current Discord identity stays visible even after renaming here. Null for dev-credentials accounts, which have no real Discord profile.
+  hideDiscordUsername        Boolean         @default(false) // self-declared privacy toggle — hides discordUsername from this player's public profile page. Defaults false because the whole point of syncing the field is that it's visible; does not affect anything else Discord-related (DMs, role sync).
+  avatarUrl                  String?
+  email                      String?         @unique
+  // Float, not Int: Glicko-2 seasons keep fractional precision between
+  // matches (see lib/glicko2.ts). Elo seasons still write whole numbers, and
+  // every surface that shows a rating rounds it (see formatRating).
+  rating                     Float           @default(1500)
+  ratingDeviation            Float           @default(350) // Glicko-2 RD; carried (never changed) under Elo seasons
+  ratingVolatility           Float           @default(0.06) // Glicko-2 σ; carried (never changed) under Elo seasons
+  gamesPlayed                Int             @default(0) // drives isProvisional + K-factor tier
+  noShowCount                Int             @default(0)
+  cancelCount                Int             @default(0)
+  queueCooldownUntil         DateTime? // set on an AFK/no-show forfeit (see applyTimeoutCooldown) — blocks joinLobbyAndTryPair until this passes
+  recentTimeoutCount         Int             @default(0) // escalates the next cooldown; reset to 0 if lastTimeoutAt is older than the reset window
+  lastTimeoutAt              DateTime? // when recentTimeoutCount was last bumped — determines whether the next timeout resets or escalates it
+  misconductScore            Int             @default(0) // bumped only when a mod actions a ConductReport, not on filing
+  suspendedUntil             DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
+  lastKnownIp                String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)
+  lastSignInAt               DateTime? // set only in auth.ts's signIn callback — unlike updatedAt (bumped by any write: rating changes, admin backfills, etc.), this is the one field that only ever reflects an actual sign-in, so it's what "Active in last 24h" on the admin overview keys off of
+  mainCharacter              String? // auto-computed from real play by recomputeCharacterUsage — powers the character-filtered leaderboard and /characters index; display elsewhere reads live usage instead (see getCharacterUsage)
+  secondaryCharacters        String[]        @default([]) // same source as mainCharacter
+  region                     String? // self-declared match region; drives distance-based matchmaking
+  preferredLanguage          String? // "es" or null (English, the default) — only controls which landing page ("/" vs "/es") a signed-in visit to "/" bounces to; the rest of the site has no Spanish translation yet, so this isn't a general i18n switch
+  maxMatchDistanceKm         Int?            @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
+  maxRatingGap               Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
+  rematchCooldownHours       Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
+  wiredConnection            Boolean         @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
+  requireWiredOpponent       Boolean         @default(false) // if set, only match with opponents who have wiredConnection on. Checked per-side against the OTHER side's actual wiredConnection fact — not symmetric like distance/rating gap, since this is a claim about the other person, not a shared value.
+  arenaPassword              String? // self-declared in-game room password override; null means use the ladder-wide default (see DEFAULT_ARENA_PASSWORD in lib/arena.ts). Lets streamers keep theirs off a publicly-documented value.
+  practiceRating             Float           @default(1500) // separate rating track for matches joined with isPracticing — never touches `rating`/`gamesPlayed`
+  practiceRatingDeviation    Float           @default(350) // same role as ratingDeviation, for the practice track
+  practiceRatingVolatility   Float           @default(0.06) // same role as ratingVolatility, for the practice track
+  practiceGamesPlayed        Int             @default(0)
+  avoidPracticeOpponents     Boolean         @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
+  notifyQueueOpportunities   Boolean         @default(false) // self-declared opt-in; push-notified (see notifyQueueOpportunitySubscribers) when someone joins the queue who could actually match this player, but only while this player has no active RatingLobbyEntry themselves — a small-pool top-rank player's way to hear "someone's here" without having to sit in the queue waiting
   queueOpportunityNotifiedAt DateTime? // cooldown for the notification above (QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS in lobby.ts) — without it, a busy stretch of joins in this player's range could fire one push per join
-  zenMode                Boolean @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
-  audioPingOnMatch        Boolean @default(true) // self-declared master switch; LobbyPoller's playMatchFoundSound (lib/sound.ts) only fires while this is on. Defaults true — matches the original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
-  matchFoundSound         MatchFoundSound @default(CHIME) // which sound the ping above plays: the original synthesized chime or the announcer voice clips. Defaults CHIME — the original match-found sound before PR #94 replaced it with announcer clips.
-  quickMessages           String[] @default([]) // self-declared match-chat one-liners (see comment-form.tsx's QUICK_MESSAGES); empty means "use the site default four", not "show none"
-  startggUserId        String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
-  startggPlayerId      String? // start.gg's player id (currentUser.player.id) — distinct from the user id above; supermajor.gg profile links (?id=S...) key off this one
-  startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
-  startggGamerTag      String? // display tag from start.gg's player object, if the account has one
-  startggConnectedAt   DateTime?
-  twitchUserId          String?    @unique // set via OAuth in lib/twitch-oauth.ts
-  twitchUsername        String? // Twitch login name (lowercase)
-  twitchDisplayName     String? // Twitch display name
-  twitchProfileImageUrl String? // Twitch profile image URL
-  twitchConnectedAt     DateTime?
-  role                 UserRole   @default(USER)
-  isSupporter          Boolean    @default(false) // manually flagged by an admin (see admin/players) — hides AdSense ads for this account. No payment processing wired up yet; this is a bare flag.
-  status               UserStatus @default(ACTIVE)
-  referredById         String? // set once, at account creation only (see auth.ts's signIn callback) — who this player's ?ref= link/cookie pointed at when they first signed up. Never touched again afterward.
-  referredBy           User?      @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
+  zenMode                    Boolean         @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
+  audioPingOnMatch           Boolean         @default(true) // self-declared master switch; LobbyPoller's playMatchFoundSound (lib/sound.ts) only fires while this is on. Defaults true — matches the original always-on behavior before this toggle existed, so nobody's experience silently changes just from this shipping.
+  matchFoundSound            MatchFoundSound @default(CHIME) // which sound the ping above plays: the original synthesized chime or the announcer voice clips. Defaults CHIME — the original match-found sound before PR #94 replaced it with announcer clips.
+  quickMessages              String[]        @default([]) // self-declared match-chat one-liners (see comment-form.tsx's QUICK_MESSAGES); empty means "use the site default four", not "show none"
+  startggUserId              String?         @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
+  startggPlayerId            String? // start.gg's player id (currentUser.player.id) — distinct from the user id above; supermajor.gg profile links (?id=S...) key off this one
+  startggSlug                String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
+  startggGamerTag            String? // display tag from start.gg's player object, if the account has one
+  startggConnectedAt         DateTime?
+  twitchUserId               String?         @unique // set via OAuth in lib/twitch-oauth.ts
+  twitchUsername             String? // Twitch login name (lowercase)
+  twitchDisplayName          String? // Twitch display name
+  twitchProfileImageUrl      String? // Twitch profile image URL
+  twitchConnectedAt          DateTime?
+  role                       UserRole        @default(USER)
+  isSupporter                Boolean         @default(false) // manually flagged by an admin (see admin/players) — hides AdSense ads for this account. No payment processing wired up yet; this is a bare flag.
+  status                     UserStatus      @default(ACTIVE)
+  referredById               String? // set once, at account creation only (see auth.ts's signIn callback) — who this player's ?ref= link/cookie pointed at when they first signed up. Never touched again afterward.
+  referredBy                 User?           @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
 
-  accounts                  Account[]
-  sessions                  Session[]
-  freeBattlePosts           FreeBattlePost[]
-  lobbyEntries              RatingLobbyEntry[]
-  matchesAsP1               RatingMatch[]      @relation("Player1Matches")
-  matchesAsP2               RatingMatch[]      @relation("Player2Matches")
-  ratingHistory             RatingHistory[]
-  matchComments             MatchComment[]
-  reportsFiled              ConductReport[]    @relation("ReportsFiled")
-  reportsReceived           ConductReport[]    @relation("ReportsReceived")
-  reportsActioned           ConductReport[]    @relation("ReportsActioned")
-  seasonStandings           SeasonStanding[]
-  tournamentsHosted         Tournament[]
-  tournamentEntries         TournamentEntry[]
-  blocksMade                Block[]            @relation("BlocksMade")
-  blocksReceived            Block[]            @relation("BlocksReceived")
-  connectionReportsFiled    ConnectionReport[] @relation("ConnectionReportsFiled")
-  connectionReportsReceived ConnectionReport[] @relation("ConnectionReportsReceived")
-  referrals                 User[]             @relation("Referrals")
-  pushSubscriptions         PushSubscription[]
-  matchupNotes              MatchupNote[]
-  characterGuides           CharacterGuide[]
-  characterGuideVotes       CharacterGuideVote[]
-  characterGuideFlags       CharacterGuideFlag[]
+  accounts                    Account[]
+  sessions                    Session[]
+  freeBattlePosts             FreeBattlePost[]
+  lobbyEntries                RatingLobbyEntry[]
+  matchesAsP1                 RatingMatch[]                @relation("Player1Matches")
+  matchesAsP2                 RatingMatch[]                @relation("Player2Matches")
+  ratingHistory               RatingHistory[]
+  matchComments               MatchComment[]
+  reportsFiled                ConductReport[]              @relation("ReportsFiled")
+  reportsReceived             ConductReport[]              @relation("ReportsReceived")
+  reportsActioned             ConductReport[]              @relation("ReportsActioned")
+  seasonStandings             SeasonStanding[]
+  tournamentsHosted           Tournament[]
+  tournamentEntries           TournamentEntry[]
+  blocksMade                  Block[]                      @relation("BlocksMade")
+  blocksReceived              Block[]                      @relation("BlocksReceived")
+  connectionReportsFiled      ConnectionReport[]           @relation("ConnectionReportsFiled")
+  connectionReportsReceived   ConnectionReport[]           @relation("ConnectionReportsReceived")
+  referrals                   User[]                       @relation("Referrals")
+  pushSubscriptions           PushSubscription[]
+  matchupNotes                MatchupNote[]
+  characterGuides             CharacterGuide[]
+  characterGuideVotes         CharacterGuideVote[]
+  characterGuideFlags         CharacterGuideFlag[]
   characterGuideSubscriptions CharacterGuideSubscription[]
-  apiTokens                 ApiToken[]
+  apiTokens                   ApiToken[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -280,10 +296,23 @@ model RatingMatch {
   player2RematchRequestedAt    DateTime? // same, for player2
   player1CancelRequestedAt     DateTime? // set when player1 asks to mutually cancel mid-set (see requestMutualCancel) — cleared once both sides have asked and the match cancels
   player2CancelRequestedAt     DateTime? // same, for player2
-  player1RatingBefore          Int?
-  player1RatingAfter           Int?
-  player2RatingBefore          Int?
-  player2RatingAfter           Int?
+  player1RatingBefore          Float?
+  player1RatingAfter           Float?
+  player2RatingBefore          Float?
+  player2RatingAfter           Float?
+  // Glicko-2 state snapshots, alongside the rating snapshots above. Glicko-2
+  // can't be reversed from a plain rating delta — the update also depends on
+  // each side's RD and volatility at the time — so reversing or recomputing a
+  // match (applyCorrection, adminCancelMatch) needs the full pre-match state.
+  // Null for Elo matches, which have none.
+  player1RdBefore              Float?
+  player1RdAfter               Float?
+  player1VolatilityBefore      Float?
+  player1VolatilityAfter       Float?
+  player2RdBefore              Float?
+  player2RdAfter               Float?
+  player2VolatilityBefore      Float?
+  player2VolatilityAfter       Float?
   // Post-confirmation result correction — same matching-reports-auto-apply
   // idea as the original report/secondReport pair above, just usable after
   // CONFIRMED instead of only before it. Only ever eligible while this is
@@ -334,23 +363,23 @@ model RatingMatch {
 // actorA picks; games 2-5: the previous game's winner strikes 2 and the
 // loser, who struck 0, picks).
 model MatchGame {
-  id              String      @id @default(cuid())
-  matchId         String
-  match           RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  gameNumber      Int
-  actorAId        String
-  actorAStrikes   Int
-  actorACharacter String? // game 1: blind pick, hidden until both are in. Games 2-5: actorA (previous winner) must lock in first.
-  actorAMoveset   String? // 4 digits, each 1-4 — set only when actorACharacter is a Mii; ignored/null otherwise
-  actorBId        String
-  actorBStrikes   Int
-  actorBCharacter String?
-  actorBMoveset   String?
-  stagesRemaining String[]    @default([])
-  struckStages    String[]    @default([])
-  finalStage      String?
-  turnStartedAt   DateTime    @default(now()) // reset on every strike/pick — and when the final stage is picked, which is also what anchors the report clock; a stale turn past STRIKE_TIMEOUT_MS auto-resolves with a random remaining stage, and a lone hanging report past REPORT_TIMEOUT_MS auto-confirms
-  characterPickDeadline DateTime @default(now()) // CHARACTER_TIMEOUT_MS is the window to lock in a character. Game 1 is a blind simultaneous pick, so both players share the single deadline set at game creation and a lock-in never resets it; games 2+ pick in order, and pickGameCharacter resets this to now + CHARACTER_TIMEOUT_MS when the first player locks in so the second picker gets a full window of their own rather than the leftovers of the first's. autoResolveStaleCharacterPick forfeits the set to whoever locked in once this passes and the other side hasn't
+  id                    String      @id @default(cuid())
+  matchId               String
+  match                 RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  gameNumber            Int
+  actorAId              String
+  actorAStrikes         Int
+  actorACharacter       String? // game 1: blind pick, hidden until both are in. Games 2-5: actorA (previous winner) must lock in first.
+  actorAMoveset         String? // 4 digits, each 1-4 — set only when actorACharacter is a Mii; ignored/null otherwise
+  actorBId              String
+  actorBStrikes         Int
+  actorBCharacter       String?
+  actorBMoveset         String?
+  stagesRemaining       String[]    @default([])
+  struckStages          String[]    @default([])
+  finalStage            String?
+  turnStartedAt         DateTime    @default(now()) // reset on every strike/pick — and when the final stage is picked, which is also what anchors the report clock; a stale turn past STRIKE_TIMEOUT_MS auto-resolves with a random remaining stage, and a lone hanging report past REPORT_TIMEOUT_MS auto-confirms
+  characterPickDeadline DateTime    @default(now()) // CHARACTER_TIMEOUT_MS is the window to lock in a character. Game 1 is a blind simultaneous pick, so both players share the single deadline set at game creation and a lock-in never resets it; games 2+ pick in order, and pickGameCharacter resets this to now + CHARACTER_TIMEOUT_MS when the first player locks in so the second picker gets a full window of their own rather than the leftovers of the first's. autoResolveStaleCharacterPick forfeits the set to whoever locked in once this passes and the other side hasn't
 
   reportedWinnerId     String?
   reportedById         String?
@@ -485,10 +514,10 @@ model BannedIp {
 // endsAt null = the currently active season. Ending one snapshots standings
 // into SeasonStanding and resets User.rating/gamesPlayed for the next season.
 model Season {
-  id       String    @id @default(cuid())
-  name     String
-  startsAt DateTime  @default(now())
-  endsAt   DateTime?
+  id             String          @id @default(cuid())
+  name           String
+  startsAt       DateTime        @default(now())
+  endsAt         DateTime?
   // Announced rollover time for the currently active season, if this season
   // has one — null means "manual only" (no auto-rollover, no countdown).
   // Meaningless once endsAt is set, since the season is over by then. Set at
@@ -496,6 +525,10 @@ model Season {
   // read by both getSeasonEndsAt (leaderboard countdown) and
   // endActiveSeasonIfDue (the cron auto-rollover check).
   scheduledEndAt DateTime?
+  // Which rating system this season's matches run on, stamped at creation.
+  // Defaults to ELO so every season that predates Glicko-2 (and any season
+  // created without an explicit choice) keeps behaving exactly as before.
+  algorithm      RatingAlgorithm @default(ELO)
 
   matches   RatingMatch[]
   standings SeasonStanding[]
@@ -509,7 +542,7 @@ model SeasonStanding {
   season      Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   userId      String
   user        User   @relation(fields: [userId], references: [id])
-  finalRating Int
+  finalRating Float
   gamesPlayed Int
   rank        Int
 
@@ -554,31 +587,31 @@ model RatingHistory {
   user         User        @relation(fields: [userId], references: [id])
   matchId      String
   match        RatingMatch @relation(fields: [matchId], references: [id])
-  ratingBefore Int
-  ratingAfter  Int
-  delta        Int
+  ratingBefore Float
+  ratingAfter  Float
+  delta        Float
   createdAt    DateTime    @default(now())
 
   @@index([userId, createdAt])
 }
 
 model FreeBattlePost {
-  id            String     @id @default(cuid())
-  authorId      String
-  author        User       @relation(fields: [authorId], references: [id])
-  comment       String
-  region        String?
+  id               String     @id @default(cuid())
+  authorId         String
+  author           User       @relation(fields: [authorId], references: [id])
+  comment          String
+  region           String?
   // Gates visibility/claiming to players who've ever peaked at this rank tier
   // (see getPeakRating) — null means anyone can claim it. One of
   // FREE_BATTLE_TIERS in rank-tier.ts; stored as a plain string rather than
   // a Prisma enum since it must line up with RANK_TIERS, which already
   // isn't a DB enum.
-  minTier       String?
-  status        PostStatus @default(OPEN)
-  matchedWithId String?
-  createdAt     DateTime   @default(now())
-  expiresAt     DateTime // 24h TTL, same lazy-read/external-cron finalizer as RatingMatch
-  matchedAt     DateTime?
+  minTier          String?
+  status           PostStatus @default(OPEN)
+  matchedWithId    String?
+  createdAt        DateTime   @default(now())
+  expiresAt        DateTime // 24h TTL, same lazy-read/external-cron finalizer as RatingMatch
+  matchedAt        DateTime?
   discordMessageId String? // id of the announcement message posted to DISCORD_FREE_BATTLE_WEBHOOK_URL on creation, if any — lets us delete it once the post is no longer available (closed, claimed, or expired)
 
   @@index([status, createdAt])

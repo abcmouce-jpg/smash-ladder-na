@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { formatRating } from "@/lib/rating-format";
 
 // Reuses CRON_SECRET rather than adding a new env var — it already means
 // "trusted non-interactive caller" for this project (see /api/cron/finalize),
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
   const rows = users.map((u) =>
     [
       u.username,
-      String(u.rating),
+      String(formatRating(u.rating)),
       String(u.gamesPlayed),
       u.region ?? "",
       u.mainCharacter ?? "",

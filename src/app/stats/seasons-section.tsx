@@ -5,6 +5,7 @@ import { getActiveSeason } from "@/lib/seasons";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionHeading } from "@/components/section-heading";
+import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -139,7 +140,7 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                                 </Link>
                               </td>
                               <td className="py-0.5 text-right text-xs tabular-nums text-muted-foreground">
-                                {standing.finalRating}
+                                {formatRating(standing.finalRating)}
                               </td>
                             </tr>
                           ))}

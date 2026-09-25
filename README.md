@@ -21,7 +21,8 @@ and the moderation policies that govern ranked play are transparent rather than 
 ## Features
 
 - **Ranked ladder** — lobby-based matchmaking, best-of-3 stage striking, self-reported results
-  with a dispute flow when reports disagree, and Elo-style rating per season.
+  with a dispute flow when reports disagree, and a per-season rating (Glicko-2 from Season 1 on;
+  Elo before that).
 - **Free battle** — casual matchmaking outside the ranked ladder.
 - **Tournaments** — community-hosted brackets linked to start.gg; entrant count and final
   standings are fetched live from the start.gg API once configured.
@@ -96,7 +97,7 @@ channel if you need one regenerated.
 
 ## Testing
 
-Run the unit tests (pure functions — rank tiers, Elo math, regions, etc., no database) with:
+Run the unit tests (pure functions — rank tiers, rating math, regions, etc., no database) with:
 
 ```bash
 npm test
@@ -105,7 +106,7 @@ npm test
 Use `npm run test:watch` for watch mode during development. Tests live alongside the source
 files they cover (`src/lib/*.test.ts`) and run in CI on every push and pull request.
 
-Core flows that touch the database — lobby pairing, Elo confirmation, match finalization, and
+Core flows that touch the database — lobby pairing, rating confirmation, match finalization, and
 dispute resolution — have integration tests (`src/lib/*.integration.test.ts`) that run against a
 real Postgres database instead of mocking it. Locally, point them at a separate database (so
 they can truncate freely without touching your dev data):

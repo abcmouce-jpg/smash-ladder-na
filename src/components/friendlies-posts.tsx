@@ -7,6 +7,7 @@ import type { Lang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { LocalTime } from "@/components/local-time";
+import { formatRating } from "@/lib/rating-format";
 
 // Shared "who's looking for a game" card. The home page's Friendlies section
 // and the Friendlies page itself render the same list, so an open post looks
@@ -58,7 +59,7 @@ export function FriendliesPosts({
               {post.author.username}
             </Link>
             <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted-foreground">
-              <span>{post.author.rating}</span>
+              <span>{formatRating(post.author.rating)}</span>
               <span aria-hidden>·</span>
               <LocalTime iso={post.createdAt.toISOString()} />
             </span>

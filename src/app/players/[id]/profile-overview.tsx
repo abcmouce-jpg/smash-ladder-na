@@ -22,6 +22,7 @@ import { getMatchHistoryAchievements } from "@/lib/match-achievements";
 import { getLeaderboardRank } from "@/lib/leaderboard";
 import { getPlayerSeasonAchievements } from "@/lib/seasons";
 import { achievementComparator, computeAchievements, computeRatingMilestoneAchievements } from "@/lib/rank-tier";
+import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
 import {
   adminCorrectOldResultAction,
@@ -164,7 +165,7 @@ export async function ProfileOverviewSection({
             </p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
-                <p className="text-lg font-semibold tabular-nums">{rating}</p>
+                <p className="text-lg font-semibold tabular-nums">{formatRating(rating)}</p>
                 <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación" : "Rating"}</p>
               </div>
               <div>
@@ -195,7 +196,9 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">{seasonStats.peakRating ?? "—"}</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {seasonStats.peakRating != null ? formatRating(seasonStats.peakRating) : "—"}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {lang === "es" ? "Clasificación máxima de temporada" : "Season peak rating"}
                 </p>
@@ -207,7 +210,7 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">{practiceRating}</p>
+                <p className="text-lg font-semibold tabular-nums">{formatRating(practiceRating)}</p>
                 <p className="text-xs text-muted-foreground">
                   {lang === "es" ? "Clasificación de práctica" : "Practice rating"}
                 </p>
@@ -262,7 +265,9 @@ export async function ProfileOverviewSection({
               </p>
             </div>
             <div>
-              <p className="text-lg font-semibold tabular-nums">{careerStats.peakRating ?? "—"}</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {careerStats.peakRating != null ? formatRating(careerStats.peakRating) : "—"}
+              </p>
               <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación máxima" : "Peak rating"}</p>
             </div>
             <div>
