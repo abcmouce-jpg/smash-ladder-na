@@ -336,18 +336,25 @@ export async function getPlayerMatchHistory(
   });
 }
 
-// Returns the most recent rating snapshots, raw — one per match, ascending.
-// The client condenses these into one point per *viewer-local* calendar day:
-// the server doesn't know the viewer's timezone, and UTC day boundaries can
-// merge matches that fall on different local days (e.g. 10pm and midnight in
-// a timezone behind UTC).
+// Returns the active season's most recent rating snapshots, raw — one per
+// match, ascending. Scoped to the current season, matching the season card it
+// sits under: a rating reset shouldn't leave the chart plotting last season's
+// scale against this one. The client then condenses these into one point per
+// *viewer-local* calendar day: the server doesn't know the viewer's timezone,
+// and UTC day boundaries can merge matches that fall on different local days
+// (e.g. 10pm and midnight in a timezone behind UTC).
 export async function getRatingChartPoints(userId: string, limit = 50, hiddenRatingMatchIds: readonly string[] = []) {
+  const activeSeason = await getActiveSeason();
+  if (!activeSeason) return [];
+
   const rows = await prisma.ratingHistory.findMany({
     where: {
       userId,
-      // The active season's provisional window is filtered out by the caller
-      // (see getHiddenRatingMatchIds); earlier seasons have no entries here and
-      // stay on the chart, so a returning player keeps their history.
+      // RatingHistory has no seasonId, so scope through the match each entry
+      // belongs to — same approach as getSeasonStats' peak.
+      match: { seasonId: activeSeason.id },
+      // The season's provisional window is filtered out by the caller (see
+      // getHiddenRatingMatchIds).
       ...(hiddenRatingMatchIds.length > 0 ? { matchId: { notIn: [...hiddenRatingMatchIds] } } : {}),
     },
     orderBy: { createdAt: "desc" },
