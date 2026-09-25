@@ -11,6 +11,7 @@ import {
   launchPreSeasonIfDue,
   PRE_SEASON_NAME,
   PRE_SEASON_STARTS_AT,
+  PRE_SEASON_EXPECTED_END_AT,
 } from "@/lib/seasons";
 import { createTestUser } from "@/test/factories";
 
@@ -62,6 +63,7 @@ describe("launchPreSeasonIfDue", () => {
     expect(active?.name).toBe("Preseason");
     expect(active?.id).not.toBe(testSeason.id);
     expect(active!.startsAt.getTime()).toBeGreaterThanOrEqual(PRE_SEASON_STARTS_AT.getTime());
+    expect(active!.scheduledEndAt?.getTime()).toBe(PRE_SEASON_EXPECTED_END_AT.getTime());
 
     const resetPlayer = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
     expect(resetPlayer.rating).toBe(1500);
@@ -81,11 +83,27 @@ describe("launchPreSeasonIfDue", () => {
     expect(untouched.gamesPlayed).toBe(8);
   });
 
+  it("schedules the preseason to roll over on its own at PRE_SEASON_EXPECTED_END_AT", async () => {
+    await prisma.season.create({ data: { name: "Season 0", startsAt: before } });
+
+    await launchPreSeasonIfDue(after);
+
+    const preseason = await getActiveSeason();
+    expect(preseason?.name).toBe(PRE_SEASON_NAME);
+    expect(preseason?.scheduledEndAt?.getTime()).toBe(PRE_SEASON_EXPECTED_END_AT.getTime());
+
+    // The finalize cron's check rolls it over on the first tick past the end.
+    const rolledOver = await endActiveSeasonIfDue(new Date(PRE_SEASON_EXPECTED_END_AT.getTime() + 60_000));
+    expect(rolledOver).toBe(true);
+    expect((await getActiveSeason())?.name).toBe("Season 1");
+  });
+
   it("creates Preseason outright if no season exists yet when launch time passes", async () => {
     const launched = await launchPreSeasonIfDue(after);
     expect(launched).toBe(true);
     const active = await getActiveSeason();
     expect(active?.name).toBe("Preseason");
+    expect(active?.scheduledEndAt?.getTime()).toBe(PRE_SEASON_EXPECTED_END_AT.getTime());
   });
 });
 
@@ -268,6 +286,33 @@ describe("endActiveSeasonIfDue", () => {
 
     const active = await getActiveSeason();
     expect(active?.name).toBe("Season 1");
+  });
+
+  it("rolling the preseason over starts Season 1, cancels in-flight matches, and resets ratings to 1500", async () => {
+    vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
+    const scheduledEndAt = new Date(before.getTime() + 60 * 60 * 1000);
+    await prisma.season.create({ data: { name: PRE_SEASON_NAME, startsAt: before, scheduledEndAt } });
+    const player = await createTestUser({ rating: 1780, gamesPlayed: 22 });
+    const pending = await createTestMatch(MatchStatus.PENDING_REPORT);
+    const reported = await createTestMatch(MatchStatus.REPORTED);
+    const settled = await createTestMatch(MatchStatus.CONFIRMED, new Date());
+
+    await endActiveSeasonIfDue(new Date(scheduledEndAt.getTime() + 60_000));
+
+    expect((await getActiveSeason())?.name).toBe("Season 1");
+
+    const statuses = await prisma.ratingMatch.findMany({
+      where: { id: { in: [pending.id, reported.id, settled.id] } },
+      select: { id: true, status: true },
+    });
+    const byId = new Map(statuses.map((m) => [m.id, m.status]));
+    expect(byId.get(pending.id)).toBe(MatchStatus.CANCELLED);
+    expect(byId.get(reported.id)).toBe(MatchStatus.CANCELLED);
+    expect(byId.get(settled.id)).toBe(MatchStatus.CONFIRMED); // already settled — left alone
+
+    const resetPlayer = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(resetPlayer.rating).toBe(1500);
+    expect(resetPlayer.gamesPlayed).toBe(0);
   });
 });
 
