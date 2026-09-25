@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getSeasonStandings } from "@/lib/seasons";
+import { getCharacterUsage } from "@/lib/players";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { CharacterUsageIcons } from "@/components/character-usage-icons";
+import { RankBadge } from "@/components/rank-badge";
 import { formatRating } from "@/lib/rating-format";
 import { getLang, type Lang } from "@/lib/i18n";
 
@@ -36,6 +39,14 @@ export default async function SeasonStandingsPage({
   const dateLocale = lang === "es" ? "es-MX" : "en-US";
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // Live/all-time usage, same as the leaderboard's — this season's standings
+  // don't have their own season-scoped character breakdown, so this is a
+  // player's overall main(s) rather than specifically what they played that
+  // season.
+  const usageByPlayerId = new Map(
+    await Promise.all(standings.map(async (s) => [s.user.id, await getCharacterUsage(s.user.id)] as const)),
+  );
+
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
@@ -57,6 +68,7 @@ export default async function SeasonStandingsPage({
             <tr className="border-b border-border text-muted-foreground">
               <th className="py-2 pl-4 font-medium">#</th>
               <th className="py-2 font-medium">{lang === "es" ? "Jugador" : "Player"}</th>
+              <th className="py-2 font-medium">{lang === "es" ? "Rango" : "Tier"}</th>
               <th className="py-2 font-medium text-right tabular-nums">
                 {lang === "es" ? "Clasificación final" : "Final rating"}
               </th>
@@ -68,9 +80,13 @@ export default async function SeasonStandingsPage({
               <tr key={s.id} className="border-b border-border/60 last:border-0">
                 <td className="py-2 pl-4 tabular-nums text-muted-foreground">{MEDALS[s.rank - 1] ?? s.rank}</td>
                 <td className="py-2">
-                  <Link href={`/players/${s.user.id}`} className="hover:underline">
+                  <Link href={`/players/${s.user.id}`} className="flex items-center gap-2 hover:underline">
                     {s.user.username}
+                    <CharacterUsageIcons usage={usageByPlayerId.get(s.user.id) ?? []} />
                   </Link>
+                </td>
+                <td className="py-2">
+                  <RankBadge rating={s.finalRating} gamesPlayed={s.gamesPlayed} />
                 </td>
                 <td className="py-2 text-right font-medium tabular-nums">{formatRating(s.finalRating)}</td>
                 <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{s.gamesPlayed}</td>

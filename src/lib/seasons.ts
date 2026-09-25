@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, RatingAlgorithm } from "@/generated/prisma/enums";
+import { DELETED_USERNAME } from "@/lib/account";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { GLICKO2_INITIAL_RATING, GLICKO2_INITIAL_RD, GLICKO2_INITIAL_VOLATILITY } from "@/lib/glicko2";
 import { formatRating } from "@/lib/rating-format";
@@ -142,17 +143,20 @@ export async function getPlayerSeasonAchievements(userId: string): Promise<Achie
 // comes back alongside the page so the pager can render without a second
 // count query in the caller. Rows are written once at rollover and never
 // touched again, so a concurrent write splitting the two queries isn't a
-// concern here.
+// concern here. Excludes deleted accounts — same as the live leaderboard —
+// so a self-deletion doesn't leave a dangling "Deleted User" row sitting in
+// a historical top finish.
 export async function getSeasonStandings(seasonId: string, pagination: { skip?: number; take?: number } = {}) {
+  const where = { seasonId, user: { username: { not: DELETED_USERNAME } } };
   const [standings, totalCount] = await Promise.all([
     prisma.seasonStanding.findMany({
-      where: { seasonId },
+      where,
       orderBy: { rank: "asc" },
       include: { user: { select: { id: true, username: true } } },
       skip: pagination.skip,
       take: pagination.take,
     }),
-    prisma.seasonStanding.count({ where: { seasonId } }),
+    prisma.seasonStanding.count({ where }),
   ]);
 
   return { standings, totalCount };
