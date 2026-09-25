@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
 import {
   createDirectMatch,
@@ -14,7 +14,15 @@ import { getRoomHostId } from "@/lib/matches";
 import { startFirstGame, getCurrentGame, pickGameCharacter, CHARACTER_TIMEOUT_MS } from "@/lib/match-games";
 import { blockUser } from "@/lib/blocks";
 import { PairingMethod } from "@/generated/prisma/enums";
+import * as pushServer from "@/lib/push-server";
 import { createTestUser } from "@/test/factories";
+
+// lobby.ts hands its notifications to after() so they run once the response is
+// sent. Outside a real request scope (which is what a test is) the real after()
+// throws and the notification is deliberately skipped — running it inline here
+// instead is what lets the notification test below actually exercise the
+// deferred callback.
+vi.mock("next/server", () => ({ after: (callback: () => unknown) => void callback() }));
 
 async function createPastMatch(p1: string, p2: string, createdAt: Date) {
   return prisma.ratingMatch.create({
@@ -593,11 +601,72 @@ describe("getActiveLobbyEntry resolves stale in-session matches", () => {
   });
 });
 
-function createWaitingEntry(
-  userId: string,
-  existingRoomCode: string | null = null,
-  joinedAt: Date = new Date(),
-) {
+describe("queue entry expiry", () => {
+  function createExpiredEntry(userId: string) {
+    return prisma.ratingLobbyEntry.create({
+      data: { userId, status: LobbyEntryStatus.WAITING, expiresAt: new Date(Date.now() - 60_000) },
+    });
+  }
+
+  it("stops reporting an expired WAITING entry as an active queue spot", async () => {
+    const a = await createTestUser();
+    await createExpiredEntry(a.id);
+
+    // Every pairing path (attemptPairing, retryPairForWaitingUser,
+    // sweepLobbyPairing) already requires expiresAt > now, so reporting this as
+    // WAITING only ever showed the player a search that could never succeed.
+    await expect(getActiveLobbyEntry(a.id)).resolves.toBeNull();
+  });
+
+  it("retires an expired entry so the player can queue again", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const stale = await createExpiredEntry(a.id);
+
+    const entry = await joinLobbyAndTryPair(a.id);
+
+    // Not just a no-op through getActiveLobbyEntry: the stale row still holds
+    // the unique partial index on (userId) WHERE status = 'WAITING', so a
+    // requeue only succeeds if it actually gets retired.
+    expect(entry?.status).toBe(LobbyEntryStatus.WAITING);
+    expect(entry?.id).not.toBe(stale.id);
+    await expect(prisma.ratingLobbyEntry.findUniqueOrThrow({ where: { id: stale.id } })).resolves.toMatchObject({
+      status: LobbyEntryStatus.EXPIRED,
+    });
+    expect((await getActiveLobbyEntry(a.id))?.id).toBe(entry?.id);
+  });
+});
+
+describe("pairing notifications", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("still returns the pairing when the match-found push throws", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+    await createWaitingEntry(a.id);
+
+    // push-server documents this as never throwing, but its body makes
+    // unguarded prisma calls. A transient failure there must not fail the join
+    // *after* the match exists — the caller's page would keep the pre-join tree
+    // (no poller mounted) and the player wouldn't see their match until a
+    // manual reload.
+    vi.spyOn(pushServer, "notifyMatchFoundToUsers").mockImplementation(() => {
+      throw new Error("push exploded");
+    });
+
+    const entry = await joinLobbyAndTryPair(b.id);
+
+    expect(entry?.status).toBe(LobbyEntryStatus.PAIRED);
+    // The match itself really was created — the failing notification didn't roll
+    // the pairing back or fail the call.
+    await expect(prisma.ratingMatch.count({ where: { OR: [{ player1Id: b.id }, { player2Id: b.id }] } })).resolves.toBe(
+      1,
+    );
+  });
+});
+
+function createWaitingEntry(userId: string, existingRoomCode: string | null = null, joinedAt: Date = new Date()) {
   return prisma.ratingLobbyEntry.create({
     data: {
       userId,
