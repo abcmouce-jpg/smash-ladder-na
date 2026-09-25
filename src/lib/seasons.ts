@@ -13,20 +13,13 @@ export const PRE_SEASON_STARTS_AT = new Date("2026-07-25T18:00:00-04:00");
 
 export const PRE_SEASON_NAME = "Preseason";
 
-// The preseason is a fixed 2-month trial run before Season 1 proper — the
-// actual rollover is still triggered manually via the admin Seasons page
-// (see endActiveSeasonAndStartNext), but players should be able to see
-// roughly when to expect that, not just "whenever a mod gets to it."
+// The preseason is a fixed 2-month trial run before Season 1 proper.
+// Announced to players up front, and used as the preseason's scheduledEndAt
+// (see launchPreSeasonIfDue) so the finalize cron rolls it over automatically.
+// Pinned to 2pm ET on the day that 2 months out lands, rather than deriving it
+// from PRE_SEASON_STARTS_AT's own 6pm ET time of day.
 export const PRE_SEASON_DURATION_MONTHS = 2;
-export const PRE_SEASON_EXPECTED_END_AT = new Date(
-  Date.UTC(
-    PRE_SEASON_STARTS_AT.getUTCFullYear(),
-    PRE_SEASON_STARTS_AT.getUTCMonth() + PRE_SEASON_DURATION_MONTHS,
-    PRE_SEASON_STARTS_AT.getUTCDate(),
-    PRE_SEASON_STARTS_AT.getUTCHours(),
-    PRE_SEASON_STARTS_AT.getUTCMinutes(),
-  ),
-);
+export const PRE_SEASON_EXPECTED_END_AT = new Date("2026-09-25T14:00:00-04:00");
 
 export function hasPreSeasonStarted() {
   return Date.now() >= PRE_SEASON_STARTS_AT.getTime();
@@ -262,6 +255,12 @@ export async function endActiveSeasonIfDue(now = new Date()) {
 // everyone right on schedule — no manual step needed.
 // Idempotent: once the active season's startsAt is at/after
 // PRE_SEASON_STARTS_AT, there's nothing left to launch.
+//
+// The preseason is scheduled to end at PRE_SEASON_EXPECTED_END_AT (passed as
+// nextScheduledEndAt / scheduledEndAt below) so endActiveSeasonIfDue rolls it
+// over on its own — the same announced-length mechanism every other season
+// uses. Without it the preseason would be manual-only and sit past its
+// announced end until someone ended it by hand.
 export async function launchPreSeasonIfDue(now = new Date()) {
   if (now < PRE_SEASON_STARTS_AT) return false;
   const active = await getActiveSeason();
@@ -270,9 +269,11 @@ export async function launchPreSeasonIfDue(now = new Date()) {
     // The preseason stays on Elo regardless of NEXT_SEASON_ALGORITHM — it's a
     // fixed trial run whose framing predates Glicko-2, and the Glicko-2 season
     // that follows it is created by the normal rollover path below.
-    await endActiveSeasonAndStartNext(PRE_SEASON_NAME, now, null, RatingAlgorithm.ELO);
+    await endActiveSeasonAndStartNext(PRE_SEASON_NAME, now, PRE_SEASON_EXPECTED_END_AT, RatingAlgorithm.ELO);
   } else {
-    await prisma.season.create({ data: { name: PRE_SEASON_NAME, startsAt: now } });
+    await prisma.season.create({
+      data: { name: PRE_SEASON_NAME, startsAt: now, scheduledEndAt: PRE_SEASON_EXPECTED_END_AT },
+    });
   }
   return true;
 }
