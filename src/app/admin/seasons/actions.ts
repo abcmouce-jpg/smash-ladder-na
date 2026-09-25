@@ -25,15 +25,15 @@ export async function endSeason(formData: FormData) {
 
   const nextName = (formData.get("nextName") as string | null)?.trim() || undefined;
 
-  // Optional — leaving this blank starts the next season manual-only (no
-  // countdown, no auto-rollover), same as every season before scheduledEndAt
-  // existed. A positive whole number of days announces its own rollover time
-  // up front, same idea as the preseason's fixed length.
+  // Optional override — leaving this blank uses the standard 2-month season
+  // length (see SEASON_DURATION_MONTHS in lib/seasons), so seasons keep
+  // rolling over on their own. A positive whole number of days sets a
+  // deliberate one-off length instead.
   const durationDays = Number((formData.get("nextDurationDays") as string | null)?.trim());
   const nextScheduledEndAt =
     Number.isFinite(durationDays) && durationDays > 0
       ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
-      : null;
+      : undefined;
 
   // Which rating system the new season runs on. Anything unrecognised (or a
   // stale form) falls back to the site default rather than erroring — the only

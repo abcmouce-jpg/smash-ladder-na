@@ -59,7 +59,7 @@ export function EndSeasonButton({
           type="number"
           name="nextDurationDays"
           min={1}
-          placeholder="Length in days (optional)"
+          placeholder="Length in days (default 2 months)"
           className="h-7 w-40 rounded-lg border border-border bg-background px-1.5 text-xs text-foreground outline-none focus-visible:border-ring"
         />
         <select

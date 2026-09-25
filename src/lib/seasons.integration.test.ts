@@ -9,6 +9,8 @@ import {
   endActiveSeasonAndStartNext,
   endActiveSeasonIfDue,
   launchPreSeasonIfDue,
+  addMonths,
+  SEASON_DURATION_MONTHS,
   PRE_SEASON_NAME,
   PRE_SEASON_STARTS_AT,
   PRE_SEASON_EXPECTED_END_AT,
@@ -31,6 +33,19 @@ async function createTestMatch(status: MatchStatus, confirmedAt: Date | null = n
 
 const before = new Date(PRE_SEASON_STARTS_AT.getTime() - 60_000);
 const after = new Date(PRE_SEASON_STARTS_AT.getTime() + 60_000);
+
+describe("addMonths", () => {
+  it("keeps the day-of-month and time of day", () => {
+    expect(addMonths(new Date("2026-07-25T22:00:00Z"), 2).toISOString()).toBe("2026-09-25T22:00:00.000Z");
+  });
+
+  it("clamps to the target month's last day instead of overflowing", () => {
+    // Jan 31 + 1 month → Feb 28 (2026 isn't a leap year), not March 3.
+    expect(addMonths(new Date("2026-01-31T12:00:00Z"), 1).toISOString()).toBe("2026-02-28T12:00:00.000Z");
+    // Dec 31 + 2 months → Feb 28, 2027.
+    expect(addMonths(new Date("2026-12-31T12:00:00Z"), 2).toISOString()).toBe("2027-02-28T12:00:00.000Z");
+  });
+});
 
 describe("launchPreSeasonIfDue", () => {
   it("does nothing before the launch moment", async () => {
@@ -215,15 +230,27 @@ describe("endActiveSeasonAndStartNext", () => {
     expect(discordBot.sendDiscordDM).toHaveBeenCalledTimes(6);
   });
 
-  it("sets the next season's scheduledEndAt when given one, and leaves it null otherwise", async () => {
+  it("schedules the next season 2 months out by default", async () => {
+    await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+
+    await endActiveSeasonAndStartNext("Season 2", after);
+
+    const active = await getActiveSeason();
+    expect(active?.name).toBe("Season 2");
+    expect(active?.scheduledEndAt?.getTime()).toBe(addMonths(after, SEASON_DURATION_MONTHS).getTime());
+  });
+
+  it("uses an explicit scheduledEndAt when given one, and leaves the next season manual-only when passed null", async () => {
     await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
     const nextEnd = new Date(after.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     await endActiveSeasonAndStartNext("Season 2", after, nextEnd);
+    expect((await getActiveSeason())?.scheduledEndAt?.getTime()).toBe(nextEnd.getTime());
 
-    const active = await getActiveSeason();
-    expect(active?.name).toBe("Season 2");
-    expect(active?.scheduledEndAt?.getTime()).toBe(nextEnd.getTime());
+    await endActiveSeasonAndStartNext("Season 3", after, null);
+    const manualOnly = await getActiveSeason();
+    expect(manualOnly?.name).toBe("Season 3");
+    expect(manualOnly?.scheduledEndAt).toBeNull();
   });
 
   it("resets both the main and practice rating tracks for everyone", async () => {
@@ -272,7 +299,7 @@ describe("endActiveSeasonIfDue", () => {
 
     const active = await getActiveSeason();
     expect(active?.name).toBe("Season 2");
-    expect(active?.scheduledEndAt).toBeNull();
+    expect(active?.scheduledEndAt?.getTime()).toBe(addMonths(dueAt, SEASON_DURATION_MONTHS).getTime());
 
     const cancelledMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: inFlight.id } });
     expect(cancelledMatch.status).toBe("CANCELLED");
@@ -297,9 +324,13 @@ describe("endActiveSeasonIfDue", () => {
     const reported = await createTestMatch(MatchStatus.REPORTED);
     const settled = await createTestMatch(MatchStatus.CONFIRMED, new Date());
 
-    await endActiveSeasonIfDue(new Date(scheduledEndAt.getTime() + 60_000));
+    const dueAt = new Date(scheduledEndAt.getTime() + 60_000);
+    await endActiveSeasonIfDue(dueAt);
 
-    expect((await getActiveSeason())?.name).toBe("Season 1");
+    const season1 = await getActiveSeason();
+    expect(season1?.name).toBe("Season 1");
+    // Season 1 keeps the every-season 2-month cadence going.
+    expect(season1?.scheduledEndAt?.getTime()).toBe(addMonths(dueAt, SEASON_DURATION_MONTHS).getTime());
 
     const statuses = await prisma.ratingMatch.findMany({
       where: { id: { in: [pending.id, reported.id, settled.id] } },
