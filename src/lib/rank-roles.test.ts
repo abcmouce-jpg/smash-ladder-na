@@ -3,7 +3,7 @@ import { computeTierChange } from "./rank-roles";
 
 describe("computeTierChange", () => {
   it("detects a tier change across a match", () => {
-    const change = computeTierChange("u1", "d1", "Player", "m1", 1740, 1760, 20);
+    const change = computeTierChange("u1", "d1", "Player", "m1", 1780, 1820, 20);
     expect(change.oldTier).toBe("Elite");
     expect(change.newTier).toBe("Master");
   });
@@ -15,7 +15,7 @@ describe("computeTierChange", () => {
   });
 
   it("reports a tier drop the same way as a tier up — the caller decides what to do with direction", () => {
-    const change = computeTierChange("u1", "d1", "Player", "m1", 1760, 1740, 20);
+    const change = computeTierChange("u1", "d1", "Player", "m1", 1820, 1780, 20);
     expect(change.oldTier).toBe("Master");
     expect(change.newTier).toBe("Elite");
   });
@@ -50,7 +50,7 @@ vi.mock("@/lib/db", () => ({
 describe("applyTierChange", () => {
   beforeEach(() => {
     process.env.DISCORD_COMMUNITY_GUILD_ID = "guild1";
-    process.env.DISCORD_TIER_ROLE_IDS = JSON.stringify({ Challenger: "role-challenger", Fighter: "role-fighter" });
+    process.env.DISCORD_TIER_ROLE_IDS = JSON.stringify({ Trainee: "role-trainee", Fighter: "role-fighter" });
     process.env.DISCORD_TIER_UP_WEBHOOK_URL = "https://discord.test/webhook";
   });
 
@@ -61,7 +61,7 @@ describe("applyTierChange", () => {
     delete process.env.DISCORD_TIER_UP_WEBHOOK_URL;
   });
 
-  it("does not announce reaching Challenger — it's the provisional reveal, not an achievement", async () => {
+  it("does not announce reaching Trainee — it's the provisional reveal, not an achievement", async () => {
     const { applyTierChange } = await import("./rank-roles");
     const { syncDiscordGuildMemberRole, sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
 
@@ -71,14 +71,14 @@ describe("applyTierChange", () => {
       username: "Player",
       matchId: "m1",
       oldTier: null,
-      newTier: "Challenger",
+      newTier: "Trainee",
     });
 
-    expect(syncDiscordGuildMemberRole).toHaveBeenCalledWith("guild1", "d1", "role-challenger", null);
+    expect(syncDiscordGuildMemberRole).toHaveBeenCalledWith("guild1", "d1", "role-trainee", null);
     expect(sendDiscordWebhookEmbed).not.toHaveBeenCalled();
   });
 
-  it("announces a genuine first-time tier-up past Challenger", async () => {
+  it("announces a genuine first-time tier-up past Trainee", async () => {
     const { applyTierChange } = await import("./rank-roles");
     const { sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
 
@@ -96,7 +96,7 @@ describe("applyTierChange", () => {
 
   it("still syncs the Discord role when climbing back to a tier already reached before, but doesn't announce it", async () => {
     const { prisma } = await import("@/lib/db");
-    // Peak rating from an earlier match already clears Master's floor (1750) —
+    // Peak rating from an earlier match already clears Master's floor (1800) —
     // this "tier-up" is really just a climb back up after a dip.
     vi.mocked(prisma.ratingHistory.aggregate).mockResolvedValueOnce({ _max: { ratingAfter: 1800 } } as never);
 
@@ -140,7 +140,7 @@ describe("applyTierChange", () => {
 
   it("announces a new personal-best tier even if a lower tier was reached before", async () => {
     const { prisma } = await import("@/lib/db");
-    // Past peak only clears Elite's floor (1600), not Master's (1750) — this
+    // Past peak only clears Elite's floor (1600), not Master's (1800) — this
     // Master reach is a genuine new peak.
     vi.mocked(prisma.ratingHistory.aggregate).mockResolvedValueOnce({ _max: { ratingAfter: 1650 } } as never);
 

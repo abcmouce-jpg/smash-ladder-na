@@ -25,7 +25,7 @@ const TIER_COLORS: Record<string, string> = {
   Master: "#a78bfa",
   Elite: "#60a5fa",
   Fighter: "#4ade80",
-  Challenger: "#fb923c",
+  Trainee: "#fb923c",
 };
 
 function characterIconDataUri(character: string | null): string | null {

@@ -33,13 +33,78 @@ export const MATCH_RATING_GAP_PRESETS = [
 ] as const;
 
 // Ordered highest to lowest; the first tier whose floor the rating clears
-// wins. Centered on the 1500 starting rating so a fresh, actively-playing
-// account lands around Challenger rather than at the bottom of the ladder.
+// wins.
+//
+// Fixed 200-point windows, anchored on Fighter so the 1500 baseline sits in
+// the middle of it and every promotion costs the same 200 points:
+//
+//   Legend       2200+
+//   Grandmaster  2000 – 2199
+//   Master       1800 – 1999
+//   Elite        1600 – 1799
+//   Fighter      1400 – 1599
+//   Trainee      Under 1400
+//
+// Floors stay on the 25-point grid the rating distribution chart's bins assume
+// (see RATING_BIN_STEPS in public-stats.ts), so a bucket can never straddle two
+// tiers.
+//
+// These are the CURRENT ladder. A past season's standings are read against the
+// ladder it actually ran on instead — see LEGACY_RANK_TIERS and rankTiersFor.
 
 // Exported (and readonly) so the Info popup's rank list renders straight off
 // same array getRankTier reads, rather than keeping a parallel copy that
 // can silently fall out of date.
 export const RANK_TIERS: readonly RankTier[] = [
+  {
+    name: "Legend",
+    minRating: 2200,
+    className: "bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-400",
+    description: "The peak of the ladder. Reserved for the players who define the meta at the very top of competition.",
+  },
+  {
+    name: "Grandmaster",
+    minRating: 2000,
+    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-400",
+    description: "The top of the ladder. Held by the handful of players who consistently beat Master-level opposition.",
+  },
+  {
+    name: "Master",
+    minRating: 1800,
+    className: "bg-violet-100 text-violet-800 dark:bg-violet-500/15 dark:text-violet-400",
+    description:
+      "Consistently beating Elite players, and realistically in contention for a top-5 finish when the season ends.",
+  },
+  {
+    name: "Elite",
+    minRating: 1600,
+    className: "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-400",
+    description: "Well clear of the starting rating, with a proven winning record against the rest of the field.",
+  },
+  {
+    name: "Fighter",
+    minRating: 1400,
+    className: "bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-400",
+    description: "The band the 1500 starting rating sits in, and where most players land once their rating settles.",
+  },
+  {
+    name: "Trainee",
+    minRating: -Infinity,
+    className: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-400",
+    description:
+      "Below the starting rating. Every rank above is reachable from here, and ratings reset when a season ends.",
+  },
+];
+
+// The ladder the Elo preseason actually ran on: the old hand-tuned floors, and
+// the "Challenger" tier that RANK_TIERS later renamed to Trainee. Frozen on
+// purpose — a past season's standings should read the way they did when they
+// were played, not be retroactively re-tiered against floors that didn't exist
+// yet (a 2050 finish was Legend then, and stays Legend now). Deliberately
+// duplicates the classNames/descriptions rather than deriving them from
+// RANK_TIERS so a future change to the current ladder can't silently rewrite
+// history. Selected by rankTiersFor, keyed off the season's rating algorithm.
+export const LEGACY_RANK_TIERS: readonly RankTier[] = [
   {
     name: "Legend",
     minRating: 2100,
@@ -80,6 +145,18 @@ export const RANK_TIERS: readonly RankTier[] = [
   },
 ];
 
+// Which ladder a set of ratings should be read against, mirrored from
+// Season.algorithm. The Elo preseason used the legacy floors above; every
+// Glicko-2 season (Season 1 on) uses the current RANK_TIERS. Kept as plain
+// string literals rather than the generated Prisma enum so this module stays
+// dependency-free — the two are structurally identical, so a caller can pass
+// Season.algorithm straight in.
+export type SeasonAlgorithm = "ELO" | "GLICKO2";
+
+export function rankTiersFor(algorithm: SeasonAlgorithm): readonly RankTier[] {
+  return algorithm === "ELO" ? LEGACY_RANK_TIERS : RANK_TIERS;
+}
+
 // Sets played before a rating is trusted enough to name a tier. Named here
 // rather than left as a literal so the Info popup can state the number
 // without hardcoding a second copy of it. Deliberately NOT shared with
@@ -87,7 +164,7 @@ export const RANK_TIERS: readonly RankTier[] = [
 // separate rating-math decision — collapsing them would silently couple two
 // unrelated rules together.
 // Tiers a Free Battle post can be restricted to — a deliberate subset of
-// RANK_TIERS (no Fighter/Challenger, since those are the default "anyone"
+// RANK_TIERS (no Fighter/Trainee, since those are the default "anyone"
 // case already; no Legend, since there's no #legend-grind equivalent
 // channel to route its notification to). Ordered highest to lowest to
 // match RANK_TIERS, so callers can find each one's minRating there.
@@ -102,9 +179,15 @@ export const PROVISIONAL_MIN_GAMES = 10;
 // rating gap a provisional player can be matched across.
 export const PROVISIONAL_GAMES_THRESHOLD = 10;
 
-export function getRankTier(rating: number, gamesPlayed: number): RankTier | null {
+// tiers defaults to the current ladder; pass rankTiersFor(season.algorithm) to
+// read a past season's ratings against the ladder it actually ran on.
+export function getRankTier(
+  rating: number,
+  gamesPlayed: number,
+  tiers: readonly RankTier[] = RANK_TIERS,
+): RankTier | null {
   if (gamesPlayed < PROVISIONAL_GAMES_THRESHOLD) return null;
-  return RANK_TIERS.find((t) => rating >= t.minRating) ?? RANK_TIERS[RANK_TIERS.length - 1];
+  return tiers.find((t) => rating >= t.minRating) ?? tiers[tiers.length - 1];
 }
 
 // The rating window a tier covers, formatted for display. Derived from the
@@ -112,8 +195,8 @@ export function getRankTier(rating: number, gamesPlayed: number): RankTier | nul
 // ranges shown to players can never drift away from the thresholds
 // getRankTier actually applies. The top tier has no ceiling and the bottom
 // tier has no floor, so each gets an open-ended label instead.
-export function rankTierRatingRange(tier: RankTier): string {
-  const tierAbove = RANK_TIERS[RANK_TIERS.indexOf(tier) - 1];
+export function rankTierRatingRange(tier: RankTier, tiers: readonly RankTier[] = RANK_TIERS): string {
+  const tierAbove = tiers[tiers.indexOf(tier) - 1];
   if (!tierAbove) return `${tier.minRating}+`;
   if (tier.minRating === -Infinity) return `Under ${tierAbove.minRating}`;
   return `${tier.minRating} – ${tierAbove.minRating - 1}`;
@@ -127,10 +210,11 @@ export function rankTierRatingRange(tier: RankTier): string {
 export function pointsToNextTier(
   rating: number,
   gamesPlayed: number,
+  tiers: readonly RankTier[] = RANK_TIERS,
 ): { nextTier: RankTier; pointsNeeded: number } | null {
-  const current = getRankTier(rating, gamesPlayed);
+  const current = getRankTier(rating, gamesPlayed, tiers);
   if (!current) return null;
-  const nextTier = RANK_TIERS[RANK_TIERS.indexOf(current) - 1];
+  const nextTier = tiers[tiers.indexOf(current) - 1];
   if (!nextTier) return null;
   return { nextTier, pointsNeeded: nextTier.minRating - rating };
 }
@@ -147,11 +231,16 @@ export const LEADERBOARD_MIN_GAMES = 3;
 // celebration. Same gamesPlayed used for both sides on purpose: what
 // matters here is which side of a rating threshold the match landed on,
 // not reconstructing a historical games-played count.
-export function didTierUp(ratingBefore: number, ratingAfter: number, gamesPlayed: number) {
-  const before = getRankTier(ratingBefore, gamesPlayed);
-  const after = getRankTier(ratingAfter, gamesPlayed);
+export function didTierUp(
+  ratingBefore: number,
+  ratingAfter: number,
+  gamesPlayed: number,
+  tiers: readonly RankTier[] = RANK_TIERS,
+) {
+  const before = getRankTier(ratingBefore, gamesPlayed, tiers);
+  const after = getRankTier(ratingAfter, gamesPlayed, tiers);
   if (!before || !after) return false;
-  return RANK_TIERS.indexOf(after) < RANK_TIERS.indexOf(before);
+  return tiers.indexOf(after) < tiers.indexOf(before);
 }
 
 export function minRatingFor(tierName: string) {

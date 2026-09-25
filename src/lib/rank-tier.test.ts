@@ -4,7 +4,9 @@ import {
   didTierUp,
   rankTierRatingRange,
   pointsToNextTier,
+  rankTiersFor,
   RANK_TIERS,
+  LEGACY_RANK_TIERS,
   achievementComparator,
   computeRatingMilestoneAchievements,
   type Achievement,
@@ -16,46 +18,46 @@ describe("getRankTier", () => {
     expect(getRankTier(1500, 0)).toBeNull();
   });
 
-  it("returns Legend at 2100+", () => {
-    expect(getRankTier(2100, 10)?.name).toBe("Legend");
+  it("returns Legend at 2200+", () => {
+    expect(getRankTier(2200, 10)?.name).toBe("Legend");
     expect(getRankTier(2500, 50)?.name).toBe("Legend");
   });
 
-  it("returns Grandmaster at 1900–2099", () => {
-    expect(getRankTier(1900, 10)?.name).toBe("Grandmaster");
-    expect(getRankTier(2099, 50)?.name).toBe("Grandmaster");
+  it("returns Grandmaster at 2000–2199", () => {
+    expect(getRankTier(2000, 10)?.name).toBe("Grandmaster");
+    expect(getRankTier(2199, 50)?.name).toBe("Grandmaster");
   });
 
-  it("returns Master at 1750–1899", () => {
-    expect(getRankTier(1750, 10)?.name).toBe("Master");
-    expect(getRankTier(1899, 10)?.name).toBe("Master");
+  it("returns Master at 1800–1999", () => {
+    expect(getRankTier(1800, 10)?.name).toBe("Master");
+    expect(getRankTier(1999, 10)?.name).toBe("Master");
   });
 
-  it("returns Elite at 1600–1749", () => {
+  it("returns Elite at 1600–1799", () => {
     expect(getRankTier(1600, 10)?.name).toBe("Elite");
   });
 
-  it("returns Fighter at 1450–1599", () => {
+  it("returns Fighter at 1400–1599", () => {
     expect(getRankTier(1500, 10)?.name).toBe("Fighter");
   });
 
-  it("returns Challenger below 1450", () => {
-    expect(getRankTier(1449, 10)?.name).toBe("Challenger");
-    expect(getRankTier(0, 10)?.name).toBe("Challenger");
-    expect(getRankTier(-100, 10)?.name).toBe("Challenger");
+  it("returns Trainee below 1400", () => {
+    expect(getRankTier(1399, 10)?.name).toBe("Trainee");
+    expect(getRankTier(0, 10)?.name).toBe("Trainee");
+    expect(getRankTier(-100, 10)?.name).toBe("Trainee");
   });
 
-  it("returns Challenger at exact boundary of 1450", () => {
-    expect(getRankTier(1450, 10)?.name).toBe("Fighter");
-    expect(getRankTier(1449, 10)?.name).toBe("Challenger");
+  it("returns Trainee at exact boundary of 1400", () => {
+    expect(getRankTier(1400, 10)?.name).toBe("Fighter");
+    expect(getRankTier(1399, 10)?.name).toBe("Trainee");
   });
 });
 
 describe("didTierUp", () => {
   it("returns true when crossing into a higher tier", () => {
-    expect(didTierUp(1740, 1760, 20)).toBe(true); // Elite -> Master
-    expect(didTierUp(1890, 1910, 20)).toBe(true); // Master -> Grandmaster
-    expect(didTierUp(2090, 2110, 20)).toBe(true); // Grandmaster -> Legend
+    expect(didTierUp(1780, 1820, 20)).toBe(true); // Elite -> Master
+    expect(didTierUp(1980, 2020, 20)).toBe(true); // Master -> Grandmaster
+    expect(didTierUp(2180, 2220, 20)).toBe(true); // Grandmaster -> Legend
   });
 
   it("returns false when staying in the same tier", () => {
@@ -63,7 +65,7 @@ describe("didTierUp", () => {
   });
 
   it("returns false when dropping a tier", () => {
-    expect(didTierUp(1760, 1740, 20)).toBe(false);
+    expect(didTierUp(1820, 1780, 20)).toBe(false);
   });
 
   it("returns false for provisional players", () => {
@@ -75,18 +77,18 @@ describe("rankTierRatingRange", () => {
   const rangeFor = (name: string) => rankTierRatingRange(RANK_TIERS.find((t) => t.name === name)!);
 
   it("leaves the top tier open-ended", () => {
-    expect(rangeFor("Legend")).toBe("2100+");
+    expect(rangeFor("Legend")).toBe("2200+");
   });
 
   it("ends a tier one point below the floor of the tier above it", () => {
-    expect(rangeFor("Grandmaster")).toBe("1900 – 2099");
-    expect(rangeFor("Master")).toBe("1750 – 1899");
-    expect(rangeFor("Elite")).toBe("1600 – 1749");
-    expect(rangeFor("Fighter")).toBe("1450 – 1599");
+    expect(rangeFor("Grandmaster")).toBe("2000 – 2199");
+    expect(rangeFor("Master")).toBe("1800 – 1999");
+    expect(rangeFor("Elite")).toBe("1600 – 1799");
+    expect(rangeFor("Fighter")).toBe("1400 – 1599");
   });
 
   it("leaves the bottom tier open-ended", () => {
-    expect(rangeFor("Challenger")).toBe("Under 1450");
+    expect(rangeFor("Trainee")).toBe("Under 1400");
   });
 
   it("describes ranges that tile the rating line with no gaps", () => {
@@ -109,15 +111,50 @@ describe("pointsToNextTier", () => {
   });
 
   it("returns the next tier up and how many points away it is", () => {
-    const result = pointsToNextTier(1400, 20); // Challenger, Fighter starts at 1450
+    const result = pointsToNextTier(1300, 20); // Trainee, Fighter starts at 1400
     expect(result?.nextTier.name).toBe("Fighter");
-    expect(result?.pointsNeeded).toBe(50);
+    expect(result?.pointsNeeded).toBe(100);
   });
 
   it("stays accurate right at a tier's floor (just tiered up, next target is one tier further)", () => {
     const result = pointsToNextTier(1600, 20); // exactly Elite's floor
     expect(result?.nextTier.name).toBe("Master");
-    expect(result?.pointsNeeded).toBe(150);
+    expect(result?.pointsNeeded).toBe(200);
+  });
+});
+
+describe("rankTiersFor", () => {
+  it("reads Elo (preseason) ratings against the frozen legacy ladder", () => {
+    expect(rankTiersFor("ELO")).toBe(LEGACY_RANK_TIERS);
+    expect(LEGACY_RANK_TIERS.map((t) => [t.name, t.minRating])).toEqual([
+      ["Legend", 2100],
+      ["Grandmaster", 1900],
+      ["Master", 1750],
+      ["Elite", 1600],
+      ["Fighter", 1450],
+      ["Challenger", -Infinity],
+    ]);
+  });
+
+  it("reads Glicko-2 ratings against the current ladder", () => {
+    expect(rankTiersFor("GLICKO2")).toBe(RANK_TIERS);
+  });
+
+  it("tiers the same rating differently under the two ladders", () => {
+    // 2150 is Legend on the preseason's 2100 floor but only Grandmaster on the
+    // current 2200 one; 1425 was Challenger then and is Fighter now.
+    expect(getRankTier(2150, 20, LEGACY_RANK_TIERS)?.name).toBe("Legend");
+    expect(getRankTier(2150, 20, RANK_TIERS)?.name).toBe("Grandmaster");
+    expect(getRankTier(1425, 20, LEGACY_RANK_TIERS)?.name).toBe("Challenger");
+    expect(getRankTier(1425, 20, RANK_TIERS)?.name).toBe("Fighter");
+  });
+
+  it("derives a legacy tier's range from its legacy neighbours, not the current ladder", () => {
+    const legacy = (name: string) =>
+      rankTierRatingRange(LEGACY_RANK_TIERS.find((t) => t.name === name)!, LEGACY_RANK_TIERS);
+    expect(legacy("Legend")).toBe("2100+");
+    expect(legacy("Fighter")).toBe("1450 – 1599");
+    expect(legacy("Challenger")).toBe("Under 1450");
   });
 });
 

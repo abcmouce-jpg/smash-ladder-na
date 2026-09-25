@@ -30,7 +30,7 @@ const TIER_DESCRIPTIONS_ES: Record<string, string> = {
     "Vence consistentemente a jugadores Elite, con opciones reales de terminar entre los 5 primeros al final de la temporada.",
   Elite: "Muy por encima de la clasificación inicial, con un historial de victorias probado frente al resto.",
   Fighter: "La banda donde se ubica la clasificación inicial de 1500, y donde aterriza la mayoría al estabilizarse.",
-  Challenger:
+  Trainee:
     "Por debajo de la clasificación inicial. Todos los rangos superiores son alcanzables desde aquí, y las clasificaciones se reinician al terminar la temporada.",
 };
 
