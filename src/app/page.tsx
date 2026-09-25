@@ -7,6 +7,7 @@ import { Activity, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { formatRating } from "@/lib/rating-format";
+import { isRatingVisible } from "@/lib/rank-tier";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { getFriendliesPosts } from "@/lib/home-feed";
 import { getMatchFeed } from "@/lib/match-feed";
@@ -14,6 +15,7 @@ import { serializeSetEntry } from "@/lib/set-entry";
 import { Button } from "@/components/ui/button";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
+import { RatingHidden } from "@/components/rating-hidden";
 import { FriendliesPosts } from "@/components/friendlies-posts";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,6 +62,9 @@ export default async function Home() {
   ]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const liveEntries = feed.filter((entry) => entry.hasLiveStreamer).map(serializeSetEntry);
+  const ratingVisible = Boolean(
+    me && user && isRatingVisible(me.gamesPlayed, user.role === "MOD" || user.role === "ADMIN"),
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
@@ -110,7 +115,9 @@ export default async function Home() {
 
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
-          {lang === "es" ? (
+          {!ratingVisible ? (
+            <RatingHidden gamesPlayed={me.gamesPlayed} lang={lang} />
+          ) : lang === "es" ? (
             <>
               Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span>{" "}
               en {me.gamesPlayed} partidas.

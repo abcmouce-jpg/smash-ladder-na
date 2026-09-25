@@ -154,7 +154,7 @@ describe("applyEloAndConfirm", () => {
   });
 
   it("gives a lower-rated provisional winner a bigger swing than an established player", async () => {
-    const provisionalWinner = await createTestUser({ rating: 1500, gamesPlayed: 5 });
+    const provisionalWinner = await createTestUser({ rating: 1500, gamesPlayed: 3 });
     const establishedLoser = await createTestUser({ rating: 1500, gamesPlayed: 40 });
     const match = await prisma.ratingMatch.create({
       data: {

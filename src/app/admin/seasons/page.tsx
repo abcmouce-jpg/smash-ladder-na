@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarClock } from "lucide-react";
 import { auth } from "@/auth";
 import { SEASON_MANAGER_USER_ID, ensureActiveSeason, listPastSeasons } from "@/lib/seasons";
+import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EndSeasonButton } from "@/components/end-season-button";
@@ -52,9 +53,9 @@ export default async function SeasonsAdminPage() {
             )}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Snapshots the current leaderboard (10+ sets) as final standings, then resets everyone&apos;s rating and
-            practice rating to 1500, and sets played to 0. The next season starts fresh on the rating system chosen
-            above (Glicko-2 by default).
+            Snapshots the current leaderboard ({LEADERBOARD_MIN_GAMES}+ sets) as final standings, then resets everyone&apos;s
+            rating and practice rating to 1500, and sets played to 0. The next season starts fresh on the rating system
+            chosen above (Glicko-2 by default).
           </p>
         </CardContent>
       </Card>

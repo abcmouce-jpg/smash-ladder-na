@@ -157,12 +157,6 @@ export function rankTiersFor(algorithm: SeasonAlgorithm): readonly RankTier[] {
   return algorithm === "ELO" ? LEGACY_RANK_TIERS : RANK_TIERS;
 }
 
-// Sets played before a rating is trusted enough to name a tier. Named here
-// rather than left as a literal so the Info popup can state the number
-// without hardcoding a second copy of it. Deliberately NOT shared with
-// kFactor in matches.ts, which happens to use the same 10 today but is a
-// separate rating-math decision — collapsing them would silently couple two
-// unrelated rules together.
 // Tiers a Free Battle post can be restricted to — a deliberate subset of
 // RANK_TIERS (no Fighter/Trainee, since those are the default "anyone"
 // case already; no Legend, since there's no #legend-grind equivalent
@@ -171,13 +165,33 @@ export function rankTiersFor(algorithm: SeasonAlgorithm): readonly RankTier[] {
 export const FREE_BATTLE_TIERS = ["Grandmaster", "Master", "Elite"] as const;
 export type FreeBattleTier = (typeof FREE_BATTLE_TIERS)[number];
 
-export const PROVISIONAL_MIN_GAMES = 10;
+// Sets played before a rating is trusted enough to name a tier — and, by the
+// same rule, before the number itself is shown to anyone but moderators (see
+// isRatingVisible). Named here rather than left as a literal so the Info popup
+// can state the number without hardcoding a second copy of it. Deliberately NOT
+// shared with kFactor in matches.ts, which still tapers over a longer run of
+// games and is a separate rating-math decision — collapsing them would
+// silently couple two unrelated rules together.
+export const PROVISIONAL_MIN_GAMES = 5;
 
-// Rating is noisy under this many games (the K-factor tapering matches this
-// same threshold elsewhere), so a provisional player gets no tier yet rather
-// than a misleadingly precise one. Also used by lobby.ts to cap how wide a
-// rating gap a provisional player can be matched across.
-export const PROVISIONAL_GAMES_THRESHOLD = 10;
+// Rating is noisy under this many games, so a provisional player gets no tier
+// yet rather than a misleadingly precise one. Also used by lobby.ts to cap how
+// wide a rating gap a provisional player can be matched across, and by
+// isRatingVisible to decide whether the number is public at all.
+export const PROVISIONAL_GAMES_THRESHOLD = 5;
+
+// Whether a player's rating may be shown to a given viewer. A brand-new
+// player's number is still swinging wildly (see kFactor), so it stays hidden
+// from everyone — including the player themselves — until they've played
+// enough sets to move past provisional. Moderators keep access throughout, so
+// an early rating is still available for moderation.
+//
+// gamesPlayed is whichever count the surface is about: the ranked count, or
+// practiceGamesPlayed for the separate practice track (same threshold, its own
+// tally).
+export function isRatingVisible(gamesPlayed: number, viewerIsModerator: boolean) {
+  return viewerIsModerator || gamesPlayed >= PROVISIONAL_GAMES_THRESHOLD;
+}
 
 // tiers defaults to the current ladder; pass rankTiersFor(season.algorithm) to
 // read a past season's ratings against the ladder it actually ran on.
@@ -219,12 +233,14 @@ export function pointsToNextTier(
   return { nextTier, pointsNeeded: nextTier.minRating - rating };
 }
 
-// Separate from the tier/K-factor threshold above: public leaderboards
-// (site-wide, per-character, season standings) just need enough games to
-// rule out a one-win fluke, not full rating convergence — a lower bar so
-// genuinely strong players show up as visible proof of the ladder's
-// competition instead of sitting hidden for their first 10 games.
-export const LEADERBOARD_MIN_GAMES = 3;
+// The games floor for public leaderboards (site-wide, per-character, season
+// standings). Kept as its own name rather than reusing
+// PROVISIONAL_GAMES_THRESHOLD because the two are independent rules that
+// happen to coincide today: a leaderboard shows ratings, and a rating isn't
+// shown to anyone but moderators until a player is past provisional (see
+// isRatingVisible), so the floor can't sit below that threshold without
+// leaving hidden numbers on a public board.
+export const LEADERBOARD_MIN_GAMES = 5;
 
 // True only when a match's rating gain crossed into a strictly higher tier
 // — used to surface a special "tier up" moment rather than the regular win

@@ -9,11 +9,12 @@ import { DiscordIcon } from "@/components/discord-icon";
 import { StartggIcon } from "@/components/startgg-icon";
 import { TwitchIcon } from "@/components/twitch-icon";
 import { RankBadge } from "@/components/rank-badge";
+import { RatingHidden } from "@/components/rating-hidden";
 import { BlockUserButton } from "@/components/block-user-button";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
-import { getRankTier, pointsToNextTier } from "@/lib/rank-tier";
+import { getRankTier, isRatingVisible, pointsToNextTier } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import { SITE_URL } from "@/lib/site";
 import type { Lang } from "@/lib/i18n";
@@ -56,16 +57,27 @@ export function PlayerProfileHeader({
   const inMatch = currentMatch !== null;
   const showDiscord = Boolean(player.discordUsername && !player.hideDiscordUsername);
 
+  const ratingVisible = isRatingVisible(player.gamesPlayed, isModerator);
   const tier = getRankTier(player.rating, player.gamesPlayed);
   const ratingLabel = tier ? `${formatRating(player.rating)} (${tier.name})` : `${formatRating(player.rating)}`;
+  // A provisional player's rating isn't public (see isRatingVisible), so the
+  // share text drops the number rather than advertising a hidden one.
   const shareText =
     lang === "es"
-      ? isOwnProfile
-        ? `¡Tengo ${ratingLabel} de clasificación en Smash Ladder NA!`
-        : `${player.username} tiene ${ratingLabel} de clasificación en Smash Ladder NA.`
-      : isOwnProfile
-        ? `I'm rated ${ratingLabel} on Smash Ladder NA!`
-        : `${player.username} is rated ${ratingLabel} on Smash Ladder NA.`;
+      ? !ratingVisible
+        ? isOwnProfile
+          ? "¡Estoy en Smash Ladder NA!"
+          : `${player.username} está en Smash Ladder NA.`
+        : isOwnProfile
+          ? `¡Tengo ${ratingLabel} de clasificación en Smash Ladder NA!`
+          : `${player.username} tiene ${ratingLabel} de clasificación en Smash Ladder NA.`
+      : !ratingVisible
+        ? isOwnProfile
+          ? "I'm on Smash Ladder NA!"
+          : `${player.username} is on Smash Ladder NA.`
+        : isOwnProfile
+          ? `I'm rated ${ratingLabel} on Smash Ladder NA!`
+          : `${player.username} is rated ${ratingLabel} on Smash Ladder NA.`;
   const tweetIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareText} ${SITE_URL}/players/${player.id}`)}`;
 
   return (
@@ -98,9 +110,15 @@ export function PlayerProfileHeader({
                 <CharacterUsageIcons usage={characterUsage} />
               </h1>
               <p className="text-sm tabular-nums text-muted-foreground">
-                {lang === "es"
-                  ? `${formatRating(player.rating)} de clasificación`
-                  : `${formatRating(player.rating)} rating`}
+                {ratingVisible ? (
+                  lang === "es" ? (
+                    `${formatRating(player.rating)} de clasificación`
+                  ) : (
+                    `${formatRating(player.rating)} rating`
+                  )
+                ) : (
+                  <RatingHidden gamesPlayed={player.gamesPlayed} lang={lang} />
+                )}
               </p>
               {player.isSupporter && (
                 <p className="text-xs text-muted-foreground">
@@ -241,6 +259,7 @@ export function PlayerProfileHeader({
           userId={player.id}
           match={currentMatch}
           zenMode={isOwnProfile && player.zenMode}
+          viewerIsModerator={isModerator}
           lang={lang}
         />
       )}
@@ -260,17 +279,24 @@ function CurrentMatchCard({
   userId,
   match,
   zenMode,
+  viewerIsModerator,
   lang,
 }: {
   userId: string;
   match: NonNullable<Awaited<ReturnType<typeof getCurrentMatchForUser>>>;
   zenMode: boolean;
+  viewerIsModerator: boolean;
   lang: Lang;
 }) {
   const isPlayer1 = match.player1Id === userId;
   const opponent = isPlayer1 ? match.player2 : match.player1;
   const myName = isPlayer1 ? match.player1.username : match.player2.username;
   const myRating = isPlayer1 ? match.player1.rating : match.player2.rating;
+  const myGamesPlayed = isPlayer1 ? match.player1.gamesPlayed : match.player2.gamesPlayed;
+  // Each side is gated on its own games played — one provisional player in the
+  // set doesn't hide the other's established rating.
+  const myRatingVisible = isRatingVisible(myGamesPlayed, viewerIsModerator);
+  const opponentRatingVisible = isRatingVisible(opponent.gamesPlayed, viewerIsModerator);
 
   const wins = { me: 0, opponent: 0 };
   for (const game of match.games) {
@@ -318,7 +344,15 @@ function CurrentMatchCard({
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{myName}</p>
               <p className="text-xs text-muted-foreground tabular-nums">
-                {lang === "es" ? `${formatRating(myRating)} de clasificación` : `${formatRating(myRating)} rating`}
+                {myRatingVisible ? (
+                  lang === "es" ? (
+                    `${formatRating(myRating)} de clasificación`
+                  ) : (
+                    `${formatRating(myRating)} rating`
+                  )
+                ) : (
+                  <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} />
+                )}
               </p>
             </div>
           </div>
@@ -352,9 +386,15 @@ function CurrentMatchCard({
               )}
               {!zenMode && (
                 <p className="text-right text-xs text-muted-foreground tabular-nums">
-                  {lang === "es"
-                    ? `${formatRating(opponent.rating)} de clasificación`
-                    : `${formatRating(opponent.rating)} rating`}
+                  {opponentRatingVisible ? (
+                    lang === "es" ? (
+                      `${formatRating(opponent.rating)} de clasificación`
+                    ) : (
+                      `${formatRating(opponent.rating)} rating`
+                    )
+                  ) : (
+                    <RatingHidden gamesPlayed={opponent.gamesPlayed} lang={lang} />
+                  )}
                 </p>
               )}
             </div>

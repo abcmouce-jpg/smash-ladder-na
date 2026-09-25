@@ -3,7 +3,7 @@ import { eloDelta, expectedScore, getRoomHostId, kFactor, MAX_RATING_DELTA } fro
 
 describe("Elo helpers", () => {
   describe("kFactor", () => {
-    it("returns 40 for players under 10 games (provisional)", () => {
+    it("returns 40 for players under 10 games", () => {
       expect(kFactor(0)).toBe(40);
       expect(kFactor(9)).toBe(40);
     });

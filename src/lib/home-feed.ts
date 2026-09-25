@@ -65,7 +65,7 @@ export async function getFriendliesPosts(limit = 6) {
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
-      author: { select: { id: true, username: true, avatarUrl: true, rating: true } },
+      author: { select: { id: true, username: true, avatarUrl: true, rating: true, gamesPlayed: true } },
     },
   });
 }

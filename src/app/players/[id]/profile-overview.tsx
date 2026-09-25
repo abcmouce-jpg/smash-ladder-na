@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { RatingChart } from "@/components/rating-chart";
+import { RatingHidden } from "@/components/rating-hidden";
 import { CharacterUsageCard } from "@/components/character-usage-card";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
 import { MatchHistoryEntry } from "@/components/match-history-entry";
@@ -21,7 +22,12 @@ import {
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
 import { getLeaderboardRank } from "@/lib/leaderboard";
 import { getPlayerSeasonAchievements } from "@/lib/seasons";
-import { achievementComparator, computeAchievements, computeRatingMilestoneAchievements } from "@/lib/rank-tier";
+import {
+  achievementComparator,
+  computeAchievements,
+  computeRatingMilestoneAchievements,
+  isRatingVisible,
+} from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -87,6 +93,7 @@ export async function ProfileOverviewSection({
   mainCharacter,
   usage,
   rating,
+  gamesPlayed,
   practiceRating,
   practiceGamesPlayed,
   isOwnProfile,
@@ -99,6 +106,7 @@ export async function ProfileOverviewSection({
   mainCharacter: string | null;
   usage: CharacterUsage[];
   rating: number;
+  gamesPlayed: number;
   practiceRating: number;
   practiceGamesPlayed: number;
   isOwnProfile: boolean;
@@ -144,9 +152,16 @@ export async function ProfileOverviewSection({
   const winRate = realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
+  // A provisional player's rating (and everything derived from it — the chart,
+  // peak rating, rating-threshold achievements) stays hidden from everyone but
+  // moderators, so the peak is masked to null below rather than leaking through
+  // an unlocked "Reached Elite" badge or a milestone above the starting rating.
+  const ratingVisible = isRatingVisible(gamesPlayed, isModerator);
+  const practiceRatingVisible = isRatingVisible(practiceGamesPlayed, isModerator);
+  const visiblePeakRating = ratingVisible ? careerStats.peakRating : null;
   const achievements = [
-    ...computeAchievements(careerStats),
-    ...computeRatingMilestoneAchievements(careerStats.peakRating),
+    ...computeAchievements({ ...careerStats, peakRating: visiblePeakRating }),
+    ...computeRatingMilestoneAchievements(visiblePeakRating),
     ...matchAchievements,
     ...seasonAchievements,
   ].sort(achievementComparator);
@@ -165,7 +180,13 @@ export async function ProfileOverviewSection({
             </p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
-                <p className="text-lg font-semibold tabular-nums">{formatRating(rating)}</p>
+                {ratingVisible ? (
+                  <p className="text-lg font-semibold tabular-nums">{formatRating(rating)}</p>
+                ) : (
+                  <p className="text-sm font-medium text-muted-foreground">
+                    <RatingHidden gamesPlayed={gamesPlayed} lang={lang} />
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación" : "Rating"}</p>
               </div>
               <div>
@@ -196,9 +217,15 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">
-                  {seasonStats.peakRating != null ? formatRating(seasonStats.peakRating) : "—"}
-                </p>
+                {ratingVisible ? (
+                  <p className="text-lg font-semibold tabular-nums">
+                    {seasonStats.peakRating != null ? formatRating(seasonStats.peakRating) : "—"}
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium text-muted-foreground">
+                    <RatingHidden gamesPlayed={gamesPlayed} lang={lang} />
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {lang === "es" ? "Clasificación máxima de temporada" : "Season peak rating"}
                 </p>
@@ -210,7 +237,13 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">{formatRating(practiceRating)}</p>
+                {practiceRatingVisible ? (
+                  <p className="text-lg font-semibold tabular-nums">{formatRating(practiceRating)}</p>
+                ) : (
+                  <p className="text-sm font-medium text-muted-foreground">
+                    <RatingHidden gamesPlayed={practiceGamesPlayed} lang={lang} practice />
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {lang === "es" ? "Clasificación de práctica" : "Practice rating"}
                 </p>
@@ -226,7 +259,7 @@ export async function ProfileOverviewSection({
         </Card>
       )}
 
-      {chartPoints.length >= 2 && (
+      {ratingVisible && chartPoints.length >= 2 && (
         <Card className="mt-4">
           <CardContent className="pt-4">
             <div className="mb-2 flex items-center justify-between">
@@ -265,9 +298,15 @@ export async function ProfileOverviewSection({
               </p>
             </div>
             <div>
-              <p className="text-lg font-semibold tabular-nums">
-                {careerStats.peakRating != null ? formatRating(careerStats.peakRating) : "—"}
-              </p>
+              {ratingVisible ? (
+                <p className="text-lg font-semibold tabular-nums">
+                  {careerStats.peakRating != null ? formatRating(careerStats.peakRating) : "—"}
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-muted-foreground">
+                  <RatingHidden gamesPlayed={gamesPlayed} lang={lang} />
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación máxima" : "Peak rating"}</p>
             </div>
             <div>
@@ -377,6 +416,8 @@ export async function ProfileOverviewSection({
                   confirmedAt: match.confirmedAt?.toISOString() ?? null,
                 }}
                 viewedPlayerName={playerUsername}
+                ratingVisible={ratingVisible}
+                practiceRatingVisible={practiceRatingVisible}
                 // Own profile reads their own chat log; a mod reviewing
                 // someone else's profile gets the mod spectator path. The
                 // modal is the only place this renders now.

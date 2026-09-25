@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { Activity, Radio, Swords } from "lucide-react";
+import { auth } from "@/auth";
 import { getMatchFeed, getMatchFeedStats } from "@/lib/match-feed";
 import { serializeSetEntry } from "@/lib/set-entry";
 import { PageHeading } from "@/components/page-heading";
@@ -10,11 +11,15 @@ import { getLang } from "@/lib/i18n";
 import { SetRow } from "./set-row";
 
 export default async function SetsFeedPage() {
-  const [entries, { inProgress, matchesToday }, lang] = await Promise.all([
+  const [entries, { inProgress, matchesToday }, lang, session] = await Promise.all([
     getMatchFeed(),
     getMatchFeedStats(),
     getLang(),
+    auth(),
   ]);
+  // Provisional players' ratings stay hidden on the public feed unless the
+  // viewer is a moderator (see isRatingVisible).
+  const viewerIsModerator = session?.user?.role === "MOD" || session?.user?.role === "ADMIN";
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
 
   // Dates can't cross the server→client boundary, so entries are serialized
@@ -67,7 +72,7 @@ export default async function SetsFeedPage() {
             </p>
           )}
           {serializedEntries.map((entry) => (
-            <SetRow key={entry.id} entry={entry} lang={lang} />
+            <SetRow key={entry.id} entry={entry} lang={lang} viewerIsModerator={viewerIsModerator} />
           ))}
         </div>
       </LiveStreamProvider>

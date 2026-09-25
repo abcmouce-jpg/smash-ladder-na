@@ -13,6 +13,8 @@ import { getLang } from "@/lib/i18n";
 import { bothCharactersLocked } from "@/lib/match-games";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES, stageImagePath } from "@/lib/stages";
 import { formatRating } from "@/lib/rating-format";
+import { isRatingVisible } from "@/lib/rank-tier";
+import { RatingHidden } from "@/components/rating-hidden";
 
 // How long the picked stage stays highlighted on stream once it's picked,
 // and how long the server keeps rendering the highlight card — the window
@@ -175,6 +177,17 @@ export default async function StreamOverlayPage({
       ? currentMatch.player2.rating
       : currentMatch.player1.rating
     : null;
+  const opponentGamesPlayed = currentMatch
+    ? isUserPlayer1
+      ? currentMatch.player2.gamesPlayed
+      : currentMatch.player1.gamesPlayed
+    : null;
+
+  // The overlay is a public broadcast surface with no viewer session, so a
+  // provisional player's rating (here, the streamer's own) is hidden outright —
+  // there's no moderator to show it to. Same rule per side for the opponent.
+  const ratingVisible = isRatingVisible(user.gamesPlayed, false);
+  const opponentRatingVisible = opponentGamesPlayed !== null && isRatingVisible(opponentGamesPlayed, false);
 
   const showRecentMatches = hideRecentMatches !== "1";
   const showRatingCard = hideRatingCard !== "1";
@@ -222,7 +235,11 @@ export default async function StreamOverlayPage({
             <div className="mt-1 flex items-baseline gap-4">
               <Trophy className="size-8 text-white drop-shadow-lg" />
               <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">
-                {formatRating(user.rating)}
+                {ratingVisible ? (
+                  formatRating(user.rating)
+                ) : (
+                  <RatingHidden gamesPlayed={user.gamesPlayed} lang={lang} />
+                )}
               </span>
             </div>
             <div className="mt-1.5 flex items-center gap-4">
@@ -278,7 +295,13 @@ export default async function StreamOverlayPage({
                         <span className="text-base font-semibold tabular-nums">{streak}</span>
                       </span>
                     )}
-                    <span className="text-base text-white/50 tabular-nums">{formatRating(user.rating)}</span>
+                    <span className="text-base text-white/50 tabular-nums">
+                      {ratingVisible ? (
+                        formatRating(user.rating)
+                      ) : (
+                        <RatingHidden gamesPlayed={user.gamesPlayed} lang={lang} />
+                      )}
+                    </span>
                   </span>
                 </div>
                 <div className="flex shrink-0">{userCharacter && <CharacterIcon name={userCharacter} size={48} />}</div>
@@ -300,7 +323,7 @@ export default async function StreamOverlayPage({
                   <span className="truncate text-3xl font-bold text-white drop-shadow-sm">{opponentUsername}</span>
                   <span className="flex items-center gap-1.5">
                     <span className="text-base text-white/50 tabular-nums">
-                      {opponentRating === null ? null : formatRating(opponentRating)}
+                      {opponentRating === null || !opponentRatingVisible ? null : formatRating(opponentRating)}
                     </span>
                     {opponentStreak !== null && opponentStreak > 0 && (
                       <span className="flex items-center gap-0.5 text-orange-400">
@@ -344,8 +367,12 @@ export default async function StreamOverlayPage({
                         match.delta >= 0 ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
-                      {match.delta >= 0 ? "+" : ""}
-                      {formatRating(match.delta)}
+                      {ratingVisible ? (
+                        <>
+                          {match.delta >= 0 ? "+" : ""}
+                          {formatRating(match.delta)}
+                        </>
+                      ) : null}
                     </span>
                   </div>
                 ))

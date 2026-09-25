@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getRankTier,
   didTierUp,
+  isRatingVisible,
   rankTierRatingRange,
   pointsToNextTier,
   rankTiersFor,
@@ -13,9 +14,13 @@ import {
 } from "./rank-tier";
 
 describe("getRankTier", () => {
-  it("returns null for provisional players (< 10 games)", () => {
-    expect(getRankTier(2000, 9)).toBeNull();
+  it("returns null for provisional players (< 5 games)", () => {
+    expect(getRankTier(2000, 4)).toBeNull();
     expect(getRankTier(1500, 0)).toBeNull();
+  });
+
+  it("returns a tier as soon as a player is past provisional (5 games)", () => {
+    expect(getRankTier(1500, 5)?.name).toBe("Fighter");
   });
 
   it("returns Legend at 2200+", () => {
@@ -69,7 +74,24 @@ describe("didTierUp", () => {
   });
 
   it("returns false for provisional players", () => {
-    expect(didTierUp(1740, 1760, 5)).toBe(false);
+    expect(didTierUp(1740, 1760, 4)).toBe(false);
+  });
+});
+
+describe("isRatingVisible", () => {
+  it("hides the rating while a player is still provisional", () => {
+    expect(isRatingVisible(0, false)).toBe(false);
+    expect(isRatingVisible(4, false)).toBe(false);
+  });
+
+  it("shows the rating once a player is past provisional", () => {
+    expect(isRatingVisible(5, false)).toBe(true);
+    expect(isRatingVisible(50, false)).toBe(true);
+  });
+
+  it("always shows the rating to a moderator", () => {
+    expect(isRatingVisible(0, true)).toBe(true);
+    expect(isRatingVisible(4, true)).toBe(true);
   });
 });
 
@@ -103,7 +125,7 @@ describe("rankTierRatingRange", () => {
 
 describe("pointsToNextTier", () => {
   it("returns null for provisional players", () => {
-    expect(pointsToNextTier(2000, 5)).toBeNull();
+    expect(pointsToNextTier(2000, 4)).toBeNull();
   });
 
   it("returns null for the top tier (nowhere higher to climb)", () => {

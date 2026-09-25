@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatRating } from "@/lib/rating-format";
+import { isRatingVisible } from "@/lib/rank-tier";
+import { RatingHidden } from "@/components/rating-hidden";
 import {
   STATUS_LABEL,
   STATUS_VARIANT,
@@ -30,7 +32,15 @@ import { OpenStreamButton } from "@/components/live-streams/open-stream-button";
 // live gets an "Open stream" button that drives the pinned player at the top
 // of the page. In-progress sets that nobody is streaming get a green
 // left-edge accent so scanners notice them among the finished rows.
-export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang }) {
+export function SetRow({
+  entry,
+  lang,
+  viewerIsModerator = false,
+}: {
+  entry: SerializedSetEntry;
+  lang: Lang;
+  viewerIsModerator?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const label = STATUS_LABEL[entry.status];
   const decidedGames = entry.games.filter((g) => g.winnerId !== null);
@@ -68,6 +78,7 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
             align="left"
             matchId={entry.id}
             lang={lang}
+            viewerIsModerator={viewerIsModerator}
             className="col-start-1 row-start-1"
           />
 
@@ -87,6 +98,7 @@ export function SetRow({ entry, lang }: { entry: SerializedSetEntry; lang: Lang 
             align="right"
             matchId={entry.id}
             lang={lang}
+            viewerIsModerator={viewerIsModerator}
             className="col-start-1 row-start-2"
           />
         </div>
@@ -191,6 +203,7 @@ function Side({
   align,
   matchId,
   lang,
+  viewerIsModerator = false,
   className,
 }: {
   player: FeedPlayer;
@@ -198,9 +211,14 @@ function Side({
   align: "left" | "right";
   matchId: string;
   lang: Lang;
+  viewerIsModerator?: boolean;
   className?: string;
 }) {
   const isRight = align === "right";
+  // A provisional player's rating isn't public (see isRatingVisible) — the
+  // feed would otherwise be the easiest place to read a brand-new player's
+  // number off. Moderators keep seeing it.
+  const ratingVisible = isRatingVisible(player.gamesPlayed, viewerIsModerator);
   return (
     <div className={cn("flex min-w-0 flex-1 items-center gap-2", isRight && "sm:flex-row-reverse", className)}>
       {player.currentCharacter ? (
@@ -224,7 +242,13 @@ function Side({
         <span
           className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "sm:justify-end")}
         >
-          <span className="tabular-nums">{formatRating(player.rating)}</span>
+          <span className="tabular-nums">
+            {ratingVisible ? (
+              formatRating(player.rating)
+            ) : (
+              <RatingHidden gamesPlayed={player.gamesPlayed} lang={lang} />
+            )}
+          </span>
           {player.region && (
             <span className="flex min-w-0 items-center gap-0.5">
               <MapPin className="size-3 shrink-0" />
