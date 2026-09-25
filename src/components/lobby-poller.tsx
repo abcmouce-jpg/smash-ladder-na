@@ -7,6 +7,39 @@ import { playMatchFoundSound, type MatchFoundSound } from "@/lib/sound";
 
 const POLL_INTERVAL_MS = 5000;
 
+// Survives a remount (and a reload) so the match-found cue is announced once
+// per match per tab: a player who navigates back to /lobby mid-match, or whose
+// tab was backgrounded while the cue played, doesn't get told again about a
+// match they've already seen. Cleared the moment the poller observes
+// matched === false, so the next match announces normally.
+const ANNOUNCED_KEY = "smashLadderMatchFoundAnnounced";
+
+function wasAnnouncedThisTab(): boolean {
+  try {
+    return sessionStorage.getItem(ANNOUNCED_KEY) === "1";
+  } catch {
+    // Storage unavailable (private mode, blocked cookies) — fall back to
+    // announce-once-per-mount below.
+    return false;
+  }
+}
+
+function markAnnouncedThisTab() {
+  try {
+    sessionStorage.setItem(ANNOUNCED_KEY, "1");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function clearAnnouncedThisTab() {
+  try {
+    sessionStorage.removeItem(ANNOUNCED_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export function LobbyPoller({
   matched,
   keepPollingInBackground = false,
@@ -32,7 +65,12 @@ export function LobbyPoller({
   // to the original chime (CHIME).
 }) {
   const router = useRouter();
-  const wasMatched = useRef(matched);
+  // Guards against replaying the cue within a single mount (the sessionStorage
+  // flag below can be unavailable, and a dependency change shouldn't re-fire
+  // it). Deliberately NOT seeded from `matched`: the poller also mounts
+  // *already* matched — the join-time pairing case, where the Server Action's
+  // re-render replaces the pre-join tree — and that player still needs the cue.
+  const announcedThisMount = useRef(false);
   // A match-found cue attempted while hidden can still be inaudible — mobile
   // browsers suspend the whole page, and some platforms suspend the
   // AudioContext with it. playMatchFoundSound reports whether the attempt was
@@ -58,19 +96,25 @@ export function LobbyPoller({
   }, [router, keepPollingInBackground]);
 
   useEffect(() => {
-    if (matched && !wasMatched.current) {
-      toast.success("Opponent found!", { description: "Get ready — your match is starting." });
-      if (audioPingOnMatch) {
-        // Play even in a backgrounded tab — on desktop a running AudioContext
-        // keeps playing while hidden, which is the whole point of the
-        // keep-polling-in-background flag above. Only fall back to the
-        // replay-on-return path when the attempt couldn't have been heard
-        // (e.g. a fully-suspended mobile tab).
-        const played = playMatchFoundSound(matchFoundSound);
-        if (document.visibilityState === "hidden" && !played) missedChimeWhileHidden.current = true;
-      }
+    if (!matched) {
+      // No live match — let the next one announce again.
+      clearAnnouncedThisTab();
+      announcedThisMount.current = false;
+      return;
     }
-    wasMatched.current = matched;
+    if (announcedThisMount.current || wasAnnouncedThisTab()) return;
+    announcedThisMount.current = true;
+    markAnnouncedThisTab();
+    toast.success("Opponent found!", { description: "Get ready — your match is starting." });
+    if (audioPingOnMatch) {
+      // Play even in a backgrounded tab — on desktop a running AudioContext
+      // keeps playing while hidden, which is the whole point of the
+      // keep-polling-in-background flag above. Only fall back to the
+      // replay-on-return path when the attempt couldn't have been heard
+      // (e.g. a fully-suspended mobile tab).
+      const played = playMatchFoundSound(matchFoundSound);
+      if (document.visibilityState === "hidden" && !played) missedChimeWhileHidden.current = true;
+    }
   }, [matched, audioPingOnMatch, matchFoundSound]);
 
   useEffect(() => {

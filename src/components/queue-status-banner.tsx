@@ -15,7 +15,10 @@ import { QueueStatusPoller } from "@/components/queue-status-poller";
 // RegionSetupBanner, covering the two states that matter:
 //
 //   - WAITING on an unexpired entry: how long they've been in the queue.
-//   - an unresolved (PENDING_REPORT/REPORTED) match: paired, needs them.
+//   - an unresolved (PENDING_REPORT/REPORTED/DISPUTED) match: paired, needs them.
+//     DISPUTED counts as still live — the Lobby page treats a match-level
+//     dispute as in-progress too (see isInActiveMatch there), so omitting it
+//     made this strip vanish mid-match while the players were waiting on a mod.
 //
 // Deliberately a lean read of just the columns it needs rather than
 // getActiveLobbyEntry: this renders on every page for every signed-in user,
@@ -39,7 +42,7 @@ export async function QueueStatusBanner() {
     prisma.ratingMatch.findFirst({
       where: {
         OR: [{ player1Id: userId }, { player2Id: userId }],
-        status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
+        status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] },
       },
       orderBy: { createdAt: "desc" },
       select: { player1Id: true, player1LeftAt: true, player2LeftAt: true },

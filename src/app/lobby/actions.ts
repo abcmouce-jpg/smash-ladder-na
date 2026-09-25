@@ -83,6 +83,7 @@ export async function joinLobby(_prevState: JoinLobbyState, formData: FormData):
   const userId = await requireUserId();
   const isPracticing = formData.get("isPracticing") === "on";
   const existingRoomCode = String(formData.get("existingRoomCode") ?? "").trim() || null;
+  let error: string | null = null;
   try {
     await requireNotBanned(userId); // ranked play stays open at Level-1 (SUSPENDED)
     await enforceRateLimit({
@@ -92,10 +93,18 @@ export async function joinLobby(_prevState: JoinLobbyState, formData: FormData):
     });
     await joinLobbyAndTryPair(userId, isPracticing, existingRoomCode);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    error = err instanceof Error ? err.message : "Something went wrong — try again.";
   }
+  // Revalidated on the failure path too, not just the success one.
+  // joinLobbyAndTryPair can throw *after* it has already created this player's
+  // WAITING entry (or paired them outright) — and a Server Action that returns
+  // without revalidating doesn't re-render the current route at all, so the
+  // client would keep the pre-join tree, where shouldPollLobby() is false and
+  // the lobby page therefore mounts no poller. The player would sit in the
+  // queue — and could even be matched — while their UI still showed "Ready to
+  // play?" until a manual reload.
   revalidatePath("/lobby");
-  return { error: null };
+  return { error };
 }
 
 export async function cancelLobby() {
