@@ -10,7 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Call /api/cron/finalize
+        # smash-ladder-na.vercel.app 308-redirects to the custom domain now
+        # that nasmashmate.com is primary — curl -f treats a redirect as
+        # success and never follows it without -L, so every run of this
+        # workflow silently hit the redirect instead of the real endpoint.
+        # Call the real domain directly instead of papering over it with -L,
+        # since a future domain change would just as silently break -L too.
         run: |
           curl -sf -X POST \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            https://smash-ladder-na.vercel.app/api/cron/finalize
+            https://nasmashmate.com/api/cron/finalize

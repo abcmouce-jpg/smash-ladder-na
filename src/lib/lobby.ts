@@ -10,13 +10,6 @@ import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
 import { notifyMatchFoundToUsers, notifyQueueOpportunitySubscribers } from "@/lib/push-server";
 import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
 
-// Emergency stop for the 2026-09-25 Preseason→Season 1 rollover incident: the
-// automatic cutover half-fired (ratings reset, but no Season row closed out
-// or replaced it — see #development), so new joins right now would confirm
-// against an inconsistent season state. Flip back to false once the season
-// is confirmed to be in a clean state.
-const LADDER_DISABLED = true;
-
 // isPracticing lives on the join (RatingLobbyEntry), not the user, since
 // it's a per-session choice — avoidPracticeOpponents is the user-level
 // setting it's checked against. Symmetric: either side's practice status
@@ -331,10 +324,6 @@ export async function joinLobbyAndTryPair(
   isPracticing = false,
   existingRoomCode: string | null = null,
 ) {
-  if (LADDER_DISABLED) {
-    throw new Error("Matchmaking is temporarily paused while we finish today's season transition — check back shortly.");
-  }
-
   const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
@@ -640,8 +629,6 @@ function canMatch(a: MatchCandidate, b: MatchCandidate, lastMatchAt: Date | unde
 }
 
 export async function sweepLobbyPairing(maxPairs = 50) {
-  if (LADDER_DISABLED) return 0;
-
   let paired = 0;
   const now = new Date();
   const blockedPairs = await getAllBlockedPairKeys();
