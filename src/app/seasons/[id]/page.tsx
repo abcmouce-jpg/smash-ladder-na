@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getSeasonStandings } from "@/lib/seasons";
+import { rankTiersFor } from "@/lib/rank-tier";
 import { getCharacterUsage } from "@/lib/players";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -86,7 +87,7 @@ export default async function SeasonStandingsPage({
                   </Link>
                 </td>
                 <td className="py-2">
-                  <RankBadge rating={s.finalRating} gamesPlayed={s.gamesPlayed} />
+                  <RankBadge rating={s.finalRating} gamesPlayed={s.gamesPlayed} tiers={rankTiersFor(season.algorithm)} />
                 </td>
                 <td className="py-2 text-right font-medium tabular-nums">{formatRating(s.finalRating)}</td>
                 <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{s.gamesPlayed}</td>

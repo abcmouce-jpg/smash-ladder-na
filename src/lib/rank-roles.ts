@@ -15,7 +15,7 @@ const TIER_COLORS: Record<string, number> = {
   Master: 0xa78bfa,
   Elite: 0x60a5fa,
   Fighter: 0x4ade80,
-  Challenger: 0xfb923c,
+  Trainee: 0xfb923c,
 };
 
 export function tierRoleId(tierName: string): string | null {
@@ -90,7 +90,7 @@ async function hasPreviouslyReachedTier(userId: string, matchId: string, tierNam
 
 // Bottom of RANK_TIERS — reaching it is just the provisional-reveal case
 // (nowhere lower to have come from), not an achievement, so it's excluded
-// from the rank-up announcement below on purpose: "just reached Challenger"
+// from the rank-up announcement below on purpose: "just reached Trainee"
 // reads as an insult, not a celebration.
 const LOWEST_TIER = RANK_TIERS[RANK_TIERS.length - 1].name;
 
