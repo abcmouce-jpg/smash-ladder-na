@@ -9,7 +9,6 @@ import { getLang } from "@/lib/i18n";
 import { getCharacterUsage, getCurrentMatchForUser, getHeadToHead, getPlayerProfile } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { isBlockedByMe } from "@/lib/blocks";
-import { pointsToNextTier } from "@/lib/rank-tier";
 import { listReportsForUser } from "@/lib/reports";
 import { banPlayerIpAction, blockUserAction, deleteAccountAction, moderateUserAction } from "../actions";
 import { PlayerProfileHeader } from "./profile-header";
@@ -51,7 +50,6 @@ export default async function PlayerProfilePage({
   ]);
   const isLiveOnTwitch = player.twitchUsername ? await isTwitchLive(player.twitchUsername) : false;
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
-  const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
 
   const tabLabel = (label: string, es: string) => (lang === "es" ? es : label);
@@ -61,7 +59,6 @@ export default async function PlayerProfilePage({
       <PlayerProfileHeader
         player={player}
         characterUsage={characterUsage}
-        nextTier={nextTier}
         headToHead={headToHead}
         blocked={blocked}
         currentMatch={currentMatch}
