@@ -814,6 +814,7 @@ async function PairedView({
         zenMode={zenMode}
         headToHead={headToHead}
         topCharacters={topCharacters}
+        myTopCharacters={myTopCharacters}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
@@ -936,16 +937,20 @@ async function PairedView({
             </CardContent>
           )}
 
+          {/* Desktop: the surrender/cancel/report actions sit at the bottom of
+              the set card (hidden below lg, where they get their own card). */}
           {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
-            <MatchFooterActions
-              match={match}
-              isPlayer1={isPlayer1}
-              opponentName={displayName}
-              opponentEngaged={opponentEngaged}
-              gameDecided={gameDecided}
-              alreadyReportedConnection={alreadyReportedConnection}
-              lang={lang}
-            />
+            <CardContent className="hidden flex-col gap-3 border-t border-border pt-4 lg:flex">
+              <MatchFooterActions
+                match={match}
+                isPlayer1={isPlayer1}
+                opponentName={displayName}
+                opponentEngaged={opponentEngaged}
+                gameDecided={gameDecided}
+                alreadyReportedConnection={alreadyReportedConnection}
+                lang={lang}
+              />
+            </CardContent>
           )}
         </Card>
 
@@ -969,6 +974,25 @@ async function PairedView({
           <div className="flex min-h-0 flex-1 flex-col">{chat}</div>
         </div>
       </div>
+
+      {/* Mobile: the same actions get their own card below the chat, since the
+          sidebar stacks under the set card here. Desktop keeps them inside the
+          set card, so this copy is hidden from lg up. */}
+      {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
+        <Card className="lg:hidden">
+          <CardContent className="flex flex-col gap-3 pt-4">
+            <MatchFooterActions
+              match={match}
+              isPlayer1={isPlayer1}
+              opponentName={displayName}
+              opponentEngaged={opponentEngaged}
+              gameDecided={gameDecided}
+              alreadyReportedConnection={alreadyReportedConnection}
+              lang={lang}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -991,20 +1015,20 @@ function MatchFooterActions({
   lang: Lang;
 }) {
   return (
-    <CardContent className="flex flex-col gap-3 border-t border-border pt-4">
-      <div className="flex items-center justify-between gap-2">
+    <>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
           {lang === "es"
             ? gameDecided
-              ? `Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si ${opponentName} deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección de personaje estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje que usó en el juego anterior.`
+              ? "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección de personaje estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje que usó en el juego anterior."
               : opponentEngaged
-                ? `${opponentName} ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis.`
-                : `${opponentName} aún no se presenta. Cancelar ahora es gratis.`
+                ? "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis."
+                : "Tu rival aún no se presenta. Cancelar ahora es gratis."
             : gameDecided
-              ? `A game is already decided, so leaving now counts as a surrender (a loss). If ${opponentName} goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled character pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character they used in the previous game.`
+              ? "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled character pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character they used in the previous game."
               : opponentEngaged
-                ? `${opponentName} already started this match, so leaving now counts as a surrender (a loss), not a free cancel.`
-                : `${opponentName} hasn't shown up yet. Cancelling now is free.`}
+                ? "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel."
+                : "Your opponent hasn't shown up yet. Cancelling now is free."}
         </p>
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <CancelOrSurrenderButton
@@ -1049,7 +1073,7 @@ function MatchFooterActions({
           </form>
         )}
       </div>
-    </CardContent>
+    </>
   );
 }
 
@@ -1180,6 +1204,7 @@ function MatchScoreboard({
   zenMode,
   headToHead,
   topCharacters,
+  myTopCharacters,
 }: {
   games: MatchGameRow[];
   userId: string;
@@ -1212,6 +1237,7 @@ function MatchScoreboard({
   zenMode: boolean;
   headToHead: Awaited<ReturnType<typeof getHeadToHead>>;
   topCharacters: string[];
+  myTopCharacters: string[];
 }) {
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
@@ -1276,28 +1302,32 @@ function MatchScoreboard({
   return (
     <Card>
       <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-start sm:justify-between">
-        {/* You — left edge */}
-        <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+        {/* You — left edge, same field layout as the opponent's side */}
+        <div className="flex min-w-0 items-start gap-3 sm:flex-1">
           {me?.avatarUrl && (
             <Image src={me.avatarUrl} alt={me.username} width={40} height={40} className="shrink-0 rounded-full" />
           )}
           <div className="min-w-0">
-            <p className="truncate font-medium">{es ? "Tú" : "You"}</p>
-            {!zenMode && (
-              <p className="truncate text-sm text-muted-foreground tabular-nums">
-                {myRatingVisible ? (
-                  <>
-                    {es ? `${formatRating(myRating ?? 0)} de clasificación` : `${formatRating(myRating ?? 0)} rating`}
-                    {myIsPracticing && (es ? " (práctica)" : " (practice)")}
-                  </>
-                ) : (
-                  <RatingHidden gamesPlayed={myGamesOnTrack} lang={lang} practice={myIsPracticing} />
+            <p className="flex flex-wrap items-center gap-1.5 font-medium">
+              <span className="truncate">{es ? "Tú" : "You"}</span>
+              {myIsPracticing && <Badge variant="outline">{es ? "🧪 Modo práctica" : "🧪 Practice Mode"}</Badge>}
+            </p>
+            {(!zenMode || me?.region) && (
+              <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground tabular-nums">
+                {!zenMode && (
+                  <span>
+                    {myRatingVisible ? (
+                      <>
+                        {es
+                          ? `${formatRating(myRating ?? 0)} de clasificación`
+                          : `${formatRating(myRating ?? 0)} rating`}
+                        {myIsPracticing && (es ? " (práctica)" : " (practice)")}
+                      </>
+                    ) : (
+                      <RatingHidden gamesPlayed={myGamesOnTrack} lang={lang} practice={myIsPracticing} />
+                    )}
+                  </span>
                 )}
-              </p>
-            )}
-            {(myIsPracticing || me?.region) && (
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                {myIsPracticing && <Badge variant="outline">{es ? "🧪 Modo práctica" : "🧪 Practice Mode"}</Badge>}
                 {me?.region && (
                   <span className="inline-flex items-center gap-1">
                     <MapPin className="size-3" />
@@ -1305,6 +1335,16 @@ function MatchScoreboard({
                   </span>
                 )}
               </p>
+            )}
+            {!zenMode && myTopCharacters.length > 0 && (
+              <div className="group/characters relative mt-1 flex items-center gap-1.5">
+                <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+                  {es ? "Personajes más usados" : "Most played characters"}
+                </span>
+                {myTopCharacters.map((character) => (
+                  <CharacterIcon key={character} name={character} size={20} />
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -1364,20 +1404,6 @@ function MatchScoreboard({
                 )}
               </p>
             )}
-            {!zenMode && (
-              <p className="text-xs tabular-nums text-muted-foreground">
-                {headToHead ? (
-                  <>
-                    {es ? "Tu récord: " : "Your record: "}
-                    {headToHead.wins}W–{headToHead.losses}L
-                  </>
-                ) : es ? (
-                  "Primera vez que se enfrentan"
-                ) : (
-                  "First time opponent"
-                )}
-              </p>
-            )}
             {!zenMode && topCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center justify-end gap-1.5">
                 <span className="pointer-events-none absolute -top-6 right-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
@@ -1400,6 +1426,24 @@ function MatchScoreboard({
           )}
         </div>
       </CardContent>
+
+      {/* Your record vs this opponent — its own row along the bottom */}
+      {!zenMode && (
+        <CardContent className="pb-2">
+          <p className="text-center text-xs tabular-nums text-muted-foreground">
+            {headToHead ? (
+              <>
+                {es ? "Tu récord: " : "Your record: "}
+                {headToHead.wins}W–{headToHead.losses}L
+              </>
+            ) : es ? (
+              "Primera vez que se enfrentan"
+            ) : (
+              "First time opponent"
+            )}
+          </p>
+        </CardContent>
+      )}
     </Card>
   );
 }
