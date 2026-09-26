@@ -15,7 +15,7 @@ import {
 import { auth } from "@/auth";
 import { getMatchupNote } from "@/lib/matchup-notes";
 import { prisma } from "@/lib/db";
-import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser } from "@/lib/lobby";
+import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser, touchWaitingLobbyEntry } from "@/lib/lobby";
 import { PushNudgeBanner } from "@/components/push-nudge-banner";
 import { SupporterBanner } from "@/components/supporter-banner";
 import { getSupporterCount } from "@/lib/public-stats";
@@ -140,6 +140,11 @@ export default async function LobbyPage() {
 
   await retryPairForWaitingUser(session.user.id);
   const entry = await getActiveLobbyEntry(session.user.id);
+  // This render is itself proof the player is still here (the poller refreshes
+  // this page every ~5s while WAITING), so renew their queue spot — without
+  // this, LOBBY_ENTRY_TTL_MS was a hard cap and an attentive player got dropped
+  // mid-wait. Gated on actually waiting so an idle visitor pays nothing for it.
+  if (entry?.status === "WAITING") await touchWaitingLobbyEntry(session.user.id);
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { region: true, queueCooldownUntil: true, audioPingOnMatch: true, matchFoundSound: true },
