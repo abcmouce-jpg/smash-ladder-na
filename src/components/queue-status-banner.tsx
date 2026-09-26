@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus } from "@/generated/prisma/enums";
 import { QueueTimer } from "@/components/queue-timer";
 import { QueueStatusPoller } from "@/components/queue-status-poller";
+import { touchWaitingLobbyEntry } from "@/lib/lobby";
 
 // The Lobby page shows both of these states in full — a queue wait with a live
 // timer, and the whole match panel — but only to someone looking at that page.
@@ -60,6 +61,13 @@ export async function QueueStatusBanner() {
   const leftMatch = match ? (match.player1Id === userId ? match.player1LeftAt : match.player2LeftAt) !== null : false;
   const inMatch = Boolean(match) && !leftMatch;
   if (!inMatch && !waiting) return null;
+
+  // Being on any page counts as presence for the queue's idle window (see
+  // LOBBY_ENTRY_TTL_MS): this strip re-renders on the same ~5s poll as the
+  // lobby, so a player who queued and wandered off elsewhere keeps their spot
+  // instead of lapsing for not sitting on /lobby. No-op unless they're actually
+  // waiting, so the common case still costs nothing.
+  if (waiting) await touchWaitingLobbyEntry(userId);
 
   return (
     <div className="border-b border-border bg-primary/5">

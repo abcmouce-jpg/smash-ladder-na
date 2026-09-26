@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { resolveApiUser } from "@/lib/api-tokens";
-import { getActiveLobbyEntry, joinLobbyAndTryPair, cancelLobbyEntry, ROOM_CODE_PATTERN } from "@/lib/lobby";
+import { getActiveLobbyEntry, joinLobbyAndTryPair, cancelLobbyEntry, touchWaitingLobbyEntry, ROOM_CODE_PATTERN } from "@/lib/lobby";
 
 export async function GET(request: Request) {
   const userId = await resolveApiUser(request);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const entry = await getActiveLobbyEntry(userId);
+  // A client polling this endpoint to watch for a pairing is just as present
+  // as the web UI's poller, so renew the spot the same way (see
+  // LOBBY_ENTRY_TTL_MS) — otherwise a waiting API client lapses mid-wait.
+  if (entry?.status === "WAITING") await touchWaitingLobbyEntry(userId);
   return NextResponse.json({ entry });
 }
 

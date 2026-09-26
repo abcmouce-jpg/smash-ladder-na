@@ -7,6 +7,7 @@ import {
   retryPairForWaitingUser,
   setMatchRoomCode,
   sweepLobbyPairing,
+  touchWaitingLobbyEntry,
   updateLobbyRoomCode,
 } from "@/lib/lobby";
 import { LobbyEntryStatus } from "@/generated/prisma/enums";
@@ -633,6 +634,71 @@ describe("queue entry expiry", () => {
       status: LobbyEntryStatus.EXPIRED,
     });
     expect((await getActiveLobbyEntry(a.id))?.id).toBe(entry?.id);
+  });
+});
+
+describe("touchWaitingLobbyEntry (queue presence heartbeat)", () => {
+  function createWaitingEntry(userId: string, expiresAt: Date) {
+    return prisma.ratingLobbyEntry.create({
+      data: { userId, status: LobbyEntryStatus.WAITING, expiresAt },
+    });
+  }
+
+  it("extends a waiting entry that is close to lapsing", async () => {
+    const a = await createTestUser();
+    const entry = await createWaitingEntry(a.id, new Date(Date.now() + 60_000));
+
+    await touchWaitingLobbyEntry(a.id);
+
+    const updated = await prisma.ratingLobbyEntry.findUniqueOrThrow({ where: { id: entry.id } });
+    expect(updated.status).toBe(LobbyEntryStatus.WAITING);
+    // Pushed a full window ahead, not just topped up by the minute it had left.
+    expect(updated.expiresAt.getTime()).toBeGreaterThan(Date.now() + 9 * 60 * 1000);
+  });
+
+  it("leaves a still-fresh entry untouched, so a 5s poll isn't a write every tick", async () => {
+    const a = await createTestUser();
+    const original = new Date(Date.now() + 9 * 60 * 1000);
+    const entry = await createWaitingEntry(a.id, original);
+
+    await touchWaitingLobbyEntry(a.id);
+
+    const updated = await prisma.ratingLobbyEntry.findUniqueOrThrow({ where: { id: entry.id } });
+    expect(updated.expiresAt.getTime()).toBe(original.getTime());
+  });
+
+  it("does not revive an entry that already lapsed, so the player requeues", async () => {
+    const a = await createTestUser();
+    const lapsed = new Date(Date.now() - 60_000);
+    const entry = await createWaitingEntry(a.id, lapsed);
+
+    await touchWaitingLobbyEntry(a.id);
+
+    const updated = await prisma.ratingLobbyEntry.findUniqueOrThrow({ where: { id: entry.id } });
+    expect(updated.expiresAt.getTime()).toBe(lapsed.getTime());
+    await expect(getActiveLobbyEntry(a.id)).resolves.toBeNull();
+  });
+
+  it("keeps a player matchable past their original deadline when they keep polling", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+
+    // b is one minute from lapsing — a stand-in for a player who joined ~9
+    // minutes ago, whose earlier ~5s polls would long since have renewed them.
+    await createWaitingEntry(b.id, new Date(Date.now() + 60_000));
+    await touchWaitingLobbyEntry(b.id);
+
+    await createWaitingEntry(a.id, new Date(Date.now() + 10 * 60 * 1000));
+    await retryPairForWaitingUser(a.id);
+
+    const entryB = await getActiveLobbyEntry(b.id);
+    expect(entryB?.status).toBe(LobbyEntryStatus.PAIRED);
+  });
+
+  it("is a no-op for a player who isn't waiting", async () => {
+    const a = await createTestUser();
+    await expect(touchWaitingLobbyEntry(a.id)).resolves.toBeUndefined();
+    expect(await prisma.ratingLobbyEntry.count({ where: { userId: a.id } })).toBe(0);
   });
 });
 

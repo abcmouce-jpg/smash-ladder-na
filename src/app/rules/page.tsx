@@ -210,8 +210,9 @@ export default async function RulesPage() {
             and you don&apos;t.
           </p>
           <p>
-            Joining the ranked lobby queues you for up to 10 minutes before the entry expires. You can join at most 5
-            times per minute.
+            Joining the ranked lobby queues you until you&apos;re matched or you leave — your spot stays alive as long
+            as you keep the site open, and only lapses after 10 minutes with no activity. You can join at most 5 times
+            per minute.
           </p>
         </Section>
 
@@ -431,8 +432,9 @@ function RulesPageEs() {
             activado, y lo mismo aplica si un rival lo tiene activado y tú no.
           </p>
           <p>
-            Entrar a la sala rankeada te pone en cola hasta por 10 minutos antes de que la entrada expire. Puedes entrar
-            como máximo 5 veces por minuto.
+            Entrar a la sala rankeada te pone en cola hasta que te emparejen o salgas — tu lugar se mantiene mientras
+            tengas el sitio abierto, y solo se pierde tras 10 minutos sin actividad. Puedes entrar como máximo 5 veces
+            por minuto.
           </p>
         </Section>
 

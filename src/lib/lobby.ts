@@ -57,7 +57,16 @@ async function getRecentMatchPairTimestamps() {
   return timestamps;
 }
 
-export const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
+// How long a WAITING entry keeps its queue spot without any sign the player
+// is still around. Deliberately NOT a hard cap on one queue session: while
+// someone is present, touchWaitingLobbyEntry (called from the lobby page, the
+// site-wide queue banner, and the public lobby API's GET — all re-rendered by
+// a ~5s client poll) keeps pushing expiresAt a full window ahead, so an
+// attentive player waits as long as it takes. The entry only lapses once those
+// polls stop — tab closed, or navigated away and left hidden — which is what
+// stops a genuinely abandoned entry from lingering as "waiting" (and from
+// being paired against at a match's start).
+export const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000;
 
 export const ROOM_CODE_PATTERN = /^[A-Z0-9]{5}$/;
 
@@ -471,6 +480,41 @@ export async function updateLobbyRoomCode(userId: string, roomCode: string | nul
     where: { id: entry.id },
     data: { existingRoomCode: roomCode },
   });
+}
+
+// Presence heartbeat for the queue: pushes a still-live WAITING entry's
+// deadline out to a full LOBBY_ENTRY_TTL_MS ahead, so a player who is actually
+// waiting isn't dropped at the window mark (see that constant for why the
+// entry expires at all). Called from every surface whose ~5s poll is evidence
+// the player is still here — the lobby page render, the site-wide queue banner
+// (which renders on every other page), and the public lobby API's GET.
+//
+// Renews in coarse steps — only once the entry is past the halfway point —
+// rather than on every call, so a waiting player's 5s poll isn't a write every
+// 5s; the deadline still always sits a full window ahead while they're around.
+//
+// Best-effort, same contract as retryPairForWaitingUser below: this runs
+// inside page renders, so a failure (or no live WAITING entry at all) must
+// never throw. An entry that already lapsed is left alone rather than revived —
+// a player who was gone for a whole window gets the ordinary "your spot
+// expired" treatment and requeues instead of silently holding a stale spot.
+export async function touchWaitingLobbyEntry(userId: string) {
+  const now = Date.now();
+  try {
+    const entry = await prisma.ratingLobbyEntry.findFirst({
+      where: { userId, status: LobbyEntryStatus.WAITING },
+      orderBy: { joinedAt: "desc" },
+      select: { id: true, expiresAt: true },
+    });
+    if (!entry || entry.expiresAt.getTime() <= now) return;
+    if (entry.expiresAt.getTime() - now >= LOBBY_ENTRY_TTL_MS / 2) return;
+    await prisma.ratingLobbyEntry.updateMany({
+      where: { id: entry.id, status: LobbyEntryStatus.WAITING },
+      data: { expiresAt: new Date(now + LOBBY_ENTRY_TTL_MS) },
+    });
+  } catch (err) {
+    console.error("touchWaitingLobbyEntry failed (non-fatal, entry lapses on its old deadline):", err);
+  }
 }
 
 // The lobby page's client poller (LobbyPoller, 5s interval, kept alive in
