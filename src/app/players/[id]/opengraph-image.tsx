@@ -133,7 +133,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>
               {ratingVisible
                 ? `${formatRating(player.rating)} rating`
-                : `Rating hidden until ${PROVISIONAL_GAMES_THRESHOLD} sets`}
+                : `${player.gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD} sets`}
             </div>
             {characterIcon && <img src={characterIcon} width={44} height={44} style={{ borderRadius: 8 }} alt="" />}
           </div>

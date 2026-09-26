@@ -14,7 +14,7 @@ import { BlockUserButton } from "@/components/block-user-button";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
-import { getRankTier, isRatingVisible, pointsToNextTier } from "@/lib/rank-tier";
+import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import { SITE_URL } from "@/lib/site";
 import type { Lang } from "@/lib/i18n";
@@ -28,7 +28,6 @@ import type { BlockState } from "../actions";
 export function PlayerProfileHeader({
   player,
   characterUsage,
-  nextTier,
   headToHead,
   blocked,
   currentMatch,
@@ -42,7 +41,6 @@ export function PlayerProfileHeader({
 }: {
   player: NonNullable<Awaited<ReturnType<typeof getPlayerProfile>>>;
   characterUsage: CharacterUsage[];
-  nextTier: ReturnType<typeof pointsToNextTier>;
   headToHead: HeadToHead | null;
   blocked: boolean;
   currentMatch: Awaited<ReturnType<typeof getCurrentMatchForUser>>;
@@ -169,13 +167,6 @@ export function PlayerProfileHeader({
               </a>
             )}
             <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
-            {nextTier && (
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {lang === "es"
-                  ? `${nextTier.pointsNeeded} para ${nextTier.nextTier.name}`
-                  : `${nextTier.pointsNeeded} to ${nextTier.nextTier.name}`}
-              </span>
-            )}
             {player.region && (
               <Badge variant="outline">
                 <MapPin className="size-3" />
