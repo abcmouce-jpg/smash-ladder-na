@@ -1319,8 +1319,8 @@ function MatchScoreboard({
                     {myRatingVisible ? (
                       <>
                         {es
-                          ? `${formatRating(myRating ?? 0)} de clasificación`
-                          : `${formatRating(myRating ?? 0)} rating`}
+                          ? `${formatRating(myRating ?? 0)}`
+                          : `${formatRating(myRating ?? 0)}`}
                         {myIsPracticing && (es ? " (práctica)" : " (practice)")}
                       </>
                     ) : (
@@ -1387,8 +1387,8 @@ function MatchScoreboard({
                     {opponentRatingVisible ? (
                       <>
                         {es
-                          ? `${formatRating(opponentRating)} de clasificación`
-                          : `${formatRating(opponentRating)} rating`}
+                          ? `${formatRating(opponentRating)}`
+                          : `${formatRating(opponentRating)}`}
                         {opponentIsPracticing && (es ? " (práctica)" : " (practice)")}
                       </>
                     ) : (
