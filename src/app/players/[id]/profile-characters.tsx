@@ -49,6 +49,13 @@ export async function ProfileCharactersSection({
   const selectedUsage = usage.find((u) => u.character === selected)!;
   const breakdown = byCharacter.get(selected) ?? null;
 
+  // Bars are scaled to the most-faced opponent rather than to the character's
+  // total games, so the largest bar (first, since matchups are sorted by games
+  // descending) fills the track and the rest shrink proportionally instead of
+  // all rendering as short stubs. The xN · % label still shows the true share.
+  const maxMatchupGames =
+    breakdown && breakdown.matchups.length > 0 ? Math.max(...breakdown.matchups.map((mu) => mu.games)) : 1;
+
   return (
     <div className="grid items-start gap-6 sm:grid-cols-[220px_1fr]">
       <nav
@@ -144,11 +151,11 @@ export async function ProfileCharactersSection({
                       <div className="flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full bg-emerald-500"
-                          style={{ width: `${(mu.wins / breakdown.games) * 100}%` }}
+                          style={{ width: `${(mu.wins / maxMatchupGames) * 100}%` }}
                         />
                         <div
                           className="h-full bg-destructive"
-                          style={{ width: `${(mu.losses / breakdown.games) * 100}%` }}
+                          style={{ width: `${(mu.losses / maxMatchupGames) * 100}%` }}
                         />
                       </div>
                       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">

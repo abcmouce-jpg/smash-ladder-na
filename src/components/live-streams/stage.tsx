@@ -5,13 +5,31 @@ import { Radio } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { cn } from "@/lib/utils";
+import type { Lang } from "@/lib/i18n";
 import type { FeedPlayer, SerializedSetEntry } from "@/lib/set-entry";
 import { resolveLiveStream, useLiveStreamSelection } from "./selection";
+import { SetRow } from "./set-row";
 
 // The featured streamer's player plus the set it belongs to. Shared by the
-// home page and the Live page: on Live the pick comes from the feed's "Open
-// stream" buttons, on the home page from the thumbnail strip underneath.
-export function LiveStreamStage({ entries, parentHost }: { entries: SerializedSetEntry[]; parentHost: string }) {
+// home page and the Live page: on Live the pick comes from the feed's stream
+// buttons, on the home page from the thumbnail strip underneath.
+//
+// setCard swaps the compact scoreboard below the player for the full feed-row
+// card (see SetRow), so on the Live page the set under the embed reads exactly
+// like the same set in the list further down.
+export function LiveStreamStage({
+  entries,
+  parentHost,
+  lang = "en",
+  viewerIsModerator = false,
+  setCard = false,
+}: {
+  entries: SerializedSetEntry[];
+  parentHost: string;
+  lang?: Lang;
+  viewerIsModerator?: boolean;
+  setCard?: boolean;
+}) {
   const { selection } = useLiveStreamSelection();
   const active = resolveLiveStream(entries, selection);
   const channel = active?.player.twitchUsername;
@@ -28,7 +46,13 @@ export function LiveStreamStage({ entries, parentHost }: { entries: SerializedSe
         collapsible={false}
       />
 
-      <MatchDetails entry={entry} />
+      {setCard ? (
+        <div className="mt-3">
+          <SetRow entry={entry} lang={lang} viewerIsModerator={viewerIsModerator} />
+        </div>
+      ) : (
+        <MatchDetails entry={entry} />
+      )}
     </div>
   );
 }

@@ -190,8 +190,10 @@ export default async function StreamOverlayPage({
     : null;
 
   // The overlay is a public broadcast surface with no viewer session, so a
-  // provisional player's rating (here, the streamer's own) is hidden outright —
-  // there's no moderator to show it to. Same rule per side for the opponent.
+  // provisional player's rating is hidden outright — there's no moderator to
+  // show it to. The rating card's rank badge already reads "Provisional", so
+  // its number slot shows a bare dash rather than repeating the word; the
+  // scoreboard has no badge, so both sides there fall back to RatingHidden.
   const ratingVisible = isRatingVisible(user.gamesPlayed, false);
   const opponentRatingVisible = opponentGamesPlayed !== null && isRatingVisible(opponentGamesPlayed, false);
 
@@ -241,11 +243,7 @@ export default async function StreamOverlayPage({
             <div className="mt-1 flex items-baseline gap-4">
               <Trophy className="size-8 text-white drop-shadow-lg" />
               <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">
-                {ratingVisible ? (
-                  formatRating(user.rating)
-                ) : (
-                  <RatingHidden gamesPlayed={user.gamesPlayed} lang={lang} />
-                )}
+                {ratingVisible ? formatRating(user.rating) : "—"}
               </span>
             </div>
             <div className="mt-1.5 flex items-center gap-4">
@@ -329,7 +327,11 @@ export default async function StreamOverlayPage({
                   <span className="truncate text-3xl font-bold text-white drop-shadow-sm">{opponentUsername}</span>
                   <span className="flex items-center gap-1.5">
                     <span className="text-base text-white/50 tabular-nums">
-                      {opponentRating === null || !opponentRatingVisible ? null : formatRating(opponentRating)}
+                      {opponentRating !== null && opponentRatingVisible ? (
+                        formatRating(opponentRating)
+                      ) : (
+                        <RatingHidden gamesPlayed={opponentGamesPlayed ?? 0} lang={lang} />
+                      )}
                     </span>
                     {opponentStreak !== null && opponentStreak > 0 && (
                       <span className="flex items-center gap-0.5 text-orange-400">
