@@ -104,9 +104,42 @@ UPDATE \"User\" SET
 FROM (SELECT id, row_number() OVER (ORDER BY id) AS rn FROM \"User\") AS numbered
 WHERE \"User\".id = numbered.id;
 
-UPDATE \"RatingLobbyEntry\" SET \"existingRoomCode\" = NULL;
+UPDATE "RatingLobbyEntry" SET "existingRoomCode" = NULL;
 
-UPDATE \"KofiDonation\" SET \"fromName\" = 'Supporter', message = NULL;
+UPDATE "KofiDonation" SET "fromName" = 'Supporter', message = NULL;
+"
+
+echo "==> Adding a demo set with both sides streaming..."
+# Anonymizing strips every Twitch identity above, which would otherwise leave
+# the live sections (the home carousel, the Live page's pinned player) empty in
+# a snapshot DB. Fabricate one in-progress set whose two sides have mock Twitch
+# logins: with MOCK_LIVE_TWITCH=1 (see .env.development) both read as live
+# without needing a real channel, so that UI still has something to drive.
+# Keyed on a fixed match id, so re-running this script is idempotent.
+"$PSQL" "$TARGET_URL" -v ON_ERROR_STOP=1 -c "
+WITH picks AS (
+  SELECT id, row_number() OVER (ORDER BY id) AS rn FROM \"User\" LIMIT 2
+)
+INSERT INTO \"RatingMatch\" (id, \"player1Id\", \"player2Id\", \"pairingMethod\", status, \"createdAt\", \"expiresAt\")
+SELECT
+  'dev-live-set',
+  (SELECT id FROM picks WHERE rn = 1),
+  (SELECT id FROM picks WHERE rn = 2),
+  'MANUAL',
+  'PENDING_REPORT',
+  now() - interval '10 minutes',
+  now() + interval '2 hours'
+WHERE (SELECT count(*) FROM picks) = 2
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE \"User\" SET
+  \"twitchUsername\" = 'dev_' || substr(\"User\".id, 1, 10),
+  \"twitchDisplayName\" = \"User\".username
+WHERE id IN (
+  SELECT \"player1Id\" FROM \"RatingMatch\" WHERE id = 'dev-live-set'
+  UNION ALL
+  SELECT \"player2Id\" FROM \"RatingMatch\" WHERE id = 'dev-live-set'
+);
 "
 
 rm -f "$DUMP_FILE"

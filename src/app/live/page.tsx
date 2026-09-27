@@ -8,7 +8,7 @@ import { SetsFeedPoller } from "@/components/sets-feed-poller";
 import { LiveStreamProvider } from "@/components/live-streams/selection";
 import { LiveStreamStage } from "@/components/live-streams/stage";
 import { getLang } from "@/lib/i18n";
-import { SetRow } from "./set-row";
+import { SetRow } from "@/components/live-streams/set-row";
 
 export default async function SetsFeedPage() {
   const [entries, { inProgress, matchesToday }, lang, session] = await Promise.all([
@@ -26,6 +26,14 @@ export default async function SetsFeedPage() {
   // once and reused for both the pinned live section and the SetRow list.
   const serializedEntries = entries.map(serializeSetEntry);
   const liveEntries = serializedEntries.filter((e) => e.hasLiveStreamer);
+
+  // The pinned player resolves to the first live set's preferred side until a
+  // pick is made (see resolveLiveStream); seeding the provider with that same
+  // pick lets the row for the open stream mark its button selected from load.
+  const firstLive = liveEntries[0];
+  const initialSelection = firstLive
+    ? { matchId: firstLive.id, playerId: firstLive.player1Live ? firstLive.player1.id : firstLive.player2.id }
+    : null;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
@@ -52,15 +60,26 @@ export default async function SetsFeedPage() {
         </span>
       </div>
 
-      <LiveStreamProvider>
+      <LiveStreamProvider initialSelection={initialSelection}>
         {liveEntries.length > 0 && (
-          <section className="mt-8 flex flex-col gap-3">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold tracking-wide">
-              <Radio aria-hidden className="size-4 text-red-500" />
-              {lang === "es" ? "En vivo ahora" : "Live now"}
-            </h2>
-            <LiveStreamStage entries={liveEntries} parentHost={parentHost} />
-          </section>
+          <>
+            <section className="mt-8 flex flex-col gap-3">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold tracking-wide">
+                <Radio aria-hidden className="size-4 text-red-500" />
+                {lang === "es" ? "En vivo ahora" : "Live now"}
+              </h2>
+              <LiveStreamStage
+                entries={liveEntries}
+                parentHost={parentHost}
+                lang={lang}
+                viewerIsModerator={viewerIsModerator}
+                setCard
+              />
+            </section>
+            {/* Separates the pinned stream + its card from the feed list below,
+                which repeats the same set. */}
+            <hr className="mt-6 border-t border-border" />
+          </>
         )}
 
         <div className="mt-6 flex flex-col gap-2">

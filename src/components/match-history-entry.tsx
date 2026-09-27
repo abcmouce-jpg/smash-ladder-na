@@ -111,7 +111,8 @@ export function MatchHistoryEntry({
   // hidden after they graduate), while earlier seasons and later matches show
   // their numbers. Moderators see everything. The arrow needs both ends; a
   // match with no post-rating recorded falls back to the bare delta rather than
-  // drawing "1500 → null". Both are suppressed entirely when hidden.
+  // drawing "1500 → null". A hidden set — a provisional one — reads
+  // "Provisional" in the slot, so the row doesn't look like it's missing data.
   const trailVisible = canSeeHiddenRatings || (match.ratingRevealed ?? true);
   const hasRatingTrail = trailVisible && match.ratingBefore != null && match.ratingAfter != null;
   const deltaClass = cn(
@@ -189,14 +190,15 @@ export function MatchHistoryEntry({
                   {formatRating(delta)}
                 </span>
               </span>
-            ) : (
-              trailVisible &&
+            ) : trailVisible ? (
               match.ratingBefore != null && (
                 <span className={deltaClass}>
                   {delta > 0 ? "+" : ""}
                   {formatRating(delta)}
                 </span>
               )
+            ) : (
+              <span className="text-xs text-muted-foreground">Provisional</span>
             )}
             {match.confirmedAt && (
               <span className="text-xs tabular-nums text-muted-foreground">
