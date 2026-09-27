@@ -148,6 +148,18 @@ describe("getRatingDistribution", () => {
     expect(buckets.reduce((sum, b) => sum + b.count, 0)).toBe(1);
   });
 
+  it("rounds an odd-count median, which is a raw (Glicko-2) float rating", async () => {
+    await createTestUser({ rating: 1500, gamesPlayed: LEADERBOARD_MIN_GAMES });
+    await createTestUser({ rating: 1512.6, gamesPlayed: LEADERBOARD_MIN_GAMES });
+    await createTestUser({ rating: 1600, gamesPlayed: LEADERBOARD_MIN_GAMES });
+
+    const { total, median, average } = await getRatingDistribution();
+    expect(total).toBe(3);
+    // Middle value is the raw 1512.6 — the chart shows whole numbers only.
+    expect(median).toBe(1513);
+    expect(average).toBe(1538);
+  });
+
   it("keeps the buckets contiguous, empty ones included", async () => {
     await createTestUser({ rating: 1500, gamesPlayed: LEADERBOARD_MIN_GAMES });
     await createTestUser({ rating: 3000, gamesPlayed: LEADERBOARD_MIN_GAMES });

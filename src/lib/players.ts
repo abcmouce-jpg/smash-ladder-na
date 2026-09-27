@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { liftExpiredSuspension, isDeletedAccountUsername } from "@/lib/account";
 import { getActiveSeason } from "@/lib/seasons";
+import { formatRating } from "@/lib/rating-format";
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { startOfDayInTimeZone } from "@/lib/timezone";
 
@@ -326,7 +327,10 @@ export async function getPlayerMatchHistory(
       isPracticing,
       ratingBefore,
       ratingAfter,
-      delta: (ratingAfter ?? 0) - (ratingBefore ?? 0),
+      // Derived from the rounded before/after rather than the raw floats, so
+      // the displayed trail always adds up (e.g. 1500 → 1513 shows +13, not
+      // the +12 that rounding the float difference could produce).
+      delta: formatRating(ratingAfter ?? 0) - formatRating(ratingBefore ?? 0),
       confirmedAt: match.confirmedAt,
       score: { wins: gamesWon, losses: gamesLost },
       characters,

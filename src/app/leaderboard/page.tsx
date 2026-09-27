@@ -311,7 +311,10 @@ export default async function LeaderboardPage({
                 // above in the same array, not a cross-page lookup (index 0
                 // never gets a gap shown, even on page 2+, since we don't have
                 // the previous page's last row loaded to compare against).
-                const gapToNext = isViewer && index > 0 ? players[index - 1].rating - player.rating : null;
+                // Rounded ends mean the shown gap always matches the two shown
+                // ratings, and two players at the same whole number read as 0.
+                const gapToNext =
+                  isViewer && index > 0 ? formatRating(players[index - 1].rating) - formatRating(player.rating) : null;
                 return (
                   <tr
                     key={player.id}
@@ -327,8 +330,8 @@ export default async function LeaderboardPage({
                         {gapToNext !== null && gapToNext > 0 && (
                           <span className="text-xs font-normal text-muted-foreground">
                             {lang === "es"
-                              ? `${formatRating(gapToNext)} para superar a ${players[index - 1].username}`
-                              : `${formatRating(gapToNext)} to pass ${players[index - 1].username}`}
+                              ? `${gapToNext} para superar a ${players[index - 1].username}`
+                              : `${gapToNext} to pass ${players[index - 1].username}`}
                           </span>
                         )}
                       </Link>

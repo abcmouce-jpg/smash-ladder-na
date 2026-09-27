@@ -2296,7 +2296,9 @@ async function ConfirmedSection({
   const won = match.reportedWinnerId === userId;
   const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
   const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
-  const delta = (ratingAfter ?? 0) - (ratingBefore ?? 0);
+  // Derived from the rounded before/after rather than the raw floats, so the
+  // trail below always adds up — see formatRating.
+  const delta = formatRating(ratingAfter ?? 0) - formatRating(ratingBefore ?? 0);
   const practicing = match.player1Id === userId ? match.player1IsPracticing : match.player2IsPracticing;
 
   const me = await prisma.user.findUnique({
@@ -2343,7 +2345,7 @@ async function ConfirmedSection({
         {ratingVisible && ratingBefore !== null && ratingAfter !== null ? (
           <p className="mt-1 text-sm tabular-nums text-muted-foreground">
             {formatRating(ratingBefore)} → {formatRating(ratingAfter)} ({delta >= 0 ? "+" : ""}
-            {formatRating(delta)})
+            {delta})
           </p>
         ) : (
           <p className="mt-1 text-sm text-muted-foreground">
