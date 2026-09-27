@@ -25,17 +25,21 @@ async function requireUserId() {
   return session.user.id;
 }
 
-export type UpdateUsernameState = { error: string | null; message: string | null };
+export type SettingsSaveState = { error: string | null; saved: boolean };
 
-export async function updateUsernameAction(
-  _prevState: UpdateUsernameState,
+// One combined action per Settings tab, so a tab's Save writes every field it
+// renders in a single submission. Username and the profile-level toggles live
+// on the User tab.
+export async function updateUserSettingsAction(
+  _prevState: SettingsSaveState,
   formData: FormData,
-): Promise<UpdateUsernameState> {
+): Promise<SettingsSaveState> {
   const userId = await requireUserId();
   try {
     await setUsername(userId, String(formData.get("username") ?? ""));
+    await setHideDiscordUsername(userId, formData.get("hideDiscordUsername") === "on");
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", saved: false };
   }
   // "layout" here, not just the default "page" — the header showing this
   // player's name lives in the root layout, which a page-level revalidation
@@ -44,41 +48,34 @@ export async function updateUsernameAction(
   revalidatePath("/", "layout");
   revalidatePath(`/players/${userId}`);
   revalidatePath("/leaderboard");
-  return { error: null, message: "Saved." };
+  revalidatePath("/settings");
+  return { error: null, saved: true };
 }
 
-export async function updateAvoidPracticeOpponentsSetting(avoid: boolean) {
+// Lobby tab. The length-validated writes (arena password, quick messages) run
+// first so hitting one of their limits aborts before the toggles below have
+// been written.
+export async function updateLobbySettingsAction(
+  _prevState: SettingsSaveState,
+  formData: FormData,
+): Promise<SettingsSaveState> {
   const userId = await requireUserId();
-  await setAvoidPracticeOpponents(userId, avoid);
+  try {
+    await setArenaPassword(userId, String(formData.get("arenaPassword") ?? ""));
+    await setQuickMessages(
+      userId,
+      formData.getAll("quickMessage").map((m) => String(m)),
+    );
+    await setAvoidPracticeOpponents(userId, formData.get("avoidPracticeOpponents") === "on");
+    await setAudioPingOnMatch(userId, formData.get("audioPingOnMatch") === "on");
+    await setMatchFoundSound(userId, formData.get("matchFoundSound") === "CHIME" ? "CHIME" : "ANNOUNCER");
+    await setNotifyQueueOpportunities(userId, formData.get("notifyQueueOpportunities") === "on");
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", saved: false };
+  }
   revalidatePath("/settings");
   revalidatePath("/lobby");
-}
-
-export async function updateHideDiscordUsernameSetting(hide: boolean) {
-  const userId = await requireUserId();
-  await setHideDiscordUsername(userId, hide);
-  revalidatePath("/settings");
-  revalidatePath(`/players/${userId}`);
-}
-
-export async function updateAudioPingOnMatchSetting(enabled: boolean) {
-  const userId = await requireUserId();
-  await setAudioPingOnMatch(userId, enabled);
-  revalidatePath("/settings");
-  revalidatePath("/lobby");
-}
-
-export async function updateMatchFoundSoundSetting(sound: "CHIME" | "ANNOUNCER") {
-  const userId = await requireUserId();
-  await setMatchFoundSound(userId, sound);
-  revalidatePath("/settings");
-  revalidatePath("/lobby");
-}
-
-export async function updateNotifyQueueOpportunitiesSetting(enabled: boolean) {
-  const userId = await requireUserId();
-  await setNotifyQueueOpportunities(userId, enabled);
-  revalidatePath("/settings");
+  return { error: null, saved: true };
 }
 
 export type PushSubscriptionKeys = { endpoint: string; p256dh: string; auth: string };
@@ -117,44 +114,6 @@ export async function removePushSubscriptionAction(endpoint: string) {
 export async function sendTestPushAction() {
   const userId = await requireUserId();
   return sendTestPushToUser(userId);
-}
-
-export type ArenaPasswordState = { error: string | null };
-
-// (prevState, formData) shape so useActionState can drive it — hitting the
-// length limit throws, and a plain thrown error would otherwise crash to
-// Next's generic error overlay instead of showing an inline message.
-export async function updateArenaPassword(
-  _prevState: ArenaPasswordState,
-  formData: FormData,
-): Promise<ArenaPasswordState> {
-  const userId = await requireUserId();
-  try {
-    await setArenaPassword(userId, String(formData.get("arenaPassword") ?? ""));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
-  }
-  revalidatePath("/settings");
-  revalidatePath("/lobby");
-  return { error: null };
-}
-
-export type QuickMessagesState = { error: string | null };
-
-export async function updateQuickMessagesAction(
-  _prevState: QuickMessagesState,
-  formData: FormData,
-): Promise<QuickMessagesState> {
-  const userId = await requireUserId();
-  const messages = formData.getAll("quickMessage").map((m) => String(m));
-  try {
-    await setQuickMessages(userId, messages);
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
-  }
-  revalidatePath("/settings");
-  revalidatePath("/lobby");
-  return { error: null };
 }
 
 export async function disconnectStartggAction() {

@@ -8,15 +8,14 @@ import { OverlayUrlToggle } from "@/components/overlay-url-toggle";
 import { CopyButton } from "@/components/copy-button";
 import { PushNotificationsForm } from "@/components/push-notifications-form";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArenaPasswordForm } from "@/components/arena-password-form";
-import { UsernameForm } from "@/components/username-form";
 import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
-import { QuickMessagesForm } from "@/components/quick-messages-form";
+import { SectionTabs } from "@/components/section-tabs";
+import { SettingsSaveForm } from "@/components/settings-save-form";
 import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
 import { listBlockedUsers } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
-import { MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
+import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
 import { listApiTokens } from "@/lib/api-tokens";
 import { ApiTokensPanel } from "@/components/api-tokens-panel";
@@ -25,21 +24,25 @@ import {
   disconnectTwitchAction,
   generateApiTokenAction,
   revokeApiTokenAction,
-  updateArenaPassword,
-  updateAudioPingOnMatchSetting,
-  updateAvoidPracticeOpponentsSetting,
-  updateHideDiscordUsernameSetting,
-  updateMatchFoundSoundSetting,
-  updateNotifyQueueOpportunitiesSetting,
-  updateQuickMessagesAction,
-  updateUsernameAction,
+  updateLobbySettingsAction,
+  updateUserSettingsAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
+
+// ?tab= picks which group of settings renders, so each stays deep-linkable and
+// server-rendered — same pattern as the Stats, Notes, and profile pages.
+const VALID_TABS = ["user", "lobby", "apps"] as const;
+type SettingsTab = (typeof VALID_TABS)[number];
+
+type TwitchConnection = { username: string; displayName: string | null; profileImageUrl: string | null } | null;
+type StartggConnection = { slug: string; gamerTag: string | null } | null;
+type ApiTokenSummary = { id: string; name: string; createdAt: string; lastUsedAt: string | null };
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{
+    tab?: string;
     startggConnected?: string;
     startggError?: string;
     twitchConnected?: string;
@@ -47,7 +50,7 @@ export default async function SettingsPage({
   }>;
 }) {
   const session = await auth();
-  const { startggConnected, startggError, twitchConnected, twitchError } = await searchParams;
+  const { tab: tabParam, startggConnected, startggError, twitchConnected, twitchError } = await searchParams;
   const host = (await headers()).get("host") ?? "";
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
   const lang = await getLang();
@@ -93,144 +96,157 @@ export default async function SettingsPage({
     listApiTokens(session.user.id),
   ]);
 
+  const tab: SettingsTab = VALID_TABS.includes((tabParam ?? "") as SettingsTab) ? (tabParam as SettingsTab) : "user";
+
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <PageTitle lang={lang} />
 
-      <Card className="mt-8">
+      <SectionTabs
+        className="mt-8"
+        items={[
+          { href: "?tab=user", label: lang === "es" ? "Usuario" : "User", active: tab === "user" },
+          { href: "?tab=lobby", label: lang === "es" ? "Sala" : "Lobby", active: tab === "lobby" },
+          { href: "?tab=apps", label: "Apps", active: tab === "apps" },
+        ]}
+      />
+
+      {tab === "user" && (
+        <UserTab
+          userId={session.user.id}
+          username={me?.username ?? ""}
+          discordUsername={me?.discordUsername ?? null}
+          hideDiscordUsername={me?.hideDiscordUsername ?? false}
+          blocked={blocked}
+          referralCount={referralCount}
+          lang={lang}
+        />
+      )}
+
+      {tab === "lobby" && (
+        <LobbyTab
+          avoidPracticeOpponents={me?.avoidPracticeOpponents ?? false}
+          audioPingOnMatch={me?.audioPingOnMatch ?? true}
+          matchFoundSound={me?.matchFoundSound ?? "CHIME"}
+          notifyQueueOpportunities={me?.notifyQueueOpportunities ?? false}
+          arenaPassword={me?.arenaPassword ?? ""}
+          quickMessages={me?.quickMessages ?? []}
+          pushEnabled={(me?._count.pushSubscriptions ?? 0) > 0}
+          lang={lang}
+        />
+      )}
+
+      {tab === "apps" && (
+        <AppsTab
+          userId={session.user.id}
+          host={host}
+          protocol={protocol}
+          twitch={
+            me?.twitchUserId && me.twitchUsername
+              ? {
+                  username: me.twitchUsername,
+                  displayName: me.twitchDisplayName,
+                  profileImageUrl: me.twitchProfileImageUrl,
+                }
+              : null
+          }
+          twitchJustConnected={twitchConnected === "1"}
+          twitchError={twitchError}
+          startgg={me?.startggUserId && me.startggSlug ? { slug: me.startggSlug, gamerTag: me.startggGamerTag } : null}
+          startggJustConnected={startggConnected === "1"}
+          startggError={startggError}
+          apiTokens={apiTokens.map((token) => ({
+            id: token.id,
+            name: token.name,
+            createdAt: token.createdAt.toISOString(),
+            lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
+          }))}
+          lang={lang}
+        />
+      )}
+    </main>
+  );
+}
+
+function UserTab({
+  userId,
+  username,
+  discordUsername,
+  hideDiscordUsername,
+  blocked,
+  referralCount,
+  lang,
+}: {
+  userId: string;
+  username: string;
+  discordUsername: string | null;
+  hideDiscordUsername: boolean;
+  blocked: Awaited<ReturnType<typeof listBlockedUsers>>;
+  referralCount: number;
+  lang: Lang;
+}) {
+  return (
+    <div className="mt-6 flex flex-col gap-4">
+      <Card>
         <CardContent className="pt-4">
-          <UsernameForm defaultValue={me?.username ?? ""} action={updateUsernameAction} lang={lang} />
+          <SettingsSaveForm action={updateUserSettingsAction} lang={lang} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1 text-sm">
+              <span>{lang === "es" ? "Nombre de usuario" : "Username"}</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {lang === "es"
+                  ? "Se muestra en todo el sitio en vez de tu nombre de Discord — útil si no coinciden."
+                  : "Shown everywhere on the site instead of your Discord name — handy if they don't match."}
+              </span>
+              <input
+                name="username"
+                type="text"
+                required
+                maxLength={32}
+                defaultValue={username}
+                className="h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+              />
+            </label>
+
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                key={String(hideDiscordUsername)}
+                type="checkbox"
+                name="hideDiscordUsername"
+                defaultChecked={hideDiscordUsername}
+                className="mt-0.5 size-4 rounded border-border"
+              />
+              <span>
+                <span className="font-medium">
+                  {lang === "es" ? "Ocultar mi Discord de mi perfil" : "Hide my Discord from my profile"}
+                </span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {lang === "es"
+                    ? `Tu perfil muestra tu nombre de usuario de Discord${
+                        discordUsername ? ` (${discordUsername})` : ""
+                      }, incluso si es igual a tu nombre de usuario aquí. Actívalo para ocultarlo de los demás.`
+                    : `Your profile shows your Discord username${
+                        discordUsername ? ` (${discordUsername})` : ""
+                      }, even when it matches your username here. Turn this on to hide it from everyone else.`}
+                </span>
+              </span>
+            </label>
+          </SettingsSaveForm>
         </CardContent>
       </Card>
 
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <HideDiscordUsernameForm
-            discordUsername={me?.discordUsername ?? null}
-            defaultValue={me?.hideDiscordUsername ?? false}
-            lang={lang}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <TwitchConnectCard
-            connected={
-              me?.twitchUserId && me.twitchUsername
-                ? {
-                    username: me.twitchUsername,
-                    displayName: me.twitchDisplayName,
-                    profileImageUrl: me.twitchProfileImageUrl,
-                  }
-                : null
-            }
-            justConnected={twitchConnected === "1"}
-            error={twitchError}
-            lang={lang}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <InviteLinkCard userId={session.user.id} referralCount={referralCount} lang={lang} />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <StreamOverlayCard userId={session.user.id} host={host} protocol={protocol} lang={lang} />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <StartggConnectCard
-            connected={
-              me?.startggUserId && me.startggSlug ? { slug: me.startggSlug, gamerTag: me.startggGamerTag } : null
-            }
-            justConnected={startggConnected === "1"}
-            error={startggError}
-            lang={lang}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <p className="mb-1 text-sm font-medium">{lang === "es" ? "Tokens de API" : "API tokens"}</p>
-          <ApiTokensPanel
-            tokens={apiTokens.map((token) => ({
-              id: token.id,
-              name: token.name,
-              createdAt: token.createdAt.toISOString(),
-              lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
-            }))}
-            generateAction={generateApiTokenAction}
-            revokeAction={revokeApiTokenAction}
-            lang={lang}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <AvoidPracticeOpponentsForm defaultValue={me?.avoidPracticeOpponents ?? false} lang={lang} />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <AudioPingOnMatchForm
-            defaultEnabled={me?.audioPingOnMatch ?? true}
-            defaultSound={me?.matchFoundSound ?? "CHIME"}
-            lang={lang}
-          />
-        </CardContent>
-      </Card>
-
-      <Card id="push-notifications" className="mt-4 scroll-mt-24">
-        <CardContent className="pt-4">
-          <PushNotificationsForm defaultEnabled={(me?._count.pushSubscriptions ?? 0) > 0} lang={lang} />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <NotifyQueueOpportunitiesForm defaultValue={me?.notifyQueueOpportunities ?? false} lang={lang} />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
+      <Card>
         <CardContent className="pt-4">
           <PreferredLanguageForm currentLang={lang} />
         </CardContent>
       </Card>
 
-      <Card className="mt-4">
+      <Card>
         <CardContent className="pt-4">
-          <ArenaPasswordForm
-            action={updateArenaPassword}
-            defaultValue={me?.arenaPassword ?? ""}
-            fallback={DEFAULT_ARENA_PASSWORD}
-            lang={lang}
-          />
+          <InviteLinkCard userId={userId} referralCount={referralCount} lang={lang} />
         </CardContent>
       </Card>
 
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <QuickMessagesForm
-            action={updateQuickMessagesAction}
-            defaultValues={me?.quickMessages ?? []}
-            maxLength={MAX_QUICK_MESSAGE_LENGTH}
-            lang={lang}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
+      <Card>
         <CardContent className="pt-4">
           <p className="text-sm font-medium">{lang === "es" ? "Jugadores bloqueados" : "Blocked players"}</p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -255,7 +271,228 @@ export default async function SettingsPage({
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
+  );
+}
+
+function LobbyTab({
+  avoidPracticeOpponents,
+  audioPingOnMatch,
+  matchFoundSound,
+  notifyQueueOpportunities,
+  arenaPassword,
+  quickMessages,
+  pushEnabled,
+  lang,
+}: {
+  avoidPracticeOpponents: boolean;
+  audioPingOnMatch: boolean;
+  matchFoundSound: MatchFoundSound;
+  notifyQueueOpportunities: boolean;
+  arenaPassword: string;
+  quickMessages: string[];
+  pushEnabled: boolean;
+  lang: Lang;
+}) {
+  const quickMessageSlots = Array.from({ length: DEFAULT_QUICK_MESSAGES.length }, (_, i) => quickMessages[i] ?? "");
+
+  return (
+    <div className="mt-6 flex flex-col gap-4">
+      <Card id="push-notifications" className="scroll-mt-24">
+        <CardContent className="pt-4">
+          <PushNotificationsForm defaultEnabled={pushEnabled} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <SettingsSaveForm action={updateLobbySettingsAction} lang={lang} className="flex flex-col gap-5">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                key={String(avoidPracticeOpponents)}
+                type="checkbox"
+                name="avoidPracticeOpponents"
+                defaultChecked={avoidPracticeOpponents}
+                className="mt-0.5 size-4 rounded border-border"
+              />
+              <span>
+                <span className="font-medium">
+                  {lang === "es"
+                    ? "No emparejarme con rivales que están practicando"
+                    : "Don't match me with opponents who are practicing"}
+                </span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {lang === "es"
+                    ? "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo."
+                    : "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely."}
+                </span>
+              </span>
+            </label>
+
+            <div className="flex flex-col gap-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  key={String(audioPingOnMatch)}
+                  type="checkbox"
+                  name="audioPingOnMatch"
+                  defaultChecked={audioPingOnMatch}
+                  className="mt-0.5 size-4 rounded border-border"
+                />
+                <span>
+                  <span className="font-medium">
+                    {lang === "es" ? "Sonido al ser emparejado" : "Audio ping when matched"}
+                  </span>
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    {lang === "es"
+                      ? "Reproduce un sonido en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
+                      : "Plays a sound on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
+                  </span>
+                </span>
+              </label>
+              <div className="flex items-center justify-between gap-2 pl-6">
+                <span className="text-sm">{lang === "es" ? "Sonido" : "Sound"}</span>
+                <MatchFoundSoundPicker key={matchFoundSound} defaultValue={matchFoundSound} lang={lang} />
+              </div>
+            </div>
+
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                key={String(notifyQueueOpportunities)}
+                type="checkbox"
+                name="notifyQueueOpportunities"
+                defaultChecked={notifyQueueOpportunities}
+                className="mt-0.5 size-4 rounded border-border"
+              />
+              <span>
+                <span className="font-medium">
+                  {lang === "es" ? "Avisarme de oponentes en la cola" : "Notify me of matchable opponents in queue"}
+                </span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {lang === "es"
+                    ? "Útil si los rivales para tu rango escasean: te enviamos una notificación push cuando alguien que podría emparejarse contigo entra a la cola y tú no estás en ella. Requiere que las notificaciones push (arriba) estén activadas."
+                    : "Useful if matches are rare for your rank — sends a push notification when someone who could match you joins the queue while you're not in it. Requires push notifications (above) to be enabled."}
+                </span>
+              </span>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">{lang === "es" ? "Contraseña de sala" : "Arena password"}</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {lang === "es" ? (
+                  <>
+                    Se muestra a tu rival como la contraseña que debe poner en la sala del juego. Déjalo en blanco para
+                    usar el valor por defecto del ladder (
+                    <span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>).
+                  </>
+                ) : (
+                  <>
+                    Shown to your opponent as what to set the in-game room password to. Leave blank to use the ladder
+                    default (<span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>).
+                  </>
+                )}
+              </span>
+              <input
+                name="arenaPassword"
+                type="text"
+                maxLength={20}
+                defaultValue={arenaPassword}
+                placeholder={DEFAULT_ARENA_PASSWORD}
+                className="h-8 w-40 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+              />
+            </label>
+
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium">
+                {lang === "es" ? "Mensajes rápidos del chat" : "Chat quick messages"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? "Los botones que aparecen sobre el chat de la partida. Deja uno en blanco para usar el valor por defecto."
+                  : "The buttons shown above the match chat. Leave one blank to use the site default for that slot."}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {quickMessageSlots.map((value, i) => (
+                  <input
+                    key={i}
+                    name="quickMessage"
+                    type="text"
+                    maxLength={MAX_QUICK_MESSAGE_LENGTH}
+                    defaultValue={value}
+                    placeholder={DEFAULT_QUICK_MESSAGES[i]}
+                    className="h-8 w-28 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+                  />
+                ))}
+              </div>
+            </div>
+          </SettingsSaveForm>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AppsTab({
+  userId,
+  host,
+  protocol,
+  twitch,
+  twitchJustConnected,
+  twitchError,
+  startgg,
+  startggJustConnected,
+  startggError,
+  apiTokens,
+  lang,
+}: {
+  userId: string;
+  host: string;
+  protocol: string;
+  twitch: TwitchConnection;
+  twitchJustConnected: boolean;
+  twitchError?: string;
+  startgg: StartggConnection;
+  startggJustConnected: boolean;
+  startggError?: string;
+  apiTokens: ApiTokenSummary[];
+  lang: Lang;
+}) {
+  return (
+    <div className="mt-6 flex flex-col gap-4">
+      <Card>
+        <CardContent className="pt-4">
+          <TwitchConnectCard connected={twitch} justConnected={twitchJustConnected} error={twitchError} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <StartggConnectCard
+            connected={startgg}
+            justConnected={startggJustConnected}
+            error={startggError}
+            lang={lang}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <StreamOverlayCard userId={userId} host={host} protocol={protocol} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <p className="mb-1 text-sm font-medium">{lang === "es" ? "Tokens de API" : "API tokens"}</p>
+          <ApiTokensPanel
+            tokens={apiTokens}
+            generateAction={generateApiTokenAction}
+            revokeAction={revokeApiTokenAction}
+            lang={lang}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -327,7 +564,7 @@ function TwitchConnectCard({
   error,
   lang,
 }: {
-  connected: { username: string; displayName: string | null; profileImageUrl: string | null } | null;
+  connected: TwitchConnection;
   justConnected: boolean;
   error?: string;
   lang: Lang;
@@ -374,7 +611,7 @@ function StartggConnectCard({
   error,
   lang,
 }: {
-  connected: { slug: string; gamerTag: string | null } | null;
+  connected: StartggConnection;
   justConnected: boolean;
   error?: string;
   lang: Lang;
@@ -424,164 +661,6 @@ function PageTitle({ lang }: { lang: Lang }) {
       <Settings className="size-5 text-muted-foreground" />
       <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Ajustes" : "Settings"}</h1>
     </div>
-  );
-}
-
-function AvoidPracticeOpponentsForm({ defaultValue, lang }: { defaultValue: boolean; lang: Lang }) {
-  async function action(formData: FormData) {
-    "use server";
-    await updateAvoidPracticeOpponentsSetting(formData.get("avoidPracticeOpponents") === "on");
-  }
-
-  return (
-    <form action={action} className="flex items-end justify-between gap-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          key={String(defaultValue)}
-          type="checkbox"
-          name="avoidPracticeOpponents"
-          defaultChecked={defaultValue}
-          className="size-4 rounded border-border"
-        />
-        <span>
-          {lang === "es"
-            ? "No emparejarme con rivales que están practicando"
-            : "Don't match me with opponents who are practicing"}
-          <span className="block text-xs font-normal text-muted-foreground">
-            {lang === "es"
-              ? "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo."
-              : "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely."}
-          </span>
-        </span>
-      </label>
-      <Button type="submit" size="sm">
-        {lang === "es" ? "Guardar" : "Save"}
-      </Button>
-    </form>
-  );
-}
-
-function HideDiscordUsernameForm({
-  discordUsername,
-  defaultValue,
-  lang,
-}: {
-  discordUsername: string | null;
-  defaultValue: boolean;
-  lang: Lang;
-}) {
-  async function action(formData: FormData) {
-    "use server";
-    await updateHideDiscordUsernameSetting(formData.get("hideDiscordUsername") === "on");
-  }
-
-  return (
-    <form action={action} className="flex items-end justify-between gap-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          key={String(defaultValue)}
-          type="checkbox"
-          name="hideDiscordUsername"
-          defaultChecked={defaultValue}
-          className="size-4 rounded border-border"
-        />
-        <span>
-          {lang === "es" ? "Ocultar mi Discord de mi perfil" : "Hide my Discord from my profile"}
-          <span className="block text-xs font-normal text-muted-foreground">
-            {lang === "es"
-              ? `Tu perfil muestra tu nombre de usuario de Discord${
-                  discordUsername ? ` (${discordUsername})` : ""
-                }, incluso si es igual a tu nombre de usuario aquí. Actívalo para ocultarlo de los demás.`
-              : `Your profile shows your Discord username${
-                  discordUsername ? ` (${discordUsername})` : ""
-                }, even when it matches your username here. Turn this on to hide it from everyone else.`}
-          </span>
-        </span>
-      </label>
-      <Button type="submit" size="sm">
-        {lang === "es" ? "Guardar" : "Save"}
-      </Button>
-    </form>
-  );
-}
-
-function AudioPingOnMatchForm({
-  defaultEnabled,
-  defaultSound,
-  lang,
-}: {
-  defaultEnabled: boolean;
-  defaultSound: MatchFoundSound;
-  lang: Lang;
-}) {
-  async function action(formData: FormData) {
-    "use server";
-    await updateAudioPingOnMatchSetting(formData.get("audioPingOnMatch") === "on");
-    const sound = formData.get("matchFoundSound");
-    await updateMatchFoundSoundSetting(sound === "CHIME" ? "CHIME" : "ANNOUNCER");
-  }
-
-  return (
-    <form action={action} className="space-y-3">
-      <div className="flex items-end justify-between gap-2">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            key={String(defaultEnabled)}
-            type="checkbox"
-            name="audioPingOnMatch"
-            defaultChecked={defaultEnabled}
-            className="size-4 rounded border-border"
-          />
-          <span>
-            {lang === "es" ? "Sonido al ser emparejado" : "Audio ping when matched"}
-            <span className="block text-xs font-normal text-muted-foreground">
-              {lang === "es"
-                ? "Reproduce un sonido en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
-                : "Plays a sound on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
-            </span>
-          </span>
-        </label>
-        <Button type="submit" size="sm">
-          {lang === "es" ? "Guardar" : "Save"}
-        </Button>
-      </div>
-      <div className="flex items-center justify-between gap-2 pl-6">
-        <span className="text-sm">{lang === "es" ? "Sonido" : "Sound"}</span>
-        <MatchFoundSoundPicker key={defaultSound} defaultValue={defaultSound} lang={lang} />
-      </div>
-    </form>
-  );
-}
-
-function NotifyQueueOpportunitiesForm({ defaultValue, lang }: { defaultValue: boolean; lang: Lang }) {
-  async function action(formData: FormData) {
-    "use server";
-    await updateNotifyQueueOpportunitiesSetting(formData.get("notifyQueueOpportunities") === "on");
-  }
-
-  return (
-    <form action={action} className="flex items-end justify-between gap-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          key={String(defaultValue)}
-          type="checkbox"
-          name="notifyQueueOpportunities"
-          defaultChecked={defaultValue}
-          className="size-4 rounded border-border"
-        />
-        <span>
-          {lang === "es" ? "Avisarme de oponentes en la cola" : "Notify me of matchable opponents in queue"}
-          <span className="block text-xs font-normal text-muted-foreground">
-            {lang === "es"
-              ? "Útil si los rivales para tu rango escasean: te enviamos una notificación push cuando alguien que podría emparejarse contigo entra a la cola y tú no estás en ella. Requiere que las notificaciones push (arriba) estén activadas."
-              : "Useful if matches are rare for your rank — sends a push notification when someone who could match you joins the queue while you're not in it. Requires push notifications (above) to be enabled."}
-          </span>
-        </span>
-      </label>
-      <Button type="submit" size="sm">
-        {lang === "es" ? "Guardar" : "Save"}
-      </Button>
-    </form>
   );
 }
 

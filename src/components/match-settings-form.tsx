@@ -2,12 +2,11 @@
 
 import { useActionState } from "react";
 import { Check, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export type MatchSettingsState = { error: string | null; saved: boolean };
 
-// Auto-submit because skipping Save here means never being able to queue
-// Save stays visible since the change handler isn't attached until hydration
+// Changes save automatically on every edit — there's no Save button, so the
+// status line is the only signal that a change stuck (or is still in flight).
 export function MatchSettingsForm({
   action,
   className,
@@ -33,7 +32,7 @@ export function MatchSettingsForm({
     >
       {children}
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-4">
+      <div className="border-t border-border pt-4">
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           {isPending ? (
             <>
@@ -49,9 +48,6 @@ export function MatchSettingsForm({
             <>{lang === "es" ? "Los cambios se guardan solos" : "Changes save automatically"}</>
           )}
         </p>
-        <Button type="submit" size="sm" variant="outline" disabled={isPending || disabled}>
-          {lang === "es" ? "Guardar" : "Save"}
-        </Button>
       </div>
     </form>
   );

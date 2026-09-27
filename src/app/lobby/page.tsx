@@ -228,7 +228,7 @@ export default async function LobbyPage() {
                     <CardDescription className="mt-0.5">
                       {lang === "es" ? "Activa las notificaciones en " : "Turn on notifications in "}
                       <Link
-                        href="/settings#push-notifications"
+                        href="/settings?tab=lobby#push-notifications"
                         className="text-foreground underline underline-offset-2"
                       >
                         {lang === "es" ? "Ajustes" : "Settings"}
@@ -2629,7 +2629,7 @@ function RoomCodeSection({
           <>
             Contraseña: <span className="font-medium text-foreground">{hostArenaPassword}</span> — este es tu valor por
             defecto, puedes{" "}
-            <Link href="/settings" prefetch={false} className="underline hover:text-foreground">
+            <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
               cambiarlo en Ajustes
             </Link>
             .
@@ -2638,7 +2638,7 @@ function RoomCodeSection({
           <>
             Password: <span className="font-medium text-foreground">{hostArenaPassword}</span> — this is your default,
             you can{" "}
-            <Link href="/settings" prefetch={false} className="underline hover:text-foreground">
+            <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
               change it in Settings
             </Link>
             .
