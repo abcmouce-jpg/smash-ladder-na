@@ -17,6 +17,7 @@ import {
   PRE_SEASON_EXPECTED_END_AT,
 } from "@/lib/seasons";
 import { createTestUser } from "@/test/factories";
+import { isCancelSuspendThreshold } from "@/lib/account";
 
 async function createTestMatch(status: MatchStatus, confirmedAt: Date | null = null) {
   const player1 = await createTestUser();
@@ -333,6 +334,19 @@ describe("endActiveSeasonAndStartNext", () => {
     expect(updated.gamesPlayed).toBe(0);
     expect(updated.practiceRating).toBe(1500);
     expect(updated.practiceGamesPlayed).toBe(0);
+  });
+
+  it("resets cancelCount so a stale cancel total can't auto-suspend anyone in the new season", async () => {
+    await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+    // Cancelled a lot but played little — the exact shape the ratio check
+    // suspends on once gamesPlayed resets to 0 but cancelCount doesn't.
+    const player = await createTestUser({ cancelCount: 10, gamesPlayed: 0 });
+
+    await endActiveSeasonAndStartNext("Season 2", after);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.cancelCount).toBe(0);
+    expect(isCancelSuspendThreshold(updated.cancelCount, updated.gamesPlayed)).toBe(false);
   });
 });
 
