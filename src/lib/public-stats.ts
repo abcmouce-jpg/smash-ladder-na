@@ -218,8 +218,12 @@ export async function getRatingDistribution(): Promise<RatingDistribution> {
     buckets[Math.floor((rating - start) / binSize)].count++;
   }
 
+  // Ratings are stored as full-precision floats under Glicko-2 (see
+  // lib/rating-format.ts), so the middle value in the odd-count case is
+  // fractional too — round it the same way as the average and the even-count
+  // pair rather than handing a raw float to the chart.
   const middle = Math.floor(total / 2);
-  const median = total % 2 === 1 ? ratings[middle] : Math.round((ratings[middle - 1] + ratings[middle]) / 2);
+  const median = Math.round(total % 2 === 1 ? ratings[middle] : (ratings[middle - 1] + ratings[middle]) / 2);
   const average = Math.round(ratings.reduce((sum, rating) => sum + rating, 0) / total);
 
   return { buckets, total, average, median };

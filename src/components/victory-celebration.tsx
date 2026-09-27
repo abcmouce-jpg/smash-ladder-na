@@ -86,7 +86,9 @@ export function VictoryCelebration({
   lang?: "en" | "es";
 }) {
   const displayRating = useCountUp(ratingBefore, ratingAfter);
-  const delta = ratingAfter - ratingBefore;
+  // Matched to the count-up's rounded end value (and the trail elsewhere) so
+  // the announced gain always equals ratingAfter − ratingBefore as shown.
+  const delta = formatRating(ratingAfter) - formatRating(ratingBefore);
 
   useEffect(() => {
     if (tierUp) playTierUpChime();
@@ -110,7 +112,7 @@ export function VictoryCelebration({
         </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums">{displayRating}</p>
         <p className="text-sm font-medium tabular-nums text-primary">
-          {lang === "es" ? `+${formatRating(delta)} de clasificación` : `+${formatRating(delta)} rating`}
+          {lang === "es" ? `+${delta} de clasificación` : `+${delta} rating`}
         </p>
       </div>
     </div>
