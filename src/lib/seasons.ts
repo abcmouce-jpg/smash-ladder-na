@@ -192,12 +192,15 @@ async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
 // resets rating/gamesPlayed (and the parallel practiceRating/practiceGamesPlayed
 // track) for everyone so the next season starts fresh — a full reset rather
 // than a soft regression toward the mean, to keep the rollover simple and
-// predictable. Every season runs a fixed 2 months, so by default the next
-// season is stamped with a rollover time of `now` + SEASON_DURATION_MONTHS and
-// keeps rolling over on its own. Pass nextScheduledEndAt to override that
-// length for a deliberate one-off, or null to leave the next season
-// manual-only. nextAlgorithm is stamped onto the new season and defaults to
-// NEXT_SEASON_ALGORITHM (Glicko-2).
+// predictable. cancelCount resets alongside gamesPlayed: the two are compared
+// as a ratio (see isCancelSuspendThreshold), so leaving cancels at their old
+// total while gamesPlayed drops to 0 would read as a 100% cancel rate and
+// auto-suspend every player who'd ever cancelled. Every season runs a fixed 2
+// months, so by default the next season is stamped with a rollover time of
+// `now` + SEASON_DURATION_MONTHS and keeps rolling over on its own. Pass
+// nextScheduledEndAt to override that length for a deliberate one-off, or null
+// to leave the next season manual-only. nextAlgorithm is stamped onto the new
+// season and defaults to NEXT_SEASON_ALGORITHM (Glicko-2).
 export async function endActiveSeasonAndStartNext(
   nextName?: string,
   now = new Date(),
@@ -238,6 +241,7 @@ export async function endActiveSeasonAndStartNext(
         ratingDeviation: GLICKO2_INITIAL_RD,
         ratingVolatility: GLICKO2_INITIAL_VOLATILITY,
         gamesPlayed: 0,
+        cancelCount: 0,
         practiceRating: GLICKO2_INITIAL_RATING,
         practiceRatingDeviation: GLICKO2_INITIAL_RD,
         practiceRatingVolatility: GLICKO2_INITIAL_VOLATILITY,
