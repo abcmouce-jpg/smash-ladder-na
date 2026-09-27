@@ -48,10 +48,21 @@ type LiveStreamContextValue = {
 const LiveStreamContext = createContext<LiveStreamContextValue | null>(null);
 
 // Shared by the home page and the Live page so a pick made anywhere (a
-// thumbnail, or a feed row's "Open stream" button) drives the single pinned
-// player at the top of the page.
-export function LiveStreamProvider({ children }: { children: ReactNode }) {
-  const [selection, setSelection] = useState<LiveStreamSelection>(null);
+// thumbnail, or a feed row's stream button) drives the single pinned player at
+// the top of the page.
+//
+// initialSelection is the pick the stage would resolve to on its own before any
+// click (see resolveLiveStream) — seeding it here means the feed row for the
+// currently-open stream can mark itself selected from the first render instead
+// of only after a click.
+export function LiveStreamProvider({
+  children,
+  initialSelection = null,
+}: {
+  children: ReactNode;
+  initialSelection?: LiveStreamSelection;
+}) {
+  const [selection, setSelection] = useState<LiveStreamSelection>(initialSelection);
   const select = useCallback((matchId: string, playerId: string) => setSelection({ matchId, playerId }), []);
   const value = useMemo(() => ({ selection, select }), [selection, select]);
 
