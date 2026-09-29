@@ -11,7 +11,6 @@ import { FriendliesPosts } from "@/components/friendlies-posts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AdSlot } from "@/components/ad-slot";
 import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 
@@ -85,8 +84,6 @@ export default async function FriendliesPage() {
         <SectionHeading label={lang === "es" ? "Publicaciones abiertas" : "Open posts"} />
         <FriendliesPosts posts={posts} lang={lang} />
       </div>
-
-      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_FREE_BATTLE} />
     </main>
   );
 }

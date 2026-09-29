@@ -4,7 +4,6 @@ import { auth } from "@/auth";
 import { listTournaments } from "@/lib/tournaments";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { AdSlot } from "@/components/ad-slot";
 import { CreateTournamentForm } from "@/components/create-tournament-form";
 import { getLang } from "@/lib/i18n";
 
@@ -77,8 +76,6 @@ export default async function TournamentsPage() {
           </p>
         )}
       </div>
-
-      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_TOURNAMENTS} />
     </main>
   );
 }

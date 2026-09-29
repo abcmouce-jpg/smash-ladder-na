@@ -69,7 +69,16 @@ export default async function RootLayout({
   // the adsbygoogle.js script itself is skipped so no ad request/tracking
   // ever fires for them at all.
   const session = await auth();
-  const showAds = !isStreamOverlay && !session?.user?.isSupporter;
+  // These are sign-in walls or empty shells for a signed-out visitor (and,
+  // for Tournaments specifically, functionally empty for everyone — see the
+  // #development note on it having had one event ever). AdSense flagged the
+  // account for insufficient content, and loading the ad script here — Auto
+  // ads doesn't need an explicit <ins> slot to place one — put real ad
+  // requests next to a "sign in to see this" page or a near-empty one. None
+  // of these four carry an AdSlot anyway.
+  const AD_SCRIPT_DISABLED_PATHS = ["/lobby", "/settings", "/tournaments", "/notes", "/friendlies"];
+  const isAdThinPage = AD_SCRIPT_DISABLED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const showAds = !isStreamOverlay && !isAdThinPage && !session?.user?.isSupporter;
 
   return (
     <html
