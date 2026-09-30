@@ -293,15 +293,26 @@ export function isDeletedAccountUsername(username: string) {
 // Anonymize rather than hard-delete: match history, ratings, and comments
 // involve other players' legitimate competitive records too, and Prisma's
 // default onDelete: Restrict on most of this user's relations would just
-// throw anyway. Scrambling discordId means a future login with the same
-// Discord account starts a genuinely fresh row instead of reviving this one.
+// throw anyway.
+//
+// discordId is deliberately left untouched (past versions of this scrambled
+// it to `deleted-${userId}`, which forced a future sign-in to fork a brand
+// new row instead of resuming this one) — that let someone delete mid-set to
+// erase a result they didn't like, sign back in immediately, and start over
+// at 1500 with a clean record. Keeping discordId real means auth.ts's
+// signIn callback finds this same row on the next sign-in and resumes it,
+// still anonymized, at their real rating — deleting no longer doubles as a
+// free reset.
 //
 // discordUsername is kept rather than nulled — the profile header shows it
 // whenever it's set, and this row's username is now the generic "Deleted
 // User", so without hideDiscordUsername the ex-player's Discord name would
 // stay publicly visible on the anonymized profile. Hiding it keeps the
 // identity on the row for internal reference while matching what the delete
-// copy actually promises (username, avatar, and email gone).
+// copy actually promises (username, avatar, and email gone). Sign-in keeps
+// discordUsername synced as usual, but see auth.ts for why avatarUrl isn't:
+// re-populating it on every sign-in would quietly undo the "avatar gone"
+// promise the moment they next logged in, deleted or not.
 export async function deleteMyAccount(userId: string) {
   await prisma.user.update({
     where: { id: userId },
@@ -309,7 +320,6 @@ export async function deleteMyAccount(userId: string) {
       username: DELETED_USERNAME,
       avatarUrl: null,
       email: null,
-      discordId: `deleted-${userId}`,
       hideDiscordUsername: true,
       mainCharacter: null,
       region: null,

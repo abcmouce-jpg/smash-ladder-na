@@ -7,6 +7,7 @@ import Credentials from "next-auth/providers/credentials";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required for the module augmentation below to resolve
 import type { JWT } from "next-auth/jwt";
 import { prisma } from "@/lib/db";
+import { DELETED_USERNAME } from "@/lib/account";
 import { UserStatus } from "@/generated/prisma/enums";
 import type { UserRole } from "@/generated/prisma/enums";
 import { extractClientIp, isIpBanned } from "@/lib/ip-bans";
@@ -72,9 +73,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const existing = await prisma.user.findUnique({
         where: { discordId: discordProfile.id },
-        select: { status: true },
+        select: { status: true, username: true },
       });
       if (existing?.status === UserStatus.BANNED) return false;
+      // A deleted account resumes this same row on sign-in (see
+      // deleteMyAccount) rather than forking a new one — but re-syncing
+      // avatarUrl from Discord below would silently undo the "avatar gone"
+      // half of that anonymization the moment they next signed in. Stays
+      // null until they take some other action that un-deletes them (e.g.
+      // renaming away from "Deleted User").
+      const isAnonymized = existing?.username === DELETED_USERNAME;
 
       // Only resolved for a genuinely new account (existing is null) —
       // referredById is set once, at creation, and never touched again, so
@@ -111,7 +119,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // changed their site username.
         update: {
           discordUsername,
-          avatarUrl: discordProfile.image_url,
+          ...(isAnonymized ? {} : { avatarUrl: discordProfile.image_url }),
           lastKnownIp: ip ?? undefined,
           lastSignInAt: new Date(),
         },
