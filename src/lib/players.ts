@@ -74,7 +74,7 @@ export async function getHiddenRatingMatchIds(userId: string): Promise<{ changeI
   return { changeIds, valueIds };
 }
 
-export async function getPlayerProfile(userId: string) {
+export async function getPlayerProfile(userId: string, viewerIsModerator = false) {
   const player = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -114,8 +114,11 @@ export async function getPlayerProfile(userId: string) {
   // reference (see deleteMyAccount), but must never show it publicly. Newer
   // deletions set hideDiscordUsername, but rows deleted before that column
   // existed — and Discord-side deletions, which can't set it — don't, so
-  // blank it here rather than trusting the stored flag.
-  const discordUsername = isDeletedAccountUsername(player.username) ? null : player.discordUsername;
+  // blank it here rather than trusting the stored flag. A mod/admin viewer
+  // still gets it: repeat rule-breakers deleting and recreating accounts to
+  // dodge a ban is exactly the pattern this needs to stay visible for.
+  const discordUsername =
+    isDeletedAccountUsername(player.username) && !viewerIsModerator ? null : player.discordUsername;
 
   // Without this, a suspension that's already expired keeps showing as
   // "suspended" on the profile (and to the mod tools below it) until the

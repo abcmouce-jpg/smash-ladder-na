@@ -974,4 +974,16 @@ describe("getPlayerProfile", () => {
     const profile = await getPlayerProfile(deleted.id);
     expect(profile?.discordUsername).toBeNull();
   });
+
+  it("still surfaces a deleted account's Discord name to a mod/admin viewer", async () => {
+    const deleted = await createTestUser({
+      username: DELETED_USERNAME,
+      discordId: "deleted-someoldid",
+      discordUsername: "someDiscordName",
+      hideDiscordUsername: false,
+    });
+
+    const profile = await getPlayerProfile(deleted.id, true);
+    expect(profile?.discordUsername).toBe("someDiscordName");
+  });
 });
