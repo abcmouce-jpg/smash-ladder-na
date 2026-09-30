@@ -17,10 +17,11 @@ import { getDiscordUsername } from "../src/lib/discord-bot";
 const SYNTHETIC_ID_PREFIXES = ["deleted-", "dev-", "practice-"];
 
 // Discord rate-limits GET /users/{id} at 30/sec per the bucket header this
-// endpoint returned when checked — 10/sec leaves a wide safety margin rather
-// than chasing the ceiling, since this only needs to run once and isn't time
-// sensitive.
-const REQUESTS_PER_SECOND = 10;
+// endpoint returned when checked, but the bot's overall per-second budget is
+// shared with whatever the live site is doing at the same time (match DMs,
+// mod alerts, etc.) — 8/sec leaves headroom for that, and getDiscordUsername
+// retries on a 429 anyway rather than misreporting a live account as missed.
+const REQUESTS_PER_SECOND = 8;
 const DELAY_MS = 1000 / REQUESTS_PER_SECOND;
 
 async function main() {

@@ -18,12 +18,25 @@ async function discordRequest(path: string, init: RequestInit) {
 // regardless of shared-server membership, since GET /users/{id} is a global
 // bot endpoint. Used by scripts/backfill-discord-usernames.ts to refresh
 // stored discordUsername values without waiting for each player to sign in
-// again. Returns null on any failure (deleted Discord account, invalid id,
-// network error) — the caller decides what to do with a miss.
-export async function getDiscordUsername(discordId: string): Promise<string | null> {
+// again. Returns null on a genuine miss (deleted Discord account, invalid
+// id, network error) — the caller decides what to do with that. A 429 is
+// NOT treated as a miss: it retries after Discord's own Retry-After instead,
+// since silently swallowing it would misreport a live account as deleted —
+// exactly the bug the first run of that backfill hit (a 71% "miss" rate
+// that turned out to be rate-limit responses, not actual 404s, once spot-
+// checked against a handful of the "missed" ids directly).
+export async function getDiscordUsername(discordId: string, retriesLeft = 3): Promise<string | null> {
   try {
     const res = await discordRequest(`/users/${discordId}`, { method: "GET" });
-    if (!res?.ok) return null;
+    if (!res) return null;
+    if (res.status === 429) {
+      if (retriesLeft <= 0) return null;
+      const body = (await res.json().catch(() => null)) as { retry_after?: number } | null;
+      const retryAfterMs = Math.ceil((body?.retry_after ?? 1) * 1000);
+      await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+      return getDiscordUsername(discordId, retriesLeft - 1);
+    }
+    if (!res.ok) return null;
     const user = (await res.json()) as { username?: string };
     return user.username ?? null;
   } catch {
