@@ -13,6 +13,24 @@ async function discordRequest(path: string, init: RequestInit) {
   });
 }
 
+// Current username (the handle, not the display name) for an arbitrary
+// Discord user id — works for any user Discord still has a record of,
+// regardless of shared-server membership, since GET /users/{id} is a global
+// bot endpoint. Used by scripts/backfill-discord-usernames.ts to refresh
+// stored discordUsername values without waiting for each player to sign in
+// again. Returns null on any failure (deleted Discord account, invalid id,
+// network error) — the caller decides what to do with a miss.
+export async function getDiscordUsername(discordId: string): Promise<string | null> {
+  try {
+    const res = await discordRequest(`/users/${discordId}`, { method: "GET" });
+    if (!res?.ok) return null;
+    const user = (await res.json()) as { username?: string };
+    return user.username ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Sends to many recipients one at a time instead of firing them all at once —
 // a burst of identical, unsolicited DMs (e.g. announcing a tournament to every
 // entrant) is exactly the pattern Discord's abuse detection flags, and it can
