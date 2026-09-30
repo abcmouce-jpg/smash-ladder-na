@@ -18,7 +18,7 @@ import {
   PRE_SEASON_DURATION_MONTHS,
   PRE_SEASON_EXPECTED_END_AT,
 } from "@/lib/seasons";
-import { SEASON_PRIZE_POOL_USD, PRIZE_SPLIT_PERCENT, approxMxn, prizeForPlace } from "@/lib/prizes";
+import { SEASON_PRIZE_POOL_USD, PRIZE_AMOUNTS_USD, approxMxn, prizeForPlace } from "@/lib/prizes";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { CharacterFilterSelect } from "@/components/character-filter-select";
 import { InfoPopup } from "@/components/info-popup";
@@ -145,7 +145,7 @@ export default async function LeaderboardPage({
                     Bolsa de premios de ${SEASON_PRIZE_POOL_USD} USD (≈ $
                     {approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN)
                   </span>{" "}
-                  — repartida entre los 5 primeros cuando termine {season.name}.
+                  — repartida entre los 3 primeros cuando termine {season.name}.
                   {season.name === "Preseason" && (
                     <>
                       {" "}
@@ -161,7 +161,7 @@ export default async function LeaderboardPage({
               ) : (
                 <>
                   🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> — split among
-                  the top 5 finishers when {season.name} ends.
+                  the top 3 finishers when {season.name} ends.
                   {season.name === "Preseason" && (
                     <>
                       {" "}
@@ -184,8 +184,8 @@ export default async function LeaderboardPage({
               <p className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
                 {lang === "es" ? "Distribución del premio" : "Prize split"}
               </p>
-              <div className="mt-2 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5">
-                {PRIZE_SPLIT_PERCENT.map((_, i) => {
+              <div className="mt-2 grid grid-cols-3 gap-x-4 gap-y-3">
+                {PRIZE_AMOUNTS_USD.map((_, i) => {
                   const place = i + 1;
                   const usd = prizeForPlace(place) ?? 0;
                   const rankLabel =

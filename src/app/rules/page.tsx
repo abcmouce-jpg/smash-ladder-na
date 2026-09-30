@@ -1,5 +1,5 @@
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import { SEASON_PRIZE_POOL_USD, PRIZE_SPLIT_PERCENT, approxMxn } from "@/lib/prizes";
+import { SEASON_PRIZE_POOL_USD, PRIZE_AMOUNTS_USD, approxMxn } from "@/lib/prizes";
 import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { getLang } from "@/lib/i18n";
 
@@ -31,10 +31,9 @@ export default async function RulesPage() {
 
         <Section title="Season prize pool">
           <p>
-            The top 5 finishers on the leaderboard when the season ends split a ${SEASON_PRIZE_POOL_USD} USD prize pool:
-            1st gets {PRIZE_SPLIT_PERCENT[0]}%, 2nd {PRIZE_SPLIT_PERCENT[1]}%, 3rd {PRIZE_SPLIT_PERCENT[2]}%, 4th{" "}
-            {PRIZE_SPLIT_PERCENT[3]}%, and 5th {PRIZE_SPLIT_PERCENT[4]}%. You need {LEADERBOARD_MIN_GAMES}+ sets played
-            to appear on the leaderboard at all.
+            The top 3 finishers on the leaderboard when the season ends split a ${SEASON_PRIZE_POOL_USD} USD prize pool:
+            1st gets ${PRIZE_AMOUNTS_USD[0]}, 2nd ${PRIZE_AMOUNTS_USD[1]}, and 3rd ${PRIZE_AMOUNTS_USD[2]}. You need{" "}
+            {LEADERBOARD_MIN_GAMES}+ sets played to appear on the leaderboard at all.
           </p>
           <p>
             The current preseason is a fixed {PRE_SEASON_DURATION_MONTHS}-month trial run, expected to end around{" "}
@@ -251,12 +250,11 @@ function RulesPageEs() {
 
         <Section title="Bolsa de premios de temporada">
           <p>
-            Los 5 primeros en la tabla de posiciones cuando termina la temporada se reparten una bolsa de $
+            Los 3 primeros en la tabla de posiciones cuando termina la temporada se reparten una bolsa de $
             {SEASON_PRIZE_POOL_USD} USD (≈ ${approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN, solo de
-            referencia — el pago siempre se hace en USD por PayPal): 1° recibe {PRIZE_SPLIT_PERCENT[0]}%, 2°{" "}
-            {PRIZE_SPLIT_PERCENT[1]}%, 3° {PRIZE_SPLIT_PERCENT[2]}%, 4° {PRIZE_SPLIT_PERCENT[3]}%, y 5°{" "}
-            {PRIZE_SPLIT_PERCENT[4]}%. Necesitas {LEADERBOARD_MIN_GAMES}+ partidas jugadas para aparecer en la tabla de
-            posiciones.
+            referencia — el pago siempre se hace en USD por PayPal): 1° recibe ${PRIZE_AMOUNTS_USD[0]}, 2°{" "}
+            ${PRIZE_AMOUNTS_USD[1]}, y 3° ${PRIZE_AMOUNTS_USD[2]}. Necesitas {LEADERBOARD_MIN_GAMES}+ partidas jugadas
+            para aparecer en la tabla de posiciones.
           </p>
           <p>
             La preseason actual es una prueba fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor del{" "}
