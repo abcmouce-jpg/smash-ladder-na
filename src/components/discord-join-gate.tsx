@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,11 +33,18 @@ export async function DiscordJoinGate() {
               <ExternalLink className="size-4" />
             </Button>
           </a>
-          <Link href="/" className="w-full">
+          {/* Plain <a>, not next/link — a client-side Link navigation can
+              reuse a cached RSC payload from before the user joined (or
+              from before this session's needsDiscordJoin flag cleared
+              server-side), reproducing the exact "I joined, it still says
+              I haven't" reports from this incident. A full navigation
+              always re-renders the layout fresh from the current session. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- intentional: see comment above */}
+          <a href="/" className="w-full">
             <Button type="button" variant="outline" className="w-full">
               {lang === "es" ? "Ya me uní — comprobar de nuevo" : "I've joined — check again"}
             </Button>
-          </Link>
+          </a>
           <form
             action={async () => {
               "use server";
