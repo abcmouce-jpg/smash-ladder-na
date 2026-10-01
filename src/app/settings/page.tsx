@@ -13,6 +13,8 @@ import { SectionTabs } from "@/components/section-tabs";
 import { SettingsSaveForm } from "@/components/settings-save-form";
 import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
+import { getOrCreateSupporterCode, isEffectiveSupporter } from "@/lib/supporters";
+import { KOFI_URL } from "@/lib/links";
 import { listBlockedUsers } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
@@ -68,7 +70,7 @@ export default async function SettingsPage({
     );
   }
 
-  const [me, blocked, referralCount, apiTokens] = await Promise.all([
+  const [me, blocked, referralCount, apiTokens, supporterCode] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -88,12 +90,15 @@ export default async function SettingsPage({
         matchFoundSound: true,
         notifyQueueOpportunities: true,
         quickMessages: true,
+        isSupporter: true,
+        supporterExpiresAt: true,
         _count: { select: { pushSubscriptions: true } },
       },
     }),
     listBlockedUsers(session.user.id),
     getReferralCount(session.user.id),
     listApiTokens(session.user.id),
+    getOrCreateSupporterCode(session.user.id),
   ]);
 
   const tab: SettingsTab = VALID_TABS.includes((tabParam ?? "") as SettingsTab) ? (tabParam as SettingsTab) : "user";
@@ -119,6 +124,12 @@ export default async function SettingsPage({
           hideDiscordUsername={me?.hideDiscordUsername ?? false}
           blocked={blocked}
           referralCount={referralCount}
+          supporterCode={supporterCode}
+          isSupporter={isEffectiveSupporter({
+            isSupporter: me?.isSupporter ?? false,
+            supporterExpiresAt: me?.supporterExpiresAt ?? null,
+          })}
+          supporterExpiresAt={me?.supporterExpiresAt?.toISOString() ?? null}
           lang={lang}
         />
       )}
@@ -175,6 +186,9 @@ function UserTab({
   hideDiscordUsername,
   blocked,
   referralCount,
+  supporterCode,
+  isSupporter,
+  supporterExpiresAt,
   lang,
 }: {
   userId: string;
@@ -183,6 +197,9 @@ function UserTab({
   hideDiscordUsername: boolean;
   blocked: Awaited<ReturnType<typeof listBlockedUsers>>;
   referralCount: number;
+  supporterCode: string;
+  isSupporter: boolean;
+  supporterExpiresAt: string | null;
   lang: Lang;
 }) {
   return (
@@ -243,6 +260,17 @@ function UserTab({
       <Card>
         <CardContent className="pt-4">
           <InviteLinkCard userId={userId} referralCount={referralCount} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <SupporterCard
+            supporterCode={supporterCode}
+            isSupporter={isSupporter}
+            supporterExpiresAt={supporterExpiresAt}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 
@@ -518,6 +546,57 @@ function InviteLinkCard({ userId, referralCount, lang }: { userId: string; refer
           ? `${referralCount} ${referralCount === 1 ? "persona invitada ha" : "personas invitadas han"} empezado a jugar.`
           : `${referralCount} ${referralCount === 1 ? "person you invited has" : "people you invited have"} started playing.`}
       </p>
+    </div>
+  );
+}
+
+function SupporterCard({
+  supporterCode,
+  isSupporter,
+  supporterExpiresAt,
+  lang,
+}: {
+  supporterCode: string;
+  isSupporter: boolean;
+  supporterExpiresAt: string | null;
+  lang: Lang;
+}) {
+  const expiresLabel = supporterExpiresAt
+    ? new Date(supporterExpiresAt).toLocaleDateString(lang === "es" ? "es-MX" : "en-US", { dateStyle: "long" })
+    : null;
+
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <p className="font-medium">{lang === "es" ? "Colaborador" : "Supporter"}</p>
+      <p className="text-xs text-muted-foreground">
+        {lang === "es"
+          ? "Dona en Ko-fi y pega este código en el mensaje de la donación para quitar los anuncios y obtener la insignia de colaborador en tu perfil."
+          : "Donate on Ko-fi and paste this code into the donation message to remove ads and get the supporter badge on your profile."}
+      </p>
+      <div className="mt-3 flex items-center gap-2">
+        <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
+          {supporterCode}
+        </code>
+        <CopyButton text={supporterCode} />
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {isSupporter && expiresLabel
+          ? lang === "es"
+            ? `Activo hasta el ${expiresLabel} (se extiende con cada pago de Ko-fi).`
+            : `Active until ${expiresLabel} (extends with each Ko-fi payment).`
+          : isSupporter
+            ? lang === "es"
+              ? "Activo — otorgado por el staff."
+              : "Active — granted by staff."
+            : lang === "es"
+              ? "Aún no está activo. Puede tardar unos minutos después de donar."
+              : "Not active yet. May take a few minutes after donating to show up."}
+      </p>
+      <a href={KOFI_URL} target="_blank" rel="noreferrer" className="mt-2">
+        <Button type="button" variant="outline" size="sm">
+          {lang === "es" ? "Ir a Ko-fi" : "Go to Ko-fi"}
+        </Button>
+      </a>
     </div>
   );
 }

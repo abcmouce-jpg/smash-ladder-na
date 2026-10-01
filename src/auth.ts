@@ -15,6 +15,7 @@ import { extractClientIp, isIpBanned } from "@/lib/ip-bans";
 import { resolveReferrerId } from "@/lib/referrals";
 import { defaultRegionFromGeoHeaders } from "@/lib/geo-region";
 import { checkGuildMembership } from "@/lib/discord-bot";
+import { isEffectiveSupporter } from "@/lib/supporters";
 import { COMMUNITY_GUILD_ID } from "@/lib/links";
 
 declare module "next-auth" {
@@ -258,10 +259,10 @@ const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
         // toggling it off should hide ads again immediately, not on next login.
         const dbUser = await prisma.user.findUnique({
           where: { id: token.userId },
-          select: { role: true, username: true, isSupporter: true },
+          select: { role: true, username: true, isSupporter: true, supporterExpiresAt: true },
         });
         session.user.role = dbUser?.role ?? "USER";
-        session.user.isSupporter = dbUser?.isSupporter ?? false;
+        session.user.isSupporter = dbUser ? isEffectiveSupporter(dbUser) : false;
         session.user.needsDiscordJoin = Boolean(token.needsDiscordJoin);
         if (dbUser?.username) session.user.name = dbUser.username;
       }

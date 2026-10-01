@@ -52,8 +52,8 @@ export default async function SupportersPage() {
             <CardTitle className="text-base">{lang === "es" ? "Apóyanos en Ko-fi" : "Support us on Ko-fi"}</CardTitle>
             <CardDescription>
               {lang === "es"
-                ? "Totalmente opcional — no hay ninguna ventaja dentro del sitio atada a esto hoy."
-                : "Entirely optional — no in-site perks are tied to it today."}
+                ? "Pega tu código de colaborador (en Ajustes) en el mensaje de la donación para quitar los anuncios y obtener la insignia de colaborador."
+                : "Paste your supporter code (in Settings) into the donation message to remove ads and get the supporter badge."}
             </CardDescription>
           </CardHeader>
         </Card>

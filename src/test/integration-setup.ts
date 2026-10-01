@@ -18,6 +18,7 @@ beforeEach(async () => {
   await prisma.tournament.deleteMany();
   await prisma.freeBattlePost.deleteMany();
   await prisma.block.deleteMany();
+  await prisma.kofiDonation.deleteMany();
   await prisma.user.deleteMany();
 });
 

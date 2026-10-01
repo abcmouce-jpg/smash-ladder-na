@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { liftExpiredSuspension, isDeletedAccountUsername } from "@/lib/account";
+import { isEffectiveSupporter } from "@/lib/supporters";
 import { getActiveSeason } from "@/lib/seasons";
 import { formatRating } from "@/lib/rating-format";
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
@@ -85,6 +86,7 @@ export async function getPlayerProfile(userId: string, viewerIsModerator = false
       avatarUrl: true,
       role: true,
       isSupporter: true,
+      supporterExpiresAt: true,
       rating: true,
       gamesPlayed: true,
       practiceRating: true,
@@ -126,7 +128,7 @@ export async function getPlayerProfile(userId: string, viewerIsModerator = false
   // never happens if they only play ranked. Lift it here too so the status
   // mods see is always current.
   const status = await liftExpiredSuspension(userId, player);
-  return { ...player, discordUsername, status };
+  return { ...player, discordUsername, status, isSupporter: isEffectiveSupporter(player) };
 }
 
 // Lightweight existence check for the profile page's "currently playing"
