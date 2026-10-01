@@ -48,6 +48,14 @@ declare module "next-auth/jwt" {
 // endpoint's 5/sec bucket.
 const GUILD_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
+// Kill switch for the Discord-membership gate below — this was meant to stay
+// off in production until staff announce it in Discord (see the commit that
+// introduced it), but shipped without one and immediately locked out the
+// 39% of engaged accounts not in the server. Unset/"false" = gate disabled
+// (fails open, nobody is blocked). Set ENFORCE_DISCORD_MEMBERSHIP=true once
+// staff have actually announced it.
+const ENFORCE_DISCORD_MEMBERSHIP = process.env.ENFORCE_DISCORD_MEMBERSHIP === "true";
+
 const devCredentials = Credentials({
   credentials: { username: { label: "Username" } },
   async authorize(credentials) {
@@ -95,8 +103,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // this gate exists to require joining, not to take the site down
       // every time Discord has a bad minute. A confirmed non-member is
       // bounced to a page explaining why, with the invite link.
-      const isMember = await checkGuildMembership(COMMUNITY_GUILD_ID, discordProfile.id);
-      if (isMember === false) return "/join-discord";
+      if (ENFORCE_DISCORD_MEMBERSHIP) {
+        const isMember = await checkGuildMembership(COMMUNITY_GUILD_ID, discordProfile.id);
+        if (isMember === false) return "/join-discord";
+      }
 
       const existing = await prisma.user.findUnique({
         where: { discordId: discordProfile.id },
@@ -189,7 +199,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // token, so the cached check lives here, not in the session callback
       // below (mutating `token` there never persists). Runs on every
       // authenticated request, hence the interval gate.
-      if (token.userId && Date.now() - (token.discordVerifiedAt ?? 0) > GUILD_CHECK_INTERVAL_MS) {
+      if (!ENFORCE_DISCORD_MEMBERSHIP) {
+        // Clears a `needsDiscordJoin: true` already baked into an existing
+        // session's token from while the gate was live, so anyone it
+        // already locked out unblocks on their very next request instead
+        // of staying stuck until the token naturally expires.
+        token.needsDiscordJoin = false;
+      } else if (
+        token.userId &&
+        Date.now() - (token.discordVerifiedAt ?? 0) > GUILD_CHECK_INTERVAL_MS
+      ) {
         const account = await prisma.user.findUnique({
           where: { id: token.userId },
           select: { discordId: true },
