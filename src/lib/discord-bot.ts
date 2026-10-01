@@ -44,6 +44,36 @@ export async function getDiscordUsername(discordId: string, retriesLeft = 3): Pr
   }
 }
 
+// Tri-state on purpose: true/false is a real answer (member or not), null
+// means the check itself failed (network error, this endpoint's own strict
+// 5/sec rate-limit bucket exhausted past the retry budget, bot not in the
+// guild, etc.) — auth.ts's jwt callback deliberately fails OPEN on null
+// rather than locking someone out because Discord hiccuped, same reasoning
+// as getDiscordUsername's 429 handling above. Only a clean 404 means "not a
+// member"; anything else uncertain is not treated as a no.
+export async function checkGuildMembership(
+  guildId: string,
+  discordId: string,
+  retriesLeft = 2,
+): Promise<boolean | null> {
+  try {
+    const res = await discordRequest(`/guilds/${guildId}/members/${discordId}`, { method: "GET" });
+    if (!res) return null;
+    if (res.status === 404) return false;
+    if (res.status === 429) {
+      if (retriesLeft <= 0) return null;
+      const body = (await res.json().catch(() => null)) as { retry_after?: number } | null;
+      const retryAfterMs = Math.ceil((body?.retry_after ?? 1) * 1000);
+      await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+      return checkGuildMembership(guildId, discordId, retriesLeft - 1);
+    }
+    if (!res.ok) return null;
+    return true;
+  } catch {
+    return null;
+  }
+}
+
 // Sends to many recipients one at a time instead of firing them all at once —
 // a burst of identical, unsolicited DMs (e.g. announcing a tournament to every
 // entrant) is exactly the pattern Discord's abuse detection flags, and it can

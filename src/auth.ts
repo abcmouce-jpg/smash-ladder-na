@@ -13,6 +13,8 @@ import type { UserRole } from "@/generated/prisma/enums";
 import { extractClientIp, isIpBanned } from "@/lib/ip-bans";
 import { resolveReferrerId } from "@/lib/referrals";
 import { defaultRegionFromGeoHeaders } from "@/lib/geo-region";
+import { checkGuildMembership } from "@/lib/discord-bot";
+import { COMMUNITY_GUILD_ID } from "@/lib/links";
 
 declare module "next-auth" {
   interface Session {
@@ -20,6 +22,7 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       isSupporter: boolean;
+      needsDiscordJoin: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -28,8 +31,22 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId?: string;
     role?: UserRole;
+    // Epoch ms of the last confirmed-member guild check — re-checked at most
+    // every GUILD_CHECK_INTERVAL_MS (see the jwt callback) since the lookup
+    // endpoint's own rate limit is a strict 5/sec, nowhere near enough to
+    // check on every request across real traffic. Left unset/stale on a
+    // non-member so every subsequent request re-checks instead of waiting
+    // out the interval — the point is to unblock them the moment they join.
+    discordVerifiedAt?: number;
+    needsDiscordJoin?: boolean;
   }
 }
+
+// How often an already-verified member gets re-checked. Short enough that
+// someone who leaves the server loses site access the same day, long
+// enough that normal browsing doesn't come anywhere near the lookup
+// endpoint's 5/sec bucket.
+const GUILD_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 const devCredentials = Credentials({
   credentials: { username: { label: "Username" } },
@@ -70,6 +87,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const discordProfile = profile as DiscordProfile | undefined;
       if (!discordProfile?.id) return false;
+
+      // Membership in our own Discord server is required to use the site at
+      // all — staff otherwise have no way to reach someone who runs into a
+      // dispute or a bug and never joined. Fails OPEN on a check that
+      // couldn't be completed (Discord API hiccup, rate limit exhausted):
+      // this gate exists to require joining, not to take the site down
+      // every time Discord has a bad minute. A confirmed non-member is
+      // bounced to a page explaining why, with the invite link.
+      const isMember = await checkGuildMembership(COMMUNITY_GUILD_ID, discordProfile.id);
+      if (isMember === false) return "/join-discord";
 
       const existing = await prisma.user.findUnique({
         where: { discordId: discordProfile.id },
@@ -144,19 +171,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (dbUser) {
           token.userId = dbUser.id;
           token.role = dbUser.role;
-          return token;
+        }
+      } else {
+        const discordProfile = profile as DiscordProfile | undefined;
+        if (discordProfile?.id) {
+          const dbUser = await prisma.user.findUnique({
+            where: { discordId: discordProfile.id },
+          });
+          if (dbUser) {
+            token.userId = dbUser.id;
+            token.role = dbUser.role;
+          }
         }
       }
-      const discordProfile = profile as DiscordProfile | undefined;
-      if (discordProfile?.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { discordId: discordProfile.id },
+
+      // Only this callback's return value is re-signed into the stored
+      // token, so the cached check lives here, not in the session callback
+      // below (mutating `token` there never persists). Runs on every
+      // authenticated request, hence the interval gate.
+      if (token.userId && Date.now() - (token.discordVerifiedAt ?? 0) > GUILD_CHECK_INTERVAL_MS) {
+        const account = await prisma.user.findUnique({
+          where: { id: token.userId },
+          select: { discordId: true },
         });
-        if (dbUser) {
-          token.userId = dbUser.id;
-          token.role = dbUser.role;
+        // Dev-credentials accounts (discordId starting "dev-") have no real
+        // Discord identity to check against.
+        if (account && !account.discordId.startsWith("dev-")) {
+          const isMember = await checkGuildMembership(COMMUNITY_GUILD_ID, account.discordId);
+          if (isMember === true) {
+            token.discordVerifiedAt = Date.now();
+            token.needsDiscordJoin = false;
+          } else if (isMember === false) {
+            token.needsDiscordJoin = true;
+          }
+          // null (couldn't verify) — leave both fields as they were and
+          // retry next request, same fail-open reasoning as the sign-in gate.
         }
       }
+
       return token;
     },
     async session({ session, token }) {
@@ -179,6 +231,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         session.user.role = dbUser?.role ?? "USER";
         session.user.isSupporter = dbUser?.isSupporter ?? false;
+        session.user.needsDiscordJoin = Boolean(token.needsDiscordJoin);
         if (dbUser?.username) session.user.name = dbUser.username;
       }
       return session;

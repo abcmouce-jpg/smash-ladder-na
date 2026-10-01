@@ -9,6 +9,7 @@ import { RegionSetupBanner } from "@/components/region-setup-banner";
 import { QueueStatusBanner } from "@/components/queue-status-banner";
 import { PreSeasonBanner } from "@/components/pre-season-banner";
 import { SeasonEndingBanner } from "@/components/season-ending-banner";
+import { DiscordJoinGate } from "@/components/discord-join-gate";
 import { ThemeSync } from "@/components/theme-sync";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import { Toaster } from "@/components/ui/sonner";
@@ -79,6 +80,14 @@ export default async function RootLayout({
   const AD_SCRIPT_DISABLED_PATHS = ["/lobby", "/settings", "/tournaments", "/notes", "/friendlies"];
   const isAdThinPage = AD_SCRIPT_DISABLED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const showAds = !isStreamOverlay && !isAdThinPage && !session?.user?.isSupporter;
+  // A session predating the Discord-membership requirement (or someone who's
+  // since left the server) gets the exact same block as a brand-new sign-in
+  // attempt would via auth.ts's signIn callback — just render it in place of
+  // the page instead of redirecting, since they're already signed in and
+  // redirect loops aren't worth the trouble. /join-discord itself is exempt
+  // so its own "try again" action has somewhere to land.
+  const blockedForDiscord =
+    !isStreamOverlay && pathname !== "/join-discord" && Boolean(session?.user?.needsDiscordJoin);
 
   return (
     <html
@@ -121,7 +130,7 @@ export default async function RootLayout({
         {!isStreamOverlay && <SeasonEndingBanner />}
         {!isStreamOverlay && <RegionSetupBanner />}
         {!isStreamOverlay && <QueueStatusBanner />}
-        {children}
+        {blockedForDiscord ? <DiscordJoinGate /> : children}
         {!isStreamOverlay && <SiteFooter />}
         {!isStreamOverlay && <Analytics />}
         {!isStreamOverlay && <Toaster />}
