@@ -102,12 +102,14 @@ export async function SiteHeader() {
                   <ChevronDown className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem asChild>
-                    <Link href={`/players/${user.id}`} prefetch={false}>
-                      <UserRound className="size-3.5" />
-                      {lang === "es" ? "Ver perfil" : "View profile"}
-                    </Link>
-                  </DropdownMenuItem>
+                  {user.id && (
+                    <DropdownMenuItem asChild>
+                      <Link href={`/players/${user.id}`} prefetch={false}>
+                        <UserRound className="size-3.5" />
+                        {lang === "es" ? "Ver perfil" : "View profile"}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/settings" prefetch={false}>
                       <Settings className="size-3.5" />

@@ -31,13 +31,15 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId?: string;
     role?: UserRole;
-    // Epoch ms of the last confirmed-member guild check — re-checked at most
-    // every GUILD_CHECK_INTERVAL_MS (see the jwt callback) since the lookup
-    // endpoint's own rate limit is a strict 5/sec, nowhere near enough to
-    // check on every request across real traffic. Left unset/stale on a
-    // non-member so every subsequent request re-checks instead of waiting
-    // out the interval — the point is to unblock them the moment they join.
-    discordVerifiedAt?: number;
+    // Epoch ms of the last guild-membership check attempt, success or not —
+    // re-checked at most every MEMBER_RECHECK_MS once confirmed a member, or
+    // NONMEMBER_RECHECK_MS while still locked out (see the jwt callback).
+    // The lookup endpoint's own rate limit is a strict 5/sec: an earlier cut
+    // of this re-checked a non-member on literally every request (to unblock
+    // them the instant they joined), which under real concurrent traffic
+    // exhausted that 5/sec budget and made signIn() itself flaky for
+    // everyone (surfaced as /api/auth/error, 2026-09-30 incident).
+    discordLastCheckedAt?: number;
     needsDiscordJoin?: boolean;
   }
 }
@@ -46,7 +48,13 @@ declare module "next-auth/jwt" {
 // someone who leaves the server loses site access the same day, long
 // enough that normal browsing doesn't come anywhere near the lookup
 // endpoint's 5/sec bucket.
-const GUILD_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const MEMBER_RECHECK_MS = 6 * 60 * 60 * 1000;
+
+// How often a currently-locked-out (or never-checked) session gets
+// re-checked. Short enough to feel instant once someone actually joins,
+// long enough that a page poller or a burst of concurrently-blocked users
+// doesn't light up the 5/sec bucket the way "every request" did.
+const NONMEMBER_RECHECK_MS = 60 * 1000;
 
 // Kill switch for the Discord-membership gate below — this was meant to stay
 // off in production until staff announce it in Discord (see the commit that
@@ -207,7 +215,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.needsDiscordJoin = false;
       } else if (
         token.userId &&
-        Date.now() - (token.discordVerifiedAt ?? 0) > GUILD_CHECK_INTERVAL_MS
+        Date.now() - (token.discordLastCheckedAt ?? 0) >
+          (token.needsDiscordJoin ? NONMEMBER_RECHECK_MS : MEMBER_RECHECK_MS)
       ) {
         const account = await prisma.user.findUnique({
           where: { id: token.userId },
@@ -216,15 +225,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Dev-credentials accounts (discordId starting "dev-") have no real
         // Discord identity to check against.
         if (account && !account.discordId.startsWith("dev-")) {
+          token.discordLastCheckedAt = Date.now();
           const isMember = await checkGuildMembership(COMMUNITY_GUILD_ID, account.discordId);
           if (isMember === true) {
-            token.discordVerifiedAt = Date.now();
             token.needsDiscordJoin = false;
           } else if (isMember === false) {
             token.needsDiscordJoin = true;
           }
-          // null (couldn't verify) — leave both fields as they were and
-          // retry next request, same fail-open reasoning as the sign-in gate.
+          // null (couldn't verify) — leave needsDiscordJoin as it was, same
+          // fail-open reasoning as the sign-in gate. discordLastCheckedAt is
+          // still bumped above so a string of API hiccups doesn't retry
+          // every single request either.
         }
       }
 
