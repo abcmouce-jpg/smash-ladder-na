@@ -785,7 +785,7 @@ async function PairedView({
   // button always means "surrender" from that point on, no need to spend a
   // query re-checking opponent engagement.
   const gameDecided = games.some((g) => g.winnerId !== null || g.reportedById !== null);
-  const opponentEngaged = gameDecided ? true : await hasOpponentEngaged(match.id, opponent.id, match.roomCodeSetById);
+  const opponentEngaged = gameDecided ? true : await hasOpponentEngaged(match.id, opponent.id);
 
   const chat = (
     <CommentsSection

@@ -211,7 +211,9 @@ model User {
   twitchProfileImageUrl      String? // Twitch profile image URL
   twitchConnectedAt          DateTime?
   role                       UserRole        @default(USER)
-  isSupporter                Boolean         @default(false) // manually flagged by an admin (see admin/players) — hides AdSense ads for this account. No payment processing wired up yet; this is a bare flag.
+  isSupporter                Boolean         @default(false) // true while supporter perks (ad-free, profile badge) are active — set by an admin (see admin/players, no expiry) or by a qualifying Ko-fi payment (see supporterExpiresAt, and the webhook at api/webhooks/kofi). Read isEffectiveSupporter's result, not this raw column, anywhere perks are gated.
+  supporterCode              String?         @unique // self-generated on first visit to the Settings supporter section (see getOrCreateSupporterCode) — the player pastes this into Ko-fi's donation message so the webhook can match the payment back to an account. Never regenerated once set, so an old Ko-fi receipt's message stays valid.
+  supporterExpiresAt         DateTime?       // set only by the Ko-fi webhook, to (payment time + KOFI_SUPPORTER_GRACE_DAYS); null for an admin-granted (permanent) supporter or someone who's never paid. Ko-fi has no subscription-cancelled webhook, so lapsing is inferred from this rather than pushed.
   status                     UserStatus      @default(ACTIVE)
   referredById               String? // set once, at account creation only (see auth.ts's signIn callback) — who this player's ?ref= link/cookie pointed at when they first signed up. Never touched again afterward.
   referredBy                 User?           @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
@@ -244,6 +246,7 @@ model User {
   characterGuideFlags         CharacterGuideFlag[]
   characterGuideSubscriptions CharacterGuideSubscription[]
   apiTokens                   ApiToken[]
+  kofiDonationsMatched        KofiDonation[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -741,6 +744,12 @@ model KofiDonation {
   isPublic          Boolean // Ko-fi lets the donor opt out of appearing on public supporter pages
   isSubscription    Boolean  @default(false)
   createdAt         DateTime @default(now())
+  // Set when `message` contained a live supporterCode at payment time — null
+  // means either no code was included, or it didn't match any account. Not
+  // required for the public /supporters wall, just for admin auditing of
+  // which donations actually granted perks.
+  matchedUserId     String?
+  matchedUser       User?    @relation(fields: [matchedUserId], references: [id], onDelete: SetNull)
 
   @@index([isPublic, createdAt])
 }

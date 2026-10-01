@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { requireActiveUser, setWiredConnection, setQuickMessages, setNotificationsDisabled } from "@/lib/account";
+import {
+  requireActiveUser,
+  setWiredConnection,
+  setQuickMessages,
+  setNotificationsDisabled,
+  deleteMyAccount,
+  DELETED_USERNAME,
+} from "@/lib/account";
 import { UserStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
@@ -116,5 +123,62 @@ describe("setQuickMessages", () => {
     await setQuickMessages(user.id, ["a", "b", "c", "d", "e"]);
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(updated.quickMessages).toEqual(["a", "b", "c", "d"]);
+  });
+});
+
+describe("deleteMyAccount", () => {
+  it("scrubs the account's identifying fields", async () => {
+    const user = await createTestUser({
+      username: "RealName",
+      avatarUrl: "https://cdn.discordapp.com/avatars/x/y.png",
+      email: "real@example.com",
+      mainCharacter: "Fox",
+      region: "New York",
+      wiredConnection: true,
+    });
+
+    await deleteMyAccount(user.id);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.username).toBe(DELETED_USERNAME);
+    expect(updated.avatarUrl).toBeNull();
+    expect(updated.email).toBeNull();
+    expect(updated.hideDiscordUsername).toBe(true);
+    expect(updated.mainCharacter).toBeNull();
+    expect(updated.region).toBeNull();
+    expect(updated.wiredConnection).toBe(false);
+  });
+
+  // The one behavior change this needs to guard: deleteMyAccount used to
+  // scramble discordId so a future sign-in forked a brand-new row instead of
+  // resuming this one — which meant deleting mid-set and signing back in was
+  // a free way to erase a bad result and restart at 1500. Leaving discordId
+  // untouched means auth.ts's signIn callback (matched on discordId) finds
+  // and resumes this exact row instead.
+  it("leaves discordId untouched, so a future sign-in resumes this same row", async () => {
+    const user = await createTestUser({ discordId: "123456789" });
+    await deleteMyAccount(user.id);
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.discordId).toBe("123456789");
+  });
+
+  it("keeps rating and games played intact — deletion isn't a free reset", async () => {
+    const user = await createTestUser({ rating: 1850, gamesPlayed: 42 });
+    await deleteMyAccount(user.id);
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.rating).toBe(1850);
+    expect(updated.gamesPlayed).toBe(42);
+  });
+
+  it("removes push subscriptions so the anonymized account stops receiving notifications", async () => {
+    const user = await createTestUser();
+    await prisma.pushSubscription.create({
+      data: { userId: user.id, endpoint: "https://push.example/1", p256dh: "key", auth: "auth" },
+    });
+
+    await deleteMyAccount(user.id);
+
+    const remaining = await prisma.pushSubscription.count({ where: { userId: user.id } });
+    expect(remaining).toBe(0);
   });
 });

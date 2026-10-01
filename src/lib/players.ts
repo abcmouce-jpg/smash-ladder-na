@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { liftExpiredSuspension, isDeletedAccountUsername } from "@/lib/account";
+import { isEffectiveSupporter } from "@/lib/supporters";
 import { getActiveSeason } from "@/lib/seasons";
 import { formatRating } from "@/lib/rating-format";
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
@@ -74,7 +75,7 @@ export async function getHiddenRatingMatchIds(userId: string): Promise<{ changeI
   return { changeIds, valueIds };
 }
 
-export async function getPlayerProfile(userId: string) {
+export async function getPlayerProfile(userId: string, viewerIsModerator = false) {
   const player = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -85,6 +86,7 @@ export async function getPlayerProfile(userId: string) {
       avatarUrl: true,
       role: true,
       isSupporter: true,
+      supporterExpiresAt: true,
       rating: true,
       gamesPlayed: true,
       practiceRating: true,
@@ -114,8 +116,11 @@ export async function getPlayerProfile(userId: string) {
   // reference (see deleteMyAccount), but must never show it publicly. Newer
   // deletions set hideDiscordUsername, but rows deleted before that column
   // existed — and Discord-side deletions, which can't set it — don't, so
-  // blank it here rather than trusting the stored flag.
-  const discordUsername = isDeletedAccountUsername(player.username) ? null : player.discordUsername;
+  // blank it here rather than trusting the stored flag. A mod/admin viewer
+  // still gets it: repeat rule-breakers deleting and recreating accounts to
+  // dodge a ban is exactly the pattern this needs to stay visible for.
+  const discordUsername =
+    isDeletedAccountUsername(player.username) && !viewerIsModerator ? null : player.discordUsername;
 
   // Without this, a suspension that's already expired keeps showing as
   // "suspended" on the profile (and to the mod tools below it) until the
@@ -123,7 +128,7 @@ export async function getPlayerProfile(userId: string) {
   // never happens if they only play ranked. Lift it here too so the status
   // mods see is always current.
   const status = await liftExpiredSuspension(userId, player);
-  return { ...player, discordUsername, status };
+  return { ...player, discordUsername, status, isSupporter: isEffectiveSupporter(player) };
 }
 
 // Lightweight existence check for the profile page's "currently playing"

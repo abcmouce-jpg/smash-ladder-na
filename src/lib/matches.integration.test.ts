@@ -814,7 +814,45 @@ describe("cancelMatch", () => {
     await expect(cancelMatch(p1.id, match.id)).rejects.toThrow(/no longer free/i);
   });
 
-  it("blocks the free cancel once the opponent has set the room code", async () => {
+  // Real incident: an opponent set the room code, then vanished without ever
+  // locking a character, striking a stage, or saying anything — the other
+  // player tried to back out expecting a free cancel and instead got told it
+  // now counted as a surrender. Typing in a code takes seconds and proves
+  // nothing about sticking around, unlike the other three signals, so it no
+  // longer counts as engagement on its own (see hasOpponentEngaged).
+  it("still allows a free cancel when the opponent has only set the room code", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.PENDING_REPORT,
+        createdAt: PAST_GRACE_PERIOD,
+        expiresAt: new Date(),
+        roomCode: "ABC123",
+        roomCodeSetById: p2.id,
+      },
+    });
+
+    await expect(cancelMatch(p1.id, match.id)).resolves.toBeUndefined();
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.CANCELLED);
+  });
+});
+
+describe("hasOpponentEngaged", () => {
+  it("returns false for a match with no game, comments, or room code", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    expect(await hasOpponentEngaged(match.id, p2.id)).toBe(false);
+  });
+
+  it("returns false when the opponent has only set the room code", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await prisma.ratingMatch.create({
@@ -828,19 +866,7 @@ describe("cancelMatch", () => {
       },
     });
 
-    await expect(cancelMatch(p1.id, match.id)).rejects.toThrow(/no longer free/i);
-  });
-});
-
-describe("hasOpponentEngaged", () => {
-  it("returns false for a match with no game, comments, or room code", async () => {
-    const p1 = await createTestUser();
-    const p2 = await createTestUser();
-    const match = await prisma.ratingMatch.create({
-      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
-    });
-
-    expect(await hasOpponentEngaged(match.id, p2.id, null)).toBe(false);
+    expect(await hasOpponentEngaged(match.id, p2.id)).toBe(false);
   });
 });
 

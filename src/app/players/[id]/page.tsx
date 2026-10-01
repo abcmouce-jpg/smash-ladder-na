@@ -39,7 +39,7 @@ export default async function PlayerProfilePage({
   const tab: ProfileTab =
     VALID_TABS.includes((tabParam ?? "") as ProfileTab) && tabParam ? (tabParam as ProfileTab) : "overview";
 
-  const player = await getPlayerProfile(id);
+  const player = await getPlayerProfile(id, isModerator);
   if (!player) notFound();
 
   const [characterUsage, currentMatch, blocked, headToHead] = await Promise.all([

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Cable, MapPin, Share2, Swords } from "lucide-react";
+import { Cable, EyeOff, MapPin, Share2, Swords } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
@@ -53,7 +53,11 @@ export function PlayerProfileHeader({
   lang: Lang;
 }) {
   const inMatch = currentMatch !== null;
-  const showDiscord = Boolean(player.discordUsername && !player.hideDiscordUsername);
+  // Hidden from the public (self-declared privacy, or an anonymized deleted
+  // account — see getPlayerProfile) still reaches a mod/admin viewer, same
+  // reasoning as the cancel-count/connection-report badges further down.
+  const discordHiddenFromPublic = Boolean(player.hideDiscordUsername);
+  const showDiscord = Boolean(player.discordUsername && (!discordHiddenFromPublic || isModerator));
 
   const ratingVisible = isRatingVisible(player.gamesPlayed, isModerator);
   const tier = getRankTier(player.rating, player.gamesPlayed);
@@ -130,9 +134,10 @@ export function PlayerProfileHeader({
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3">
             {showDiscord && (
-              <Badge variant="outline">
+              <Badge variant="outline" title={discordHiddenFromPublic ? "Hidden from other players — mod/admin only" : undefined}>
                 <DiscordIcon className="size-3" />
                 {player.discordUsername}
+                {discordHiddenFromPublic && <EyeOff className="size-3" />}
               </Badge>
             )}
             {player.twitchUsername && (

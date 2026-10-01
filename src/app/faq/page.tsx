@@ -125,8 +125,9 @@ export default async function FaqPage() {
             for exactly what&apos;s kept and why.
           </QA>
           <QA q="Can I undo an account deletion, or merge it into a new account?">
-            No — deletion is permanent and there&apos;s no data migration between accounts. Signing back in with the
-            same Discord account afterward just starts a fresh profile.
+            Signing back in with the same Discord account resumes your original account — same rating and match
+            history — rather than starting a fresh one, but your username, avatar, and email stay scrubbed until you
+            change them yourself. There&apos;s no way to merge a deletion into a different, separate account.
           </QA>
           <QA q="Is matchmaking open worldwide?">
             Yes — anyone can join. Set your region and a match distance on the Lobby page; the defaults match you with
@@ -269,8 +270,9 @@ function FaqPageEs() {
             para ver exactamente qué se conserva y por qué.
           </QA>
           <QA q="¿Puedo deshacer la eliminación de una cuenta, o fusionarla con una nueva?">
-            No — la eliminación es permanente y no hay migración de datos entre cuentas. Volver a iniciar sesión con la
-            misma cuenta de Discord después simplemente empieza un perfil nuevo.
+            Volver a iniciar sesión con la misma cuenta de Discord retoma tu cuenta original — misma clasificación e
+            historial de partidas — en vez de empezar una nueva, pero tu nombre de usuario, avatar y correo siguen
+            borrados hasta que los cambies tú mismo. No hay forma de fusionar una eliminación con una cuenta distinta.
           </QA>
           <QA q="¿El emparejamiento está abierto a nivel mundial?">
             Sí — cualquiera puede unirse. Define tu región y una distancia de partida en la página de Sala; los valores

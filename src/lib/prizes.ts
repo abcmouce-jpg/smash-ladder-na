@@ -1,15 +1,16 @@
-// Season prize pool, split across the top 5 finishers on the leaderboard at
+// Season prize pool, split across the top 3 finishers on the leaderboard at
 // season end. Weighted toward 1st to keep the top-of-board race meaningful
-// rather than flattening into "just finish top 5."
-export const SEASON_PRIZE_POOL_USD = 700;
+// rather than flattening into "just finish top 3." Exact USD amounts, not a
+// percentage split — $150/$100/$50 are round, easy-to-explain figures that a
+// percent-of-pool calculation wouldn't land on cleanly (e.g. 33% of $300
+// rounds to $99, not $100).
+export const SEASON_PRIZE_POOL_USD = 300;
 
-export const PRIZE_SPLIT_PERCENT = [40, 25, 15, 11, 9] as const;
+export const PRIZE_AMOUNTS_USD = [150, 100, 50] as const;
 
 // 1-indexed place. Returns null outside the paid places.
 export function prizeForPlace(place: number): number | null {
-  const percent = PRIZE_SPLIT_PERCENT[place - 1];
-  if (percent === undefined) return null;
-  return Math.round((SEASON_PRIZE_POOL_USD * percent) / 100);
+  return PRIZE_AMOUNTS_USD[place - 1] ?? null;
 }
 
 // Reference rate only (~17.25 MXN/USD as of 2026-08-06) — payouts are always

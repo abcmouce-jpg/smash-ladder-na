@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { DELETED_USERNAME } from "@/lib/account";
 
 export const MAX_BLOCKS_PER_USER = 5;
 
@@ -13,10 +14,13 @@ export async function blockUser(blockerId: string, blockedId: string) {
   // Blocks against a deleted account are excluded from the cap — deleteMyAccount
   // anonymizes rather than removes the row (see its own comment), so the Block
   // row survives and would otherwise permanently occupy a slot against someone
-  // who can never be matched against again anyway. discordId's "deleted-"
-  // prefix is deleteMyAccount's only marker; there's no separate deleted flag.
+  // who can never be matched against again anyway. Keyed on the row's current
+  // username rather than discordId, since signing back in with the same
+  // Discord account resumes this same (still-anonymized) row instead of
+  // forking a new one — if they later rename away from "Deleted User", they're
+  // reachable again and a block on them should count against the cap again too.
   const count = await prisma.block.count({
-    where: { blockerId, blocked: { NOT: { discordId: { startsWith: "deleted-" } } } },
+    where: { blockerId, blocked: { NOT: { username: DELETED_USERNAME } } },
   });
   if (count >= MAX_BLOCKS_PER_USER) {
     throw new Error(`You can only block up to ${MAX_BLOCKS_PER_USER} players.`);

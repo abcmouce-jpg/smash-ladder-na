@@ -13,6 +13,67 @@ async function discordRequest(path: string, init: RequestInit) {
   });
 }
 
+// Current username (the handle, not the display name) for an arbitrary
+// Discord user id — works for any user Discord still has a record of,
+// regardless of shared-server membership, since GET /users/{id} is a global
+// bot endpoint. Used by scripts/backfill-discord-usernames.ts to refresh
+// stored discordUsername values without waiting for each player to sign in
+// again. Returns null on a genuine miss (deleted Discord account, invalid
+// id, network error) — the caller decides what to do with that. A 429 is
+// NOT treated as a miss: it retries after Discord's own Retry-After instead,
+// since silently swallowing it would misreport a live account as deleted —
+// exactly the bug the first run of that backfill hit (a 71% "miss" rate
+// that turned out to be rate-limit responses, not actual 404s, once spot-
+// checked against a handful of the "missed" ids directly).
+export async function getDiscordUsername(discordId: string, retriesLeft = 3): Promise<string | null> {
+  try {
+    const res = await discordRequest(`/users/${discordId}`, { method: "GET" });
+    if (!res) return null;
+    if (res.status === 429) {
+      if (retriesLeft <= 0) return null;
+      const body = (await res.json().catch(() => null)) as { retry_after?: number } | null;
+      const retryAfterMs = Math.ceil((body?.retry_after ?? 1) * 1000);
+      await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+      return getDiscordUsername(discordId, retriesLeft - 1);
+    }
+    if (!res.ok) return null;
+    const user = (await res.json()) as { username?: string };
+    return user.username ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Tri-state on purpose: true/false is a real answer (member or not), null
+// means the check itself failed (network error, this endpoint's own strict
+// 5/sec rate-limit bucket exhausted past the retry budget, bot not in the
+// guild, etc.) — auth.ts's jwt callback deliberately fails OPEN on null
+// rather than locking someone out because Discord hiccuped, same reasoning
+// as getDiscordUsername's 429 handling above. Only a clean 404 means "not a
+// member"; anything else uncertain is not treated as a no.
+export async function checkGuildMembership(
+  guildId: string,
+  discordId: string,
+  retriesLeft = 2,
+): Promise<boolean | null> {
+  try {
+    const res = await discordRequest(`/guilds/${guildId}/members/${discordId}`, { method: "GET" });
+    if (!res) return null;
+    if (res.status === 404) return false;
+    if (res.status === 429) {
+      if (retriesLeft <= 0) return null;
+      const body = (await res.json().catch(() => null)) as { retry_after?: number } | null;
+      const retryAfterMs = Math.ceil((body?.retry_after ?? 1) * 1000);
+      await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+      return checkGuildMembership(guildId, discordId, retriesLeft - 1);
+    }
+    if (!res.ok) return null;
+    return true;
+  } catch {
+    return null;
+  }
+}
+
 // Sends to many recipients one at a time instead of firing them all at once —
 // a burst of identical, unsolicited DMs (e.g. announcing a tournament to every
 // entrant) is exactly the pattern Discord's abuse detection flags, and it can

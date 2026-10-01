@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import { blockUser, MAX_BLOCKS_PER_USER } from "@/lib/blocks";
+import { DELETED_USERNAME } from "@/lib/account";
 import { createTestUser } from "@/test/factories";
 
 describe("blockUser", () => {
@@ -33,7 +34,7 @@ describe("blockUser", () => {
 
   it("doesn't count a block against a deleted account toward the cap", async () => {
     const blocker = await createTestUser();
-    const deleted = await createTestUser({ discordId: "deleted-someoldid" });
+    const deleted = await createTestUser({ username: DELETED_USERNAME });
     const others = await Promise.all(Array.from({ length: MAX_BLOCKS_PER_USER }, () => createTestUser()));
     await blockUser(blocker.id, deleted.id);
     for (const other of others) {
