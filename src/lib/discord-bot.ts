@@ -58,6 +58,9 @@ export async function checkGuildMembership(
 ): Promise<boolean | null> {
   try {
     const res = await discordRequest(`/guilds/${guildId}/members/${discordId}`, { method: "GET" });
+    // TEMP diagnostic for the incident where real members got bounced —
+    // remove once confirmed fixed (see auth.ts's ENFORCE_DISCORD_MEMBERSHIP).
+    console.error(`[guild-check] guildId=${guildId} discordId=${discordId} status=${res?.status ?? "no-response"}`);
     if (!res) return null;
     if (res.status === 404) return false;
     if (res.status === 429) {
@@ -69,7 +72,8 @@ export async function checkGuildMembership(
     }
     if (!res.ok) return null;
     return true;
-  } catch {
+  } catch (e) {
+    console.error(`[guild-check] threw: ${e}`);
     return null;
   }
 }
