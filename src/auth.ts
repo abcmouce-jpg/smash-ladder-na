@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers, cookies } from "next/headers";
 import NextAuth from "next-auth";
 import type { DefaultSession } from "next-auth";
@@ -86,7 +87,7 @@ const providers = useDevCredentials ? [devCredentials] : [Discord];
 // going straight to it — callers should pass this explicitly.
 export const primaryProviderId = useDevCredentials ? "credentials" : "discord";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
   providers,
   session: { strategy: "jwt" },
   trustHost: true,
@@ -268,3 +269,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+// Memoized per-request: layout.tsx, site-header.tsx, and a given page can
+// each independently call auth() while rendering the same request, and
+// without this every one of those re-runs the full jwt() callback —
+// including, while ENFORCE_DISCORD_MEMBERSHIP is on, its own guild-member
+// lookup. Four auth() calls in one /lobby render (confirmed in production
+// logs) meant four lookups per page load, which is most of why that
+// endpoint's 5/sec bucket blew out under real traffic even after capping
+// the per-session recheck interval. React's cache() scopes the memoization
+// to a single request, so this never serves a stale session across requests.
+export const auth = cache(uncachedAuth);
+export { handlers, signIn, signOut };
