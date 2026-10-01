@@ -186,22 +186,31 @@ const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
       return true;
     },
     async jwt({ token, user, profile }) {
-      if (user?.id) {
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+      // `profile` is only ever populated on a genuine OAuth exchange (never
+      // for the Credentials provider), so it — not `user?.id` — is what
+      // actually distinguishes the two cases. The Discord provider's own
+      // profile() maps `user.id` to profile.id, i.e. Discord's snowflake,
+      // not our internal cuid — the old `if (user?.id)` branch looked that
+      // snowflake up against our own id column, which can never match,
+      // silently leaving token.userId (and so session.user.id) unset on
+      // every fresh Discord sign-in. Checking profile first instead means
+      // dev credentials (no profile, user.id = our own id from authorize())
+      // and real sign-ins (profile.id = discordId) each resolve correctly
+      // regardless of whether `user` also happens to be present.
+      const discordProfile = profile as DiscordProfile | undefined;
+      if (discordProfile?.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { discordId: discordProfile.id },
+        });
         if (dbUser) {
           token.userId = dbUser.id;
           token.role = dbUser.role;
         }
-      } else {
-        const discordProfile = profile as DiscordProfile | undefined;
-        if (discordProfile?.id) {
-          const dbUser = await prisma.user.findUnique({
-            where: { discordId: discordProfile.id },
-          });
-          if (dbUser) {
-            token.userId = dbUser.id;
-            token.role = dbUser.role;
-          }
+      } else if (user?.id) {
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+        if (dbUser) {
+          token.userId = dbUser.id;
+          token.role = dbUser.role;
         }
       }
 
