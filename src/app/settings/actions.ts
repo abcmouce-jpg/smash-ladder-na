@@ -9,10 +9,12 @@ import {
   setAvoidPracticeOpponents,
   setHideDiscordUsername,
   setMatchFoundSound,
+  setNotificationsDisabled,
   setNotifyQueueOpportunities,
   setQuickMessages,
   setUsername,
 } from "@/lib/account";
+import { disabledKeysFromEnabled } from "@/lib/notifications";
 import { setArenaPassword } from "@/lib/arena";
 import { generateApiToken, revokeApiToken } from "@/lib/api-tokens";
 import { sendTestPushToUser } from "@/lib/push-server";
@@ -69,12 +71,33 @@ export async function updateLobbySettingsAction(
     await setAvoidPracticeOpponents(userId, formData.get("avoidPracticeOpponents") === "on");
     await setAudioPingOnMatch(userId, formData.get("audioPingOnMatch") === "on");
     await setMatchFoundSound(userId, formData.get("matchFoundSound") === "CHIME" ? "CHIME" : "ANNOUNCER");
-    await setNotifyQueueOpportunities(userId, formData.get("notifyQueueOpportunities") === "on");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again.", saved: false };
   }
   revalidatePath("/settings");
   revalidatePath("/lobby");
+  return { error: null, saved: true };
+}
+
+// Notifications tab. Every toggle is submitted under the same single form, so
+// one Save writes them all. notifyQueueOpportunities is the one opt-in type
+// with its own column (see lib/notifications.ts), so it's written separately
+// from the opt-out set the other checkboxes rebuild.
+export async function updateNotificationSettingsAction(
+  _prevState: SettingsSaveState,
+  formData: FormData,
+): Promise<SettingsSaveState> {
+  const userId = await requireUserId();
+  try {
+    await setNotificationsDisabled(
+      userId,
+      disabledKeysFromEnabled(formData.getAll("notifications").map((key) => String(key))),
+    );
+    await setNotifyQueueOpportunities(userId, formData.get("notifyQueueOpportunities") === "on");
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", saved: false };
+  }
+  revalidatePath("/settings");
   return { error: null, saved: true };
 }
 

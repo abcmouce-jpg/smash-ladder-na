@@ -5,6 +5,7 @@ import { applyEloAndConfirm, applyCorrection, isMostRecentConfirmedMatch } from 
 import { realignNextGameActors, tallySetWins, GAMES_TO_WIN, CHARACTER_TIMEOUT_MS } from "@/lib/match-games";
 import { GAME_ONE_STAGES } from "@/lib/stages";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { isNotificationEnabled } from "@/lib/notifications";
 
 // A CONFIRMED match can still be corrected via adminSetGameWinner below, but
 // only a bounded number of times — this is a mod escape hatch for genuine
@@ -127,14 +128,20 @@ export async function resolveDisputedGame(matchId: string, gameNumber: number, w
   );
 
   const [p1, p2] = await Promise.all([
-    prisma.user.findUnique({ where: { id: result.match.player1Id }, select: { discordId: true } }),
-    prisma.user.findUnique({ where: { id: result.match.player2Id }, select: { discordId: true } }),
+    prisma.user.findUnique({
+      where: { id: result.match.player1Id },
+      select: { discordId: true, notificationsDisabled: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: result.match.player2Id },
+      select: { discordId: true, notificationsDisabled: true },
+    }),
   ]);
   const message = result.setWinnerId
     ? `⚖️ A mod resolved game ${gameNumber}'s disputed result — your set is now confirmed.`
     : `⚖️ A mod resolved game ${gameNumber}'s disputed result. The set continues.`;
-  if (p1) await sendDiscordDM(p1.discordId, message);
-  if (p2) await sendDiscordDM(p2.discordId, message);
+  if (p1 && isNotificationEnabled(p1, "DM_DISPUTE_RESOLVED")) await sendDiscordDM(p1.discordId, message);
+  if (p2 && isNotificationEnabled(p2, "DM_DISPUTE_RESOLVED")) await sendDiscordDM(p2.discordId, message);
 }
 
 // Self-service alternative to waiting on a mod: once a game is disputed

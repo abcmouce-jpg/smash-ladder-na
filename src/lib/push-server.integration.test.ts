@@ -86,6 +86,19 @@ describe("notifyMatchFoundToUsers", () => {
     expect(sendNotificationMock.mock.calls[0][2]).toMatchObject({ TTL: 300 });
   });
 
+  it("skips a player who turned match-found push off in Settings", async () => {
+    const a = await createTestUser({ notificationsDisabled: ["PUSH_MATCH_FOUND"] });
+    const b = await createTestUser();
+    await subscribeUser(a.id, "https://push.example.com/a-off");
+    await subscribeUser(b.id, "https://push.example.com/b-on");
+    sendNotificationMock.mockResolvedValue({ statusCode: 201, body: "", headers: {} });
+
+    const sent = await notifyMatchFoundToUsers(a.id, b.id);
+
+    expect(sent).toBe(1);
+    expect(sendNotificationMock.mock.calls.map(([sub]) => sub.endpoint)).toEqual(["https://push.example.com/b-on"]);
+  });
+
   it("uses Spanish copy for players with preferredLanguage es", async () => {
     const a = await createTestUser({ preferredLanguage: "es" });
     const b = await createTestUser();

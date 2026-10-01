@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
 import { SectionTabs } from "@/components/section-tabs";
 import { SettingsSaveForm } from "@/components/settings-save-form";
+import { NOTIFICATION_DEFS, isNotificationEnabled, type NotificationDef } from "@/lib/notifications";
 import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
 import { listBlockedUsers } from "@/lib/blocks";
@@ -25,13 +26,14 @@ import {
   generateApiTokenAction,
   revokeApiTokenAction,
   updateLobbySettingsAction,
+  updateNotificationSettingsAction,
   updateUserSettingsAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 
 // ?tab= picks which group of settings renders, so each stays deep-linkable and
 // server-rendered — same pattern as the Stats, Notes, and profile pages.
-const VALID_TABS = ["user", "lobby", "apps"] as const;
+const VALID_TABS = ["user", "lobby", "notifications", "apps"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
 
 type TwitchConnection = { username: string; displayName: string | null; profileImageUrl: string | null } | null;
@@ -87,6 +89,7 @@ export default async function SettingsPage({
         audioPingOnMatch: true,
         matchFoundSound: true,
         notifyQueueOpportunities: true,
+        notificationsDisabled: true,
         quickMessages: true,
         _count: { select: { pushSubscriptions: true } },
       },
@@ -107,6 +110,11 @@ export default async function SettingsPage({
         items={[
           { href: "?tab=user", label: lang === "es" ? "Usuario" : "User", active: tab === "user" },
           { href: "?tab=lobby", label: lang === "es" ? "Sala" : "Lobby", active: tab === "lobby" },
+          {
+            href: "?tab=notifications",
+            label: lang === "es" ? "Notificaciones" : "Notifications",
+            active: tab === "notifications",
+          },
           { href: "?tab=apps", label: "Apps", active: tab === "apps" },
         ]}
       />
@@ -128,10 +136,18 @@ export default async function SettingsPage({
           avoidPracticeOpponents={me?.avoidPracticeOpponents ?? false}
           audioPingOnMatch={me?.audioPingOnMatch ?? true}
           matchFoundSound={me?.matchFoundSound ?? "CHIME"}
-          notifyQueueOpportunities={me?.notifyQueueOpportunities ?? false}
           arenaPassword={me?.arenaPassword ?? ""}
           quickMessages={me?.quickMessages ?? []}
+          lang={lang}
+        />
+      )}
+
+      {tab === "notifications" && (
+        <NotificationsTab
+          notificationsDisabled={me?.notificationsDisabled ?? []}
+          notifyQueueOpportunities={me?.notifyQueueOpportunities ?? false}
           pushEnabled={(me?._count.pushSubscriptions ?? 0) > 0}
+          isMod={session.user.role === "MOD" || session.user.role === "ADMIN"}
           lang={lang}
         />
       )}
@@ -279,31 +295,21 @@ function LobbyTab({
   avoidPracticeOpponents,
   audioPingOnMatch,
   matchFoundSound,
-  notifyQueueOpportunities,
   arenaPassword,
   quickMessages,
-  pushEnabled,
   lang,
 }: {
   avoidPracticeOpponents: boolean;
   audioPingOnMatch: boolean;
   matchFoundSound: MatchFoundSound;
-  notifyQueueOpportunities: boolean;
   arenaPassword: string;
   quickMessages: string[];
-  pushEnabled: boolean;
   lang: Lang;
 }) {
   const quickMessageSlots = Array.from({ length: DEFAULT_QUICK_MESSAGES.length }, (_, i) => quickMessages[i] ?? "");
 
   return (
     <div className="mt-6 flex flex-col gap-4">
-      <Card id="push-notifications" className="scroll-mt-24">
-        <CardContent className="pt-4">
-          <PushNotificationsForm defaultEnabled={pushEnabled} lang={lang} />
-        </CardContent>
-      </Card>
-
       <Card>
         <CardContent className="pt-4">
           <SettingsSaveForm action={updateLobbySettingsAction} lang={lang} className="flex flex-col gap-5">
@@ -355,26 +361,6 @@ function LobbyTab({
               </div>
             </div>
 
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                key={String(notifyQueueOpportunities)}
-                type="checkbox"
-                name="notifyQueueOpportunities"
-                defaultChecked={notifyQueueOpportunities}
-                className="mt-0.5 size-4 rounded border-border"
-              />
-              <span>
-                <span className="font-medium">
-                  {lang === "es" ? "Avisarme de oponentes en la cola" : "Notify me of matchable opponents in queue"}
-                </span>
-                <span className="block text-xs font-normal text-muted-foreground">
-                  {lang === "es"
-                    ? "Útil si los rivales para tu rango escasean: te enviamos una notificación push cuando alguien que podría emparejarse contigo entra a la cola y tú no estás en ella. Requiere que las notificaciones push (arriba) estén activadas."
-                    : "Useful if matches are rare for your rank — sends a push notification when someone who could match you joins the queue while you're not in it. Requires push notifications (above) to be enabled."}
-                </span>
-              </span>
-            </label>
-
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">{lang === "es" ? "Contraseña de sala" : "Arena password"}</span>
               <span className="text-xs font-normal text-muted-foreground">
@@ -423,6 +409,141 @@ function LobbyTab({
                   />
                 ))}
               </div>
+            </div>
+          </SettingsSaveForm>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// One settings toggle, rendered from the shared registry (lib/notifications.ts)
+// so the copy and the stored key can't drift apart. The opt-in queue-opportunity
+// type submits under its own field/name; everything else submits its key as a
+// checked `notifications` value, and the action rebuilds notificationsDisabled
+// from whatever is left checked.
+function NotificationToggle({ def, enabled, lang }: { def: NotificationDef; enabled: boolean; lang: Lang }) {
+  return (
+    <label className="flex items-start gap-2 text-sm">
+      <input
+        key={String(enabled)}
+        type="checkbox"
+        name={def.optIn ? "notifyQueueOpportunities" : "notifications"}
+        value={def.optIn ? undefined : def.key}
+        defaultChecked={enabled}
+        className="mt-0.5 size-4 rounded border-border"
+      />
+      <span>
+        <span className="font-medium">{def.label[lang]}</span>
+        <span className="block text-xs font-normal text-muted-foreground">{def.description[lang]}</span>
+      </span>
+    </label>
+  );
+}
+
+function NotificationsTab({
+  notificationsDisabled,
+  notifyQueueOpportunities,
+  pushEnabled,
+  isMod,
+  lang,
+}: {
+  notificationsDisabled: string[];
+  notifyQueueOpportunities: boolean;
+  pushEnabled: boolean;
+  isMod: boolean;
+  lang: Lang;
+}) {
+  const prefs = { notificationsDisabled, notifyQueueOpportunities };
+  const pushTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "push" && !def.critical);
+  const playerDms = NOTIFICATION_DEFS.filter(
+    (def) => def.channel === "discord" && def.audience === "player" && !def.critical,
+  );
+  const modDms = NOTIFICATION_DEFS.filter(
+    (def) => def.channel === "discord" && def.audience === "mod" && !def.critical,
+  );
+  const alwaysSent = NOTIFICATION_DEFS.filter((def) => def.critical);
+
+  return (
+    <div className="mt-6 flex flex-col gap-4">
+      <Card id="push-notifications" className="scroll-mt-24">
+        <CardContent className="pt-4">
+          <PushNotificationsForm defaultEnabled={pushEnabled} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <SettingsSaveForm action={updateNotificationSettingsAction} lang={lang} className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium">{lang === "es" ? "Notificaciones push" : "Browser push"}</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? "Qué notificaciones del navegador enviar, una vez activadas arriba."
+                  : "Which browser notifications to send, once push is enabled above."}
+              </p>
+              {pushTypes.map((def) => (
+                <NotificationToggle
+                  key={def.key}
+                  def={def}
+                  enabled={isNotificationEnabled(prefs, def.key)}
+                  lang={lang}
+                />
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-border pt-4">
+              <p className="text-sm font-medium">{lang === "es" ? "Mensajes directos de Discord" : "Discord DMs"}</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? "El bot solo puede enviarte un MD si compartes servidor con él y tienes activados los MD de miembros del servidor."
+                  : "The bot can only DM you if you share a server with it and have DMs from server members enabled."}
+              </p>
+              {playerDms.map((def) => (
+                <NotificationToggle
+                  key={def.key}
+                  def={def}
+                  enabled={isNotificationEnabled(prefs, def.key)}
+                  lang={lang}
+                />
+              ))}
+            </div>
+
+            {isMod && (
+              <div className="flex flex-col gap-3 border-t border-border pt-4">
+                <p className="text-sm font-medium">{lang === "es" ? "Alertas de moderación" : "Moderation alerts"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es"
+                    ? "Solo para mods y admins — avisos operativos de la cola de moderación."
+                    : "Mods and admins only — operational alerts about the moderation queue."}
+                </p>
+                {modDms.map((def) => (
+                  <NotificationToggle
+                    key={def.key}
+                    def={def}
+                    enabled={isNotificationEnabled(prefs, def.key)}
+                    lang={lang}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 border-t border-border pt-4">
+              <p className="text-sm font-medium">{lang === "es" ? "Siempre activadas" : "Always sent"}</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es"
+                  ? "Avisos de cuenta y mensajes de mods que no se pueden desactivar."
+                  : "Account notices and mod messages that can't be turned off."}
+              </p>
+              {alwaysSent.map((def) => (
+                <label key={def.key} className="flex items-start gap-2 text-sm opacity-70">
+                  <input type="checkbox" checked disabled readOnly className="mt-0.5 size-4 rounded border-border" />
+                  <span>
+                    <span className="font-medium">{def.label[lang]}</span>
+                    <span className="block text-xs font-normal text-muted-foreground">{def.description[lang]}</span>
+                  </span>
+                </label>
+              ))}
             </div>
           </SettingsSaveForm>
         </CardContent>

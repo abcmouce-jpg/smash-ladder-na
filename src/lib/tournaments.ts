@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { TournamentStatus } from "@/generated/prisma/enums";
 import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
 import { normalizeStartggUrl } from "@/lib/startgg";
+import { isNotificationEnabled } from "@/lib/notifications";
 
 const entryWithUser = {
   user: { select: { id: true, username: true, avatarUrl: true, rating: true } },
@@ -91,12 +92,12 @@ export async function markInProgress(userId: string, tournamentId: string, role:
 
   const entries = await prisma.tournamentEntry.findMany({
     where: { tournamentId },
-    select: { user: { select: { discordId: true } } },
+    select: { user: { select: { discordId: true, notificationsDisabled: true } } },
   });
   const message = tournament.startggUrl
     ? `🏆 **${tournament.name}** is starting! Bracket: ${tournament.startggUrl}`
     : `🏆 **${tournament.name}** is starting!`;
-  const recipients = entries.map((e) => e.user);
+  const recipients = entries.map((e) => e.user).filter((user) => isNotificationEnabled(user, "DM_TOURNAMENT"));
   after(() => sendDiscordDMsSequentially(recipients, message));
 }
 

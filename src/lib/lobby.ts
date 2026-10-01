@@ -9,6 +9,9 @@ import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch
 import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
 import { notifyMatchFoundToUsers, notifyQueueOpportunitySubscribers } from "@/lib/push-server";
 import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
+import { sendDiscordDM } from "@/lib/discord-bot";
+import { siteOrigin } from "@/lib/site-url";
+import { isNotificationEnabled } from "@/lib/notifications";
 
 // isPracticing lives on the join (RatingLobbyEntry), not the user, since
 // it's a per-session choice — avoidPracticeOpponents is the user-level
@@ -308,17 +311,17 @@ async function attemptPairing(params: {
   );
 }
 
-// Runs a best-effort notification (a push to both players, or a queue-opportunity
-// ping to candidates) once the response has been sent.
+// Runs a best-effort notification (a push and/or DM to both players, or a
+// queue-opportunity ping to candidates) once the response has been sent.
 //
-// push-server documents these as "never throws", but their bodies make
-// unguarded prisma calls, so a transient DB error would have propagated out of
-// joinLobbyAndTryPair *after* the match was already created — failing the
-// Server Action's response and, because that action's error path used to skip
-// revalidatePath, leaving the client with no poller at all until a reload.
-// Deferring them the same way free-battle.ts and character-guides.ts do also
-// stops a slow candidate scan from holding up the re-render that actually shows
-// the player their match. after() throws outside a real request scope
+// push-server (and discord-bot) document these as "never throws", but their
+// bodies make unguarded prisma calls, so a transient DB error would have
+// propagated out of joinLobbyAndTryPair *after* the match was already created
+// — failing the Server Action's response and, because that action's error path
+// used to skip revalidatePath, leaving the client with no poller at all until a
+// reload. Deferring them the same way free-battle.ts and character-guides.ts do
+// also stops a slow candidate scan from holding up the re-render that actually
+// shows the player their match. after() throws outside a real request scope
 // (integration tests, one-off scripts) — a deliberate no-op there.
 function deferNotification(notify: () => Promise<unknown>) {
   try {
@@ -326,6 +329,44 @@ function deferNotification(notify: () => Promise<unknown>) {
   } catch {
     // See comment above.
   }
+}
+
+// The "match found" DM copy, mirroring MATCH_FOUND_MESSAGES in push-server.ts
+// — same event, same en/es split by the player's preferredLanguage.
+const MATCH_FOUND_DM = {
+  en: (link: string) => `🎮 Match found! You've been paired — head to the Lobby to play: ${link}`,
+  es: (link: string) => `🎮 ¡Partida encontrada! Te emparejaron — ve a la Sala para jugar: ${link}`,
+};
+
+// DMs both players through the Discord bot once a match exists, alongside the
+// browser push from notifyMatchFoundToUsers. Kept separate from that push
+// rather than folded into it because the two channels are configured
+// independently (DISCORD_BOT_TOKEN vs the VAPID keys) — gating the DM behind
+// pushConfigured, or the push behind the bot token, would silently drop one
+// channel whenever only the other is set up. Best-effort like every other DM
+// (sendDiscordDM swallows failures for players the bot can't reach), and
+// deferred so a slow Discord round-trip can't delay the join response.
+// Exported so integration tests can call it directly, same reasoning as
+// notifyMatchmakingSubscribers in free-battle.ts.
+export async function notifyMatchFoundViaDiscord(player1Id: string, player2Id: string) {
+  const players = await prisma.user.findMany({
+    where: { id: { in: [player1Id, player2Id] } },
+    select: { discordId: true, preferredLanguage: true, notificationsDisabled: true },
+  });
+  const link = `${siteOrigin()}/lobby`;
+  for (const player of players) {
+    if (!isNotificationEnabled(player, "DM_MATCH_FOUND")) continue;
+    const copy = player.preferredLanguage === "es" ? MATCH_FOUND_DM.es : MATCH_FOUND_DM.en;
+    await sendDiscordDM(player.discordId, copy(link));
+  }
+}
+
+// Both match-found channels together — the browser push and the Discord DM —
+// fired wherever a match is created. Deferred as two separate callbacks so a
+// failure in one never blocks the other.
+function deferMatchFoundNotifications(player1Id: string, player2Id: string) {
+  deferNotification(() => notifyMatchFoundToUsers(player1Id, player2Id));
+  deferNotification(() => notifyMatchFoundViaDiscord(player1Id, player2Id));
 }
 
 export async function joinLobbyAndTryPair(
@@ -430,10 +471,11 @@ export async function joinLobbyAndTryPair(
     recentOpponents,
   });
 
-  // Notify outside the transaction — a push failure must never roll back the
-  // pairing itself. Best-effort internally (see push-server), and deferred past
-  // this response via deferNotification so a slow send or a transient error in
-  // one of them can't delay or fail the join either.
+  // Notify outside the transaction — a notification failure must never roll
+  // back the pairing itself. Best-effort internally (see push-server and
+  // discord-bot), and deferred past this response via deferNotification so a
+  // slow send or a transient error in one of them can't delay or fail the join
+  // either.
   if (!paired) {
     // Nobody to pair with right now — tell anyone who's opted in and could
     // actually match this join (rather than the whole subscriber list) so
@@ -458,7 +500,7 @@ export async function joinLobbyAndTryPair(
     return newEntry;
   }
   const entry = await getActiveLobbyEntry(userId);
-  deferNotification(() => notifyMatchFoundToUsers(paired.player1Id, paired.player2Id));
+  deferMatchFoundNotifications(paired.player1Id, paired.player2Id);
   return entry;
 }
 
@@ -583,7 +625,7 @@ export async function retryPairForWaitingUser(userId: string) {
       blockedIds,
       recentOpponents,
     });
-    if (paired) deferNotification(() => notifyMatchFoundToUsers(paired.player1Id, paired.player2Id));
+    if (paired) deferMatchFoundNotifications(paired.player1Id, paired.player2Id);
   } catch (err) {
     console.error("retryPairForWaitingUser failed (non-fatal, will retry next poll or cron sweep):", err);
   }
@@ -758,7 +800,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
         used.add(a.id);
         used.add(b.id);
         paired++;
-        deferNotification(() => notifyMatchFoundToUsers(madeMatch.player1Id, madeMatch.player2Id));
+        deferMatchFoundNotifications(madeMatch.player1Id, madeMatch.player2Id);
       }
       break;
     }

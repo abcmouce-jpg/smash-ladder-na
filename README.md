@@ -28,7 +28,7 @@ and the moderation policies that govern ranked play are transparent rather than 
   standings are fetched live from the start.gg API once configured.
 - **Character leaderboards** — full *Ultimate* roster (including all DLC).
 - **Discord integration** — sign-in via Discord OAuth, plus optional DM notifications through a
-  Discord bot.
+  Discord bot (match-found pings, dispute updates, and mod messages).
 - **Moderation** — conduct reports with threshold-based suspend/ban actions, and a disputed-game
   resolution queue for admins/mods.
 - **Region-aware matchmaking**, with an optional launch-region lock for a staged rollout.

@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, RatingAlgorithm } from "@/generated/prisma/enums";
 import { DELETED_USERNAME } from "@/lib/account";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { isNotificationEnabled } from "@/lib/notifications";
 import { GLICKO2_INITIAL_RATING, GLICKO2_INITIAL_RD, GLICKO2_INITIAL_VOLATILITY } from "@/lib/glicko2";
 import { formatRating } from "@/lib/rating-format";
 import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
@@ -175,8 +176,8 @@ async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
     where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
     select: {
       id: true,
-      player1: { select: { discordId: true } },
-      player2: { select: { discordId: true } },
+      player1: { select: { discordId: true, notificationsDisabled: true } },
+      player2: { select: { discordId: true, notificationsDisabled: true } },
     },
   });
   if (unresolved.length === 0) return [];
@@ -185,7 +186,10 @@ async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
     where: { id: { in: unresolved.map((m) => m.id) } },
     data: { status: MatchStatus.CANCELLED },
   });
-  return unresolved.flatMap((m) => [m.player1.discordId, m.player2.discordId]);
+  return unresolved
+    .flatMap((m) => [m.player1, m.player2])
+    .filter((player) => isNotificationEnabled(player, "DM_SEASON_ROLLOVER"))
+    .map((player) => player.discordId);
 }
 
 // Snapshots the current leaderboard as this season's final standings, then

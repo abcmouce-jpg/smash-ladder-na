@@ -4,6 +4,7 @@ import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
+import { CONFIGURABLE_NOTIFICATION_KEYS } from "@/lib/notifications";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -163,9 +164,19 @@ export async function setHideDiscordUsername(userId: string, hide: boolean) {
 
 // Opt-in for notifyQueueOpportunitySubscribers (push-server.ts) — ping this
 // player when someone joins the queue who could actually match them, while
-// they aren't queued themselves. See User.notifyQueueOpportunities.
+// they aren't queued themselves. See User.notifyQueueOpportunities. Surfaced in
+// Settings → Notifications alongside the opt-out set below.
 export async function setNotifyQueueOpportunities(userId: string, notifyQueueOpportunities: boolean) {
   await prisma.user.update({ where: { id: userId }, data: { notifyQueueOpportunities } });
+}
+
+// Settings → Notifications: the opt-out set for everything that isn't critical
+// or the opt-in queue-opportunity push (see lib/notifications.ts). Unknown keys
+// are dropped so a stale form submission can't persist junk into the column.
+export async function setNotificationsDisabled(userId: string, notificationsDisabled: string[]) {
+  const allowed = new Set<string>(CONFIGURABLE_NOTIFICATION_KEYS);
+  const clean = [...new Set(notificationsDisabled)].filter((key) => allowed.has(key));
+  await prisma.user.update({ where: { id: userId }, data: { notificationsDisabled: clean } });
 }
 
 // Expanded display preference — hides the opponent's rating, username,

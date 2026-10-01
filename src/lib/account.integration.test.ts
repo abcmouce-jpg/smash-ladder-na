@@ -1,8 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { requireActiveUser, setWiredConnection, setQuickMessages } from "@/lib/account";
+import { requireActiveUser, setWiredConnection, setQuickMessages, setNotificationsDisabled } from "@/lib/account";
 import { UserStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
+
+describe("setNotificationsDisabled", () => {
+  it("keeps known opt-out keys and drops unknown ones", async () => {
+    const user = await createTestUser();
+
+    await setNotificationsDisabled(user.id, ["DM_MATCH_FOUND", "NOT_A_REAL_KEY", "DM_MATCH_FOUND"]);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.notificationsDisabled).toEqual(["DM_MATCH_FOUND"]);
+  });
+});
 
 describe("requireActiveUser — suspension expiry", () => {
   it("throws while a timed suspension is still in the future", async () => {

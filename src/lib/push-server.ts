@@ -11,6 +11,7 @@ import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { echoGroupLabel, echoGroupMembers, type SmashCharacter } from "@/lib/characters";
 import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
 import { getRegionsWithinDistance } from "@/lib/regions";
+import { isNotificationEnabled } from "@/lib/notifications";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY?.trim();
@@ -111,6 +112,7 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
     where: { id: { in: [player1Id, player2Id] } },
     select: {
       preferredLanguage: true,
+      notificationsDisabled: true,
       pushSubscriptions: {
         select: { id: true, endpoint: true, p256dh: true, auth: true },
       },
@@ -120,6 +122,7 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
   let sent = 0;
   for (const player of players) {
     if (player.pushSubscriptions.length === 0) continue;
+    if (!isNotificationEnabled(player, "PUSH_MATCH_FOUND")) continue;
     const copy = player.preferredLanguage === "es" ? MATCH_FOUND_MESSAGES.es : MATCH_FOUND_MESSAGES.en;
     sent += await sendPushPayload(
       player.pushSubscriptions,
@@ -244,6 +247,7 @@ export async function notifyCharacterGuideSubscribers(character: string, authorI
     where: { id: { not: authorId }, characterGuideSubscriptions: { some: { character: { in: [...groupMembers] } } } },
     select: {
       preferredLanguage: true,
+      notificationsDisabled: true,
       pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
     },
   });
@@ -251,6 +255,7 @@ export async function notifyCharacterGuideSubscribers(character: string, authorI
   let sent = 0;
   for (const subscriber of subscribers) {
     if (subscriber.pushSubscriptions.length === 0) continue;
+    if (!isNotificationEnabled(subscriber, "PUSH_CHARACTER_GUIDE")) continue;
     const copy = subscriber.preferredLanguage === "es" ? NEW_GUIDE_MESSAGES.es(label) : NEW_GUIDE_MESSAGES.en(label);
     sent += await sendPushPayload(
       subscriber.pushSubscriptions,
