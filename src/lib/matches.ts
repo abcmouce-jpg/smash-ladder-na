@@ -129,13 +129,14 @@ export function getRoomHostId(match: {
 // Game 1 is the only game that can possibly exist while this is still
 // reachable — cancelMatch's own gameInProgress check already blocks entry
 // once game 1 has a winner, so games 2+ never come into play here.
-export async function hasOpponentEngaged(
-  matchId: string,
-  opponentId: string,
-  roomCodeSetById: string | null,
-): Promise<boolean> {
-  if (roomCodeSetById === opponentId) return true;
-
+//
+// Deliberately does NOT treat setting the room code as engagement (it used
+// to): typing in a code takes a couple of seconds and proves nothing about
+// actually sticking around to play, unlike locking a character, striking a
+// stage, or commenting — a real incident had an opponent set the code then
+// vanish, converting what should've been a free cancel into a ~100-point
+// surrender loss the moment the other side tried to back out.
+export async function hasOpponentEngaged(matchId: string, opponentId: string): Promise<boolean> {
   const [comment, game] = await Promise.all([
     prisma.matchComment.findFirst({ where: { matchId, authorId: opponentId } }),
     prisma.matchGame.findFirst({ where: { matchId, gameNumber: 1 } }),
@@ -189,7 +190,7 @@ export async function cancelMatch(userId: string, matchId: string) {
   }
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
-  if (await hasOpponentEngaged(matchId, opponentId, match.roomCodeSetById)) {
+  if (await hasOpponentEngaged(matchId, opponentId)) {
     throw new Error(
       "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
     );
