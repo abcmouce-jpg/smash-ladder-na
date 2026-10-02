@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
 import {
   createDirectMatch,
   getActiveLobbyEntry,
   joinLobbyAndTryPair,
+  notifyMatchFoundViaDiscord,
   retryPairForWaitingUser,
   setMatchRoomCode,
   sweepLobbyPairing,
@@ -16,6 +17,7 @@ import { startFirstGame, getCurrentGame, pickGameCharacter, CHARACTER_TIMEOUT_MS
 import { blockUser } from "@/lib/blocks";
 import { PairingMethod } from "@/generated/prisma/enums";
 import * as pushServer from "@/lib/push-server";
+import * as discordBot from "@/lib/discord-bot";
 import { createTestUser } from "@/test/factories";
 
 // lobby.ts hands its notifications to after() so they run once the response is
@@ -24,6 +26,17 @@ import { createTestUser } from "@/test/factories";
 // instead is what lets the notification test below actually exercise the
 // deferred callback.
 vi.mock("next/server", () => ({ after: (callback: () => unknown) => void callback() }));
+
+// That same inline after() means every pairing test now runs the match-found
+// DM. Stub the transport so tests never touch (or, with a real DISCORD_BOT_TOKEN
+// in a local .env, actually DM anyone through) Discord.
+beforeEach(() => {
+  vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 async function createPastMatch(p1: string, p2: string, createdAt: Date) {
   return prisma.ratingMatch.create({
@@ -729,6 +742,45 @@ describe("pairing notifications", () => {
     await expect(prisma.ratingMatch.count({ where: { OR: [{ player1Id: b.id }, { player2Id: b.id }] } })).resolves.toBe(
       1,
     );
+  });
+
+  it("DMs both players when a pair is made", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+    await createWaitingEntry(a.id);
+
+    await joinLobbyAndTryPair(b.id);
+
+    // The DM runs inside the deferred, fire-and-forget notification callback,
+    // so poll until it lands rather than asserting on the very next tick.
+    await vi.waitFor(() => {
+      const dm = vi.mocked(discordBot.sendDiscordDM);
+      expect(dm.mock.calls.map(([discordId]) => discordId).sort()).toEqual([a.discordId, b.discordId].sort());
+    });
+  });
+});
+
+describe("notifyMatchFoundViaDiscord", () => {
+  it("DMs both players a link to the Lobby", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+    const dm = vi.mocked(discordBot.sendDiscordDM);
+
+    await notifyMatchFoundViaDiscord(a.id, b.id);
+
+    expect(dm.mock.calls.map(([discordId]) => discordId).sort()).toEqual([a.discordId, b.discordId].sort());
+    expect(dm.mock.calls[0][1]).toContain("/lobby");
+  });
+
+  it("uses Spanish copy for a player whose preferredLanguage is es", async () => {
+    const spanish = await createTestUser({ preferredLanguage: "es" });
+    const english = await createTestUser();
+    const dm = vi.mocked(discordBot.sendDiscordDM);
+
+    await notifyMatchFoundViaDiscord(spanish.id, english.id);
+
+    expect(dm.mock.calls.find(([discordId]) => discordId === spanish.discordId)?.[1]).toContain("Partida encontrada");
+    expect(dm.mock.calls.find(([discordId]) => discordId === english.discordId)?.[1]).toContain("Match found");
   });
 });
 

@@ -13,6 +13,7 @@ import { tierRoleId } from "@/lib/rank-roles";
 import { getPeakRating } from "@/lib/players";
 import { getRegionsWithinDistance } from "@/lib/regions";
 import { siteOrigin } from "@/lib/site-url";
+import { isNotificationEnabled } from "@/lib/notifications";
 
 // One #<tier>-grind channel per restricted tier, each with its own webhook
 // (Channel Settings → Integrations → Webhooks) so a restricted post only
@@ -82,7 +83,7 @@ export async function notifyMatchmakingSubscribers(
 
   const candidates = await prisma.user.findMany({
     where: { id: { not: author.id }, status: { not: UserStatus.BANNED } },
-    select: { id: true, discordId: true, region: true, maxMatchDistanceKm: true },
+    select: { id: true, discordId: true, region: true, maxMatchDistanceKm: true, notificationsDisabled: true },
   });
 
   // Distance is gated by each candidate's OWN self-declared tolerance (the
@@ -108,6 +109,7 @@ export async function notifyMatchmakingSubscribers(
 
   const recipients: { discordId: string }[] = [];
   for (const candidate of eligible) {
+    if (!isNotificationEnabled(candidate, "DM_FRIENDLIES")) continue;
     const roles = await getGuildMemberRoles(guildId, candidate.discordId);
     if (roles?.includes(matchmakingRoleId)) recipients.push({ discordId: candidate.discordId });
   }
@@ -243,10 +245,13 @@ export async function claimPost(userId: string, postId: string) {
   await deletePostAnnouncement(post.discordMessageId, post.minTier as FreeBattleTier | null);
 
   const [author, claimer] = await Promise.all([
-    prisma.user.findUnique({ where: { id: post.authorId }, select: { discordId: true } }),
+    prisma.user.findUnique({
+      where: { id: post.authorId },
+      select: { discordId: true, notificationsDisabled: true },
+    }),
     prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
   ]);
-  if (author && claimer) {
+  if (author && claimer && isNotificationEnabled(author, "DM_FRIENDLIES")) {
     await sendDiscordDM(author.discordId, `🙋 ${claimer.username} is in on your Friendlies post!`);
   }
 }

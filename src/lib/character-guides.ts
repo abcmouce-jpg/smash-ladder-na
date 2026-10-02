@@ -1,7 +1,16 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
-import { echoGroupCanonical, isMatchupCharacter, SMASH_CHARACTERS, type SmashCharacter } from "@/lib/characters";
-import { notifyCharacterGuideSubscribers } from "@/lib/push-server";
+import {
+  echoGroupCanonical,
+  echoGroupLabel,
+  echoGroupMembers,
+  isMatchupCharacter,
+  SMASH_CHARACTERS,
+  type SmashCharacter,
+} from "@/lib/characters";
+import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
+import { isNotificationEnabled } from "@/lib/notifications";
+import { siteOrigin } from "@/lib/site-url";
 
 export const MAX_GUIDE_LENGTH = 10000;
 
@@ -102,6 +111,39 @@ export async function getAllCharacterGuides(viewerId: string | null) {
 export async function getAllGuides(viewerId: string | null): Promise<GuideView[]> {
   const guides = await getVisibleGuides(viewerId);
   return guides.filter((guide) => guideGroup(guide.character) !== null).map(toGuideView);
+}
+
+const GUIDE_DM = {
+  en: (label: string, link: string) => `📖 New community guide for ${label} — check it out: ${link}`,
+  es: (label: string, link: string) => `📖 Nueva guía de la comunidad para ${label} — mírala: ${link}`,
+} as const;
+
+// DMs everyone subscribed to a character's bell (the follow button on /notes),
+// except the author. This used to be a browser push; it's Discord-only now (see
+// DM_CHARACTER_GUIDE). One batch per language, sent through
+// sendDiscordDMsSequentially (1s apart — see its comment), so a large subscriber
+// list can't trip Discord's abuse detection. Called via deferGuideNotification so
+// it never holds up the request that posted the guide.
+export async function notifyCharacterGuideSubscribers(character: string, authorId: string) {
+  // Matches the subscriber's whole echo group and names the group in the
+  // message, so the bell on the Samus/Dark Samus row fires for a guide either
+  // half of the pair gets.
+  const groupMembers = echoGroupMembers(character as SmashCharacter);
+  const label = echoGroupLabel(character as SmashCharacter);
+  const subscribers = await prisma.user.findMany({
+    where: { id: { not: authorId }, characterGuideSubscriptions: { some: { character: { in: [...groupMembers] } } } },
+    select: { discordId: true, preferredLanguage: true, notificationsDisabled: true },
+  });
+
+  const link = `${siteOrigin()}/notes`;
+  const en: { discordId: string }[] = [];
+  const es: { discordId: string }[] = [];
+  for (const subscriber of subscribers) {
+    if (!isNotificationEnabled(subscriber, "DM_CHARACTER_GUIDE")) continue;
+    (subscriber.preferredLanguage === "es" ? es : en).push({ discordId: subscriber.discordId });
+  }
+  if (en.length > 0) await sendDiscordDMsSequentially(en, GUIDE_DM.en(label, link));
+  if (es.length > 0) await sendDiscordDMsSequentially(es, GUIDE_DM.es(label, link));
 }
 
 // Defers notifyCharacterGuideSubscribers to run once the creating request

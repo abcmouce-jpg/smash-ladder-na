@@ -228,7 +228,7 @@ export default async function LobbyPage() {
                     <CardDescription className="mt-0.5">
                       {lang === "es" ? "Activa las notificaciones en " : "Turn on notifications in "}
                       <Link
-                        href="/settings?tab=lobby#push-notifications"
+                        href="/settings?tab=notifications#push-notifications"
                         className="text-foreground underline underline-offset-2"
                       >
                         {lang === "es" ? "Ajustes" : "Settings"}

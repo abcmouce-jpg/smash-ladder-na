@@ -1,8 +1,10 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, RatingAlgorithm } from "@/generated/prisma/enums";
+import { MatchStatus, RatingAlgorithm, UserStatus } from "@/generated/prisma/enums";
 import { DELETED_USERNAME } from "@/lib/account";
-import { sendDiscordDM } from "@/lib/discord-bot";
+import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
+import { isNotificationEnabled } from "@/lib/notifications";
 import { GLICKO2_INITIAL_RATING, GLICKO2_INITIAL_RD, GLICKO2_INITIAL_VOLATILITY } from "@/lib/glicko2";
 import { formatRating } from "@/lib/rating-format";
 import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
@@ -173,19 +175,14 @@ export async function getSeasonStandings(seasonId: string, pagination: { skip?: 
 async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
   const unresolved = await tx.ratingMatch.findMany({
     where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
-    select: {
-      id: true,
-      player1: { select: { discordId: true } },
-      player2: { select: { discordId: true } },
-    },
+    select: { id: true },
   });
-  if (unresolved.length === 0) return [];
+  if (unresolved.length === 0) return;
 
   await tx.ratingMatch.updateMany({
     where: { id: { in: unresolved.map((m) => m.id) } },
     data: { status: MatchStatus.CANCELLED },
   });
-  return unresolved.flatMap((m) => [m.player1.discordId, m.player2.discordId]);
 }
 
 // Snapshots the current leaderboard as this season's final standings, then
@@ -216,7 +213,16 @@ export async function endActiveSeasonAndStartNext(
     select: { id: true, rating: true, gamesPlayed: true },
   });
 
-  const cancelledMatchDiscordIds = await prisma.$transaction(async (tx) => {
+  // "Players of the last season" = anyone who actually played a game before the
+  // reset below zeroes gamesPlayed — captured up front so the rollover DM goes
+  // to the whole season's playerbase, not just whoever had a match in flight at
+  // the exact moment it ended.
+  const lastSeasonPlayers = await prisma.user.findMany({
+    where: { gamesPlayed: { gt: 0 }, status: { not: UserStatus.BANNED } },
+    select: { discordId: true, notificationsDisabled: true },
+  });
+
+  const nextSeasonName = await prisma.$transaction(async (tx) => {
     await tx.season.update({ where: { id: active.id }, data: { endsAt: now } });
 
     if (standings.length > 0) {
@@ -250,7 +256,7 @@ export async function endActiveSeasonAndStartNext(
     });
 
     const seasonCount = await tx.season.count();
-    await tx.season.create({
+    const created = await tx.season.create({
       data: {
         name: nextName ?? `Season ${seasonCount + 1}`,
         startsAt: now,
@@ -258,23 +264,31 @@ export async function endActiveSeasonAndStartNext(
         scheduledEndAt: nextScheduledEndAt === undefined ? addMonths(now, SEASON_DURATION_MONTHS) : nextScheduledEndAt,
         algorithm: nextAlgorithm,
       },
+      select: { name: true },
     });
 
-    return cancelUnresolvedMatches(tx);
+    await cancelUnresolvedMatches(tx);
+    return created.name;
   });
 
-  // Promise.all, not sendDiscordDMsSequentially — a rollover only ever
-  // catches however many matches were in flight at that moment (a handful at
-  // most in practice), not the large bulk lists that helper's rate-limiting
-  // delay exists for.
-  await Promise.all(
-    cancelledMatchDiscordIds.map((discordId) =>
-      sendDiscordDM(
-        discordId,
-        `🔄 Your in-progress match was cancelled — "${active.name}" just ended and ratings reset for the new season. No rating impact either way.`,
-      ),
-    ),
-  );
+  // One announcement to the whole season's playerbase, not just the handful
+  // whose match was in flight — the cancellation note covers those few without
+  // singling them out. A bulk list, so it goes through
+  // sendDiscordDMsSequentially (1s apart, see its comment) and is deferred past
+  // the response/cron tick rather than awaited, so a large playerbase can't hold
+  // up the rollover itself. after() throws outside a request scope (integration
+  // tests, one-off scripts) — a deliberate no-op there.
+  const recipients = lastSeasonPlayers
+    .filter((player) => isNotificationEnabled(player, "DM_SEASON_ROLLOVER"))
+    .map((player) => ({ discordId: player.discordId }));
+  if (recipients.length > 0) {
+    const message = `🔄 A new season has started — "${nextSeasonName}"! Ratings have reset for a fresh start. Any match still in progress when the last season ended was cancelled with no rating impact either way.`;
+    try {
+      after(() => sendDiscordDMsSequentially(recipients, message));
+    } catch {
+      // See comment above.
+    }
+  }
 }
 
 // Polled from the cron route on every tick. Fires the moment the active
