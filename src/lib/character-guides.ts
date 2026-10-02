@@ -36,6 +36,9 @@ export type GuideView = {
   author: { id: string; username: string };
   myVote: number;
   myFlag: boolean;
+  // ISO string (not a Date) so it survives the server→client boundary and the
+  // client card can format it — same as the comment/report payloads elsewhere.
+  createdAt: string;
 };
 
 // One query for every visible (non-hidden) guide, with the viewer's own vote
@@ -70,6 +73,7 @@ function toGuideView(guide: RawGuide): GuideView {
     author: { id: guide.author.id, username: guide.author.username },
     myVote: guide.votes[0]?.value ?? 0,
     myFlag: guide.flags.length > 0,
+    createdAt: guide.createdAt.toISOString(),
   };
 }
 
