@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CharacterIcon } from "@/components/character-icon";
 import { useConfirm } from "@/components/confirm-dialog";
 import { ExpandableTextarea } from "@/components/expandable-textarea";
+import { LADDER_TIME_ZONE } from "@/lib/timezone";
 import type { Lang } from "@/lib/i18n";
 import type { GuideActionState, GuideFormState } from "@/app/notes/actions";
 
@@ -19,6 +20,9 @@ export type Guide = {
   author: { id: string; username: string };
   myVote: number;
   myFlag: boolean;
+  /** ISO string — formatted in the card so the timestamp stays a stable value
+   *  across the server→client boundary. */
+  createdAt: string;
 };
 
 // Each character row keeps only the best of what's been written, so the page
@@ -309,7 +313,16 @@ export function GuideCard({
             </button>
           )}
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="truncate">— {guide.author.username}</span>
+            <span className="min-w-0 truncate">— {guide.author.username}</span>
+            {/* Pinned to the ladder's reference timezone (not the viewer's) so
+                the SSR and hydrated output match without a LocalTime script. */}
+            <span className="shrink-0 tabular-nums">
+              ·{" "}
+              {new Date(guide.createdAt).toLocaleDateString(lang === "es" ? "es-MX" : "en-US", {
+                timeZone: LADDER_TIME_ZONE,
+                dateStyle: "medium",
+              })}
+            </span>
             <span className="ml-auto flex items-center gap-0.5">
               <button
                 type="button"

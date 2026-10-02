@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CharacterSelect } from "@/components/character-select";
+import { OptionSelect } from "@/components/option-select";
 import { ExpandableTextarea } from "@/components/expandable-textarea";
 import { GuideCard, type Guide } from "@/components/character-guide-section";
 import { echoGroupCanonical, echoGroupLabel, MATCHUP_CHARACTERS, type SmashCharacter } from "@/lib/characters";
@@ -12,6 +13,11 @@ import type { GuideActionState, GuideFormState } from "@/app/notes/actions";
 // Guides per page on the ungrouped tab. Guides can run long, so this is set
 // well below the leaderboard's 50 to keep a page scannable.
 const PAGE_SIZE = 10;
+
+// How the Guides tab orders what's shown. "newest" is the default — guides
+// are worth reading the day they land, and a fresh guide with no votes yet
+// would otherwise sink below established ones.
+type SortKey = "newest" | "rating";
 
 // The ungrouped half of the notes page: every community guide in one ranked
 // list rather than filed under a character row, each tagged with the character
@@ -52,6 +58,7 @@ export function GuidesExplorer({
 }) {
   const [search, setSearch] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(initialCharacter);
+  const [sort, setSort] = useState<SortKey>("newest");
   const [page, setPage] = useState(1);
   const [writing, setWriting] = useState(false);
   const notedSet = useMemo(() => new Set(notedCharacters), [notedCharacters]);
@@ -65,15 +72,25 @@ export function GuidesExplorer({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return guides.filter((guide) => {
+    const visible = guides.filter((guide) => {
       if (activeTag && echoGroupCanonical(guide.character as SmashCharacter) !== activeTag) return false;
       if (!q) return true;
       return guide.content.toLowerCase().includes(q) || guide.author.username.toLowerCase().includes(q);
     });
-  }, [guides, activeTag, search]);
+    // Sorting is client-side like the search/tag filters above, so toggling it
+    // reorders instantly without a round trip. Rating breaks ties by newest,
+    // matching the server's initial (score desc, createdAt desc) order.
+    return visible.sort((a, b) => {
+      if (sort === "rating") {
+        const byScore = b.score - a.score;
+        if (byScore !== 0) return byScore;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [guides, activeTag, search, sort]);
 
-  // Paginate after filtering rather than in the query, since search/tag are
-  // client-side. `currentPage` is derived (clamped) so a filter that shrinks
+  // Paginate after filtering rather than in the query, since search/tag/sort
+  // are client-side. `currentPage` is derived (clamped) so a filter that shrinks
   // the list can't strand the viewer on an out-of-range page.
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -104,22 +121,39 @@ export function GuidesExplorer({
           placeholder={lang === "es" ? "Buscar guías…" : "Search guides…"}
           className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
         />
-        {tags.length > 0 && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          {tags.length > 0 && (
+            <label className="flex w-full flex-col gap-1 text-sm sm:w-56">
+              {lang === "es" ? "Personaje" : "Character"}
+              <CharacterSelect
+                value={activeTag ?? ""}
+                onChange={(value) => {
+                  setActiveTag(value || null);
+                  setPage(1);
+                }}
+                characters={tags}
+                placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
+                clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
+                className="w-full"
+              />
+            </label>
+          )}
           <label className="flex w-full flex-col gap-1 text-sm sm:w-56">
-            {lang === "es" ? "Personaje" : "Character"}
-            <CharacterSelect
-              value={activeTag ?? ""}
+            {lang === "es" ? "Ordenar por" : "Sort by"}
+            <OptionSelect
+              name="guide-sort"
+              defaultValue="newest"
+              options={[
+                { value: "newest", label: lang === "es" ? "Más recientes" : "Newest" },
+                { value: "rating", label: lang === "es" ? "Mejor valoradas" : "Top rated" },
+              ]}
               onChange={(value) => {
-                setActiveTag(value || null);
+                setSort(value as SortKey);
                 setPage(1);
               }}
-              characters={tags}
-              placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
-              clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
-              className="w-full"
             />
           </label>
-        )}
+        </div>
       </div>
 
       {guides.length === 0 ? (
