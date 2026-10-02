@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/db";
 import * as discordBot from "@/lib/discord-bot";
 import { MatchStatus, RatingAlgorithm } from "@/generated/prisma/enums";
@@ -18,6 +18,18 @@ import {
 } from "@/lib/seasons";
 import { createTestUser } from "@/test/factories";
 import { isCancelSuspendThreshold } from "@/lib/account";
+
+// seasons.ts hands the rollover announcement to after() and sends it through
+// sendDiscordDMsSequentially. Run the callback inline so the send is
+// observable, and stub the transport so tests don't wait on its per-recipient
+// delay.
+vi.mock("next/server", () => ({ after: (callback: () => unknown) => void callback() }));
+
+beforeEach(() => {
+  // mockReset (not just mockResolvedValue) so calls don't accumulate across the
+  // tests that trigger a rollover before this one.
+  vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockReset().mockResolvedValue(undefined);
+});
 
 async function createTestMatch(status: MatchStatus, confirmedAt: Date | null = null) {
   const player1 = await createTestUser();
@@ -267,9 +279,9 @@ describe("getSeasonEndsAt", () => {
 });
 
 describe("endActiveSeasonAndStartNext", () => {
-  it("cancels every unresolved match, no-ops on already-terminal ones, and DMs both sides of each cancellation", async () => {
-    vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
+  it("cancels every unresolved match and announces the new season to last season's players", async () => {
     await prisma.season.create({ data: { name: "Season 1", startsAt: before } });
+    const player = await createTestUser({ gamesPlayed: 20 });
 
     const pending = await createTestMatch(MatchStatus.PENDING_REPORT);
     const reported = await createTestMatch(MatchStatus.REPORTED);
@@ -290,9 +302,15 @@ describe("endActiveSeasonAndStartNext", () => {
     expect(byId.get(confirmed.id)).toBe("CONFIRMED"); // untouched — already settled
     expect(byId.get(alreadyCancelled.id)).toBe("CANCELLED"); // untouched, was already terminal
 
-    // 3 newly-cancelled matches x 2 players each = 6 DMs; the pre-cancelled
-    // and confirmed matches' players are never contacted.
-    expect(discordBot.sendDiscordDM).toHaveBeenCalledTimes(6);
+    // One global announcement to everyone who played last season — only `player`
+    // here, since the match helpers' users never played a game. The in-flight
+    // cancellations above are covered by its note rather than DMed individually.
+    const dmSpy = vi.mocked(discordBot.sendDiscordDMsSequentially);
+    expect(dmSpy).toHaveBeenCalledTimes(1);
+    const [recipients, message] = dmSpy.mock.calls[0];
+    expect(recipients.map((r) => r.discordId)).toEqual([player.discordId]);
+    expect(message).toContain("Season 2");
+    expect(message).toMatch(/new season has started/i);
   });
 
   it("schedules the next season 2 months out by default", async () => {
@@ -366,7 +384,6 @@ describe("endActiveSeasonIfDue", () => {
   });
 
   it("rolls over and cancels unresolved matches once the scheduled end passes", async () => {
-    vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
     const scheduledEndAt = new Date(before.getTime() + 60 * 60 * 1000);
     await prisma.season.create({ data: { name: "Season 1", startsAt: before, scheduledEndAt } });
     const inFlight = await createTestMatch(MatchStatus.PENDING_REPORT);
@@ -394,7 +411,6 @@ describe("endActiveSeasonIfDue", () => {
   });
 
   it("rolling the preseason over starts Season 1, cancels in-flight matches, and resets ratings to 1500", async () => {
-    vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
     const scheduledEndAt = new Date(before.getTime() + 60 * 60 * 1000);
     await prisma.season.create({ data: { name: PRE_SEASON_NAME, startsAt: before, scheduledEndAt } });
     const player = await createTestUser({ rating: 1780, gamesPlayed: 22 });

@@ -277,26 +277,21 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
       where: { id: ghostId },
       select: { username: true, discordId: true, notificationsDisabled: true },
     }),
-    prisma.user.findMany({
-      where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } },
-      select: { discordId: true, notificationsDisabled: true },
-    }),
+    prisma.user.findMany({ where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } }, select: { discordId: true } }),
   ]);
   if (!winner || !ghost) return;
   await Promise.all([
-    isNotificationEnabled(ghost, "DM_MATCH_TIMEOUT") &&
+    isNotificationEnabled(ghost, "DM_MATCH_FORFEIT") &&
       sendDiscordDM(
         ghost.discordId,
         `⏱️ Your set vs ${winner.username} was forfeited to them — you didn't lock in a character in time on game ${game.gameNumber}. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
       ),
-    ...mods
-      .filter((mod) => isNotificationEnabled(mod, "DM_MOD_MATCH_ALERT"))
-      .map((mod) =>
-        sendDiscordDM(
-          mod.discordId,
-          `⏱️ Character-pick forfeit: ${winner.username} awarded the whole set over ${ghost.username} on game ${game.gameNumber} (match ${match.id}). Review at /admin/live if this looks unfair.`,
-        ),
+    ...mods.map((mod) =>
+      sendDiscordDM(
+        mod.discordId,
+        `⏱️ Character-pick forfeit: ${winner.username} awarded the whole set over ${ghost.username} on game ${game.gameNumber} (match ${match.id}). Review at /admin/live if this looks unfair.`,
       ),
+    ),
   ]);
 }
 
@@ -373,26 +368,21 @@ async function autoResolveStaleGameReport(match: {
       where: { id: nonReporterId },
       select: { username: true, discordId: true, notificationsDisabled: true },
     }),
-    prisma.user.findMany({
-      where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } },
-      select: { discordId: true, notificationsDisabled: true },
-    }),
+    prisma.user.findMany({ where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } }, select: { discordId: true } }),
   ]);
   if (!winner || !ghost) return;
   await Promise.all([
-    isNotificationEnabled(ghost, "DM_MATCH_TIMEOUT") &&
+    isNotificationEnabled(ghost, "DM_MATCH_FORFEIT") &&
       sendDiscordDM(
         ghost.discordId,
         `⏱️ Your set vs ${winner.username} was forfeited to them — their game ${game.gameNumber} report was auto-confirmed since you didn't respond in time. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
       ),
-    ...mods
-      .filter((mod) => isNotificationEnabled(mod, "DM_MOD_MATCH_ALERT"))
-      .map((mod) =>
-        sendDiscordDM(
-          mod.discordId,
-          `⏱️ Auto-confirmed report forfeit: ${winner.username} awarded the whole set over ${ghost.username} on game ${game.gameNumber} (match ${match.id}) after they didn't confirm in time. Review at /admin/live if this looks unfair.`,
-        ),
+    ...mods.map((mod) =>
+      sendDiscordDM(
+        mod.discordId,
+        `⏱️ Auto-confirmed report forfeit: ${winner.username} awarded the whole set over ${ghost.username} on game ${game.gameNumber} (match ${match.id}) after they didn't confirm in time. Review at /admin/live if this looks unfair.`,
       ),
+    ),
   ]);
 }
 
@@ -1018,7 +1008,7 @@ async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
       }),
       prisma.user.findUnique({ where: { id: outcome.reporterId }, select: { username: true } }),
     ]);
-    if (opponent && reporter && isNotificationEnabled(opponent, "DM_REPORT_REMINDER")) {
+    if (opponent && reporter && isNotificationEnabled(opponent, "DM_MATCH_REPORTS")) {
       await sendDiscordDM(
         opponent.discordId,
         `⏱️ ${reporter.username} reported game ${gameNumber}'s result. Confirm or dispute it in the Lobby — if you don't respond within ${REPORT_TIMEOUT_MS / 60_000} minutes it auto-confirms and you're charged a no-show.`,
@@ -1039,12 +1029,12 @@ async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
     ]);
     if (!p1 || !p2) return;
     await Promise.all([
-      isNotificationEnabled(p1, "DM_REPORT_CONFLICT") &&
+      isNotificationEnabled(p1, "DM_MATCH_REPORTS") &&
         sendDiscordDM(
           p1.discordId,
           `⚠️ You and ${p2.username} reported different results for game ${gameNumber}. Open the Lobby and re-confirm your result, or dispute it for a mod to review.`,
         ),
-      isNotificationEnabled(p2, "DM_REPORT_CONFLICT") &&
+      isNotificationEnabled(p2, "DM_MATCH_REPORTS") &&
         sendDiscordDM(
           p2.discordId,
           `⚠️ You and ${p1.username} reported different results for game ${gameNumber}. Open the Lobby and re-confirm your result, or dispute it for a mod to review.`,
@@ -1079,27 +1069,25 @@ async function notifyDisputeEscalated(
     : " The set continues in the meantime — head to the lobby.";
   const mods = await prisma.user.findMany({
     where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } },
-    select: { discordId: true, notificationsDisabled: true },
+    select: { discordId: true },
   });
   await Promise.all([
-    isNotificationEnabled(p1, "DM_DISPUTE_OPENED") &&
+    isNotificationEnabled(p1, "DM_DISPUTES") &&
       sendDiscordDM(
         p1.discordId,
         `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`,
       ),
-    isNotificationEnabled(p2, "DM_DISPUTE_OPENED") &&
+    isNotificationEnabled(p2, "DM_DISPUTES") &&
       sendDiscordDM(
         p2.discordId,
         `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`,
       ),
-    ...mods
-      .filter((mod) => isNotificationEnabled(mod, "DM_MOD_DISPUTE_ALERT"))
-      .map((mod) =>
-        sendDiscordDM(
-          mod.discordId,
-          `🚩 New dispute: ${p1.username} vs ${p2.username}, game ${gameNumber} — check /admin/disputes.`,
-        ),
+    ...mods.map((mod) =>
+      sendDiscordDM(
+        mod.discordId,
+        `🚩 New dispute: ${p1.username} vs ${p2.username}, game ${gameNumber} — check /admin/disputes.`,
       ),
+    ),
   ]);
 }
 

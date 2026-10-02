@@ -140,8 +140,8 @@ export async function resolveDisputedGame(matchId: string, gameNumber: number, w
   const message = result.setWinnerId
     ? `⚖️ A mod resolved game ${gameNumber}'s disputed result — your set is now confirmed.`
     : `⚖️ A mod resolved game ${gameNumber}'s disputed result. The set continues.`;
-  if (p1 && isNotificationEnabled(p1, "DM_DISPUTE_RESOLVED")) await sendDiscordDM(p1.discordId, message);
-  if (p2 && isNotificationEnabled(p2, "DM_DISPUTE_RESOLVED")) await sendDiscordDM(p2.discordId, message);
+  if (p1 && isNotificationEnabled(p1, "DM_DISPUTES")) await sendDiscordDM(p1.discordId, message);
+  if (p2 && isNotificationEnabled(p2, "DM_DISPUTES")) await sendDiscordDM(p2.discordId, message);
 }
 
 // Self-service alternative to waiting on a mod: once a game is disputed

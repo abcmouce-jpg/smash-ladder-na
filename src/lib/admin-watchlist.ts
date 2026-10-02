@@ -8,6 +8,7 @@ import {
   isCancelWarningThreshold,
 } from "@/lib/account";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { isNotificationEnabled } from "@/lib/notifications";
 
 export type WatchlistPlayer = {
   id: string;
@@ -90,12 +91,14 @@ export async function autoSuspendWatchlistViolators() {
         status: UserStatus.SUSPENDED,
         suspendedUntil: new Date(Date.now() + CANCEL_SUSPEND_DURATION_HOURS * 60 * 60 * 1000),
       },
-      select: { discordId: true, username: true, cancelCount: true },
+      select: { discordId: true, username: true, cancelCount: true, notificationsDisabled: true },
     });
-    await sendDiscordDM(
-      user.discordId,
-      `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — an automated patrol found your cancel count (${user.cancelCount}) still crosses the threshold for a cancel-abuse pattern. Posting on Friendlies and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
-    );
+    if (isNotificationEnabled(user, "DM_SUSPENSION")) {
+      await sendDiscordDM(
+        user.discordId,
+        `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — an automated patrol found your cancel count (${user.cancelCount}) still crosses the threshold for a cancel-abuse pattern. Posting on Friendlies and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
+      );
+    }
     suspendedUsernames.push(user.username);
   }
 

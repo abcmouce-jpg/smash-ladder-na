@@ -164,15 +164,21 @@ export async function setHideDiscordUsername(userId: string, hide: boolean) {
 
 // Opt-in for notifyQueueOpportunitySubscribers (push-server.ts) — ping this
 // player when someone joins the queue who could actually match them, while
-// they aren't queued themselves. See User.notifyQueueOpportunities. Surfaced in
-// Settings → Notifications alongside the opt-out set below.
+// they aren't queued themselves. See the PUSH_QUEUE_OPPORTUNITY and
+// DM_QUEUE_OPPORTUNITY entries in lib/notifications.ts — those two are the
+// settings stored in their own opt-in columns rather than the
+// notificationsDisabled set.
 export async function setNotifyQueueOpportunities(userId: string, notifyQueueOpportunities: boolean) {
   await prisma.user.update({ where: { id: userId }, data: { notifyQueueOpportunities } });
 }
 
-// Settings → Notifications: the opt-out set for everything that isn't critical
-// or the opt-in queue-opportunity push (see lib/notifications.ts). Unknown keys
-// are dropped so a stale form submission can't persist junk into the column.
+export async function setNotifyQueueOpportunitiesDm(userId: string, notifyQueueOpportunitiesDm: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { notifyQueueOpportunitiesDm } });
+}
+
+// Settings → Notifications: the opt-out set of notification keys (see
+// lib/notifications.ts). Unknown keys are dropped so a stale form submission
+// can't persist junk into the column.
 export async function setNotificationsDisabled(userId: string, notificationsDisabled: string[]) {
   const allowed = new Set<string>(CONFIGURABLE_NOTIFICATION_KEYS);
   const clean = [...new Set(notificationsDisabled)].filter((key) => allowed.has(key));

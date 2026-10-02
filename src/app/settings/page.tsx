@@ -91,6 +91,7 @@ export default async function SettingsPage({
         audioPingOnMatch: true,
         matchFoundSound: true,
         notifyQueueOpportunities: true,
+        notifyQueueOpportunitiesDm: true,
         notificationsDisabled: true,
         quickMessages: true,
         isSupporter: true,
@@ -157,8 +158,8 @@ export default async function SettingsPage({
         <NotificationsTab
           notificationsDisabled={me?.notificationsDisabled ?? []}
           notifyQueueOpportunities={me?.notifyQueueOpportunities ?? false}
+          notifyQueueOpportunitiesDm={me?.notifyQueueOpportunitiesDm ?? false}
           pushEnabled={(me?._count.pushSubscriptions ?? 0) > 0}
-          isMod={session.user.role === "MOD" || session.user.role === "ADMIN"}
           lang={lang}
         />
       )}
@@ -446,18 +447,18 @@ function LobbyTab({
 }
 
 // One settings toggle, rendered from the shared registry (lib/notifications.ts)
-// so the copy and the stored key can't drift apart. The opt-in queue-opportunity
-// type submits under its own field/name; everything else submits its key as a
-// checked `notifications` value, and the action rebuilds notificationsDisabled
-// from whatever is left checked.
+// so the copy and the stored key can't drift apart. Opt-out toggles submit their
+// key as a checked `notifications` value (the action rebuilds
+// notificationsDisabled from whatever is left checked); the opt-in
+// queue-opportunity push submits under its own field.
 function NotificationToggle({ def, enabled, lang }: { def: NotificationDef; enabled: boolean; lang: Lang }) {
   return (
     <label className="flex items-start gap-2 text-sm">
       <input
         key={String(enabled)}
         type="checkbox"
-        name={def.optIn ? "notifyQueueOpportunities" : "notifications"}
-        value={def.optIn ? undefined : def.key}
+        name={def.field ?? "notifications"}
+        value={def.field ? undefined : def.key}
         defaultChecked={enabled}
         className="mt-0.5 size-4 rounded border-border"
       />
@@ -472,25 +473,19 @@ function NotificationToggle({ def, enabled, lang }: { def: NotificationDef; enab
 function NotificationsTab({
   notificationsDisabled,
   notifyQueueOpportunities,
+  notifyQueueOpportunitiesDm,
   pushEnabled,
-  isMod,
   lang,
 }: {
   notificationsDisabled: string[];
   notifyQueueOpportunities: boolean;
+  notifyQueueOpportunitiesDm: boolean;
   pushEnabled: boolean;
-  isMod: boolean;
   lang: Lang;
 }) {
-  const prefs = { notificationsDisabled, notifyQueueOpportunities };
-  const pushTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "push" && !def.critical);
-  const playerDms = NOTIFICATION_DEFS.filter(
-    (def) => def.channel === "discord" && def.audience === "player" && !def.critical,
-  );
-  const modDms = NOTIFICATION_DEFS.filter(
-    (def) => def.channel === "discord" && def.audience === "mod" && !def.critical,
-  );
-  const alwaysSent = NOTIFICATION_DEFS.filter((def) => def.critical);
+  const prefs = { notificationsDisabled, notifyQueueOpportunities, notifyQueueOpportunitiesDm };
+  const pushTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "push");
+  const dmTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "discord");
 
   return (
     <div className="mt-6 flex flex-col gap-4">
@@ -507,8 +502,8 @@ function NotificationsTab({
               <p className="text-sm font-medium">{lang === "es" ? "Notificaciones push" : "Browser push"}</p>
               <p className="text-xs text-muted-foreground">
                 {lang === "es"
-                  ? "Qué notificaciones del navegador enviar, una vez activadas arriba."
-                  : "Which browser notifications to send, once push is enabled above."}
+                  ? "Qué enviar al navegador, una vez activado arriba."
+                  : "What to send to the browser, once push is enabled above."}
               </p>
               {pushTypes.map((def) => (
                 <NotificationToggle
@@ -521,56 +516,19 @@ function NotificationsTab({
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border pt-4">
-              <p className="text-sm font-medium">{lang === "es" ? "Mensajes directos de Discord" : "Discord DMs"}</p>
+              <p className="text-sm font-medium">{lang === "es" ? "MD de Discord" : "Discord DMs"}</p>
               <p className="text-xs text-muted-foreground">
                 {lang === "es"
                   ? "El bot solo puede enviarte un MD si compartes servidor con él y tienes activados los MD de miembros del servidor."
                   : "The bot can only DM you if you share a server with it and have DMs from server members enabled."}
               </p>
-              {playerDms.map((def) => (
+              {dmTypes.map((def) => (
                 <NotificationToggle
                   key={def.key}
                   def={def}
                   enabled={isNotificationEnabled(prefs, def.key)}
                   lang={lang}
                 />
-              ))}
-            </div>
-
-            {isMod && (
-              <div className="flex flex-col gap-3 border-t border-border pt-4">
-                <p className="text-sm font-medium">{lang === "es" ? "Alertas de moderación" : "Moderation alerts"}</p>
-                <p className="text-xs text-muted-foreground">
-                  {lang === "es"
-                    ? "Solo para mods y admins — avisos operativos de la cola de moderación."
-                    : "Mods and admins only — operational alerts about the moderation queue."}
-                </p>
-                {modDms.map((def) => (
-                  <NotificationToggle
-                    key={def.key}
-                    def={def}
-                    enabled={isNotificationEnabled(prefs, def.key)}
-                    lang={lang}
-                  />
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3 border-t border-border pt-4">
-              <p className="text-sm font-medium">{lang === "es" ? "Siempre activadas" : "Always sent"}</p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "Avisos de cuenta y mensajes de mods que no se pueden desactivar."
-                  : "Account notices and mod messages that can't be turned off."}
-              </p>
-              {alwaysSent.map((def) => (
-                <label key={def.key} className="flex items-start gap-2 text-sm opacity-70">
-                  <input type="checkbox" checked disabled readOnly className="mt-0.5 size-4 rounded border-border" />
-                  <span>
-                    <span className="font-medium">{def.label[lang]}</span>
-                    <span className="block text-xs font-normal text-muted-foreground">{def.description[lang]}</span>
-                  </span>
-                </label>
               ))}
             </div>
           </SettingsSaveForm>

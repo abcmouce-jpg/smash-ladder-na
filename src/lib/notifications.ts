@@ -1,55 +1,52 @@
-// Central registry of every notification a player can receive, and the single
-// source of truth for which ones are user-configurable. The Settings →
-// Notifications tab renders straight from this list, and each send site gates
-// on isNotificationEnabled() with the key defined here — so adding a new
-// notification means adding one entry plus one gate call, rather than touching
-// storage, the settings form, and its copy separately.
+// Central registry of the notification settings a player can toggle, and the
+// single source of truth for how each one is stored and labelled. The Settings
+// → Notifications tab renders straight from this list — grouped into browser
+// push and Discord DMs by `channel` — and each send site gates on
+// isNotificationEnabled() with one of these keys, so adding or regrouping a
+// notification means editing one entry plus its gate call.
 //
-// Storage: opt-out types a player has turned off are listed in
+// Some settings cover more than one underlying notification (e.g. DM_MATCH_REPORTS
+// gates both the "opponent reported" nudge and the "conflicting results" prompt),
+// which is why the keys are grouped rather than one-per-send-site. Push and
+// Discord are deliberately separate settings even for the same event (match
+// found, queue opportunity), so someone can silence one channel without losing
+// the other.
+//
+// Storage: opt-out keys a player turned OFF are listed in
 // User.notificationsDisabled (see setNotificationsDisabled in lib/account.ts).
-// Two deliberate exceptions:
-//   - `critical` types (account/conduct notices and direct mod messages) are
-//     always sent. A player can't silence "your account was suspended", and a
-//     mod shouldn't lose their channel for reaching someone about a dispute.
-//   - `optIn` types carry their own boolean column (notifyQueueOpportunities),
-//     because they default OFF and predate this registry.
+// A setting with `field` is instead an opt-in that defaults OFF and lives in
+// its own boolean column — currently the two queue-opportunity pings, each on
+// its own channel.
 export const NOTIFICATION_KEYS = [
   // Browser push
   "PUSH_MATCH_FOUND",
   "PUSH_QUEUE_OPPORTUNITY",
-  "PUSH_CHARACTER_GUIDE",
-  // Discord DMs — player-facing
+  // Discord DMs
   "DM_MATCH_FOUND",
-  "DM_MATCH_TIMEOUT",
-  "DM_REPORT_REMINDER",
-  "DM_REPORT_CONFLICT",
-  "DM_DISPUTE_OPENED",
-  "DM_DISPUTE_RESOLVED",
-  "DM_FRIENDLIES",
-  "DM_TOURNAMENT",
-  "DM_SEASON_ROLLOVER",
-  // Discord DMs — mod-facing
-  "DM_MOD_DISPUTE_ALERT",
-  "DM_MOD_MATCH_ALERT",
-  // Discord DMs — always sent (not user-configurable)
-  "DM_CANCEL_WARNING",
+  "DM_QUEUE_OPPORTUNITY",
+  "DM_CHARACTER_GUIDE",
+  "DM_MOD_MESSAGES",
   "DM_SUSPENSION",
-  "DM_MOD_MESSAGE",
+  "DM_CANCELLATION_WARNING",
+  "DM_SEASON_ROLLOVER",
+  "DM_MATCH_FORFEIT",
+  "DM_MATCH_REPORTS",
+  "DM_DISPUTES",
+  "DM_FRIENDLIES",
 ] as const;
 
 export type NotificationKey = (typeof NOTIFICATION_KEYS)[number];
 
 export type NotificationChannel = "push" | "discord";
-export type NotificationAudience = "player" | "mod";
+
+/** The boolean User columns an opt-in setting is stored in. */
+export type NotificationOptInField = "notifyQueueOpportunities" | "notifyQueueOpportunitiesDm";
 
 export type NotificationDef = {
   key: NotificationKey;
   channel: NotificationChannel;
-  audience: NotificationAudience;
-  /** Always sent — the settings UI shows it as locked rather than a toggle. */
-  critical?: boolean;
-  /** Stored in its own boolean column (currently notifyQueueOpportunities) rather than notificationsDisabled. */
-  optIn?: boolean;
+  /** Present → opt-in stored in this column; absent → opt-out in notificationsDisabled. */
+  field?: NotificationOptInField;
   label: { en: string; es: string };
   description: { en: string; es: string };
 };
@@ -58,28 +55,41 @@ export const NOTIFICATION_DEFS: readonly NotificationDef[] = [
   {
     key: "PUSH_MATCH_FOUND",
     channel: "push",
-    audience: "player",
-    label: { en: "Match found", es: "Partida encontrada" },
-    description: {
-      en: "A browser notification when you're paired.",
-      es: "Una notificación del navegador cuando te emparejan.",
-    },
+    label: { en: "Match Found", es: "Partida encontrada" },
+    description: { en: "When you're paired.", es: "Cuando te emparejan." },
   },
   {
     key: "PUSH_QUEUE_OPPORTUNITY",
     channel: "push",
-    audience: "player",
-    optIn: true,
+    field: "notifyQueueOpportunities",
     label: { en: "Matchable opponent in queue", es: "Rival compatible en la cola" },
     description: {
-      en: "While you're not queued, a browser notification when someone who could match you joins.",
-      es: "Mientras no estás en la cola, una notificación del navegador cuando entra alguien que podría emparejarse contigo.",
+      en: "While you're not queued, when someone who could match you joins.",
+      es: "Mientras no estás en la cola, cuando entra alguien que podría emparejarse contigo.",
     },
   },
   {
-    key: "PUSH_CHARACTER_GUIDE",
-    channel: "push",
-    audience: "player",
+    key: "DM_MATCH_FOUND",
+    channel: "discord",
+    label: { en: "Match Found", es: "Partida encontrada" },
+    description: {
+      en: "When you're paired, with a link to the Lobby.",
+      es: "Cuando te emparejan, con un enlace a la Sala.",
+    },
+  },
+  {
+    key: "DM_QUEUE_OPPORTUNITY",
+    channel: "discord",
+    field: "notifyQueueOpportunitiesDm",
+    label: { en: "Matchable opponent in queue", es: "Rival compatible en la cola" },
+    description: {
+      en: "While you're not queued, when someone who could match you joins.",
+      es: "Mientras no estás en la cola, cuando entra alguien que podría emparejarse contigo.",
+    },
+  },
+  {
+    key: "DM_CHARACTER_GUIDE",
+    channel: "discord",
     label: { en: "New character guides", es: "Nuevas guías de personaje" },
     description: {
       en: "When someone posts a guide for a character you follow.",
@@ -87,171 +97,97 @@ export const NOTIFICATION_DEFS: readonly NotificationDef[] = [
     },
   },
   {
-    key: "DM_MATCH_FOUND",
+    key: "DM_MOD_MESSAGES",
     channel: "discord",
-    audience: "player",
-    label: { en: "Match found", es: "Partida encontrada" },
+    label: { en: "Messages from Mods", es: "Mensajes de mods" },
     description: {
-      en: "A Discord DM when you're paired, with a link to the Lobby.",
-      es: "Un MD de Discord cuando te emparejan, con un enlace a la Sala.",
-    },
-  },
-  {
-    key: "DM_MATCH_TIMEOUT",
-    channel: "discord",
-    audience: "player",
-    label: { en: "Set forfeited for inactivity", es: "Set perdido por inactividad" },
-    description: {
-      en: "A DM when your set is auto-forfeited because you didn't pick a character or confirm a report in time.",
-      es: "Un MD cuando tu set se pierde automáticamente porque no elegiste personaje o no confirmaste un reporte a tiempo.",
-    },
-  },
-  {
-    key: "DM_REPORT_REMINDER",
-    channel: "discord",
-    audience: "player",
-    label: { en: "Opponent reported a result", es: "Tu rival reportó un resultado" },
-    description: {
-      en: "A DM when your opponent reports a game result and it's waiting on your confirm or dispute.",
-      es: "Un MD cuando tu rival reporta el resultado de una partida y espera tu confirmación.",
-    },
-  },
-  {
-    key: "DM_REPORT_CONFLICT",
-    channel: "discord",
-    audience: "player",
-    label: { en: "Conflicting results", es: "Resultados en conflicto" },
-    description: {
-      en: "A DM when you and your opponent report different results and need to re-confirm.",
-      es: "Un MD cuando tú y tu rival reportan resultados distintos y deben reconfirmar.",
-    },
-  },
-  {
-    key: "DM_DISPUTE_OPENED",
-    channel: "discord",
-    audience: "player",
-    label: { en: "Dispute opened", es: "Disputa abierta" },
-    description: {
-      en: "A DM when a conflicting report is escalated for a mod to review.",
-      es: "Un MD cuando un reporte conflictivo se escala para revisión de un mod.",
-    },
-  },
-  {
-    key: "DM_DISPUTE_RESOLVED",
-    channel: "discord",
-    audience: "player",
-    label: { en: "Dispute resolved", es: "Disputa resuelta" },
-    description: {
-      en: "A DM when a mod resolves a disputed game.",
-      es: "Un MD cuando un mod resuelve una partida en disputa.",
-    },
-  },
-  {
-    key: "DM_FRIENDLIES",
-    channel: "discord",
-    audience: "player",
-    label: { en: "Friendlies", es: "Friendlies" },
-    description: {
-      en: "A DM when a Friendlies post matches you (requires the Discord @Matchmaking role), or when someone joins your post.",
-      es: "Un MD cuando una publicación de Friendlies coincide contigo (requiere el rol @Matchmaking de Discord), o cuando alguien se une a tu publicación.",
-    },
-  },
-  {
-    key: "DM_TOURNAMENT",
-    channel: "discord",
-    audience: "player",
-    label: { en: "Tournament starting", es: "Torneo por comenzar" },
-    description: {
-      en: "A DM when a tournament you entered starts.",
-      es: "Un MD cuando comienza un torneo en el que te inscribiste.",
-    },
-  },
-  {
-    key: "DM_SEASON_ROLLOVER",
-    channel: "discord",
-    audience: "player",
-    label: { en: "Season rollover", es: "Cambio de temporada" },
-    description: {
-      en: "A DM when your in-progress match is cancelled because a season ended.",
-      es: "Un MD cuando tu partida en curso se cancela porque terminó la temporada.",
-    },
-  },
-  {
-    key: "DM_MOD_DISPUTE_ALERT",
-    channel: "discord",
-    audience: "mod",
-    label: { en: "New dispute alerts", es: "Alertas de nuevas disputas" },
-    description: {
-      en: "A DM to mods/admins when a game dispute is opened.",
-      es: "Un MD a mods/admins cuando se abre una disputa entre jugadores.",
-    },
-  },
-  {
-    key: "DM_MOD_MATCH_ALERT",
-    channel: "discord",
-    audience: "mod",
-    label: { en: "Auto-resolved match alerts", es: "Alertas de partidas auto-resueltas" },
-    description: {
-      en: "A DM to mods/admins when a match is auto-forfeited, auto-confirmed, or expires unreported.",
-      es: "Un MD a mods/admins cuando una partida se auto-otorga, se auto-confirma o expira sin reporte.",
-    },
-  },
-  {
-    key: "DM_CANCEL_WARNING",
-    channel: "discord",
-    audience: "player",
-    critical: true,
-    label: { en: "Cancellation warnings", es: "Avisos de cancelación" },
-    description: {
-      en: "A DM when your cancellations approach the cancel-abuse threshold. Always sent.",
-      es: "Un MD cuando tus cancelaciones se acercan al umbral de abuso. Siempre se envía.",
+      en: "When a mod messages you about a dispute.",
+      es: "Cuando un mod te escribe sobre una disputa.",
     },
   },
   {
     key: "DM_SUSPENSION",
     channel: "discord",
-    audience: "player",
-    critical: true,
-    label: { en: "Suspension notices", es: "Avisos de suspensión" },
+    label: { en: "Suspension notice", es: "Aviso de suspensión" },
     description: {
-      en: "A DM when your account is auto-suspended. Always sent.",
-      es: "Un MD cuando tu cuenta se suspende automáticamente. Siempre se envía.",
+      en: "When your account is auto-suspended for cancel abuse.",
+      es: "Cuando tu cuenta se suspende automáticamente por abuso de cancelaciones.",
     },
   },
   {
-    key: "DM_MOD_MESSAGE",
+    key: "DM_CANCELLATION_WARNING",
     channel: "discord",
-    audience: "player",
-    critical: true,
-    label: { en: "Messages from mods", es: "Mensajes de mods" },
+    label: { en: "Cancellation warning", es: "Aviso de cancelación" },
     description: {
-      en: "A DM when a mod messages you about a dispute. Always sent.",
-      es: "Un MD cuando un mod te escribe sobre una disputa. Siempre se envía.",
+      en: "When your cancellations approach the cancel-abuse threshold.",
+      es: "Cuando tus cancelaciones se acercan al umbral de abuso.",
+    },
+  },
+  {
+    key: "DM_SEASON_ROLLOVER",
+    channel: "discord",
+    label: { en: "Season rollover", es: "Cambio de temporada" },
+    description: {
+      en: "When a new season starts and ratings reset.",
+      es: "Cuando comienza una nueva temporada y se reinician los rangos.",
+    },
+  },
+  {
+    key: "DM_MATCH_FORFEIT",
+    channel: "discord",
+    label: { en: "Set Forfeit for inactivity", es: "Set perdido por inactividad" },
+    description: {
+      en: "When your set is auto-forfeited for not picking a character or confirming a report in time.",
+      es: "Cuando tu set se pierde automáticamente por no elegir personaje o confirmar un reporte a tiempo.",
+    },
+  },
+  {
+    key: "DM_MATCH_REPORTS",
+    channel: "discord",
+    label: { en: "Match reports", es: "Reportes de partida" },
+    description: {
+      en: "When an opponent's result is waiting on you, or conflicting reports need re-confirming.",
+      es: "Cuando el resultado de tu rival espera tu confirmación, o hay reportes en conflicto que reconfirmar.",
+    },
+  },
+  {
+    key: "DM_DISPUTES",
+    channel: "discord",
+    label: { en: "Disputes", es: "Disputas" },
+    description: {
+      en: "When a dispute is opened for a mod to review, or is resolved.",
+      es: "Cuando una disputa se abre para revisión de un mod o se resuelve.",
+    },
+  },
+  {
+    key: "DM_FRIENDLIES",
+    channel: "discord",
+    label: { en: "Friendlies", es: "Friendlies" },
+    description: {
+      en: "When a Friendlies post matches you, or someone joins your post.",
+      es: "Cuando una publicación de Friendlies coincide contigo o alguien se une a tu publicación.",
     },
   },
 ];
 
 const DEFS_BY_KEY = new Map(NOTIFICATION_DEFS.map((def) => [def.key, def]));
 
-// The keys a player actually toggles — everything except the always-sent ones
-// (critical) and the opt-in one tracked by its own column. The settings save
-// path uses this to rebuild notificationsDisabled from what was left checked.
+// The keys the opt-out `notificationsDisabled` set is rebuilt from — every
+// setting that isn't stored in an opt-in column of its own.
 export const CONFIGURABLE_NOTIFICATION_KEYS: readonly NotificationKey[] = NOTIFICATION_DEFS.filter(
-  (def) => !def.critical && !def.optIn,
+  (def) => !def.field,
 ).map((def) => def.key);
 
 /** The shape every gate needs — a slice of the User row, not the whole thing. */
-export type NotificationPrefs = {
-  notificationsDisabled: string[];
-  notifyQueueOpportunities?: boolean;
+export type NotificationPrefs = Partial<Record<NotificationOptInField, boolean>> & {
+  notificationsDisabled?: string[];
 };
 
 export function isNotificationEnabled(prefs: NotificationPrefs, key: NotificationKey): boolean {
   const def = DEFS_BY_KEY.get(key);
   if (!def) return true;
-  if (def.critical) return true;
-  if (def.optIn) return prefs.notifyQueueOpportunities ?? false;
-  return !prefs.notificationsDisabled.includes(key);
+  if (def.field) return prefs[def.field] ?? false;
+  return !(prefs.notificationsDisabled?.includes(key) ?? false);
 }
 
 // Rebuilds notificationsDisabled from the set of keys left checked in the

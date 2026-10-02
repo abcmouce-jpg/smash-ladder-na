@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { adminCancelMatch, resolveDisputedGame } from "@/lib/disputes";
 import { resolveMatchCorrection } from "@/lib/matches";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { isNotificationEnabled } from "@/lib/notifications";
 import { prisma } from "@/lib/db";
 
 async function requireModerator() {
@@ -41,12 +42,17 @@ export async function messageDisputedPlayer(playerId: string, formData: FormData
   const message = String(formData.get("message") ?? "").trim();
   if (!message) throw new Error("Message can't be empty");
 
-  const player = await prisma.user.findUnique({ where: { id: playerId }, select: { discordId: true } });
+  const player = await prisma.user.findUnique({
+    where: { id: playerId },
+    select: { discordId: true, notificationsDisabled: true },
+  });
   if (!player) throw new Error("Player not found");
 
-  await sendDiscordDM(
-    player.discordId,
-    `📨 A Smash Ladder NA mod sent you a message about your disputed match:\n\n${message}`,
-  );
+  if (isNotificationEnabled(player, "DM_MOD_MESSAGES")) {
+    await sendDiscordDM(
+      player.discordId,
+      `📨 A Smash Ladder NA mod sent you a message about your disputed match:\n\n${message}`,
+    );
+  }
   revalidatePath("/admin/disputes");
 }

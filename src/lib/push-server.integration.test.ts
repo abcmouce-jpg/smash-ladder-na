@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { createTestUser } from "@/test/factories";
 import { blockUser } from "@/lib/blocks";
 import { LobbyEntryStatus } from "@/generated/prisma/enums";
+import * as discordBot from "@/lib/discord-bot";
 
 vi.mock("web-push", () => {
   class WebPushError extends Error {
@@ -53,6 +54,12 @@ beforeAll(async () => {
 
 afterEach(() => {
   sendNotificationMock.mockReset();
+});
+
+// The queue-opportunity ping now delivers over Discord too — reset the DM
+// transport per test so its calls don't accumulate across the suite.
+beforeEach(() => {
+  vi.spyOn(discordBot, "sendDiscordDM").mockReset().mockResolvedValue(undefined);
 });
 
 function subscribeUser(userId: string, endpoint: string) {
@@ -347,6 +354,44 @@ describe("notifyQueueOpportunitySubscribers", () => {
 
     expect(sent).toBe(0);
     expect(sendNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("DMs a candidate who opted into the DM ping but not push", async () => {
+    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const candidate = await createTestUser({
+      rating: 1500,
+      gamesPlayed: 20,
+      region: "USA East",
+      notifyQueueOpportunitiesDm: true,
+    });
+
+    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
+
+    expect(sent).toBe(0); // no push channel opted into
+    const dmSpy = vi.mocked(discordBot.sendDiscordDM);
+    expect(dmSpy).toHaveBeenCalledTimes(1);
+    expect(dmSpy.mock.calls[0][0]).toBe(candidate.discordId);
+    expect(dmSpy.mock.calls[0][1]).toContain("/lobby");
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: candidate.id } });
+    expect(updated.queueOpportunityNotifiedAt).not.toBeNull();
+  });
+
+  it("sends both channels when a candidate opted into both", async () => {
+    const joiner = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const candidate = await createTestUser({
+      rating: 1500,
+      gamesPlayed: 20,
+      region: "USA East",
+      notifyQueueOpportunities: true,
+      notifyQueueOpportunitiesDm: true,
+    });
+    await subscribeUser(candidate.id, "https://push.example.com/both");
+    sendNotificationMock.mockResolvedValue({ statusCode: 201, body: "", headers: {} });
+
+    const sent = await notifyQueueOpportunitySubscribers(joiner.id, joinerParams(), ["USA East"], null);
+
+    expect(sent).toBe(1);
+    expect(vi.mocked(discordBot.sendDiscordDM)).toHaveBeenCalledTimes(1);
   });
 });
 

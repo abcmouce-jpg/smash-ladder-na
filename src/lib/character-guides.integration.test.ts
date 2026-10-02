@@ -1,7 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import { createTestUser } from "@/test/factories";
-import { createCharacterGuide, getAllCharacterGuides, getAllGuides } from "@/lib/character-guides";
+import * as discordBot from "@/lib/discord-bot";
+import {
+  createCharacterGuide,
+  getAllCharacterGuides,
+  getAllGuides,
+  notifyCharacterGuideSubscribers,
+} from "@/lib/character-guides";
 
 function addGuide(authorId: string, character: string, content: string) {
   return prisma.characterGuide.create({ data: { character, authorId, content } });
@@ -79,5 +85,23 @@ describe("createCharacterGuide", () => {
 
     expect(marth.character).toBe("Marth");
     expect(lucina.character).toBe("Lucina");
+  });
+});
+
+describe("notifyCharacterGuideSubscribers", () => {
+  it("DMs a follower of the guide's echo group, excluding the author and opt-outs", async () => {
+    const author = await createTestUser();
+    const follower = await createTestUser();
+    const optedOut = await createTestUser({ notificationsDisabled: ["DM_CHARACTER_GUIDE"] });
+    for (const user of [author, follower, optedOut]) {
+      await prisma.characterGuideSubscription.create({ data: { userId: user.id, character: "Samus" } });
+    }
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(undefined);
+
+    await notifyCharacterGuideSubscribers("Dark Samus", author.id);
+
+    expect(dmSpy).toHaveBeenCalledTimes(1);
+    expect(dmSpy.mock.calls[0][0]).toEqual([{ discordId: follower.discordId }]);
+    expect(dmSpy.mock.calls[0][1]).toContain("Samus / Dark Samus");
   });
 });

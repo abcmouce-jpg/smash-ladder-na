@@ -8,10 +8,11 @@ import webpush from "web-push";
 import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, UserStatus } from "@/generated/prisma/enums";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
-import { echoGroupLabel, echoGroupMembers, type SmashCharacter } from "@/lib/characters";
 import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
 import { getRegionsWithinDistance } from "@/lib/regions";
 import { isNotificationEnabled } from "@/lib/notifications";
+import { sendDiscordDM } from "@/lib/discord-bot";
+import { siteOrigin } from "@/lib/site-url";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY?.trim();
@@ -48,15 +49,9 @@ const QUEUE_OPPORTUNITY_MESSAGES = {
   es: { title: "Un rival en tu rango acaba de entrar a la cola", body: "Entra ahora mientras sigue esperando." },
 } as const;
 
-const NEW_GUIDE_MESSAGES = {
-  en: (character: string) => ({
-    title: "New community guide",
-    body: `Someone posted a new guide for ${character}.`,
-  }),
-  es: (character: string) => ({
-    title: "Nueva guía de la comunidad",
-    body: `Alguien publicó una nueva guía para ${character}.`,
-  }),
+const QUEUE_OPPORTUNITY_DM = {
+  en: (link: string) => `👀 Someone in your range just queued — jump in while they're still waiting: ${link}`,
+  es: (link: string) => `👀 Alguien en tu rango acaba de entrar a la cola — entra mientras sigue esperando: ${link}`,
 } as const;
 
 const TEST_MESSAGES = {
@@ -146,18 +141,19 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
 const QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS = 20 * 60 * 1000;
 
 // Called from joinLobbyAndTryPair (lobby.ts) only when a fresh join found no
-// immediate opponent — tells anyone who opted in (User.notifyQueueOpportunities)
-// and isn't already queued themselves that someone matchable just showed up,
-// so they can jump into the queue while that entry is still WAITING. Never
-// throws, same contract as the other notify* functions here; called via
-// after() from the caller so it can't delay the join response.
+// immediate opponent — tells anyone who opted in (User.notifyQueueOpportunities
+// for push and/or User.notifyQueueOpportunitiesDm for Discord) and isn't already
+// queued themselves that someone matchable just showed up, so they can jump into
+// the queue while that entry is still WAITING. The two channels are independent:
+// a candidate can be reached by push, DM, or both. Never throws, same contract as
+// the other notify* functions here; called via after() from the caller so it
+// can't delay the join response.
 //
-// Deliberately anonymous: QUEUE_OPPORTUNITY_MESSAGES never names the joiner,
-// states their rating, or gives anything else identifying — unlike
-// notifyMatchmakingSubscribers (free-battle.ts), which names the post's
-// author because claiming a Free Battle post is a deliberate, consensual
-// act. Here the joiner never agreed to be identified just for queuing, so
-// the ping only ever says "someone" is around.
+// Deliberately anonymous: neither copy names the joiner, states their rating, or
+// gives anything else identifying — unlike notifyMatchmakingSubscribers
+// (free-battle.ts), which names the post's author because claiming a Free Battle
+// post is a deliberate, consensual act. Here the joiner never agreed to be
+// identified just for queuing, so the ping only ever says "someone" is around.
 export async function notifyQueueOpportunitySubscribers(
   joinerId: string,
   joiner: {
@@ -170,7 +166,9 @@ export async function notifyQueueOpportunitySubscribers(
   joinerReach: string[],
   joinerEffectiveGap: number | null,
 ) {
-  if (!pushConfigured) return 0;
+  // Nothing to deliver over if neither channel is set up — skip the scan rather
+  // than doing work that can't produce a notification.
+  if (!pushConfigured && !process.env.DISCORD_BOT_TOKEN) return 0;
 
   const cooldownCutoff = new Date(Date.now() - QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS);
   const blockedIds = await getBlockedEitherWayIds(joinerId);
@@ -179,10 +177,14 @@ export async function notifyQueueOpportunitySubscribers(
     where: {
       id: { notIn: [joinerId, ...blockedIds] },
       status: { not: UserStatus.BANNED },
-      notifyQueueOpportunities: true,
-      OR: [{ queueOpportunityNotifiedAt: null }, { queueOpportunityNotifiedAt: { lt: cooldownCutoff } }],
       lobbyEntries: { none: { status: { in: [LobbyEntryStatus.WAITING, LobbyEntryStatus.PAIRED] } } },
-      pushSubscriptions: { some: {} },
+      // Two separate ORs, so they're combined under AND rather than one key
+      // overwriting the other: opted into either channel, and not inside the
+      // per-candidate cooldown.
+      AND: [
+        { OR: [{ notifyQueueOpportunities: true }, { notifyQueueOpportunitiesDm: true }] },
+        { OR: [{ queueOpportunityNotifiedAt: null }, { queueOpportunityNotifiedAt: { lt: cooldownCutoff } }] },
+      ],
     },
     select: {
       id: true,
@@ -194,6 +196,9 @@ export async function notifyQueueOpportunitySubscribers(
       wiredConnection: true,
       requireWiredOpponent: true,
       preferredLanguage: true,
+      discordId: true,
+      notifyQueueOpportunities: true,
+      notifyQueueOpportunitiesDm: true,
       pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
     },
   });
@@ -213,60 +218,28 @@ export async function notifyQueueOpportunitySubscribers(
   );
   if (eligible.length === 0) return 0;
 
+  const link = `${siteOrigin()}/lobby`;
   let sent = 0;
   for (const candidate of eligible) {
     const copy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_MESSAGES.es : QUEUE_OPPORTUNITY_MESSAGES.en;
-    sent += await sendPushPayload(
-      candidate.pushSubscriptions,
-      JSON.stringify({ title: copy.title, body: copy.body, url: "/lobby", icon: "/smash_ladder_icon.png" }),
-    );
+    if (pushConfigured && candidate.notifyQueueOpportunities && candidate.pushSubscriptions.length > 0) {
+      sent += await sendPushPayload(
+        candidate.pushSubscriptions,
+        JSON.stringify({ title: copy.title, body: copy.body, url: "/lobby", icon: "/smash_ladder_icon.png" }),
+      );
+    }
+    if (isNotificationEnabled(candidate, "DM_QUEUE_OPPORTUNITY")) {
+      const dmCopy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_DM.es : QUEUE_OPPORTUNITY_DM.en;
+      await sendDiscordDM(candidate.discordId, dmCopy(link));
+    }
   }
-  // Written for everyone eligible, not just those a push actually reached —
+  // Written for everyone eligible, not just those a message actually reached —
   // best-effort delivery shouldn't turn into a retry storm against a
   // candidate whose subscription is merely slow/erroring.
   await prisma.user.updateMany({
     where: { id: { in: eligible.map((c) => c.id) } },
     data: { queueOpportunityNotifiedAt: new Date() },
   });
-  return sent;
-}
-
-// Called right after a new CharacterGuide is created (see
-// deferGuideNotification in character-guides.ts). Notifies everyone
-// subscribed to that character via the bell on /notes, except the author
-// themselves. Never throws, same reasoning as notifyMatchFoundToUsers.
-export async function notifyCharacterGuideSubscribers(character: string, authorId: string) {
-  if (!pushConfigured) return 0;
-
-  // Matches the subscriber's whole echo group and names the group in the
-  // message, so the bell on the Samus/Dark Samus row fires for a guide either
-  // half of the pair gets.
-  const groupMembers = echoGroupMembers(character as SmashCharacter);
-  const label = echoGroupLabel(character as SmashCharacter);
-  const subscribers = await prisma.user.findMany({
-    where: { id: { not: authorId }, characterGuideSubscriptions: { some: { character: { in: [...groupMembers] } } } },
-    select: {
-      preferredLanguage: true,
-      notificationsDisabled: true,
-      pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
-    },
-  });
-
-  let sent = 0;
-  for (const subscriber of subscribers) {
-    if (subscriber.pushSubscriptions.length === 0) continue;
-    if (!isNotificationEnabled(subscriber, "PUSH_CHARACTER_GUIDE")) continue;
-    const copy = subscriber.preferredLanguage === "es" ? NEW_GUIDE_MESSAGES.es(label) : NEW_GUIDE_MESSAGES.en(label);
-    sent += await sendPushPayload(
-      subscriber.pushSubscriptions,
-      JSON.stringify({
-        title: copy.title,
-        body: copy.body,
-        url: "/notes",
-        icon: "/smash_ladder_icon.png",
-      }),
-    );
-  }
   return sent;
 }
 

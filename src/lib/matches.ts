@@ -19,6 +19,7 @@ import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
 import { applyGlicko2Result } from "@/lib/glicko2";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { isNotificationEnabled } from "@/lib/notifications";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 
 // Free cancel is blocked for this long after a match is created, giving the
@@ -233,11 +234,13 @@ export async function cancelMatch(userId: string, matchId: string) {
         suspendedUntil: new Date(Date.now() + CANCEL_SUSPEND_DURATION_HOURS * 60 * 60 * 1000),
       },
     });
-    await sendDiscordDM(
-      updatedUser.discordId,
-      `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — you've cancelled ${updatedUser.cancelCount} matches, which crosses the threshold for a cancel-abuse pattern. Posting on Friendlies and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
-    );
-  } else if (justCrossedWarning) {
+    if (isNotificationEnabled(updatedUser, "DM_SUSPENSION")) {
+      await sendDiscordDM(
+        updatedUser.discordId,
+        `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — you've cancelled ${updatedUser.cancelCount} matches, which crosses the threshold for a cancel-abuse pattern. Posting on Friendlies and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
+      );
+    }
+  } else if (justCrossedWarning && isNotificationEnabled(updatedUser, "DM_CANCELLATION_WARNING")) {
     await sendDiscordDM(
       updatedUser.discordId,
       `⚠️ Heads up — you've cancelled ${updatedUser.cancelCount} matches. Canceling to dodge a bad matchup, a rating gap, or an inconvenient character isn't a legitimate reason, and continuing this pattern will get your account automatically suspended. Please only cancel for real issues (opponent disappeared, an emergency, or the connection made the set unplayable).`,

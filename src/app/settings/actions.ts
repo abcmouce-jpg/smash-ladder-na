@@ -11,6 +11,7 @@ import {
   setMatchFoundSound,
   setNotificationsDisabled,
   setNotifyQueueOpportunities,
+  setNotifyQueueOpportunitiesDm,
   setQuickMessages,
   setUsername,
 } from "@/lib/account";
@@ -79,10 +80,10 @@ export async function updateLobbySettingsAction(
   return { error: null, saved: true };
 }
 
-// Notifications tab. Every toggle is submitted under the same single form, so
-// one Save writes them all. notifyQueueOpportunities is the one opt-in type
-// with its own column (see lib/notifications.ts), so it's written separately
-// from the opt-out set the other checkboxes rebuild.
+// Notifications tab. Each opt-out toggle submits its key as a checked
+// `notifications` value and the action rebuilds notificationsDisabled from
+// whatever is left unchecked; the two opt-in queue-opportunity pings submit
+// under their own field names.
 export async function updateNotificationSettingsAction(
   _prevState: SettingsSaveState,
   formData: FormData,
@@ -94,6 +95,7 @@ export async function updateNotificationSettingsAction(
       disabledKeysFromEnabled(formData.getAll("notifications").map((key) => String(key))),
     );
     await setNotifyQueueOpportunities(userId, formData.get("notifyQueueOpportunities") === "on");
+    await setNotifyQueueOpportunitiesDm(userId, formData.get("notifyQueueOpportunitiesDm") === "on");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again.", saved: false };
   }

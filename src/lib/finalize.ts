@@ -2,7 +2,6 @@ import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PostStatus, UserRole } from "@/generated/prisma/enums";
 import { autoConfirmStaleGameReport, closeOutUnansweredLead } from "@/lib/match-games";
 import { sendDiscordDM } from "@/lib/discord-bot";
-import { isNotificationEnabled } from "@/lib/notifications";
 import { deletePostAnnouncement } from "@/lib/free-battle";
 import type { FreeBattleTier } from "@/lib/rank-tier";
 
@@ -20,13 +19,9 @@ export async function finalizeExpiredLobbyEntries(now = new Date()) {
 async function alertModsOfAbandonedMatch(message: string) {
   const mods = await prisma.user.findMany({
     where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } },
-    select: { discordId: true, notificationsDisabled: true },
+    select: { discordId: true },
   });
-  await Promise.all(
-    mods
-      .filter((mod) => isNotificationEnabled(mod, "DM_MOD_MATCH_ALERT"))
-      .map((mod) => sendDiscordDM(mod.discordId, message)),
-  );
+  await Promise.all(mods.map((mod) => sendDiscordDM(mod.discordId, message)));
 }
 
 export async function finalizeExpiredMatches(now = new Date()) {
