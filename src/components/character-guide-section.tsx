@@ -312,16 +312,21 @@ export function GuideCard({
                   : "Show more"}
             </button>
           )}
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="min-w-0 truncate">— {guide.author.username}</span>
-            {/* Pinned to the ladder's reference timezone (not the viewer's) so
-                the SSR and hydrated output match without a LocalTime script. */}
-            <span className="shrink-0 tabular-nums">
-              ·{" "}
-              {new Date(guide.createdAt).toLocaleDateString(lang === "es" ? "es-MX" : "en-US", {
-                timeZone: LADDER_TIME_ZONE,
-                dateStyle: "medium",
-              })}
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {/* Author and date get their own full-width line on mobile so the
+                vote/import/flag controls can't squeeze either out; from sm up
+                they sit inline with the rest as before. */}
+            <span className="flex min-w-0 basis-full items-center gap-2 sm:basis-auto">
+              <span className="min-w-0 truncate">— {guide.author.username}</span>
+              {/* Pinned to the ladder's reference timezone (not the viewer's) so
+                  the SSR and hydrated output match without a LocalTime script. */}
+              <span className="shrink-0 tabular-nums">
+                ·{" "}
+                {new Date(guide.createdAt).toLocaleDateString(lang === "es" ? "es-MX" : "en-US", {
+                  timeZone: LADDER_TIME_ZONE,
+                  dateStyle: "medium",
+                })}
+              </span>
             </span>
             <span className="ml-auto flex items-center gap-0.5">
               <button
