@@ -16,15 +16,19 @@ import {
   setZenMode,
 } from "@/lib/account";
 import {
+  acceptProposedStage,
+  declineProposedStage,
   pickGameCharacter,
   pickGameStage,
   pickSameStage,
+  proposeGameStage,
   reportGameResult,
   escalateGameDispute,
   startFirstGame,
   strikeGameStage,
   strikeSameBans,
   unstrikeLastGameStage,
+  withdrawProposedStage,
 } from "@/lib/match-games";
 import { postMatchComment } from "@/lib/match-comments";
 import { cancelMatch, leaveMatch, requestMutualCancel, requestRematch, surrenderMatch } from "@/lib/matches";
@@ -62,6 +66,10 @@ const STALE_GAME_ERRORS = new Set([
   "Both players must lock in their character before picking a stage",
   "No previous game to repeat",
   "That stage isn't available this game",
+  "No pending proposal of yours to withdraw",
+  "No pending proposal to decline",
+  "No pending proposal to accept",
+  "That stage isn't available anymore — ask for a new proposal",
 ]);
 
 async function ignoringStaleGameRaces(fn: () => Promise<void>) {
@@ -186,6 +194,34 @@ export async function runItBack(matchId: string, gameNumber: number) {
   const userId = await requireUserId();
   await requireNotBanned(userId);
   await ignoringStaleGameRaces(() => pickSameStage(userId, matchId, gameNumber));
+  revalidatePath("/lobby");
+}
+
+export async function proposeStage(matchId: string, gameNumber: number, stage: string) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => proposeGameStage(userId, matchId, gameNumber, stage));
+  revalidatePath("/lobby");
+}
+
+export async function withdrawStageProposal(matchId: string, gameNumber: number) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => withdrawProposedStage(userId, matchId, gameNumber));
+  revalidatePath("/lobby");
+}
+
+export async function declineStageProposal(matchId: string, gameNumber: number) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => declineProposedStage(userId, matchId, gameNumber));
+  revalidatePath("/lobby");
+}
+
+export async function acceptStageProposal(matchId: string, gameNumber: number) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => acceptProposedStage(userId, matchId, gameNumber));
   revalidatePath("/lobby");
 }
 

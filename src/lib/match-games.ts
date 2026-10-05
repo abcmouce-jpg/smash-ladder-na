@@ -793,6 +793,68 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
   });
 }
 
+// Mutual-agreement shortcut: either player proposes a stage from what's
+// still on the table, the other side accepts or declines. Deliberately not
+// gated on bothCharactersLocked or whose turn it is to strike/pick — unlike
+// a ban or a pick, agreeing on a stage doesn't depend on either, so this
+// works through character select and regardless of turn order (including
+// game 1's blind pick, where Run it back/Same Bans don't apply).
+export async function proposeGameStage(userId: string, matchId: string, gameNumber: number, stage: string) {
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  requireParticipant(match, userId);
+
+  const game = await requireGame(matchId, gameNumber);
+  if (game.finalStage) throw new Error("Stage already decided");
+  if (!game.stagesRemaining.includes(stage)) throw new Error("Stage already struck or invalid");
+
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, finalStage: null },
+    data: { proposedStage: stage, proposedById: userId },
+  });
+}
+
+export async function withdrawProposedStage(userId: string, matchId: string, gameNumber: number) {
+  const game = await requireGame(matchId, gameNumber);
+  if (game.proposedById !== userId) throw new Error("No pending proposal of yours to withdraw");
+
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, proposedById: userId },
+    data: { proposedStage: null, proposedById: null },
+  });
+}
+
+// The non-proposing side declining just clears it — back to normal
+// striking/picking, same as if nothing had been proposed.
+export async function declineProposedStage(userId: string, matchId: string, gameNumber: number) {
+  const game = await requireGame(matchId, gameNumber);
+  if (!game.proposedById) throw new Error("No pending proposal to decline");
+  if (game.proposedById === userId) throw new Error("You can't decline your own proposal — withdraw it instead");
+
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, proposedById: game.proposedById },
+    data: { proposedStage: null, proposedById: null },
+  });
+}
+
+export async function acceptProposedStage(userId: string, matchId: string, gameNumber: number) {
+  const game = await requireGame(matchId, gameNumber);
+  if (game.finalStage) throw new Error("Stage already decided");
+  if (!game.proposedById) throw new Error("No pending proposal to accept");
+  if (game.proposedById === userId) throw new Error("You can't accept your own proposal");
+  // The other side may have struck the proposed stage in the race between
+  // proposing and accepting — re-check rather than trusting the stale value.
+  if (!game.stagesRemaining.includes(game.proposedStage!)) {
+    throw new Error("That stage isn't available anymore — ask for a new proposal");
+  }
+
+  // turnStartedAt anchors the report clock, same as a normal pick.
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, finalStage: null, proposedById: game.proposedById },
+    data: { finalStage: game.proposedStage, proposedStage: null, proposedById: null, turnStartedAt: new Date() },
+  });
+}
+
 type ReportOutcome =
   | { type: "reported"; opponentId: string; reporterId: string }
   // Conflicting second report — the game is contested (players reconcile),

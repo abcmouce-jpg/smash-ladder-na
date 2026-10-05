@@ -81,14 +81,17 @@ import { ReportConductForm } from "@/components/report-conduct-form";
 import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
 import { getLang, type Lang } from "@/lib/i18n";
 import {
+  acceptStageProposal,
   beginFirstGame,
   cancelLobby,
   cancelMatchInProgress,
+  declineStageProposal,
   joinLobby,
   leaveMatchAction,
   signalTypingAction,
   pickCharacter,
   pickStage,
+  proposeStage,
   reportConductAction,
   reportConnection,
   reportGame,
@@ -103,6 +106,7 @@ import {
   submitRoomCode,
   surrenderMatchAction,
   unstrikeStage,
+  withdrawStageProposal,
   updateAvoidPracticeOpponents,
   updateLobbyRoomCodeAction,
   updateMaxMatchDistance,
@@ -1906,8 +1910,89 @@ function GameSection({
             </Button>
           </form>
         )}
+        <StageProposalSection
+          matchId={match.id}
+          game={current}
+          userId={userId}
+          opponentName={opponentName}
+          lang={lang}
+        />
       </CardContent>
     </>
+  );
+}
+
+// "Small?" — the mutual-agreement shortcut: either player can propose any
+// stage still on the table and the other side accepts or declines, at any
+// point before finalStage is set. Deliberately independent of whose turn it
+// is to strike/pick and of bothCharactersLocked (see proposeGameStage) — it
+// works through character select and even on game 1's blind pick, where
+// Run it Back/Same Bans don't apply.
+function StageProposalSection({
+  matchId,
+  game,
+  userId,
+  opponentName,
+  lang,
+}: {
+  matchId: string;
+  game: { gameNumber: number; stagesRemaining: string[]; proposedStage: string | null; proposedById: string | null };
+  userId: string;
+  opponentName: string;
+  lang: Lang;
+}) {
+  if (game.proposedById) {
+    const proposedByMe = game.proposedById === userId;
+    return (
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
+        <p className="text-sm">
+          {proposedByMe
+            ? lang === "es"
+              ? `Propusiste ${game.proposedStage} — esperando a ${opponentName}.`
+              : `You proposed ${game.proposedStage} — waiting on ${opponentName}.`
+            : lang === "es"
+              ? `${opponentName} propuso ${game.proposedStage}.`
+              : `${opponentName} proposed ${game.proposedStage}.`}
+        </p>
+        {proposedByMe ? (
+          <form action={withdrawStageProposal.bind(null, matchId, game.gameNumber)}>
+            <Button type="submit" size="sm" variant="outline">
+              {lang === "es" ? "Retirar" : "Withdraw"}
+            </Button>
+          </form>
+        ) : (
+          <>
+            <form action={acceptStageProposal.bind(null, matchId, game.gameNumber)}>
+              <Button type="submit" size="sm">
+                {lang === "es" ? "Aceptar" : "Accept"}
+              </Button>
+            </form>
+            <form action={declineStageProposal.bind(null, matchId, game.gameNumber)}>
+              <Button type="submit" size="sm" variant="outline">
+                {lang === "es" ? "Rechazar" : "Decline"}
+              </Button>
+            </form>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <details className="mt-3 group">
+      <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+        {lang === "es" ? "¿Proponer un escenario? (acuerdo mutuo)" : "Propose a stage? (mutual agreement)"}
+      </summary>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {game.stagesRemaining.map((stage) => (
+          <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
+            <Button type="submit" size="sm" variant="outline">
+              {stage}
+            </Button>
+          </form>
+        ))}
+      </div>
+    </details>
   );
 }
 

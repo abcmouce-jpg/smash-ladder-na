@@ -8,6 +8,10 @@ import {
   pickGameStage,
   pickSameStage,
   pickGameCharacter,
+  proposeGameStage,
+  withdrawProposedStage,
+  declineProposedStage,
+  acceptProposedStage,
   getCurrentGame,
   getMatchGames,
   reportGameResult,
@@ -869,6 +873,190 @@ describe("pickSameStage", () => {
     });
 
     await expect(pickSameStage(p2.id, match.id, 2)).rejects.toThrow(/not your turn/i);
+  });
+});
+
+describe("stage proposal (mutual agreement, aka \"Small?\")", () => {
+  it("works before either character is locked in — game 1's blind pick", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [...GAME_ONE_STAGES],
+      },
+    });
+
+    await proposeGameStage(p1.id, match.id, 1, GAME_ONE_STAGES[0]);
+    await acceptProposedStage(p2.id, match.id, 1);
+
+    const updated = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(updated?.finalStage).toBe(GAME_ONE_STAGES[0]);
+    expect(updated?.proposedStage).toBeNull();
+    expect(updated?.proposedById).toBeNull();
+  });
+
+  it("rejects a proposal for a stage that's already been struck", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        struckStages: [GAME_ONE_STAGES[0]],
+        stagesRemaining: GAME_ONE_STAGES.slice(1),
+      },
+    });
+
+    await expect(proposeGameStage(p1.id, match.id, 1, GAME_ONE_STAGES[0])).rejects.toThrow(/already struck/i);
+    await expect(proposeGameStage("someone-else", match.id, 1, GAME_ONE_STAGES[1])).rejects.toThrow(
+      /not a participant/i,
+    );
+  });
+
+  it("lets the proposer withdraw, clearing the pending proposal", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [...GAME_ONE_STAGES],
+      },
+    });
+
+    await proposeGameStage(p1.id, match.id, 1, GAME_ONE_STAGES[0]);
+    await expect(withdrawProposedStage(p2.id, match.id, 1)).rejects.toThrow(/no pending proposal/i);
+    await withdrawProposedStage(p1.id, match.id, 1);
+
+    const updated = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(updated?.proposedStage).toBeNull();
+    expect(updated?.proposedById).toBeNull();
+  });
+
+  it("lets the other side decline, but not the proposer", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [...GAME_ONE_STAGES],
+      },
+    });
+
+    await proposeGameStage(p1.id, match.id, 1, GAME_ONE_STAGES[0]);
+    await expect(declineProposedStage(p1.id, match.id, 1)).rejects.toThrow(/own proposal/i);
+    await declineProposedStage(p2.id, match.id, 1);
+
+    const updated = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(updated?.finalStage).toBeNull();
+    expect(updated?.proposedStage).toBeNull();
+    expect(updated?.proposedById).toBeNull();
+  });
+
+  it("rejects accepting your own proposal", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [...GAME_ONE_STAGES],
+      },
+    });
+
+    await proposeGameStage(p1.id, match.id, 1, GAME_ONE_STAGES[0]);
+    await expect(acceptProposedStage(p1.id, match.id, 1)).rejects.toThrow(/own proposal/i);
+  });
+
+  it("rejects accepting a proposal for a stage the other side struck in the meantime", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        actorACharacter: "Mario",
+        actorBCharacter: "Fox",
+        stagesRemaining: [...GAME_ONE_STAGES],
+      },
+    });
+
+    await proposeGameStage(p1.id, match.id, 1, GAME_ONE_STAGES[0]);
+    // actorA strikes a different stage — the proposed one is still, in
+    // principle, available, so the proposal itself survives...
+    await strikeGameStage(p1.id, match.id, 1, GAME_ONE_STAGES[1]);
+    const updated = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(updated?.proposedStage).toBe(GAME_ONE_STAGES[0]);
+
+    // ...but overwrite the DB row directly to simulate the proposed stage
+    // itself having been struck out from under the pending proposal.
+    await prisma.matchGame.update({
+      where: { id: updated!.id },
+      data: { stagesRemaining: updated!.stagesRemaining.filter((s) => s !== GAME_ONE_STAGES[0]) },
+    });
+
+    await expect(acceptProposedStage(p2.id, match.id, 1)).rejects.toThrow(/isn't available anymore/i);
+  });
+
+  it("rejects proposing, accepting, or declining once the stage is already decided", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [],
+        finalStage: GAME_ONE_STAGES[0],
+      },
+    });
+
+    await expect(proposeGameStage(p1.id, match.id, 1, GAME_ONE_STAGES[0])).rejects.toThrow(/already decided/i);
   });
 });
 
