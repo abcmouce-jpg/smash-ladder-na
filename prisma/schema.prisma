@@ -391,7 +391,7 @@ model MatchGame {
   // (by either side) overwrites it.
   proposedStage         String?
   proposedById          String?
-  turnStartedAt         DateTime    @default(now()) // reset on every strike/pick — and when the final stage is picked, which is also what anchors the report clock; a stale turn past STRIKE_TIMEOUT_MS auto-resolves with a random remaining stage, and a lone hanging report past REPORT_TIMEOUT_MS auto-confirms
+  turnStartedAt         DateTime    @default(now()) // reset on every strike/pick — and when the final stage is picked, which is also what anchors the report clock; a stale turn past STRIKE_TIMEOUT_MS auto-resolves — a games-2+ turn of any kind defaults to the previous game's stage when it's still on the table, otherwise bans/picks randomly — and a lone hanging report past REPORT_TIMEOUT_MS auto-confirms
   characterPickDeadline DateTime    @default(now()) // CHARACTER_TIMEOUT_MS is the window to lock in a character. Game 1 is a blind simultaneous pick, so both players share the single deadline set at game creation and a lock-in never resets it; games 2+ pick in order, and pickGameCharacter resets this to now + CHARACTER_TIMEOUT_MS when the first player locks in so the second picker gets a full window of their own rather than the leftovers of the first's. autoResolveStaleCharacterPick forfeits the set to whoever locked in once this passes and the other side hasn't
 
   reportedWinnerId     String?
