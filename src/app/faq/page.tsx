@@ -1,5 +1,6 @@
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
 
 export const metadata = { title: "Q&A — Smash Ladder NA" };
 
@@ -58,6 +59,22 @@ export default async function FaqPage() {
             Rounding can occasionally produce a 0-point change at the extreme ends of a rating gap — that&apos;s
             expected, not a bug. If both reports clearly matched and the winner looks wrong on your profile, report the
             match as a dispute.
+          </QA>
+          <QA q="What do I need for a 'wired connection' badge?">
+            A USB-C-to-Ethernet adapter if you play undocked, or just an Ethernet cable into the dock. See the{" "}
+            <a href="/rules" className="underline">
+              Rules page
+            </a>{" "}
+            for the full list of recommended gear:{" "}
+            {GEAR_RECOMMENDATIONS.map((item, i) => (
+              <span key={item.url}>
+                {i > 0 && " · "}
+                <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
+                  {item.label}
+                </a>
+              </span>
+            ))}
+            . As an Amazon Associate, we earn from qualifying purchases.
           </QA>
         </Category>
 
@@ -207,6 +224,22 @@ function FaqPageEs() {
             El redondeo puede ocasionalmente producir un cambio de 0 puntos en los extremos de una diferencia de
             clasificación grande — eso es esperado, no un bug. Si ambos reportes coincidían claramente y el ganador se
             ve mal en tu perfil, reporta la partida como disputa.
+          </QA>
+          <QA q="¿Qué necesito para la insignia de 'conexión por cable'?">
+            Un adaptador USB-C a Ethernet si juegas sin el dock, o simplemente un cable Ethernet al dock. Ve la{" "}
+            <a href="/rules" className="underline">
+              página de Reglas
+            </a>{" "}
+            para la lista completa de equipo recomendado:{" "}
+            {GEAR_RECOMMENDATIONS.map((item, i) => (
+              <span key={item.url}>
+                {i > 0 && " · "}
+                <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
+                  {item.label}
+                </a>
+              </span>
+            ))}
+            . Como Afiliado de Amazon, ganamos por compras que califican.
           </QA>
         </Category>
 

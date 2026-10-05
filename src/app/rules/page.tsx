@@ -2,6 +2,7 @@ import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { SEASON_PRIZE_POOL_USD, PRIZE_AMOUNTS_USD, approxMxn } from "@/lib/prizes";
 import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { getLang } from "@/lib/i18n";
+import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
 
 export const metadata = { title: "Rules — Smash Ladder NA" };
 
@@ -220,6 +221,27 @@ export default async function RulesPage() {
             Friendlies posts are unrated, first-come-claimed, and expire after 24 hours — good for practice or casual
             games without touching your rating. Community tournaments are run on start.gg; sign-ups happen here, but
             bracket rules and disputes for a given tournament are set by that tournament&apos;s host.
+          </p>
+        </Section>
+
+        <Section title="Recommended gear for wired play">
+          <p>
+            Getting a real wired connection (for the badge above) usually means a USB-C-to-Ethernet adapter if
+            you&apos;re playing undocked, or just an Ethernet cable into the dock. A GameCube controller is the other
+            common upgrade competitive players make.
+          </p>
+          <ul className="list-inside list-disc">
+            {GEAR_RECOMMENDATIONS.map((item) => (
+              <li key={item.url}>
+                <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs">
+            As an Amazon Associate, we earn from qualifying purchases — these are regular Amazon search links, not
+            specific product endorsements.
           </p>
         </Section>
       </div>
@@ -442,6 +464,27 @@ function RulesPageEs() {
             después de 24 horas — buenas para practicar o jugar casual sin tocar tu clasificación. Los torneos de la
             comunidad se organizan en start.gg; las inscripciones ocurren aquí, pero las reglas de bracket y disputas de
             un torneo específico las define quien organiza ese torneo.
+          </p>
+        </Section>
+
+        <Section title="Equipo recomendado para jugar por cable">
+          <p>
+            Para tener una conexión por cable real (para la insignia de arriba) normalmente necesitas un adaptador
+            USB-C a Ethernet si juegas sin el dock, o simplemente un cable Ethernet al dock. Un control de GameCube es
+            la otra mejora común entre jugadores competitivos.
+          </p>
+          <ul className="list-inside list-disc">
+            {GEAR_RECOMMENDATIONS.map((item) => (
+              <li key={item.url}>
+                <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs">
+            Como Afiliado de Amazon, ganamos por compras que califican — son enlaces normales de búsqueda en Amazon, no
+            recomendaciones de un producto específico.
           </p>
         </Section>
       </div>
