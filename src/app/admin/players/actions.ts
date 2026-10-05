@@ -22,6 +22,17 @@ export async function setSupporter(userId: string, isSupporter: boolean) {
   revalidatePath("/admin/players");
 }
 
+// requireWiredOpponent is normally self-service (Settings), but a player
+// who set it and then went inactive has no way to widen their own pool back
+// out — staff clear it on their behalf rather than waiting for them to
+// return and notice. One-directional: staff can only clear it, not set it
+// (setting it is a claim about what the player themselves wants).
+export async function clearWiredRequirement(userId: string) {
+  await requireModerator();
+  await prisma.user.update({ where: { id: userId }, data: { requireWiredOpponent: false } });
+  revalidatePath("/admin/players");
+}
+
 export async function reinstate(userId: string) {
   const modId = await requireModerator();
   await moderateUserDirectly(modId, userId, "REINSTATE");

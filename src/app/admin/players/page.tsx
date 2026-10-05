@@ -8,7 +8,7 @@ import { RoleSelect } from "@/components/admin/role-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { reinstate, setRoleFromForm, setSupporter } from "./actions";
+import { clearWiredRequirement, reinstate, setRoleFromForm, setSupporter } from "./actions";
 
 export default async function AdminPlayersPage({
   searchParams,
@@ -81,6 +81,7 @@ export default async function AdminPlayersPage({
                 <th className="py-2 font-medium text-right tabular-nums">Rating</th>
                 <th className="py-2 font-medium text-right tabular-nums">Sets</th>
                 <th className="py-2 font-medium text-center">Ad-free</th>
+                <th className="py-2 font-medium text-center">Wired-only</th>
                 {canEditRoles && <th className="py-2 font-medium">Role</th>}
                 <th className="py-2 pr-4 font-medium text-right">Joined</th>
               </tr>
@@ -128,6 +129,17 @@ export default async function AdminPlayersPage({
                         {player.isSupporter ? "Supporter" : "—"}
                       </Button>
                     </form>
+                  </td>
+                  <td className="py-2 text-center">
+                    {player.requireWiredOpponent ? (
+                      <form action={clearWiredRequirement.bind(null, player.id)}>
+                        <Button type="submit" size="sm" variant="destructive" className="h-6 px-2 text-xs">
+                          Clear
+                        </Button>
+                      </form>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                   {canEditRoles && (
                     <td className="py-2">
