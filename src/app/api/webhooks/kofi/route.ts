@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { KOFI_SUPPORTER_GRACE_DAYS } from "@/lib/supporters";
+import { GOLD_SUPPORTER_MIN_AMOUNT_USD, KOFI_SUPPORTER_GRACE_DAYS } from "@/lib/supporters";
 
 // $3 minimum for a payment to grant perks — a $1 tip shouldn't buy a month
 // of ad-free, but shouldn't be rejected either; it's still a real donation,
@@ -81,6 +81,11 @@ export async function POST(request: Request) {
       where: { id: matchedUser.id },
       data: {
         isSupporter: true,
+        // Re-evaluated on every qualifying payment rather than OR'd with the
+        // existing value — a renewal below the Gold threshold is meant to
+        // drop a previously-Gold account back to base, same as how a lapsed
+        // payment drops supporterExpiresAt rather than extending it.
+        isGoldSupporter: Number.parseFloat(payload.amount) >= GOLD_SUPPORTER_MIN_AMOUNT_USD,
         supporterExpiresAt: new Date(Date.now() + KOFI_SUPPORTER_GRACE_DAYS * 24 * 60 * 60 * 1000),
       },
     });

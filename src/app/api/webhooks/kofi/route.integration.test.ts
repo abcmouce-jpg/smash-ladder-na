@@ -81,6 +81,63 @@ describe("POST /api/webhooks/kofi", () => {
     expect(updated.isSupporter).toBe(false);
   });
 
+  it("grants Gold on top of base perks when the amount clears the Gold threshold", async () => {
+    const user = await createTestUser({ supporterCode: "LADDER-GTEST2" });
+    await POST(
+      kofiRequest({
+        kofi_transaction_id: "t-gold",
+        from_name: "Big Spender",
+        message: "LADDER-GTEST2",
+        amount: "20.00",
+        currency: "USD",
+        is_public: true,
+        type: "Tip",
+      }),
+    );
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.isSupporter).toBe(true);
+    expect(updated.isGoldSupporter).toBe(true);
+  });
+
+  it("does not grant Gold when the amount clears base but not the Gold threshold", async () => {
+    const user = await createTestUser({ supporterCode: "LADDER-BTEST2" });
+    await POST(
+      kofiRequest({
+        kofi_transaction_id: "t-base-only",
+        from_name: "Regular Fan",
+        message: "LADDER-BTEST2",
+        amount: "5.00",
+        currency: "USD",
+        is_public: true,
+        type: "Tip",
+      }),
+    );
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.isSupporter).toBe(true);
+    expect(updated.isGoldSupporter).toBe(false);
+  });
+
+  it("drops Gold on a renewal that no longer clears the Gold threshold", async () => {
+    const user = await createTestUser({ supporterCode: "LADDER-DTEST2", isGoldSupporter: true });
+    await POST(
+      kofiRequest({
+        kofi_transaction_id: "t-downgrade",
+        from_name: "Big Spender",
+        message: "LADDER-DTEST2",
+        amount: "5.00",
+        currency: "USD",
+        is_public: true,
+        type: "Subscription",
+      }),
+    );
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updated.isSupporter).toBe(true);
+    expect(updated.isGoldSupporter).toBe(false);
+  });
+
   it("is idempotent on Ko-fi's documented at-least-once delivery retries", async () => {
     const user = await createTestUser({ supporterCode: "LADDER-RETRY9" });
     const request = () =>

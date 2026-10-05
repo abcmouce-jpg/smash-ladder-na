@@ -213,8 +213,13 @@ model User {
   twitchConnectedAt          DateTime?
   role                       UserRole        @default(USER)
   isSupporter                Boolean         @default(false) // true while supporter perks (ad-free, profile badge) are active — set by an admin (see admin/players, no expiry) or by a qualifying Ko-fi payment (see supporterExpiresAt, and the webhook at api/webhooks/kofi). Read isEffectiveSupporter's result, not this raw column, anywhere perks are gated.
+  isGoldSupporter             Boolean         @default(false) // true when the payment that produced the current isSupporter/supporterExpiresAt cycle met the Gold threshold (see GOLD_SUPPORTER_MIN_AMOUNT_USD in the kofi webhook) — re-evaluated on every qualifying payment, not cumulative, so a lower renewal after a one-time Gold-tier tip drops back to base on its own expiry cycle. Shares supporterExpiresAt with the base tier rather than tracking its own. Read isEffectiveGoldSupporter's result, not this raw column.
   supporterCode              String?         @unique // self-generated on first visit to the Settings supporter section (see getOrCreateSupporterCode) — the player pastes this into Ko-fi's donation message so the webhook can match the payment back to an account. Never regenerated once set, so an old Ko-fi receipt's message stays valid.
   supporterExpiresAt         DateTime?       // set only by the Ko-fi webhook, to (payment time + KOFI_SUPPORTER_GRACE_DAYS); null for an admin-granted (permanent) supporter or someone who's never paid. Ko-fi has no subscription-cancelled webhook, so lapsing is inferred from this rather than pushed.
+  postMatchMessage           String?         // Gold-exclusive: a short note (see POST_MATCH_MESSAGE_MAX_LENGTH in settings' save action) auto-posted as a MatchComment from this player the moment a match they're in reaches CONFIRMED — see applyEloAndConfirm. Setting UI itself gates on isEffectiveGoldSupporter, but the column has no such check, so a lapsed Gold account just stops getting it auto-posted rather than losing the saved text.
+  aiInsightBody              String?         // Cached output of generateCoachingInsight (src/lib/coaching-insight.ts), shown on the Gold-exclusive /analytics page. Regenerated only when aiInsightSignature no longer matches the player's current stats — see getOrGenerateCoachingInsight — so viewing the page repeatedly doesn't re-call the AI Gateway every time.
+  aiInsightSignature         String?         // Deterministic serialization of the exact stats (@see buildAnalyticsSignature) that produced aiInsightBody. A plain equality check against the freshly-computed signature, not a hash — the serialized form is already short enough that hashing it would just be an extra step with no benefit.
+  aiInsightGeneratedAt       DateTime?
   status                     UserStatus      @default(ACTIVE)
   referredById               String? // set once, at account creation only (see auth.ts's signIn callback) — who this player's ?ref= link/cookie pointed at when they first signed up. Never touched again afterward.
   referredBy                 User?           @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
@@ -248,6 +253,8 @@ model User {
   characterGuideSubscriptions CharacterGuideSubscription[]
   apiTokens                   ApiToken[]
   kofiDonationsMatched        KofiDonation[]
+  proposalsCreated            Proposal[]
+  proposalVotes               ProposalVote[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -761,4 +768,51 @@ model KofiDonation {
   matchedUser       User?    @relation(fields: [matchedUserId], references: [id], onDelete: SetNull)
 
   @@index([isPublic, createdAt])
+}
+
+enum ProposalStatus {
+  OPEN
+  CLOSED
+}
+
+enum ProposalVoteChoice {
+  FOR
+  AGAINST
+}
+
+model Proposal {
+  id            String         @id @default(cuid())
+  title         String
+  description   String // capped at app layer (see PROPOSAL_DESCRIPTION_MAX_LENGTH), same convention as CharacterGuide.content
+  status        ProposalStatus @default(OPEN)
+  createdById   String
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now())
+  closedAt      DateTime?
+  // Denormalized SUM(weight) per choice — recomputed from ProposalVote rows
+  // in the same transaction as every vote (see castProposalVote), never
+  // incremented in place, so it can't drift under concurrent votes. Same
+  // pattern as CharacterGuide.score.
+  forWeight     Int            @default(0)
+  againstWeight Int            @default(0)
+  votes         ProposalVote[]
+
+  @@index([status, createdAt])
+}
+
+model ProposalVote {
+  id         String             @id @default(cuid())
+  proposalId String
+  proposal   Proposal           @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  choice     ProposalVoteChoice
+  // Snapshotted at vote time from the voter's Gold status then (see
+  // GOLD_VOTE_WEIGHT in lib/proposals.ts) — not re-derived on every read, so
+  // a Gold subscription lapsing afterward doesn't silently reshuffle a
+  // tally someone already saw.
+  weight     Int
+  createdAt  DateTime           @default(now())
+
+  @@unique([proposalId, userId])
 }

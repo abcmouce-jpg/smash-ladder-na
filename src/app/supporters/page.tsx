@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { getSupporterCount } from "@/lib/public-stats";
+import { GOLD_SUPPORTER_MIN_AMOUNT_USD } from "@/lib/supporters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +23,16 @@ export default async function SupportersPage() {
     where: { isPublic: true },
     orderBy: { createdAt: "desc" },
     take: 100,
+  });
+
+  // Gold donations float to the top regardless of date — a one-off big
+  // contribution shouldn't scroll off the page just because it's a few
+  // weeks old. Stable sort keeps createdAt desc as the tiebreaker within
+  // each tier since the query above already produced that order.
+  const sortedDonations = [...donations].sort((a, b) => {
+    const aGold = Number(a.amount) >= GOLD_SUPPORTER_MIN_AMOUNT_USD ? 1 : 0;
+    const bGold = Number(b.amount) >= GOLD_SUPPORTER_MIN_AMOUNT_USD ? 1 : 0;
+    return bGold - aGold;
   });
 
   return (
@@ -66,21 +77,27 @@ export default async function SupportersPage() {
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {donations.map((d) => (
-              <li key={d.id}>
-                <Card className="py-0">
-                  <CardContent className="flex items-start justify-between gap-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{d.fromName}</p>
-                      {d.message && <p className="mt-0.5 text-sm text-muted-foreground">{d.message}</p>}
-                    </div>
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
-                      {d.currency} {Number(d.amount).toFixed(2)}
-                    </span>
-                  </CardContent>
-                </Card>
-              </li>
-            ))}
+            {sortedDonations.map((d) => {
+              const isGold = Number(d.amount) >= GOLD_SUPPORTER_MIN_AMOUNT_USD;
+              return (
+                <li key={d.id}>
+                  <Card className={isGold ? "border-amber-500/40 py-0" : "py-0"}>
+                    <CardContent className="flex items-start justify-between gap-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {isGold && "🏆 "}
+                          {d.fromName}
+                        </p>
+                        {d.message && <p className="mt-0.5 text-sm text-muted-foreground">{d.message}</p>}
+                      </div>
+                      <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
+                        {d.currency} {Number(d.amount).toFixed(2)}
+                      </span>
+                    </CardContent>
+                  </Card>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

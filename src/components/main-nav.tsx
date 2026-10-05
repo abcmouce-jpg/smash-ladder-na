@@ -15,6 +15,7 @@ import {
   Swords,
   Trophy,
   Users,
+  Vote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const PRIMARY_LINKS = [
   { href: "/leaderboard", en: "Leaderboard", es: "Clasificación", Icon: Trophy },
   { href: "/stats", en: "Stats", es: "Estadísticas", Icon: BarChart3 },
   { href: "/notes", en: "Notes", es: "Notas", Icon: NotebookPen },
+  { href: "/proposals", en: "Proposals", es: "Propuestas", Icon: Vote },
 ] as const;
 
 const STAFF_LINKS = [

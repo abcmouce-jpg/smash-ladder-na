@@ -17,6 +17,7 @@ import {
 } from "@/lib/account";
 import { disabledKeysFromEnabled } from "@/lib/notifications";
 import { setArenaPassword } from "@/lib/arena";
+import { setPostMatchMessage } from "@/lib/supporters";
 import { generateApiToken, revokeApiToken } from "@/lib/api-tokens";
 import { sendTestPushToUser } from "@/lib/push-server";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
@@ -51,6 +52,19 @@ export async function updateUserSettingsAction(
   revalidatePath("/", "layout");
   revalidatePath(`/players/${userId}`);
   revalidatePath("/leaderboard");
+  revalidatePath("/settings");
+  return { error: null, saved: true };
+}
+
+// Gold Supporter card's own small form — kept separate from
+// updateUserSettingsAction since the SupporterCard isn't nested in that
+// form's markup.
+export async function updatePostMatchMessageAction(
+  _prevState: SettingsSaveState,
+  formData: FormData,
+): Promise<SettingsSaveState> {
+  const userId = await requireUserId();
+  await setPostMatchMessage(userId, String(formData.get("postMatchMessage") ?? ""));
   revalidatePath("/settings");
   return { error: null, saved: true };
 }

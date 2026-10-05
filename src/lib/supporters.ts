@@ -10,6 +10,16 @@ import { prisma } from "@/lib/db";
 // missed cycle.
 export const KOFI_SUPPORTER_GRACE_DAYS = 35;
 
+// Single-payment amount (not cumulative) that qualifies a qualifying Ko-fi
+// payment for the Gold tier instead of base Supporter — see the webhook at
+// api/webhooks/kofi, which is the only writer of isGoldSupporter.
+export const GOLD_SUPPORTER_MIN_AMOUNT_USD = 15;
+
+// Gold-exclusive post-match message (see postMatchMessage on User) — short
+// enough to read as a sign-off, not a wall of text dropped into someone
+// else's match chat.
+export const POST_MATCH_MESSAGE_MAX_LENGTH = 120;
+
 // The source of truth for "does this account currently get supporter perks"
 // — every read site (session, profile badge, admin list) should derive from
 // this rather than trusting the raw isSupporter column directly, since that
@@ -18,6 +28,41 @@ export function isEffectiveSupporter(user: { isSupporter: boolean; supporterExpi
   if (!user.isSupporter) return false;
   if (user.supporterExpiresAt === null) return true; // admin-granted, no expiry
   return user.supporterExpiresAt.getTime() > Date.now();
+}
+
+// Gold shares the base tier's expiry rather than tracking its own — it's a
+// strictly-better version of the same grant, not a separate one, so it can
+// never outlive (or lapse independently of) base supporter status.
+export function isEffectiveGoldSupporter(user: {
+  isSupporter: boolean;
+  isGoldSupporter: boolean;
+  supporterExpiresAt: Date | null;
+}): boolean {
+  return user.isGoldSupporter && isEffectiveSupporter(user);
+}
+
+// No Gold check here deliberately — see the postMatchMessage column comment
+// in schema.prisma. A lapsed Gold account just stops getting auto-posted,
+// rather than this write silently failing or the saved text being dropped.
+export async function setPostMatchMessage(userId: string, message: string) {
+  const trimmed = message.trim().slice(0, POST_MATCH_MESSAGE_MAX_LENGTH);
+  await prisma.user.update({ where: { id: userId }, data: { postMatchMessage: trimmed || null } });
+}
+
+// Current Gold roster for the About page credits section — admin-granted
+// (no expiry) or still within their Ko-fi grace window, same effective-ness
+// rule as isEffectiveGoldSupporter, expressed as a query instead of a
+// post-fetch check since this needs to filter, not just gate one user.
+export async function getCurrentGoldSupporters() {
+  return prisma.user.findMany({
+    where: {
+      isSupporter: true,
+      isGoldSupporter: true,
+      OR: [{ supporterExpiresAt: null }, { supporterExpiresAt: { gt: new Date() } }],
+    },
+    select: { id: true, username: true },
+    orderBy: { username: "asc" },
+  });
 }
 
 // Short, easy to type (or paste) into Ko-fi's donation message field by

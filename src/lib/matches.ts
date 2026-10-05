@@ -21,6 +21,7 @@ import { applyGlicko2Result } from "@/lib/glicko2";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
+import { isEffectiveGoldSupporter } from "@/lib/supporters";
 
 // Free cancel is blocked for this long after a match is created, giving the
 // opponent a moment to actually show up before the other side can bail —
@@ -675,6 +676,17 @@ export async function applyEloAndConfirm(
     deferTierChange(
       computeTierChange(p2.id, p2.discordId, p2.username, match.id, p2State.rating, p2Next.rating, p2Games),
     );
+  }
+
+  // Gold-exclusive post-match sign-off (see postMatchMessage on User) —
+  // auto-posted as this player's own match comment, landing in the same
+  // chat log both sides already see. Posted regardless of practicing status
+  // on either side; it's a cosmetic sign-off, not tied to rating.
+  const signOffs = [p1, p2]
+    .filter((p) => p.postMatchMessage && isEffectiveGoldSupporter(p))
+    .map((p) => ({ matchId: match.id, authorId: p.id, body: p.postMatchMessage! }));
+  if (signOffs.length > 0) {
+    await tx.matchComment.createMany({ data: signOffs });
   }
 }
 
