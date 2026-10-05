@@ -98,16 +98,24 @@ export function PlayerProfileHeader({
             )}
             <div className="min-w-0">
               <h1 className="flex flex-wrap items-center gap-1.5 wrap-break-word text-xl font-semibold tracking-tight sm:gap-2 sm:text-2xl">
-                {player.username}
+                <span className={player.isGoldSupporter ? "text-amber-500 dark:text-amber-400" : undefined}>
+                  {player.username}
+                </span>
                 {player.role !== "USER" && (
                   <Badge variant={player.role === "ADMIN" ? "warning" : "secondary"} className="text-xs">
                     {player.role.toLowerCase()}
                   </Badge>
                 )}
-                {player.isSupporter && (
-                  <Badge variant="success" className="text-xs">
-                    {lang === "es" ? "💖 Patrocinador" : "💖 Supporter"}
+                {player.isGoldSupporter ? (
+                  <Badge variant="warning" className="text-xs">
+                    {lang === "es" ? "🏆 Patrocinador Gold" : "🏆 Gold Supporter"}
                   </Badge>
+                ) : (
+                  player.isSupporter && (
+                    <Badge variant="success" className="text-xs">
+                      {lang === "es" ? "💖 Patrocinador" : "💖 Supporter"}
+                    </Badge>
+                  )
                 )}
                 <CharacterUsageIcons usage={characterUsage} />
               </h1>

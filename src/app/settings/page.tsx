@@ -14,7 +14,13 @@ import { SettingsSaveForm } from "@/components/settings-save-form";
 import { NOTIFICATION_DEFS, isNotificationEnabled, type NotificationDef } from "@/lib/notifications";
 import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
-import { getOrCreateSupporterCode, isEffectiveSupporter } from "@/lib/supporters";
+import {
+  getOrCreateSupporterCode,
+  isEffectiveSupporter,
+  isEffectiveGoldSupporter,
+  GOLD_SUPPORTER_MIN_AMOUNT_USD,
+  POST_MATCH_MESSAGE_MAX_LENGTH,
+} from "@/lib/supporters";
 import { KOFI_URL } from "@/lib/links";
 import { listBlockedUsers } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
@@ -30,6 +36,7 @@ import {
   updateLobbySettingsAction,
   updateNotificationSettingsAction,
   updateUserSettingsAction,
+  updatePostMatchMessageAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 
@@ -95,7 +102,9 @@ export default async function SettingsPage({
         notificationsDisabled: true,
         quickMessages: true,
         isSupporter: true,
+        isGoldSupporter: true,
         supporterExpiresAt: true,
+        postMatchMessage: true,
         _count: { select: { pushSubscriptions: true } },
       },
     }),
@@ -138,7 +147,13 @@ export default async function SettingsPage({
             isSupporter: me?.isSupporter ?? false,
             supporterExpiresAt: me?.supporterExpiresAt ?? null,
           })}
+          isGoldSupporter={isEffectiveGoldSupporter({
+            isSupporter: me?.isSupporter ?? false,
+            isGoldSupporter: me?.isGoldSupporter ?? false,
+            supporterExpiresAt: me?.supporterExpiresAt ?? null,
+          })}
           supporterExpiresAt={me?.supporterExpiresAt?.toISOString() ?? null}
+          postMatchMessage={me?.postMatchMessage ?? ""}
           lang={lang}
         />
       )}
@@ -205,7 +220,9 @@ function UserTab({
   referralCount,
   supporterCode,
   isSupporter,
+  isGoldSupporter,
   supporterExpiresAt,
+  postMatchMessage,
   lang,
 }: {
   userId: string;
@@ -216,7 +233,9 @@ function UserTab({
   referralCount: number;
   supporterCode: string;
   isSupporter: boolean;
+  isGoldSupporter: boolean;
   supporterExpiresAt: string | null;
+  postMatchMessage: string;
   lang: Lang;
 }) {
   return (
@@ -285,7 +304,9 @@ function UserTab({
           <SupporterCard
             supporterCode={supporterCode}
             isSupporter={isSupporter}
+            isGoldSupporter={isGoldSupporter}
             supporterExpiresAt={supporterExpiresAt}
+            postMatchMessage={postMatchMessage}
             lang={lang}
           />
         </CardContent>
@@ -632,12 +653,16 @@ function InviteLinkCard({ userId, referralCount, lang }: { userId: string; refer
 function SupporterCard({
   supporterCode,
   isSupporter,
+  isGoldSupporter,
   supporterExpiresAt,
+  postMatchMessage,
   lang,
 }: {
   supporterCode: string;
   isSupporter: boolean;
+  isGoldSupporter: boolean;
   supporterExpiresAt: string | null;
+  postMatchMessage: string;
   lang: Lang;
 }) {
   const expiresLabel = supporterExpiresAt
@@ -646,11 +671,19 @@ function SupporterCard({
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Colaborador" : "Supporter"}</p>
+      <p className="font-medium">
+        {isGoldSupporter
+          ? lang === "es"
+            ? "🏆 Colaborador Gold"
+            : "🏆 Gold Supporter"
+          : lang === "es"
+            ? "Colaborador"
+            : "Supporter"}
+      </p>
       <p className="text-xs text-muted-foreground">
         {lang === "es"
-          ? "Dona en Ko-fi y pega este código en el mensaje de la donación para quitar los anuncios y obtener la insignia de colaborador en tu perfil."
-          : "Donate on Ko-fi and paste this code into the donation message to remove ads and get the supporter badge on your profile."}
+          ? `Dona en Ko-fi y pega este código en el mensaje de la donación. $3+ quita los anuncios y da la insignia de colaborador; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ da la insignia Gold y aparece primero en la página de colaboradores.`
+          : `Donate on Ko-fi and paste this code into the donation message. $3+ removes ads and gives the supporter badge; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ gives the Gold badge and top placement on the supporters page.`}
       </p>
       <div className="mt-3 flex items-center gap-2">
         <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
@@ -671,11 +704,43 @@ function SupporterCard({
               ? "Aún no está activo. Puede tardar unos minutos después de donar."
               : "Not active yet. May take a few minutes after donating to show up."}
       </p>
-      <a href={KOFI_URL} target="_blank" rel="noreferrer" className="mt-2">
-        <Button type="button" variant="outline" size="sm">
-          {lang === "es" ? "Ir a Ko-fi" : "Go to Ko-fi"}
-        </Button>
-      </a>
+      <div className="mt-2 flex gap-2">
+        <a href={KOFI_URL} target="_blank" rel="noreferrer">
+          <Button type="button" variant="outline" size="sm">
+            {lang === "es" ? "Ir a Ko-fi" : "Go to Ko-fi"}
+          </Button>
+        </a>
+        {isGoldSupporter && (
+          <a href="/analytics">
+            <Button type="button" variant="outline" size="sm">
+              {lang === "es" ? "📊 Ver mi análisis" : "📊 View my analytics"}
+            </Button>
+          </a>
+        )}
+      </div>
+
+      {isGoldSupporter && (
+        <SettingsSaveForm action={updatePostMatchMessageAction} lang={lang} className="mt-4 flex flex-col gap-1.5 border-t border-border pt-4">
+          <label className="flex flex-col gap-1">
+            <span className="font-medium text-foreground">
+              {lang === "es" ? "Mensaje de fin de partida" : "Post-match message"}
+            </span>
+            <span className="text-xs font-normal text-muted-foreground">
+              {lang === "es"
+                ? "Se publica automáticamente en el chat de la partida cuando esta se confirma. Déjalo vacío para no publicar nada."
+                : "Auto-posted in the match chat the moment a match of yours is confirmed. Leave blank to post nothing."}
+            </span>
+            <input
+              name="postMatchMessage"
+              type="text"
+              maxLength={POST_MATCH_MESSAGE_MAX_LENGTH}
+              defaultValue={postMatchMessage}
+              placeholder={lang === "es" ? "GG, ¡buenas partidas!" : "GG, good games!"}
+              className="mt-1 h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+            />
+          </label>
+        </SettingsSaveForm>
+      )}
     </div>
   );
 }

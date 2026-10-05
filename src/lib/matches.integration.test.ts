@@ -224,6 +224,45 @@ describe("applyEloAndConfirm", () => {
     expect(history).toHaveLength(1);
     expect(history[0].userId).toBe(normal.id);
   });
+
+  it("auto-posts a Gold supporter's post-match message to the match chat", async () => {
+    const gold = await createTestUser({
+      isSupporter: true,
+      isGoldSupporter: true,
+      supporterExpiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      postMatchMessage: "GG, good games!",
+    });
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(gold.id, opponent.id);
+
+    const comments = await prisma.matchComment.findMany({ where: { matchId: match.id } });
+    expect(comments).toHaveLength(1);
+    expect(comments[0].authorId).toBe(gold.id);
+    expect(comments[0].body).toBe("GG, good games!");
+  });
+
+  it("does not auto-post a message for a non-Gold account, even with one saved", async () => {
+    const notGold = await createTestUser({ postMatchMessage: "GG, good games!" });
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(notGold.id, opponent.id);
+
+    const comments = await prisma.matchComment.findMany({ where: { matchId: match.id } });
+    expect(comments).toHaveLength(0);
+  });
+
+  it("does not auto-post for a Gold account whose grace period has lapsed", async () => {
+    const lapsedGold = await createTestUser({
+      isSupporter: true,
+      isGoldSupporter: true,
+      supporterExpiresAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+      postMatchMessage: "GG, good games!",
+    });
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(lapsedGold.id, opponent.id);
+
+    const comments = await prisma.matchComment.findMany({ where: { matchId: match.id } });
+    expect(comments).toHaveLength(0);
+  });
 });
 
 // The Elo cases above run against an implicit Season 1 (created by

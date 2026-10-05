@@ -1,5 +1,6 @@
 import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { getCurrentGoldSupporters } from "@/lib/supporters";
 
 export const metadata = { title: "About — Smash Ladder NA" };
 
@@ -47,7 +48,8 @@ const copy = {
     support: (kofiLink: React.ReactNode) => (
       <>
         Hosting and domain costs come out of pocket. If you&apos;d like to help cover that, there&apos;s a {kofiLink} —
-        entirely optional, and no in-site perks are tied to it today.
+        entirely optional. $3+ removes ads and gives you a Supporter badge; $15+ gives a Gold badge and top placement
+        on the <a href="/supporters" className="underline">supporters page</a>.
       </>
     ),
     kofiPage: "Ko-fi page",
@@ -105,7 +107,8 @@ const copy = {
     support: (kofiLink: React.ReactNode) => (
       <>
         El hosting y el dominio se pagan de nuestro bolsillo. Si quieres ayudar a cubrir ese costo, hay una {kofiLink} —
-        totalmente opcional, y hoy no hay ninguna ventaja dentro del sitio atada a eso.
+        totalmente opcional. $3+ quita los anuncios y te da la insignia de Colaborador; $15+ da la insignia Gold y
+        aparece primero en la <a href="/supporters" className="underline">página de colaboradores</a>.
       </>
     ),
     kofiPage: "página de Ko-fi",
@@ -123,7 +126,7 @@ const copy = {
 };
 
 export default async function AboutPage() {
-  const lang = await getLang();
+  const [lang, goldSupporters] = await Promise.all([getLang(), getCurrentGoldSupporters()]);
   const t = copy[lang];
 
   const faqLink = (
@@ -187,6 +190,22 @@ export default async function AboutPage() {
           <h2 className="text-sm font-medium text-foreground">{t.supportTitle}</h2>
           <p className="mt-2">{t.support(kofiLink)}</p>
         </section>
+
+        {goldSupporters.length > 0 && (
+          <section>
+            <h2 className="text-sm font-medium text-foreground">🏆 {lang === "es" ? "Colaboradores Gold" : "Gold Supporters"}</h2>
+            <p className="mt-2 flex flex-wrap gap-x-1.5 gap-y-1">
+              {goldSupporters.map((s, i) => (
+                <span key={s.id}>
+                  <a href={`/players/${s.id}`} className="underline">
+                    {s.username}
+                  </a>
+                  {i < goldSupporters.length - 1 && ","}
+                </span>
+              ))}
+            </p>
+          </section>
+        )}
 
         <section>
           <h2 className="text-sm font-medium text-foreground">{t.contactTitle}</h2>
