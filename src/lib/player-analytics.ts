@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { MatchStatus } from "@/generated/prisma/enums";
-import { generateCoachingInsightText } from "@/lib/coaching-insight";
 
 export interface RatingTrendPoint {
   date: Date;
@@ -88,47 +87,3 @@ export async function getPersonalAnalytics(userId: string) {
 }
 
 export type PersonalAnalytics = Awaited<ReturnType<typeof getPersonalAnalytics>>;
-
-// Deterministic, order-independent summary of the exact numbers that would
-// go into an AI-generated insight — compared against User.aiInsightSignature
-// to decide whether the cached aiInsightBody is still current (see
-// getOrGenerateCoachingInsight). Rows are pre-sorted by toWinRateRows
-// (descending total), so the string is already stable run-to-run without
-// needing its own sort here.
-export function buildAnalyticsSignature(stats: PersonalAnalytics): string {
-  const latestRating = stats.ratingTrend.at(-1)?.rating ?? null;
-  const rowsPart = (rows: WinRateRow[]) => rows.map((r) => `${r.label}:${r.wins}-${r.losses}`).join(",");
-  return [
-    `games:${stats.ratingTrend.length}`,
-    `rating:${latestRating}`,
-    `chars:${rowsPart(stats.characterWinRates)}`,
-    `stages:${rowsPart(stats.stageWinRates)}`,
-  ].join("|");
-}
-
-// Regenerates only when the player's underlying stats have actually changed
-// since the last cached insight — viewing /analytics repeatedly between
-// matches never re-calls the AI Gateway. Never throws: a generation failure
-// (missing key, rate limit, gateway hiccup) just falls back to the last
-// cached body, or null if there's never been a successful one — same
-// "never load-bearing" philosophy as translateText.
-export async function getOrGenerateCoachingInsight(userId: string, stats: PersonalAnalytics): Promise<string | null> {
-  const signature = buildAnalyticsSignature(stats);
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { aiInsightBody: true, aiInsightSignature: true },
-  });
-
-  if (user?.aiInsightSignature === signature) return user.aiInsightBody;
-
-  try {
-    const body = await generateCoachingInsightText(stats);
-    await prisma.user.update({
-      where: { id: userId },
-      data: { aiInsightBody: body, aiInsightSignature: signature, aiInsightGeneratedAt: new Date() },
-    });
-    return body;
-  } catch {
-    return user?.aiInsightBody ?? null;
-  }
-}

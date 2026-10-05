@@ -2,7 +2,7 @@ import { ChartLine } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getLang, type Lang } from "@/lib/i18n";
-import { getPersonalAnalytics, getOrGenerateCoachingInsight } from "@/lib/player-analytics";
+import { getPersonalAnalytics } from "@/lib/player-analytics";
 import { isEffectiveGoldSupporter, GOLD_SUPPORTER_MIN_AMOUNT_USD } from "@/lib/supporters";
 import { KOFI_URL } from "@/lib/links";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,37 +54,13 @@ export default async function AnalyticsPage() {
     );
   }
 
-  const analytics = await getPersonalAnalytics(session.user.id);
-  const { ratingTrend, characterWinRates, stageWinRates } = analytics;
-
-  // Skip the AI call entirely below a minimum sample — there's nothing
-  // factual to restate from 1-2 games, and the prompt's "note the sample is
-  // small" allowance isn't a substitute for just not generating anything.
-  const MIN_GAMES_FOR_INSIGHT = 3;
-  const insight =
-    ratingTrend.length >= MIN_GAMES_FOR_INSIGHT ? await getOrGenerateCoachingInsight(session.user.id, analytics) : null;
+  const { ratingTrend, characterWinRates, stageWinRates } = await getPersonalAnalytics(session.user.id);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <PageTitle lang={lang} />
 
       <div className="mt-8 flex flex-col gap-6">
-        {insight && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{lang === "es" ? "Resumen (IA)" : "Summary (AI-generated)"}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>{insight}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "Generado a partir de los números de abajo — solo cifras exactas, sin interpretación ni consejos."
-                  : "Generated from the numbers below — exact figures only, no interpretation or advice."}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{lang === "es" ? "Clasificación a lo largo del tiempo" : "Rating over time"}</CardTitle>
