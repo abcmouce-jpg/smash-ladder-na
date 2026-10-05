@@ -253,8 +253,6 @@ model User {
   characterGuideSubscriptions CharacterGuideSubscription[]
   apiTokens                   ApiToken[]
   kofiDonationsMatched        KofiDonation[]
-  proposalsCreated            Proposal[]
-  proposalVotes               ProposalVote[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -768,51 +766,4 @@ model KofiDonation {
   matchedUser       User?    @relation(fields: [matchedUserId], references: [id], onDelete: SetNull)
 
   @@index([isPublic, createdAt])
-}
-
-enum ProposalStatus {
-  OPEN
-  CLOSED
-}
-
-enum ProposalVoteChoice {
-  FOR
-  AGAINST
-}
-
-model Proposal {
-  id            String         @id @default(cuid())
-  title         String
-  description   String // capped at app layer (see PROPOSAL_DESCRIPTION_MAX_LENGTH), same convention as CharacterGuide.content
-  status        ProposalStatus @default(OPEN)
-  createdById   String
-  createdBy     User           @relation(fields: [createdById], references: [id])
-  createdAt     DateTime       @default(now())
-  closedAt      DateTime?
-  // Denormalized SUM(weight) per choice — recomputed from ProposalVote rows
-  // in the same transaction as every vote (see castProposalVote), never
-  // incremented in place, so it can't drift under concurrent votes. Same
-  // pattern as CharacterGuide.score.
-  forWeight     Int            @default(0)
-  againstWeight Int            @default(0)
-  votes         ProposalVote[]
-
-  @@index([status, createdAt])
-}
-
-model ProposalVote {
-  id         String             @id @default(cuid())
-  proposalId String
-  proposal   Proposal           @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  choice     ProposalVoteChoice
-  // Snapshotted at vote time from the voter's Gold status then (see
-  // GOLD_VOTE_WEIGHT in lib/proposals.ts) — not re-derived on every read, so
-  // a Gold subscription lapsing afterward doesn't silently reshuffle a
-  // tally someone already saw.
-  weight     Int
-  createdAt  DateTime           @default(now())
-
-  @@unique([proposalId, userId])
 }
