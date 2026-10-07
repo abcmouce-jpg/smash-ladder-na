@@ -90,14 +90,14 @@ export default async function PlayerProfilePage({
         className="mt-8"
         items={[
           { href: "?tab=overview", label: tabLabel("Overview", "Resumen"), active: tab === "overview" },
-          { href: "?tab=characters", label: tabLabel("Characters", "Personajes"), active: tab === "characters" },
-          { href: "?tab=headtohead", label: tabLabel("Head 2 Head", "Cara a Cara"), active: tab === "headtohead" },
-          { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas"), active: tab === "seasons" },
           {
             href: "?tab=matches",
             label: tabLabel("Match History", "Historial de partidas"),
             active: tab === "matches",
           },
+          { href: "?tab=characters", label: tabLabel("Characters", "Personajes"), active: tab === "characters" },
+          { href: "?tab=headtohead", label: tabLabel("Head 2 Head", "Cara a Cara"), active: tab === "headtohead" },
+          { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas"), active: tab === "seasons" },
         ]}
       />
 
