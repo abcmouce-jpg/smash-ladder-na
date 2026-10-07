@@ -190,10 +190,52 @@ export async function getCurrentMatchForUser(userId: string) {
   });
 }
 
-function matchHistoryWhere(userId: string) {
+// Optional narrowing for the profile's Match History tab. `seasonId` scopes to
+// one season (null/undefined = every season); `playedCharacter` and
+// `againstCharacter` match a set if the player ever used / ever faced that
+// fighter in ANY of its games, so a counterpick-heavy set still surfaces under
+// either pick rather than only its opener.
+export interface MatchHistoryFilters {
+  seasonId?: string | null;
+  playedCharacter?: string | null;
+  againstCharacter?: string | null;
+}
+
+function matchHistoryWhere(userId: string, filters: MatchHistoryFilters = {}): Prisma.RatingMatchWhereInput {
+  const { seasonId, playedCharacter, againstCharacter } = filters;
+  // Each character filter is an independent "at least one game in this set"
+  // condition, ANDed on top of the player-membership OR below — so combining
+  // "played Fox" with "against Falco" means a set with both, not either.
+  const and: Prisma.RatingMatchWhereInput[] = [];
+  if (playedCharacter) {
+    and.push({
+      games: {
+        some: {
+          OR: [
+            { actorAId: userId, actorACharacter: playedCharacter },
+            { actorBId: userId, actorBCharacter: playedCharacter },
+          ],
+        },
+      },
+    });
+  }
+  if (againstCharacter) {
+    and.push({
+      games: {
+        some: {
+          OR: [
+            { actorAId: userId, actorBCharacter: againstCharacter },
+            { actorBId: userId, actorACharacter: againstCharacter },
+          ],
+        },
+      },
+    });
+  }
   return {
     status: MatchStatus.CONFIRMED,
     OR: [{ player1Id: userId }, { player2Id: userId }],
+    ...(seasonId ? { seasonId } : {}),
+    ...(and.length > 0 ? { AND: and } : {}),
   };
 }
 
@@ -203,9 +245,11 @@ function matchHistoryWhere(userId: string) {
 // shape so the many callers that just want a plain array (lobby's streak
 // badge, the stream overlay's recent-matches panel) don't all need to
 // change to destructure a {entries, totalCount} object just because the
-// player profile page's "Recent matches" section needs a page count.
-export async function getPlayerMatchCount(userId: string) {
-  return prisma.ratingMatch.count({ where: matchHistoryWhere(userId) });
+// player profile page's Match History tab needs a page count. Must be given
+// the same filters as the history query it pages, or the count and the rows
+// disagree.
+export async function getPlayerMatchCount(userId: string, filters: MatchHistoryFilters = {}) {
+  return prisma.ratingMatch.count({ where: matchHistoryWhere(userId, filters) });
 }
 
 // One game within a history entry — the per-game detail behind the profile
@@ -248,10 +292,10 @@ export interface MatchHistoryEntryData {
 
 export async function getPlayerMatchHistory(
   userId: string,
-  { limit = 20, skip = 0 }: { limit?: number; skip?: number } = {},
+  { limit = 20, skip = 0, ...filters }: { limit?: number; skip?: number } & MatchHistoryFilters = {},
 ): Promise<MatchHistoryEntryData[]> {
   const matches = await prisma.ratingMatch.findMany({
-    where: matchHistoryWhere(userId),
+    where: matchHistoryWhere(userId, filters),
     orderBy: { confirmedAt: "desc" },
     take: limit,
     skip,
