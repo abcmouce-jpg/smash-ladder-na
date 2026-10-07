@@ -194,26 +194,35 @@ export async function getGuildMemberRoles(guildId: string, discordId: string): P
   }
 }
 
-// Idempotent: safe to call even if the member already has exactly this
-// role, or no role at all to remove. Both requests are fired regardless of
-// whether either one 404s (e.g. the member left the server, or never had
-// the old role) — best-effort, same reasoning as sendDiscordDM.
-export async function syncDiscordGuildMemberRole(
+// Reconciles a member's roles toward a target set: every id in removeRoleIds
+// is stripped, every id in addRoleIds is granted. Idempotent and safe to
+// re-run — each request is fired regardless of whether it's actually needed,
+// and a 404 (the member left the server, or never had the role being
+// removed) is swallowed. That "state the whole desired end state every time"
+// shape is deliberate: it lets a caller repair a member whose roles drifted,
+// not just apply a single delta, which is what keeps a caller's roles (e.g.
+// tier roles) from accumulating. addRoleIds wins a role that appears in both
+// lists. Best-effort, same reasoning as sendDiscordDM.
+export async function syncDiscordGuildMemberRoles(
   guildId: string,
   discordId: string,
-  addRoleId: string | null,
-  removeRoleId: string | null,
+  addRoleIds: readonly string[],
+  removeRoleIds: readonly string[],
 ) {
   try {
-    if (removeRoleId && removeRoleId !== addRoleId) {
-      await discordRequest(`/guilds/${guildId}/members/${discordId}/roles/${removeRoleId}`, {
-        method: "DELETE",
-      });
+    for (const roleId of removeRoleIds) {
+      if (roleId && !addRoleIds.includes(roleId)) {
+        await discordRequest(`/guilds/${guildId}/members/${discordId}/roles/${roleId}`, {
+          method: "DELETE",
+        });
+      }
     }
-    if (addRoleId) {
-      await discordRequest(`/guilds/${guildId}/members/${discordId}/roles/${addRoleId}`, {
-        method: "PUT",
-      });
+    for (const roleId of addRoleIds) {
+      if (roleId) {
+        await discordRequest(`/guilds/${guildId}/members/${discordId}/roles/${roleId}`, {
+          method: "PUT",
+        });
+      }
     }
   } catch {
     // Best-effort, same reasoning as sendDiscordDM.

@@ -1,7 +1,8 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { RANK_TIERS, getRankTier } from "@/lib/rank-tier";
-import { syncDiscordGuildMemberRole, sendDiscordWebhookEmbed } from "@/lib/discord-bot";
+import { sendDiscordWebhookEmbed } from "@/lib/discord-bot";
+import { syncTierRoleForDiscordId } from "@/lib/tier-roles";
 
 const SITE_URL = "https://smash-ladder-na.vercel.app";
 
@@ -17,21 +18,6 @@ const TIER_COLORS: Record<string, number> = {
   Fighter: 0x4ade80,
   Trainee: 0xfb923c,
 };
-
-export function tierRoleId(tierName: string): string | null {
-  // JSON blob of { "Legend": "<role id>", ... } — set once when the tier
-  // roles are created on the community Discord server (see project notes;
-  // there's no in-app role-creation flow, this just maps to whatever
-  // already exists). Unset or missing entries mean "skip the Discord side
-  // silently" rather than error, same as every other optional Discord
-  // integration in this codebase.
-  try {
-    const map = JSON.parse(process.env.DISCORD_TIER_ROLE_IDS ?? "{}") as Record<string, string>;
-    return map[tierName] ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export interface TierChangeInfo {
   userId: string;
@@ -96,27 +82,21 @@ const LOWEST_TIER = RANK_TIERS[RANK_TIERS.length - 1].name;
 
 // Best-effort, fire-and-forget (see callers — always invoked via
 // next/server's after(), never awaited inline with the match-confirm flow
-// it's triggered by). Grants the Discord role for whatever tier this match
-// just landed the player in, and — only on a genuine tier-UP, never a drop —
-// posts a rank-up announcement with their card to the community's
-// ladder-updates channel. Tier roles are additive-only and never removed on
-// a drop: they now double as permanent "reached this tier at least once"
-// badges (gating tier-exclusive LFG channels), not a live reflection of
-// current rank, so losing a rating dip should never cost someone access
-// they already earned. A rank-down still adds the landing tier's role, but
-// that's always a harmless no-op — tiers are only ever crossed in order (see
-// MAX_RATING_DELTA), so a player can't land on a tier they haven't already
-// passed through and been granted on the way up. Tier drops also stay
-// silent on the announcement side, same reasoning as before: publicly
-// demoting someone after a losing streak would cut against the entire point
-// of this (make the ladder something to show off, not something that can
-// embarrass you).
+// it's triggered by). Makes the player's Discord tier role match the tier
+// this match just landed them in — granting the new tier's role and stripping
+// every other tier role, so a player holds exactly one tier role at a time
+// (a live reflection of their current rank, not an accumulating "reached this
+// tier at least once" list; see syncTierRoleForDiscordId). On a genuine
+// tier-UP, never a drop, it also posts a rank-up announcement with their card
+// to the community's ladder-updates channel. Tier drops stay silent on the
+// announcement side: publicly demoting someone after a losing streak would
+// cut against the entire point of this (make the ladder something to show
+// off, not something that can embarrass you).
 export async function applyTierChange(change: TierChangeInfo) {
   if (change.oldTier === change.newTier) return;
 
-  const guildId = process.env.DISCORD_COMMUNITY_GUILD_ID;
-  if (guildId && change.discordId && change.newTier) {
-    await syncDiscordGuildMemberRole(guildId, change.discordId, tierRoleId(change.newTier), null);
+  if (change.discordId) {
+    await syncTierRoleForDiscordId(change.discordId, change.newTier);
   }
 
   const oldIndex = change.oldTier ? RANK_TIERS.findIndex((t) => t.name === change.oldTier) : -1;

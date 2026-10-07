@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, RatingAlgorithm, UserStatus } from "@/generated/prisma/enums";
 import { DELETED_USERNAME } from "@/lib/account";
 import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
+import { stripTierRolesForDiscordIds } from "@/lib/tier-roles";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { GLICKO2_INITIAL_RATING, GLICKO2_INITIAL_RD, GLICKO2_INITIAL_VOLATILITY } from "@/lib/glicko2";
 import { formatRating } from "@/lib/rating-format";
@@ -285,6 +286,22 @@ export async function endActiveSeasonAndStartNext(
     const message = `🔄 A new season has started — "${nextSeasonName}"! Ratings have reset for a fresh start. Any match still in progress when the last season ended was cancelled with no rating impact either way.`;
     try {
       after(() => sendDiscordDMsSequentially(recipients, message));
+    } catch {
+      // See comment above.
+    }
+  }
+
+  // Tier roles track a player's CURRENT tier (see tier-roles.ts), and this
+  // reset just put everyone back to provisional — so strip every tier role
+  // from last season's players rather than let last season's roles linger
+  // into the new one. Deferred like the DM above: a whole-playerbase fan-out
+  // of Discord calls must not hold up the rollover itself. Players who sat
+  // out last season but still carry an old role are caught by the per-match
+  // sync on their next tiered match, or by scripts/reconcile-tier-roles.ts.
+  const tierRoleRecipients = lastSeasonPlayers.map((player) => player.discordId);
+  if (tierRoleRecipients.length > 0) {
+    try {
+      after(() => stripTierRolesForDiscordIds(tierRoleRecipients));
     } catch {
       // See comment above.
     }

@@ -9,7 +9,7 @@ import {
   getGuildMemberRoles,
 } from "@/lib/discord-bot";
 import { FREE_BATTLE_TIERS, hasReachedTier, type FreeBattleTier } from "@/lib/rank-tier";
-import { tierRoleId } from "@/lib/rank-roles";
+import { tierRoleId } from "@/lib/tier-roles";
 import { getPeakRating } from "@/lib/players";
 import { getRegionsWithinDistance } from "@/lib/regions";
 import { siteOrigin } from "@/lib/site-url";
