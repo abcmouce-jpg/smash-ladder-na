@@ -21,10 +21,24 @@ export const GLICKO2_INITIAL_RATING = 1500;
 export const GLICKO2_INITIAL_RD = 350;
 export const GLICKO2_INITIAL_VOLATILITY = 0.06;
 
+// RD can't grow past the maximum uncertainty a fresh player starts with: no
+// amount of sitting out makes you less known than "never rated".
+export const GLICKO2_MAX_RD = GLICKO2_INITIAL_RD;
+
 // System constant τ (tau), which bounds how much a player's volatility can move
 // in one rating period. 0.5 is Glickman's own recommended default and what most
 // implementations (including this one) settle on.
 export const GLICKO2_TAU = 0.5;
+
+// How much wall-clock time counts as one "rating period" for the inactivity
+// step (see applyGlicko2Inactivity). Glicko-2 measures inactivity in rating
+// periods, and this ladder has no scheduled batches — matches confirm as they
+// happen — so a period is defined here purely as a fixed slice of elapsed
+// time. A day is deliberately gentle: a player who steps away for a week gains
+// a few RD points and a season-long absence meaningfully more, without the
+// abrupt jump a larger unit would cause. This is the one knob to tune if
+// inactivity should bite harder or softer.
+export const GLICKO2_INACTIVITY_PERIOD_MS = 24 * 60 * 60 * 1000;
 
 // Convergence threshold for the volatility root-find below.
 const CONVERGENCE = 1e-6;
@@ -148,6 +162,29 @@ export function applyGlicko2Period(player: Glicko2State, games: Glicko2Game[]): 
     rd: SCALE * phiPrime,
     volatility: sigmaPrime,
   };
+}
+
+// How many whole inactive rating periods fit in `elapsedMs`. Partial periods
+// are dropped, so two matches on the same afternoon don't inflate RD between
+// them; negative or non-finite input (a missing/clock-skewed timestamp) → 0.
+export function glicko2InactivityPeriods(elapsedMs: number): number {
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return 0;
+  return Math.floor(elapsedMs / GLICKO2_INACTIVITY_PERIOD_MS);
+}
+
+// Rolls a player's state forward through `periods` rating periods in which they
+// played nothing. Each period is exactly the sit-out update applyGlicko2Period
+// already applies to an empty game list (φ* = √(φ² + σ'²)), so a returning
+// player reaches their next match with a less certain — and therefore more
+// movable — rating, and moves their opponent's rating more in turn. The rating
+// itself is never touched. RD is capped at GLICKO2_MAX_RD, so the loop stops
+// early once a player has sat out long enough to be as uncertain as a new one.
+export function applyGlicko2Inactivity(state: Glicko2State, periods: number): Glicko2State {
+  let next = state;
+  for (let i = 0; i < periods && next.rd < GLICKO2_MAX_RD; i++) {
+    next = applyGlicko2Period(next, []);
+  }
+  return { ...next, rd: Math.min(next.rd, GLICKO2_MAX_RD) };
 }
 
 // Applies a single game between two players, each a full Glicko-2 state, and
