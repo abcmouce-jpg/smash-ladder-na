@@ -1,6 +1,7 @@
 "use client";
 
-import { useSyncExternalStore, useState } from "react";
+import { useState } from "react";
+import { useBrowserTimeZone } from "@/hooks/use-browser-time-zone";
 import { formatRating } from "@/lib/rating-format";
 
 type Point = { date: string; rating: number };
@@ -26,21 +27,9 @@ const DAY_MS = 86_400_000;
 // this, the chart window starts 90 days back instead of at that match.
 const CHART_DAYS = 90;
 
-// Server-rendered pages don't know the visitor's timezone, so dates render in
-// UTC for the first paint — identical to SSR, so no hydration mismatch — and
-// switch to the browser's real timezone once mounted. useSyncExternalStore's
-// server snapshot (null → UTC) is used for that first paint; React swaps in
-// the client snapshot during the post-hydration re-render, avoiding the
-// cascading render that a setState-in-effect would trigger.
-const subscribe = () => () => {};
-
-function useBrowserTimeZone(): string | null {
-  return useSyncExternalStore(
-    subscribe,
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-    () => null,
-  );
-}
+// See useBrowserTimeZone for why dates render in UTC for the first paint and
+// switch to the browser's real timezone once mounted, without a hydration
+// mismatch.
 
 export function RatingChart({ points }: { points: Point[] }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);

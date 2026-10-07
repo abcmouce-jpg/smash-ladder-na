@@ -1,19 +1,40 @@
+"use client";
+
+import { useBrowserTimeZone } from "@/hooks/use-browser-time-zone";
+import { shortTimeZoneName } from "@/lib/timezone";
 import type { Lang } from "@/lib/i18n";
 
-// Average confirmed matches per hour of day (ladder reference timezone), as
-// a 24-column bar chart. Pure presentational/server-safe — hover tooltips via
-// the title attribute, plus an accessible summary line, since this is a
-// static community-stats block rather than something needing chart
-// interactions.
+// Average confirmed matches per hour of day (viewer's timezone), as a
+// 24-column bar chart. Hover tooltips via the title attribute, plus an
+// accessible summary line, since this is a static community-stats block rather
+// than something needing chart interactions. The bucketing into hours happens
+// here, not server-side, because hour boundaries depend on the visitor's
+// timezone and only the browser knows that — via useBrowserTimeZone, so the
+// first paint is UTC (matching SSR) and swaps to the browser's zone on re-render.
 export function MatchesByHourChart({
-  hourlyCounts,
+  timestamps,
   windowDays,
   lang,
 }: {
-  hourlyCounts: number[];
+  timestamps: string[];
   windowDays: number;
   lang: Lang;
 }) {
+  const tz = useBrowserTimeZone() ?? "UTC";
+
+  // Hours in the viewer's timezone, 0–23. Matches outside the window are
+  // already excluded by the query in getLadderActivity.
+  const hourFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "2-digit",
+    hourCycle: "h23",
+  });
+  const hourlyCounts = new Array<number>(24).fill(0);
+  for (const ts of timestamps) {
+    const hour = Number(hourFormatter.format(new Date(ts)));
+    if (Number.isInteger(hour) && hour >= 0 && hour < 24) hourlyCounts[hour]++;
+  }
+
   const averages = hourlyCounts.map((count) => count / windowDays);
   const max = Math.max(...averages);
   const total = hourlyCounts.reduce((sum, c) => sum + c, 0);
@@ -70,8 +91,8 @@ export function MatchesByHourChart({
 
       <p className="mt-3 text-xs text-muted-foreground tabular-nums">
         {lang === "es"
-          ? `${total} partidas confirmadas en ${windowDays} días — ${dailyAverage} por día en promedio (hora del Este)`
-          : `${total} confirmed matches over ${windowDays} days — ${dailyAverage} per day on average (Eastern time)`}
+          ? `${total} partidas confirmadas en ${windowDays} días — ${dailyAverage} por día en promedio (${shortTimeZoneName(tz)})`
+          : `${total} confirmed matches over ${windowDays} days — ${dailyAverage} per day on average (${shortTimeZoneName(tz)})`}
       </p>
     </div>
   );

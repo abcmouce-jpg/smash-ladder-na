@@ -4,6 +4,7 @@ import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { Card, CardContent } from "@/components/ui/card";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { MatchesByHourChart } from "@/components/matches-by-hour-chart";
+import { LocalTimeZoneLabel } from "@/components/local-time-zone-label";
 import { RatingDistributionChart } from "@/components/rating-distribution-chart";
 import { SectionHeading } from "@/components/section-heading";
 import { StatCard } from "@/components/stat-card";
@@ -14,7 +15,7 @@ const WINDOW_DAYS = 90;
 export async function StatsOverviewSection({ lang }: { lang: Lang }) {
   // The two activity charts share one read — see getLadderActivity; the rating
   // distribution and headline totals are separate populations, read alongside it.
-  const [{ timestamps, hourlyCounts }, { buckets, total, average, median }, totals] = await Promise.all([
+  const [{ timestamps }, { buckets, total, average, median }, totals] = await Promise.all([
     getLadderActivity(WINDOW_DAYS),
     getRatingDistribution(),
     getStatsTotals(),
@@ -59,13 +60,11 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
       <section>
         <SectionHeading
           label={lang === "es" ? "Actividad por hora del día" : "Activity by time of day"}
-          action={
-            <span className="text-xs text-muted-foreground">{lang === "es" ? "Hora del Este" : "Eastern time"}</span>
-          }
+          action={<LocalTimeZoneLabel />}
         />
         <Card className="mt-3">
           <CardContent className="pt-4">
-            <MatchesByHourChart hourlyCounts={hourlyCounts} windowDays={WINDOW_DAYS} lang={lang} />
+            <MatchesByHourChart timestamps={timestamps} windowDays={WINDOW_DAYS} lang={lang} />
           </CardContent>
         </Card>
       </section>
