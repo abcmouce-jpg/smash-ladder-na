@@ -605,6 +605,32 @@ describe("adminCorrectOldMatchResult", () => {
     expect(games.map((g) => g.winnerId)).toEqual([p1.id, p2.id, p2.id]);
   });
 
+  it("updates the match's own before/after snapshot to match the flipped winner", async () => {
+    // Regression test: a match corrected via this path used to keep showing
+    // its original (pre-correction) rating numbers on the match row itself —
+    // getPlayerMatchHistory reads those columns directly, not RatingHistory,
+    // so the new winner's profile showed them winning next to a rating line
+    // that still said they lost.
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id); // p1 recorded as winner, gained rating
+
+    await adminCorrectOldMatchResult(match.id, p2.id);
+
+    const [corrected, p1After, p2After] = await Promise.all([
+      prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    // p2 (the corrected winner) should show a rating gain on the match row,
+    // not the original loss — and vice versa for p1.
+    expect(corrected.player2RatingAfter!).toBeGreaterThan(corrected.player2RatingBefore!);
+    expect(corrected.player1RatingAfter!).toBeLessThan(corrected.player1RatingBefore!);
+    // The snapshot should also match each player's actual resulting rating.
+    expect(corrected.player1RatingAfter).toBe(p1After.rating);
+    expect(corrected.player2RatingAfter).toBe(p2After.rating);
+  });
+
   it("rejects a non-confirmed match", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
