@@ -1029,12 +1029,12 @@ function MatchFooterActions({
         <p className="text-xs text-muted-foreground">
           {lang === "es"
             ? gameDecided
-              ? "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección de personaje estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje que usó en el juego anterior."
+              ? "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje y escenario del juego anterior."
               : opponentEngaged
                 ? "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis."
                 : "Tu rival aún no se presenta. Cancelar ahora es gratis."
             : gameDecided
-              ? "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled character pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character they used in the previous game."
+              ? "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character and stage from the previous game."
               : opponentEngaged
                 ? "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel."
                 : "Your opponent hasn't shown up yet. Cancelling now is free."}

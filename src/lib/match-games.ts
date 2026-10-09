@@ -71,10 +71,13 @@ function randomStages(pool: readonly string[], count: number): string[] {
   return picks;
 }
 
-// Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
+// Lazy, not cron-driven (the finalize cron runs only daily — far too coarse
 // for a live in-session timer): checked on every read, same idea as
-// liftExpiredSuspension in account.ts. Picks a uniformly random stage from
-// whatever's left rather than favoring either side.
+// liftExpiredSuspension in account.ts. On games 2+ a stalled turn of ANY kind
+// — a ban, or the final pick — defaults to the previous game's stage, so the
+// set just runs it back rather than guessing a random stage for a player
+// who's gone quiet. Game 1 (nothing to repeat) and a previous stage already
+// banned this game fall back to a uniformly random resolution.
 async function autoResolveStaleTurn(matchId: string) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId, winnerId: null, finalStage: null },
@@ -90,10 +93,32 @@ async function autoResolveStaleTurn(matchId: string) {
   if (!bothCharactersLocked(game)) return;
   if (Date.now() - game.turnStartedAt.getTime() < STRIKE_TIMEOUT_MS) return;
 
+  // The stage the previous game was played on, if it's still on the table —
+  // the thing both the ban and pick branches below default a stalled game-2+
+  // turn to. Null on game 1 (nothing to repeat) or once it's been banned this
+  // game, in which case random resolution takes over. Same "run it back"
+  // stage as pickSameStage.
+  const allGames = await prisma.matchGame.findMany({ where: { matchId } });
+  const previousStage = lastPlayedStage(allGames, game.gameNumber);
+  const repeatStage =
+    previousStage && game.stagesRemaining.includes(previousStage) ? previousStage : null;
+
   const striker = actorForStrike(game);
   if (striker) {
-    // A stale turn resolves wholesale: the player's ENTIRE allotment of bans
-    // for this turn is applied at once, randomly from what's left, rather
+    // Games 2+ with a stage to repeat skip the rest of striking AND the pick
+    // outright and set the stage directly — the same outcome as a stalled
+    // character pick (see replayPreviousGame), just reached from the ban clock
+    // instead. Falls through to random bans only on game 1, or when that stage
+    // has already been banned this game.
+    if (repeatStage) {
+      await prisma.matchGame.updateMany({
+        where: { id: game.id, finalStage: null, struckStages: { equals: game.struckStages } },
+        data: { finalStage: repeatStage, turnStartedAt: new Date() },
+      });
+      return;
+    }
+    // A stale ban turn resolves wholesale: the player's ENTIRE allotment of
+    // bans for this turn is applied at once, randomly from what's left, rather
     // than one strike per lazy check — the turn is one continuous window, so
     // it resolves at its single deadline. The next actor gets a fresh clock.
     const count = game.struckStages.length;
@@ -117,7 +142,10 @@ async function autoResolveStaleTurn(matchId: string) {
     return;
   }
 
-  const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
+  // The final pick: games 2+ default to the previous game's stage when it's
+  // still on the table (see repeatStage above); otherwise a uniformly random
+  // pick from what's left. Game 1 has no previous stage to repeat.
+  const stage = repeatStage ?? game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
   if (!stage) return;
   // turnStartedAt marks when the current phase began — resetting it here (and
   // in the pick actions) is what anchors the report clock for the game.

@@ -18,6 +18,7 @@ import {
   escalateGameDispute,
   CHARACTER_TIMEOUT_MS,
   REPORT_TIMEOUT_MS,
+  STRIKE_TIMEOUT_MS,
 } from "@/lib/match-games";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 
@@ -279,6 +280,90 @@ describe("a games-2+ character timeout defaults the stalled side", () => {
     expect(untouched?.actorACharacter).toBeNull();
     expect(untouched?.actorBCharacter).toBeNull();
     expect(untouched?.finalStage).toBeNull();
+  });
+});
+
+describe("a games-2+ staging timeout defaults to the previous game's stage", () => {
+  // Game 2 with both characters locked in and the turn clock already past
+  // STRIKE_TIMEOUT_MS, so the next read of this match auto-resolves the stale
+  // ban turn. Game 1 was played on Battlefield.
+  async function setupStaleStageGameTwo() {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        stagesRemaining: [...GAME_ONE_STAGES],
+        finalStage: "Battlefield",
+        winnerId: p1.id,
+      },
+    });
+    const game = await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p1.id, // the previous game's winner, who bans first
+        actorAStrikes: 3,
+        actorACharacter: "Mario",
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        actorBCharacter: "Luigi",
+        stagesRemaining: [...COUNTERPICK_STAGES],
+        turnStartedAt: new Date(Date.now() - STRIKE_TIMEOUT_MS - 1000),
+      },
+    });
+    return { p1, p2, match, game };
+  }
+
+  it("defaults a stalled ban turn straight to the previous stage", async () => {
+    const { match } = await setupStaleStageGameTwo();
+
+    const games = await getMatchGames(match.id);
+    const resolved = games.find((g) => g.gameNumber === 2);
+    // No random bans, no pick phase — the set just carries the stage forward.
+    expect(resolved?.finalStage).toBe("Battlefield");
+    expect(resolved?.struckStages).toEqual([]);
+    expect(resolved?.winnerId).toBeNull();
+  });
+
+  it("defaults a stalled final pick to the previous stage", async () => {
+    const { match, game } = await setupStaleStageGameTwo();
+    // Bans are done, so actorB owes the (stale) pick now.
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: {
+        struckStages: ["Final Destination", "Hollow Bastion", "Kalos Pokémon League"],
+        stagesRemaining: [...GAME_ONE_STAGES],
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    const resolved = games.find((g) => g.gameNumber === 2);
+    expect(resolved?.finalStage).toBe("Battlefield");
+  });
+
+  it("falls back to random bans once the previous stage has itself been banned", async () => {
+    const { match, game } = await setupStaleStageGameTwo();
+    // actorA already banned Battlefield, so there's nothing to run back to.
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: {
+        struckStages: ["Battlefield"],
+        stagesRemaining: [...COUNTERPICK_STAGES].filter((s) => s !== "Battlefield"),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    const resolved = games.find((g) => g.gameNumber === 2);
+    // The owed bans are applied instead of defaulting, so the pick is still open.
+    expect(resolved?.struckStages).toHaveLength(3);
+    expect(resolved?.finalStage).toBeNull();
   });
 });
 

@@ -133,8 +133,10 @@ export default async function RulesPage() {
             The free cancel stops working the moment a game has a decided winner or either side has reported one — at
             that point backing out always means Surrender, from either side, for the rest of the set. If your opponent
             goes quiet mid-set instead of surrendering yourself, you generally don&apos;t need to do anything: if they
-            stall their stage strikes, their turn is resolved for them after a few minutes and the set continues without
-            erasing anything already decided. Character picks work in two phases. Game 1&apos;s blind pick runs on one
+            stall their stage strikes or final pick, that turn is resolved for them after a few minutes — on game 1
+            with a random stage from what&apos;s left, and from game 2 onwards by continuing on the stage the previous
+            game was played on, so the set runs it back without erasing anything already decided. Character picks work
+            in two phases. Game 1&apos;s blind pick runs on one
             countdown both players share: if it runs out with only one side locked in, the whole set is forfeited to
             whoever locked in, not just the game they were on. From game 2 onwards a missed pick never ends the set —
             whoever stalled falls back to the character they played in the previous game, on that game&apos;s stage,
