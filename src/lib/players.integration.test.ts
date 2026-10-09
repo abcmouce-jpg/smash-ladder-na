@@ -868,6 +868,106 @@ describe("getPlayerMatchCount", () => {
   });
 });
 
+describe("match history filters", () => {
+  async function createSeason(name: string, endsAt: Date | null) {
+    return prisma.season.create({ data: { name, endsAt } });
+  }
+
+  async function createMatchInSeason(p1: string, p2: string, seasonId: string | null, confirmedAt: Date) {
+    return prisma.ratingMatch.create({
+      data: {
+        player1Id: p1,
+        player2Id: p2,
+        seasonId,
+        status: MatchStatus.CONFIRMED,
+        expiresAt: new Date(),
+        confirmedAt,
+      },
+    });
+  }
+
+  it("filters by season on both the rows and the count", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const active = await createSeason("Season 1", null);
+    const past = await createSeason("Season 0", new Date());
+    const base = Date.now();
+
+    const inActive = await createMatchInSeason(player.id, opponent.id, active.id, new Date(base));
+    await createMatchInSeason(player.id, opponent.id, past.id, new Date(base + 1000));
+
+    const history = await getPlayerMatchHistory(player.id, { seasonId: active.id });
+    expect(history.map((m) => m.id)).toEqual([inActive.id]);
+    expect(await getPlayerMatchCount(player.id, { seasonId: active.id })).toBe(1);
+  });
+
+  it("filters by the character the player played", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+
+    const foxSet = await createMatchInSeason(player.id, opponent.id, null, new Date(base));
+    await createGame(foxSet.id, 1, player.id, "Fox", opponent.id, "Marth", player.id);
+    const cloudSet = await createMatchInSeason(player.id, opponent.id, null, new Date(base + 1000));
+    await createGame(cloudSet.id, 1, player.id, "Cloud", opponent.id, "Marth", player.id);
+
+    const history = await getPlayerMatchHistory(player.id, { playedCharacter: "Fox" });
+    expect(history.map((m) => m.id)).toEqual([foxSet.id]);
+    expect(await getPlayerMatchCount(player.id, { playedCharacter: "Fox" })).toBe(1);
+  });
+
+  it("filters by the character the opponent played", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+
+    const marthSet = await createMatchInSeason(player.id, opponent.id, null, new Date(base));
+    await createGame(marthSet.id, 1, player.id, "Fox", opponent.id, "Marth", player.id);
+    const falcoSet = await createMatchInSeason(player.id, opponent.id, null, new Date(base + 1000));
+    await createGame(falcoSet.id, 1, player.id, "Fox", opponent.id, "Falco", player.id);
+
+    const history = await getPlayerMatchHistory(player.id, { againstCharacter: "Marth" });
+    expect(history.map((m) => m.id)).toEqual([marthSet.id]);
+  });
+
+  it("matches regardless of which side the player was on", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createMatchInSeason(opponent.id, player.id, null, new Date());
+    // actorA is the opponent here, so the player's pick is actorB's.
+    await createGame(match.id, 1, opponent.id, "Marth", player.id, "Fox", player.id);
+
+    expect((await getPlayerMatchHistory(player.id, { playedCharacter: "Fox" })).map((m) => m.id)).toEqual([match.id]);
+    expect((await getPlayerMatchHistory(player.id, { againstCharacter: "Marth" })).map((m) => m.id)).toEqual([
+      match.id,
+    ]);
+  });
+
+  it("counts a set for a character played in any of its games, not just the opener", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createMatchInSeason(player.id, opponent.id, null, new Date());
+    await createGame(match.id, 1, player.id, "Fox", opponent.id, "Marth", player.id);
+    await createGame(match.id, 2, player.id, "Falco", opponent.id, "Marth", player.id);
+
+    expect((await getPlayerMatchHistory(player.id, { playedCharacter: "Falco" })).map((m) => m.id)).toEqual([match.id]);
+  });
+
+  it("requires both character filters on the same set", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+
+    const both = await createMatchInSeason(player.id, opponent.id, null, new Date(base));
+    await createGame(both.id, 1, player.id, "Fox", opponent.id, "Falco", player.id);
+    const onlyPlayed = await createMatchInSeason(player.id, opponent.id, null, new Date(base + 1000));
+    await createGame(onlyPlayed.id, 1, player.id, "Fox", opponent.id, "Marth", player.id);
+
+    const history = await getPlayerMatchHistory(player.id, { playedCharacter: "Fox", againstCharacter: "Falco" });
+    expect(history.map((m) => m.id)).toEqual([both.id]);
+  });
+});
+
 describe("getTopRivals", () => {
   it("excludes matches where the player's own side was practicing", async () => {
     const player = await createTestUser();

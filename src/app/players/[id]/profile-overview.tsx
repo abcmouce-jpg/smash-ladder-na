@@ -6,9 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RatingChart } from "@/components/rating-chart";
 import { RatingHidden } from "@/components/rating-hidden";
 import { CharacterUsageCard } from "@/components/character-usage-card";
-import { RequestCorrectionForm } from "@/components/request-correction-form";
-import { MatchHistoryEntry } from "@/components/match-history-entry";
-import { AdminMatchOverride } from "@/components/moderation-tools";
+import { MatchHistoryList } from "./match-history-list";
 import {
   getCareerStats,
   getCurrentStreak,
@@ -31,17 +29,10 @@ import {
 } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
-import {
-  adminCorrectOldResultAction,
-  adminOverrideResultAction,
-  adminUndoMatchAction,
-  adminUndoOldMatchAction,
-  getMatchChatLogAction,
-  getMatchChatLogAsModAction,
-  requestCorrectionAction,
-} from "../actions";
 
-const MATCH_HISTORY_PAGE_SIZE = 20;
+// The overview shows only the newest few matches so it stays a glance; the full
+// — filterable, paginated — history lives on its own Match History tab.
+const RECENT_MATCH_HISTORY_LIMIT = 10;
 
 // Achievement labels/descriptions are generated in lib/rank-tier.ts and
 // lib/match-achievements.ts (some with an interpolated rating threshold) —
@@ -85,9 +76,8 @@ function achievementEs(a: { id: string; label: string; description: string }) {
 }
 
 // The default tab: rating chart, season/career summary cards, rivals,
-// character usage, and the paginated match history. Kept server-rendered so
-// the history stays deep-linkable (`?tab=overview&page=N`) with no client
-// tab state.
+// character usage, and the newest few matches. The full, filterable history
+// lives on its own tab, reached from here via the "View more" link.
 export async function ProfileOverviewSection({
   id,
   playerUsername,
@@ -99,7 +89,6 @@ export async function ProfileOverviewSection({
   practiceGamesPlayed,
   isOwnProfile,
   isModerator,
-  page,
   lang,
 }: {
   id: string;
@@ -112,7 +101,6 @@ export async function ProfileOverviewSection({
   practiceGamesPlayed: number;
   isOwnProfile: boolean;
   isModerator: boolean;
-  page: number;
   lang: Lang;
 }) {
   // The opening sets of the ACTIVE season are the only thing hidden: a returner
@@ -124,7 +112,7 @@ export async function ProfileOverviewSection({
 
   const [
     recentHistory,
-    pageHistory,
+    recentMatchHistory,
     totalMatchCount,
     chartPoints,
     careerStats,
@@ -135,13 +123,11 @@ export async function ProfileOverviewSection({
     streak,
     leaderboardRank,
   ] = await Promise.all([
-    // Fixed to the true most-recent matches regardless of which page of
-    // history is being viewed — the win-rate/streak badges near the rating
-    // chart, and which match (if any) the correction/admin-override forms
-    // below attach to, all need this to stay put on page 2+, not silently
-    // reflect whatever's on the current page.
+    // The newest matches, independent of the recent strip below — the
+    // win-rate/streak badges near the rating chart, and which match (if any)
+    // the correction/admin-override forms attach to, both key off this list.
     getPlayerMatchHistory(id),
-    getPlayerMatchHistory(id, { limit: MATCH_HISTORY_PAGE_SIZE, skip: (page - 1) * MATCH_HISTORY_PAGE_SIZE }),
+    getPlayerMatchHistory(id, { limit: RECENT_MATCH_HISTORY_LIMIT }),
     getPlayerMatchCount(id),
     getRatingChartPoints(id, 50, valueIds),
     getCareerStats(id, valueIds),
@@ -159,7 +145,6 @@ export async function ProfileOverviewSection({
   const realRecentWins = realRecentHistory.filter((m) => m.won).length;
   const winRate = realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
-  const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
   // Only the current rating is gated on the player's *current* status — it's
   // the number that isn't public until they graduate. The chart and the peaks
   // below read history the server already filtered (see getHiddenRatingMatchIds),
@@ -389,134 +374,36 @@ export async function ProfileOverviewSection({
               </Badge>
             )}
           </div>
-          {totalPages > 1 && (
-            <MatchHistoryPaginationControls playerId={id} page={page} totalPages={totalPages} lang={lang} />
+          {totalMatchCount > 0 && (
+            <Link
+              href="?tab=matches"
+              prefetch={false}
+              className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+            >
+              {lang === "es" ? "Ver más →" : "View more →"}
+            </Link>
           )}
         </div>
 
-        {pageHistory.length === 0 && (
+        {recentMatchHistory.length === 0 && (
           <p className="mt-4 text-sm text-muted-foreground">
             {lang === "es" ? "Aún no hay partidas confirmadas." : "No confirmed matches yet."}
           </p>
         )}
 
-        {pageHistory.length > 0 && (
-          <Card className="mt-4 divide-y divide-border overflow-hidden py-0">
-            {pageHistory.map((match) => (
-              <MatchHistoryEntry
-                key={match.id}
-                match={{
-                  ...match,
-                  // Dates can't cross the server→client boundary; the
-                  // modal renders it back with LocalTime.
-                  confirmedAt: match.confirmedAt?.toISOString() ?? null,
-                  // Per-match reveal (see getHiddenRatingMatchIds): the active
-                  // season's opening sets stay hidden even after graduation.
-                  ratingRevealed: !hiddenChangeIds.has(match.id),
-                }}
-                viewedPlayerName={playerUsername}
-                canSeeHiddenRatings={isModerator}
-                // Own profile reads their own chat log; a mod reviewing
-                // someone else's profile gets the mod spectator path. The
-                // modal is the only place this renders now.
-                chatLogAction={
-                  isOwnProfile
-                    ? getMatchChatLogAction.bind(null, match.id)
-                    : isModerator
-                      ? getMatchChatLogAsModAction.bind(null, match.id)
-                      : undefined
-                }
-                lang={lang}
-              >
-                {isOwnProfile && match.id === mostRecentRealMatchId && (
-                  <RequestCorrectionForm
-                    action={requestCorrectionAction.bind(null, match.id)}
-                    myId={id}
-                    opponentId={match.opponent.id}
-                    opponentUsername={match.opponent.username}
-                    lang={lang}
-                  />
-                )}
-                {isModerator && !isOwnProfile && match.id === mostRecentRealMatchId && (
-                  <AdminMatchOverride
-                    player1Username={playerUsername}
-                    player2Username={match.opponent.username}
-                    actionForPlayer1={adminOverrideResultAction.bind(null, match.id, id, id)}
-                    actionForPlayer2={adminOverrideResultAction.bind(null, match.id, id, match.opponent.id)}
-                    undoAction={adminUndoMatchAction.bind(null, match.id, id)}
-                  />
-                )}
-                {isModerator && !isOwnProfile && match.id !== mostRecentRealMatchId && (
-                  // Same tool, for a match the player has since queued past —
-                  // adminOverrideResultAction/adminUndoMatchAction require this
-                  // to still be each side's most recent confirmed match, which
-                  // stops applying the moment they play again. These use the
-                  // relative-delta correction instead (see
-                  // adminCorrectOldMatchResult/adminUndoOldMatch), so a mod
-                  // can still fix a bad result from days ago without needing
-                  // to have caught it before the player's next set.
-                  <AdminMatchOverride
-                    player1Username={playerUsername}
-                    player2Username={match.opponent.username}
-                    actionForPlayer1={adminCorrectOldResultAction.bind(null, match.id, id, id)}
-                    actionForPlayer2={adminCorrectOldResultAction.bind(null, match.id, id, match.opponent.id)}
-                    undoAction={adminUndoOldMatchAction.bind(null, match.id, id)}
-                  />
-                )}
-              </MatchHistoryEntry>
-            ))}
-          </Card>
+        {recentMatchHistory.length > 0 && (
+          <MatchHistoryList
+            playerId={id}
+            playerUsername={playerUsername}
+            matches={recentMatchHistory}
+            mostRecentRealMatchId={mostRecentRealMatchId}
+            hiddenChangeIds={hiddenChangeIds}
+            isOwnProfile={isOwnProfile}
+            isModerator={isModerator}
+            lang={lang}
+          />
         )}
       </div>
     </>
-  );
-}
-
-function MatchHistoryPaginationControls({
-  playerId,
-  page,
-  totalPages,
-  lang,
-}: {
-  playerId: string;
-  page: number;
-  totalPages: number;
-  lang: Lang;
-}) {
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <MatchHistoryPageLink playerId={playerId} page={page - 1} disabled={page <= 1}>
-        {lang === "es" ? "← Anterior" : "← Previous"}
-      </MatchHistoryPageLink>
-      <span className="text-muted-foreground tabular-nums">
-        {lang === "es" ? `Página ${page} de ${totalPages}` : `Page ${page} of ${totalPages}`}
-      </span>
-      <MatchHistoryPageLink playerId={playerId} page={page + 1} disabled={page >= totalPages}>
-        {lang === "es" ? "Siguiente →" : "Next →"}
-      </MatchHistoryPageLink>
-    </div>
-  );
-}
-
-function MatchHistoryPageLink({
-  playerId,
-  page,
-  disabled,
-  children,
-}: {
-  playerId: string;
-  page: number;
-  disabled: boolean;
-  children: React.ReactNode;
-}) {
-  if (disabled) {
-    return <span className="text-muted-foreground/40">{children}</span>;
-  }
-  // Pinned to the overview tab so paging keeps the tab strip where the user
-  // left it instead of silently dropping back to a bare `/players/:id` URL.
-  return (
-    <Link href={`/players/${playerId}?tab=overview&page=${page}`} prefetch={false} className="hover:underline">
-      {children}
-    </Link>
   );
 }
