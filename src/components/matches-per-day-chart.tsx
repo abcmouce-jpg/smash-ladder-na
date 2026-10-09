@@ -1,6 +1,7 @@
 "use client";
 
-import { useSyncExternalStore, useState } from "react";
+import { useState } from "react";
+import { useBrowserTimeZone } from "@/hooks/use-browser-time-zone";
 import type { Lang } from "@/lib/i18n";
 
 const WIDTH = 560;
@@ -11,20 +12,8 @@ const PAD_TOP = 12;
 const PAD_BOTTOM = 24;
 const DAY_MS = 86_400_000;
 
-// Same timezone dance as RatingChart: server-rendered pages don't know the
-// visitor's timezone, so the first paint buckets by UTC — identical to SSR,
-// so no hydration mismatch — and useSyncExternalStore swaps in the browser's
-// real timezone during the post-hydration re-render. The bucket counts are
-// unchanged; only which matches land in which local day can shift.
-const subscribe = () => () => {};
-
-function useBrowserTimeZone(): string | null {
-  return useSyncExternalStore(
-    subscribe,
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-    () => null,
-  );
-}
+// The timezone only shifts which matches land in which local day; the bucket
+// counts are unchanged. See useBrowserTimeZone for the SSR/UTC-first approach.
 
 const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];

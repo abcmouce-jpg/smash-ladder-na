@@ -12,6 +12,18 @@ export function dayKeyInTimeZone(date: Date, timeZone: string = LADDER_TIME_ZONE
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
+// Abbreviated, human-friendly name for timeZone at `date` (e.g. "EDT", "UTC",
+// "GMT+5:30") — for labeling charts that bucket by the viewer's zone. en-US is
+// deliberate: zones with a named abbreviation show it ("EDT") rather than the
+// generic offset some other locales fall back to.
+export function shortTimeZoneName(timeZone: string, date: Date = new Date()): string {
+  return (
+    new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "short" })
+      .formatToParts(date)
+      .find((p) => p.type === "timeZoneName")?.value ?? timeZone
+  );
+}
+
 function offsetMinutesFor(date: Date, timeZone: string): number {
   const offsetName =
     new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "shortOffset" })
