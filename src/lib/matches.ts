@@ -17,7 +17,7 @@ import {
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
-import { applyGlicko2Result } from "@/lib/glicko2";
+import { applyGlicko2Inactivity, applyGlicko2Result, glicko2InactivityPeriods } from "@/lib/glicko2";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
@@ -516,6 +516,57 @@ function nextRatingStates(
   };
 }
 
+// When this player last completed a rated match in the given pool, or null if
+// they never have this season. Only CONFIRMED matches count — a cancelled or
+// disputed one never moved a rating, so it must not reset the inactivity clock.
+// The match being confirmed right now is excluded explicitly (its own status is
+// still pre-confirm at this point, but the guard keeps that from mattering).
+async function lastRatedAt(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  isPracticing: boolean,
+  excludeMatchId: string,
+): Promise<Date | null> {
+  const row = await tx.ratingMatch.findFirst({
+    where: {
+      id: { not: excludeMatchId },
+      status: MatchStatus.CONFIRMED,
+      confirmedAt: { not: null },
+      OR: [
+        { player1Id: userId, player1IsPracticing: isPracticing },
+        { player2Id: userId, player2IsPracticing: isPracticing },
+      ],
+    },
+    orderBy: { confirmedAt: "desc" },
+    select: { confirmedAt: true },
+  });
+  return row?.confirmedAt ?? null;
+}
+
+// Rolls a Glicko-2 state forward for time spent not playing before it's handed
+// to nextRatingStates — the one place time-since-last-match feeds the rating
+// math (see applyGlicko2Inactivity). Without it RD would sit frozen between
+// matches, since a Glicko-2 update only ever runs at confirm time.
+async function ageForGlicko2Inactivity(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  isPracticing: boolean,
+  excludeMatchId: string,
+  state: RatingState,
+  seasonStartsAt: Date | null,
+  now: Date,
+): Promise<RatingState> {
+  // The clock restarts at the season's start, not the player's last-ever match:
+  // a rollover resets everyone's RD to maximum uncertainty, so a match from a
+  // previous season says nothing about how stale this season's rating is (and
+  // would otherwise over-age someone who simply sat out last season).
+  const lastMatchAt = await lastRatedAt(tx, userId, isPracticing, excludeMatchId);
+  const from = seasonStartsAt && (!lastMatchAt || seasonStartsAt > lastMatchAt) ? seasonStartsAt : lastMatchAt;
+  if (!from) return state;
+  const periods = glicko2InactivityPeriods(now.getTime() - from.getTime());
+  return periods === 0 ? state : applyGlicko2Inactivity(state, periods);
+}
+
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.
 // Shared by self-confirmation (both players agree) and the cron finalizer's
 // auto-timeout path (only one player reported before the match expired).
@@ -550,14 +601,36 @@ export async function applyEloAndConfirm(
   // same 1500-baseline scale, so comparing one side's practiceRating against
   // the other's main rating is valid math, not a units mismatch. Same split
   // applies to the Glicko-2 rd/volatility parameters.
-  const p1State: RatingState = matchRow.player1IsPracticing
+  let p1State: RatingState = matchRow.player1IsPracticing
     ? { rating: p1.practiceRating, rd: p1.practiceRatingDeviation, volatility: p1.practiceRatingVolatility }
     : { rating: p1.rating, rd: p1.ratingDeviation, volatility: p1.ratingVolatility };
-  const p2State: RatingState = matchRow.player2IsPracticing
+  let p2State: RatingState = matchRow.player2IsPracticing
     ? { rating: p2.practiceRating, rd: p2.practiceRatingDeviation, volatility: p2.practiceRatingVolatility }
     : { rating: p2.rating, rd: p2.ratingDeviation, volatility: p2.ratingVolatility };
   const p1Games = matchRow.player1IsPracticing ? p1.practiceGamesPlayed : p1.gamesPlayed;
   const p2Games = matchRow.player2IsPracticing ? p2.practiceGamesPlayed : p2.gamesPlayed;
+
+  const now = new Date();
+  if (algorithm === RatingAlgorithm.GLICKO2) {
+    p1State = await ageForGlicko2Inactivity(
+      tx,
+      p1.id,
+      matchRow.player1IsPracticing,
+      match.id,
+      p1State,
+      season?.startsAt ?? null,
+      now,
+    );
+    p2State = await ageForGlicko2Inactivity(
+      tx,
+      p2.id,
+      matchRow.player2IsPracticing,
+      match.id,
+      p2State,
+      season?.startsAt ?? null,
+      now,
+    );
+  }
 
   const p1Won = winnerId === p1.id;
   const { p1: p1Next, p2: p2Next } = nextRatingStates(algorithm, p1State, p2State, p1Won ? 1 : 0, p1Games, p2Games);
@@ -569,9 +642,9 @@ export async function applyEloAndConfirm(
       ...(secondReport && {
         secondReportWinnerId: secondReport.winnerId,
         secondReportById: secondReport.reporterId,
-        secondReportAt: new Date(),
+        secondReportAt: now,
       }),
-      confirmedAt: new Date(),
+      confirmedAt: now,
       confirmationMethod,
       seasonId,
       player1RatingBefore: p1State.rating,

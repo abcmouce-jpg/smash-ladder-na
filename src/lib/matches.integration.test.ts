@@ -362,6 +362,47 @@ describe("applyEloAndConfirm — Glicko-2 season", () => {
     expect(u1.rating).toBe(corrected.player1RatingAfter);
     expect(u2.rating).toBe(corrected.player2RatingAfter);
   });
+
+  it("ages RD for time since each player's last confirmed match", async () => {
+    // Season and the players' last matches both start well before "now", so
+    // the gap is real inactivity rather than a freshly-created fixture.
+    const seasonStartsAt = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    await prisma.season.create({
+      data: { name: "Glicko Season", algorithm: RatingAlgorithm.GLICKO2, startsAt: seasonStartsAt },
+    });
+    const idle = await createTestUser({ rating: 1600, gamesPlayed: 20, ratingDeviation: 60 });
+    const opponent = await createTestUser({ rating: 1600, gamesPlayed: 20, ratingDeviation: 60 });
+
+    const lastPlayedAt = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    for (const user of [idle, opponent]) {
+      await prisma.ratingMatch.create({
+        data: {
+          player1Id: user.id,
+          player2Id: (await createTestUser()).id,
+          status: MatchStatus.CONFIRMED,
+          confirmedAt: lastPlayedAt,
+          expiresAt: lastPlayedAt,
+        },
+      });
+    }
+
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: idle.id, player2Id: opponent.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, idle.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: idle.id,
+        reporterId: idle.id,
+      }),
+    );
+
+    const rated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    // The pre-game snapshot is the AGED state: two months off pushes RD up from
+    // the stored 60 before the game itself shrinks it again.
+    expect(rated.player1RdBefore!).toBeGreaterThan(60);
+    expect(rated.player1RdBefore!).toBeLessThanOrEqual(350);
+    expect(rated.player2RdBefore!).toBeGreaterThan(60);
+  });
 });
 
 describe("requestResultCorrection", () => {
