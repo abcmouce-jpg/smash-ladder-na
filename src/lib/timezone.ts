@@ -31,3 +31,18 @@ export function startOfDayInTimeZone(date: Date, timeZone: string = LADDER_TIME_
   const utcMidnightGuess = new Date(Date.UTC(y, m - 1, d));
   return new Date(utcMidnightGuess.getTime() - offsetMinutesFor(utcMidnightGuess, timeZone) * 60_000);
 }
+
+// The inverse of dayKeyInTimeZone: the UTC instant at which the wall clock in
+// timeZone reads the given local calendar date and time. Used to pin
+// deadlines to a fixed local time of day (e.g. season ends at 8pm ET) —
+// resolving the offset at the target instant itself, rather than a fixed
+// -04:00/-05:00 literal, keeps that time of day correct across the EST/EDT
+// switch without needing a timezone library.
+export function zonedTimeToUtc(
+  parts: { year: number; month: number; day: number; hour?: number; minute?: number },
+  timeZone: string = LADDER_TIME_ZONE,
+): Date {
+  const { year, month, day, hour = 0, minute = 0 } = parts;
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  return new Date(utcGuess.getTime() - offsetMinutesFor(utcGuess, timeZone) * 60_000);
+}
