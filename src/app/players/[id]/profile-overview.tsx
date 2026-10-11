@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Award, Swords } from "lucide-react";
+import { Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { CharacterUsageCard } from "@/components/character-usage-card";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
 import { MatchHistoryEntry } from "@/components/match-history-entry";
 import { AdminMatchOverride } from "@/components/moderation-tools";
+import { HeadToHeadList } from "./head-to-head-list";
 import {
   getCareerStats,
   getCurrentStreak,
@@ -17,9 +18,9 @@ import {
   getPlayerMatchHistory,
   getRatingChartPoints,
   getSeasonStats,
-  getTopRivals,
   type CharacterUsage,
 } from "@/lib/players";
+import { getHeadToHeadOpponents } from "@/lib/profile-stats";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
 import { getLeaderboardRank } from "@/lib/leaderboard";
 import { getPlayerSeasonAchievements } from "@/lib/seasons";
@@ -129,7 +130,7 @@ export async function ProfileOverviewSection({
     chartPoints,
     careerStats,
     seasonStats,
-    rivals,
+    rivalsResult,
     matchAchievements,
     seasonAchievements,
     streak,
@@ -146,12 +147,15 @@ export async function ProfileOverviewSection({
     getRatingChartPoints(id, 50, valueIds),
     getCareerStats(id, valueIds),
     getSeasonStats(id, valueIds),
-    getTopRivals(id),
+    getHeadToHeadOpponents(id, { limit: 3 }),
     getMatchHistoryAchievements(id),
     getPlayerSeasonAchievements(id),
     getCurrentStreak(id),
     getLeaderboardRank(id),
   ]);
+  // The Overview's Head 2 Heads card previews only the three most-played
+  // opponents; the full, paginated list lives on the Head 2 Heads tab.
+  const rivals = rivalsResult.opponents;
   // Practice matches still show up in the list below (clearly labeled) but
   // never count toward the record/win-rate/streak — same "never touches
   // your main profile" promise as everywhere else practice mode is handled.
@@ -344,20 +348,17 @@ export async function ProfileOverviewSection({
       {rivals.length > 0 && (
         <Card className="mt-4">
           <CardContent className="pt-4">
-            <p className="text-sm font-medium">{lang === "es" ? "Rivales" : "Rivals"}</p>
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {rivals.map((r) => (
-                <li key={r.opponentId} className="flex items-center justify-between text-sm">
-                  <Link href={`/players/${r.opponentId}`} className="flex items-center gap-1.5 hover:underline">
-                    <Swords className="size-3.5 text-muted-foreground" />
-                    {r.username}
-                  </Link>
-                  <span className="tabular-nums text-muted-foreground">
-                    {r.wins}W–{r.losses}L
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">{lang === "es" ? "Cara a Cara" : "Head 2 Heads"}</p>
+              <Link
+                href="?tab=headtohead"
+                prefetch={false}
+                className="shrink-0 text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                {lang === "es" ? "Ver más →" : "View more →"}
+              </Link>
+            </div>
+            <HeadToHeadList opponents={rivals} lang={lang} bordered={false} className="mt-2" />
           </CardContent>
         </Card>
       )}
