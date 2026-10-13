@@ -6,6 +6,7 @@ import {
   setQuickMessages,
   setNotificationsDisabled,
   deleteMyAccount,
+  getAccountRestriction,
   DELETED_USERNAME,
 } from "@/lib/account";
 import { UserStatus } from "@/generated/prisma/enums";
@@ -180,5 +181,57 @@ describe("deleteMyAccount", () => {
 
     const remaining = await prisma.pushSubscription.count({ where: { userId: user.id } });
     expect(remaining).toBe(0);
+  });
+});
+
+describe("getAccountRestriction", () => {
+  it("returns null for a player in good standing", async () => {
+    const user = await createTestUser();
+    expect(await getAccountRestriction(user.id)).toBeNull();
+  });
+
+  it("reports a ban with the mod's stated reason", async () => {
+    const mod = await createTestUser();
+    const user = await createTestUser({ status: UserStatus.BANNED });
+    await prisma.conductReport.create({
+      data: {
+        reporterId: mod.id,
+        reportedUserId: user.id,
+        reason: "Repeated toxic conduct",
+        status: "ACTIONED",
+        actionTaken: "BANNED",
+        actionedById: mod.id,
+        actionedAt: new Date(),
+      },
+    });
+
+    const restriction = await getAccountRestriction(user.id);
+    expect(restriction?.status).toBe("BANNED");
+    expect(restriction?.reason).toBe("Repeated toxic conduct");
+    // A ban has no end date even if a stale suspendedUntil lingered.
+    expect(restriction?.until).toBeNull();
+  });
+
+  it("reports a ban with no reason when nothing was ever filed", async () => {
+    const user = await createTestUser({ status: UserStatus.BANNED });
+    const restriction = await getAccountRestriction(user.id);
+    expect(restriction?.status).toBe("BANNED");
+    expect(restriction?.reason).toBeNull();
+  });
+
+  it("surfaces a timed suspension's end date, and clears once it lapses", async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    const user = await createTestUser({ status: UserStatus.SUSPENDED, suspendedUntil: future });
+    const active = await getAccountRestriction(user.id);
+    expect(active?.status).toBe("SUSPENDED");
+    expect(active?.until?.getTime()).toBe(future.getTime());
+
+    // Past-due suspensions are lifted lazily — the banner must not keep
+    // showing after the clock runs out.
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { suspendedUntil: new Date(Date.now() - 1000) },
+    });
+    expect(await getAccountRestriction(user.id)).toBeNull();
   });
 });

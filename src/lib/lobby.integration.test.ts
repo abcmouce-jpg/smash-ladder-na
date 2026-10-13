@@ -11,7 +11,7 @@ import {
   touchWaitingLobbyEntry,
   updateLobbyRoomCode,
 } from "@/lib/lobby";
-import { LobbyEntryStatus } from "@/generated/prisma/enums";
+import { LobbyEntryStatus, UserStatus } from "@/generated/prisma/enums";
 import { getRoomHostId } from "@/lib/matches";
 import { startFirstGame, getCurrentGame, pickGameCharacter, CHARACTER_TIMEOUT_MS } from "@/lib/match-games";
 import { blockUser } from "@/lib/blocks";
@@ -847,5 +847,50 @@ describe("sweepLobbyPairing", () => {
     });
     expect(match.roomCode).toBeNull();
     expect(match.roomCodeSetById).toBeNull();
+  });
+});
+
+describe("banned accounts are excluded from matchmaking", () => {
+  // Regression: banning only blocked *joining* the queue. Someone already
+  // waiting stayed a live candidate, so mods banned a player and watched
+  // them keep getting matched — the ban looked like it hadn't worked.
+  it("does not pair a waiting player who is banned after queueing", async () => {
+    const banned = await createTestUser({ region: "USA East" });
+    const other = await createTestUser({ region: "USA East" });
+
+    const first = await joinLobbyAndTryPair(banned.id);
+    expect(first?.status).toBe("WAITING");
+
+    await prisma.user.update({ where: { id: banned.id }, data: { status: UserStatus.BANNED } });
+
+    const second = await joinLobbyAndTryPair(other.id);
+    expect(second?.status).toBe("WAITING");
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: banned.id }, { player2Id: banned.id }] },
+    });
+    expect(match).toBeNull();
+  });
+
+  it("does not pair a banned waiting player during the sweep either", async () => {
+    const banned = await createTestUser({ region: "USA East" });
+    const other = await createTestUser({ region: "USA East" });
+
+    await joinLobbyAndTryPair(banned.id);
+    await prisma.user.update({ where: { id: banned.id }, data: { status: UserStatus.BANNED } });
+    // Queue the other side directly so the join-time attempt doesn't run.
+    await prisma.ratingLobbyEntry.create({
+      data: {
+        userId: other.id,
+        status: LobbyEntryStatus.WAITING,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    await sweepLobbyPairing();
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: banned.id }, { player2Id: banned.id }] },
+    });
+    expect(match).toBeNull();
   });
 });
