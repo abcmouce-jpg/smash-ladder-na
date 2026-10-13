@@ -35,7 +35,7 @@ describe("computeTierChange", () => {
 });
 
 vi.mock("@/lib/discord-bot", () => ({
-  syncDiscordGuildMemberRole: vi.fn(),
+  syncDiscordGuildMemberRoles: vi.fn(),
   sendDiscordWebhookEmbed: vi.fn(),
 }));
 
@@ -63,7 +63,7 @@ describe("applyTierChange", () => {
 
   it("does not announce reaching Trainee — it's the provisional reveal, not an achievement", async () => {
     const { applyTierChange } = await import("./rank-roles");
-    const { syncDiscordGuildMemberRole, sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
+    const { syncDiscordGuildMemberRoles, sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
 
     await applyTierChange({
       userId: "u1",
@@ -74,7 +74,7 @@ describe("applyTierChange", () => {
       newTier: "Trainee",
     });
 
-    expect(syncDiscordGuildMemberRole).toHaveBeenCalledWith("guild1", "d1", "role-trainee", null);
+    expect(syncDiscordGuildMemberRoles).toHaveBeenCalledWith("guild1", "d1", ["role-trainee"], ["role-fighter"]);
     expect(sendDiscordWebhookEmbed).not.toHaveBeenCalled();
   });
 
@@ -101,7 +101,7 @@ describe("applyTierChange", () => {
     vi.mocked(prisma.ratingHistory.aggregate).mockResolvedValueOnce({ _max: { ratingAfter: 1800 } } as never);
 
     const { applyTierChange } = await import("./rank-roles");
-    const { syncDiscordGuildMemberRole, sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
+    const { syncDiscordGuildMemberRoles, sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
 
     await applyTierChange({
       userId: "u1",
@@ -112,14 +112,14 @@ describe("applyTierChange", () => {
       newTier: "Master",
     });
 
-    expect(syncDiscordGuildMemberRole).toHaveBeenCalledTimes(1);
+    expect(syncDiscordGuildMemberRoles).toHaveBeenCalledTimes(1);
     expect(sendDiscordWebhookEmbed).not.toHaveBeenCalled();
   });
 
-  it("adds the landing tier's role on a rank-down without ever removing the old one — tier roles are permanent badges", async () => {
+  it("moves the member to the landing tier's role on a rank-down, stripping the tier they left", async () => {
     process.env.DISCORD_TIER_ROLE_IDS = JSON.stringify({ Elite: "role-elite", Master: "role-master" });
     const { applyTierChange } = await import("./rank-roles");
-    const { syncDiscordGuildMemberRole, sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
+    const { syncDiscordGuildMemberRoles, sendDiscordWebhookEmbed } = await import("@/lib/discord-bot");
 
     await applyTierChange({
       userId: "u1",
@@ -130,12 +130,38 @@ describe("applyTierChange", () => {
       newTier: "Elite", // a losing streak dropped them back down
     });
 
-    // Only ever adds the tier just landed on (a harmless no-op here, since
-    // they'd already have Elite's role from climbing through it earlier) —
-    // never passes a removeRoleId for the tier they dropped out of.
-    expect(syncDiscordGuildMemberRole).toHaveBeenCalledWith("guild1", "d1", "role-elite", null);
-    expect(syncDiscordGuildMemberRole).toHaveBeenCalledTimes(1);
+    // Exactly one tier role at a time: grant Elite, strip Master. Stated as a
+    // full end state (not a delta), so a member still carrying the higher role
+    // from before gets cleaned up rather than accumulating it.
+    expect(syncDiscordGuildMemberRoles).toHaveBeenCalledWith("guild1", "d1", ["role-elite"], ["role-master"]);
+    expect(syncDiscordGuildMemberRoles).toHaveBeenCalledTimes(1);
     expect(sendDiscordWebhookEmbed).not.toHaveBeenCalled();
+  });
+
+  it("strips every other tier role, so roles can't accumulate across tier changes", async () => {
+    process.env.DISCORD_TIER_ROLE_IDS = JSON.stringify({
+      Grandmaster: "role-grandmaster",
+      Master: "role-master",
+      Elite: "role-elite",
+    });
+    const { applyTierChange } = await import("./rank-roles");
+    const { syncDiscordGuildMemberRoles } = await import("@/lib/discord-bot");
+
+    await applyTierChange({
+      userId: "u1",
+      discordId: "d1",
+      username: "Player",
+      matchId: "m4",
+      oldTier: "Elite",
+      newTier: "Master",
+    });
+
+    expect(syncDiscordGuildMemberRoles).toHaveBeenCalledWith(
+      "guild1",
+      "d1",
+      ["role-master"],
+      ["role-grandmaster", "role-elite"],
+    );
   });
 
   it("announces a new personal-best tier even if a lower tier was reached before", async () => {

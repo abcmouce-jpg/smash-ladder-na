@@ -1,6 +1,7 @@
 "use client";
 
-import { useSyncExternalStore, useState } from "react";
+import { useState } from "react";
+import { useBrowserTimeZone } from "@/hooks/use-browser-time-zone";
 
 const WIDTH = 560;
 const HEIGHT = 140;
@@ -10,21 +11,11 @@ const PAD_TOP = 12;
 const PAD_BOTTOM = 20;
 const DAY_MS = 86_400_000;
 
-// Same timezone-safe day-bucketing approach as MatchesPerDayChart (see its
-// own comment) — generalized here so admin analytics charts don't each
-// reimplement it. Kept as a separate component rather than a shared base for
-// both because the public chart has its own copy tuned to its exact page
-// (Spanish strings, "matches" specifically) and isn't worth risking a
-// regression on to consolidate.
-const subscribe = () => () => {};
-
-function useBrowserTimeZone(): string | null {
-  return useSyncExternalStore(
-    subscribe,
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-    () => null,
-  );
-}
+// Same timezone-safe day-bucketing approach as MatchesPerDayChart, sharing its
+// useBrowserTimeZone hook. Kept as a separate component rather than a shared
+// base because the public chart is tuned to its exact page (Spanish strings,
+// "matches" specifically) and isn't worth risking a regression on to
+// consolidate.
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

@@ -4,10 +4,12 @@ import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, RatingAlgorithm, UserStatus } from "@/generated/prisma/enums";
 import { DELETED_USERNAME } from "@/lib/account";
 import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
+import { stripTierRolesForDiscordIds } from "@/lib/tier-roles";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { GLICKO2_INITIAL_RATING, GLICKO2_INITIAL_RD, GLICKO2_INITIAL_VOLATILITY } from "@/lib/glicko2";
 import { formatRating } from "@/lib/rating-format";
 import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
+import { dayKeyInTimeZone, zonedTimeToUtc } from "@/lib/timezone";
 
 // Pre-season launch announcement, shown site-wide until this passes.
 // -04:00 is ET's summer (EDT) offset — update if this ever needs to move
@@ -17,8 +19,9 @@ export const PRE_SEASON_STARTS_AT = new Date("2026-07-25T18:00:00-04:00");
 export const PRE_SEASON_NAME = "Preseason";
 
 // Every season runs a fixed 2 months. A newly created season is stamped with
-// scheduledEndAt = start + SEASON_DURATION_MONTHS, so the finalize cron rolls
-// it over on its own with no manual step (see endActiveSeasonIfDue).
+// a scheduledEndAt of 8pm ET on the 25th two months out (see nextSeasonEndAt),
+// so the finalize cron rolls it over on its own with no manual step (see
+// endActiveSeasonIfDue).
 export const SEASON_DURATION_MONTHS = 2;
 
 // The preseason runs the same fixed length as any other season; kept as its
@@ -42,6 +45,31 @@ export function addMonths(date: Date, months: number): Date {
   const lastDayOfTargetMonth = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0)).getUTCDate();
   shifted.setUTCDate(Math.min(day, lastDayOfTargetMonth));
   return shifted;
+}
+
+// The time of day (in the ladder's reference timezone) every season is
+// scheduled to end at. Pinned rather than inherited from the rollover instant
+// so a cron tick that fires a little late can't shift the announcement.
+const SEASON_END_HOUR_ET = 20;
+
+// The default scheduledEndAt for a season that starts (rolls over) at `start`:
+// 8pm ET on the same day-of-month, SEASON_DURATION_MONTHS later. Rollovers land
+// on the 25th, so seasons end on the 25th every other month. The wall clock is
+// pinned to 8pm ET via zonedTimeToUtc (which resolves the EST/EDT offset for
+// the target date) instead of reusing `start`'s own UTC time of day, which
+// would drift an hour across a DST boundary.
+export function nextSeasonEndAt(start: Date): Date {
+  const [year, month, day] = dayKeyInTimeZone(start).split("-").map(Number);
+  // addMonths preserves the day-of-month (clamping to the target month's last
+  // day), run here against the start's ET calendar date rather than its raw
+  // UTC fields.
+  const target = addMonths(new Date(Date.UTC(year, month - 1, day)), SEASON_DURATION_MONTHS);
+  return zonedTimeToUtc({
+    year: target.getUTCFullYear(),
+    month: target.getUTCMonth() + 1,
+    day: target.getUTCDate(),
+    hour: SEASON_END_HOUR_ET,
+  });
 }
 
 export function hasPreSeasonStarted() {
@@ -193,8 +221,8 @@ async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
 // as a ratio (see isCancelSuspendThreshold), so leaving cancels at their old
 // total while gamesPlayed drops to 0 would read as a 100% cancel rate and
 // auto-suspend every player who'd ever cancelled. Every season runs a fixed 2
-// months, so by default the next season is stamped with a rollover time of
-// `now` + SEASON_DURATION_MONTHS and keeps rolling over on its own. Pass
+// months, so by default the next season is stamped with an 8pm-ET-on-the-25th
+// rollover time (see nextSeasonEndAt) and keeps rolling over on its own. Pass
 // nextScheduledEndAt to override that length for a deliberate one-off, or null
 // to leave the next season manual-only. nextAlgorithm is stamped onto the new
 // season and defaults to NEXT_SEASON_ALGORITHM (Glicko-2).
@@ -260,8 +288,9 @@ export async function endActiveSeasonAndStartNext(
       data: {
         name: nextName ?? `Season ${seasonCount + 1}`,
         startsAt: now,
-        // Omitted → the standard 2-month season; explicit null → manual-only.
-        scheduledEndAt: nextScheduledEndAt === undefined ? addMonths(now, SEASON_DURATION_MONTHS) : nextScheduledEndAt,
+        // Omitted → the standard 2-month season ending 8pm ET on the 25th;
+        // explicit null → manual-only.
+        scheduledEndAt: nextScheduledEndAt === undefined ? nextSeasonEndAt(now) : nextScheduledEndAt,
         algorithm: nextAlgorithm,
       },
       select: { name: true },
@@ -285,6 +314,22 @@ export async function endActiveSeasonAndStartNext(
     const message = `🔄 A new season has started — "${nextSeasonName}"! Ratings have reset for a fresh start. Any match still in progress when the last season ended was cancelled with no rating impact either way.`;
     try {
       after(() => sendDiscordDMsSequentially(recipients, message));
+    } catch {
+      // See comment above.
+    }
+  }
+
+  // Tier roles track a player's CURRENT tier (see tier-roles.ts), and this
+  // reset just put everyone back to provisional — so strip every tier role
+  // from last season's players rather than let last season's roles linger
+  // into the new one. Deferred like the DM above: a whole-playerbase fan-out
+  // of Discord calls must not hold up the rollover itself. Players who sat
+  // out last season but still carry an old role are caught by the per-match
+  // sync on their next tiered match, or by scripts/reconcile-tier-roles.ts.
+  const tierRoleRecipients = lastSeasonPlayers.map((player) => player.discordId);
+  if (tierRoleRecipients.length > 0) {
+    try {
+      after(() => stripTierRolesForDiscordIds(tierRoleRecipients));
     } catch {
       // See comment above.
     }
