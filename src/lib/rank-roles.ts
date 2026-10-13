@@ -2,9 +2,11 @@ import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { RANK_TIERS, getRankTier } from "@/lib/rank-tier";
 import { sendDiscordWebhookEmbed } from "@/lib/discord-bot";
+import { siteOrigin } from "@/lib/site-url";
 import { syncTierRoleForDiscordId } from "@/lib/tier-roles";
 
-const SITE_URL = "https://smash-ladder-na.vercel.app";
+// Links posted into Discord should point at the domain players actually use.
+const SITE_URL = siteOrigin();
 
 // Mirrors the tier colors baked into the rank card
 // (src/app/players/[id]/opengraph-image.tsx) — Discord role colors and

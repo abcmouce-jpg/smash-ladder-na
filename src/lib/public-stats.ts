@@ -4,7 +4,7 @@ import { MatchStatus, UserStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { DELETED_USERNAME } from "@/lib/account";
 import { getActiveSeason } from "@/lib/seasons";
-import { startOfDayInTimeZone, LADDER_TIME_ZONE } from "@/lib/timezone";
+import { startOfDayInTimeZone } from "@/lib/timezone";
 
 // Single definition of "matches today" shared by the homepage, the Sets
 // feed, and the admin overview — those three used to disagree (rolling 24h
@@ -86,29 +86,30 @@ export async function getTopGrinders(limit = 3) {
   });
 }
 
-// One window of confirmed matches, read once, carrying everything both
-// activity charts need.
+// One window of confirmed matches, read once and handed to both activity
+// charts as raw instants.
 //
-// The per-day chart needs the raw instants because it buckets by the *viewer's*
-// timezone, which only the browser knows; the per-hour chart buckets by the
-// ladder's own reference timezone (lib/timezone.ts), which the server can do.
-// Those used to be two separate reads of the identical query, so a page showing
-// both (the Stats overview) scanned and shipped the whole window twice — hence
-// one read, with the single-purpose getter below for callers that need only the
-// per-day shape.
+// Both charts bucket by the *viewer's* timezone, which only the browser knows —
+// the per-day chart into calendar days, the per-hour chart into hours of the
+// day — so the bucketing lives in their client components (see
+// MatchesPerDayChart and MatchesByHourChart) rather than here. Those two charts
+// used to be fed by two separate reads of the identical query (with the
+// per-hour chart bucketed server-side against the ladder's reference timezone),
+// which meant a page showing both — the Stats overview — scanned and shipped
+// the whole window twice. Hence one read, plus the single-purpose getter below
+// for callers that need only the per-day shape.
 //
 // The extra day of margin keeps the last N viewer-local days complete for any
 // timezone: the earliest instant of the Nth local day back can sit up to ~24h
 // before "now minus N UTC days" (e.g. a UTC+14 visitor at local midnight), so
 // a plain N-day cutoff would silently drop matches from the oldest displayed
-// day. The client discards anything outside its window.
+// day. The per-day chart discards anything outside its window.
 //
 // timestamps are ISO strings rather than Dates so this stays plain data — the
-// per-day chart parses them back in the browser.
+// client charts parse them back in the browser.
 export type LadderActivity = {
   windowDays: number;
   timestamps: string[];
-  hourlyCounts: number[];
 };
 
 export async function getLadderActivity(days: number): Promise<LadderActivity> {
@@ -120,24 +121,12 @@ export async function getLadderActivity(days: number): Promise<LadderActivity> {
   });
 
   const timestamps: string[] = [];
-  // Bucketing by hour happens server-side rather than in the chart because hour
-  // boundaries come from the ladder's own timezone (America/New_York), not each
-  // visitor's — mirroring how "matches today" is counted everywhere else.
-  const hourFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: LADDER_TIME_ZONE,
-    hour: "2-digit",
-    hourCycle: "h23",
-  });
-  const hourlyCounts = new Array<number>(24).fill(0);
-
   for (const m of matches) {
     if (!m.confirmedAt) continue;
     timestamps.push(m.confirmedAt.toISOString());
-    const hour = Number(hourFormatter.format(m.confirmedAt));
-    if (Number.isInteger(hour) && hour >= 0 && hour < 24) hourlyCounts[hour]++;
   }
 
-  return { windowDays: days, timestamps, hourlyCounts };
+  return { windowDays: days, timestamps };
 }
 
 // Raw confirmedAt timestamps for the per-day chart — bucketing into "per day"

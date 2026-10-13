@@ -19,6 +19,7 @@ import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser, to
 import { PushNudgeBanner } from "@/components/push-nudge-banner";
 import { SupporterBanner } from "@/components/supporter-banner";
 import { getSupporterCount } from "@/lib/public-stats";
+import { getAccountRestriction } from "@/lib/account";
 import {
   CANCEL_GRACE_PERIOD_SECONDS,
   getRoomHostId,
@@ -137,6 +138,24 @@ export default async function LobbyPage() {
           {lang === "es"
             ? "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento."
             : "Sign in with Discord (top right) to join the matchmaking lobby."}
+        </p>
+      </main>
+    );
+  }
+
+  // A banned player used to get the full lobby — queue button, live match,
+  // report buttons — and only hit the wall when they pressed something, as an
+  // opaque server-action error. Stop before any of that renders; the
+  // site-wide AccountRestrictionBanner above already states why.
+  const restriction = await getAccountRestriction(session.user.id);
+  if (restriction?.status === "BANNED") {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
+        <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
+        <p className="mt-2 text-sm text-muted-foreground">
+          {lang === "es"
+            ? "Tu cuenta está suspendida permanentemente, así que la sala no está disponible. Mira el aviso de arriba para más detalles."
+            : "Your account has been banned, so the lobby isn't available. See the notice above for details."}
         </p>
       </main>
     );
@@ -1029,12 +1048,12 @@ function MatchFooterActions({
         <p className="text-xs text-muted-foreground">
           {lang === "es"
             ? gameDecided
-              ? "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección de personaje estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje que usó en el juego anterior."
+              ? "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje y escenario del juego anterior."
               : opponentEngaged
                 ? "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis."
                 : "Tu rival aún no se presenta. Cancelar ahora es gratis."
             : gameDecided
-              ? "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled character pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character they used in the previous game."
+              ? "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character and stage from the previous game."
               : opponentEngaged
                 ? "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel."
                 : "Your opponent hasn't shown up yet. Cancelling now is free."}

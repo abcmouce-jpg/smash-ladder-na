@@ -3,10 +3,10 @@ import type { RatingBucket } from "@/lib/public-stats";
 import type { Lang } from "@/lib/i18n";
 
 // Histogram of every ranked player's current rating, as a bar per rating bin
-// (see getRatingDistribution). Presentational and server-safe, like
-// MatchesByHourChart — hover detail rides on the title attribute and the same
-// numbers are exposed as a table, since this is a static community-stats block
-// rather than something that needs chart interactions.
+// (see getRatingDistribution). Presentational and server-safe — hover detail
+// rides on the title attribute and the same numbers are exposed as a table,
+// since this is a static community-stats block rather than something that
+// needs chart interactions.
 export function RatingDistributionChart({
   buckets,
   total,

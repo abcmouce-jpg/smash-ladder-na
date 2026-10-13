@@ -1,11 +1,15 @@
 import type { MetadataRoute } from "next";
-
-const SITE_URL = "https://smash-ladder-na.vercel.app";
+import { siteOrigin } from "@/lib/site-url";
 
 // Static, high-value pages only — dynamic ones (player profiles, Free
 // Battle posts) either require sign-in to mean anything or churn too fast
 // (posts expire within 24h) to be worth a crawler's time.
 export default function sitemap(): MetadataRoute.Sitemap {
+  // Resolved per request rather than hardcoded: a sitemap that names a
+  // different origin than the one serving it is treated as cross-domain and
+  // ignored, which is exactly what happened while this was pinned to the
+  // bare vercel.app domain instead of the custom one.
+  const SITE_URL = siteOrigin();
   const now = new Date();
   return [
     { url: SITE_URL, lastModified: now, changeFrequency: "daily", priority: 1 },
