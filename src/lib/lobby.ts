@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
+import { LobbyEntryStatus, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getRoomHostId, getUnresolvedMatchForUser } from "@/lib/matches";
 import { getRegionsWithinDistance } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
@@ -223,6 +223,9 @@ async function attemptPairing(params: {
           userId: { notIn: [userId, ...blockedIds] },
           id: { not: myEntry.id },
           user: {
+            // See sweepLobbyPairing: a ban has to remove someone from the
+            // candidate pool too, not just stop them re-queueing.
+            status: { not: UserStatus.BANNED },
             region: { in: myReach },
             ...(myEffectiveGap !== null
               ? { rating: { gte: me.rating - myEffectiveGap, lte: me.rating + myEffectiveGap } }
@@ -727,7 +730,15 @@ export async function sweepLobbyPairing(maxPairs = 50) {
   // this to be cheap; read once up front since membership doesn't change
   // mid-sweep.
   const waiting = await prisma.ratingLobbyEntry.findMany({
-    where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
+    // Banned accounts are excluded here as well as at join time: the join
+    // check only stops them entering the queue, so without this a player
+    // banned while already waiting stayed a live candidate and kept getting
+    // matched — the ban looked like it simply hadn't worked.
+    where: {
+      status: LobbyEntryStatus.WAITING,
+      expiresAt: { gt: now },
+      user: { status: { not: UserStatus.BANNED } },
+    },
     orderBy: { joinedAt: "asc" },
     include: {
       user: {
