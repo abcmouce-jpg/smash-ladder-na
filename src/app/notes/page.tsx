@@ -42,7 +42,13 @@ export default async function NotesPage({
 }) {
   const [{ tab: tabParam, character: characterParam }, session, lang] = await Promise.all([searchParams, auth(), getLang()]);
   const userId = session?.user?.id ?? null;
-  const tab: NotesTab = VALID_TABS.includes((tabParam ?? "") as NotesTab) ? (tabParam as NotesTab) : "matchups";
+  // Signed out, "My Notes" is nothing but a sign-in prompt, so the bare /notes
+  // URL — the one in the sitemap, and the one a crawler or a first-time
+  // visitor actually lands on — showed a login wall while the public Guides
+  // tab sat one query param away. Default to whichever tab has something to
+  // show for this visitor; an explicit ?tab= still wins either way.
+  const defaultTab: NotesTab = userId ? "matchups" : "guides";
+  const tab: NotesTab = VALID_TABS.includes((tabParam ?? "") as NotesTab) ? (tabParam as NotesTab) : defaultTab;
 
   // The Guides tab can be deep-linked to one character — that's how a My Notes
   // row's "Show more guides" link lands on the full list for it. Folding echoes
