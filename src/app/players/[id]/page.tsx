@@ -96,7 +96,7 @@ export default async function PlayerProfilePage({
             active: tab === "matches",
           },
           { href: "?tab=characters", label: tabLabel("Characters", "Personajes"), active: tab === "characters" },
-          { href: "?tab=headtohead", label: tabLabel("Head 2 Head", "Cara a Cara"), active: tab === "headtohead" },
+          { href: "?tab=headtohead", label: tabLabel("Head 2 Heads", "Cara a Cara"), active: tab === "headtohead" },
           { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas"), active: tab === "seasons" },
         ]}
       />
@@ -126,7 +126,7 @@ export default async function PlayerProfilePage({
             lang={lang}
           />
         )}
-        {tab === "headtohead" && <ProfileHeadToHeadSection id={id} lang={lang} />}
+        {tab === "headtohead" && <ProfileHeadToHeadSection id={id} page={page} lang={lang} />}
         {tab === "seasons" && <ProfileSeasonsSection id={id} lang={lang} />}
         {tab === "matches" && (
           <ProfileMatchHistorySection

@@ -104,12 +104,23 @@ export interface HeadToHeadOpponent {
   winRate: number; // 0-100, rounded
 }
 
+export interface HeadToHeadOpponents {
+  /** The requested page of opponents, sorted by games played descending. */
+  opponents: HeadToHeadOpponent[];
+  /** Total distinct opponents, regardless of the page window. */
+  total: number;
+}
+
 // Every distinct opponent this player has faced in confirmed, non-practicing
 // matches, aggregated into a head-to-head record — the data behind the
-// profile page's Head 2 Head tab. Same WHERE as getTopRivals, capped to the
-// most-played `limit` opponents so an extremely long career can't balloon the
-// payload; sorted by games played descending.
-export async function getHeadToHeadOpponents(userId: string, limit = 100): Promise<HeadToHeadOpponent[]> {
+// profile page's Head 2 Heads tab. Same WHERE as getTopRivals, sorted by games
+// played descending. The full ranking is built in JS (the match rows are
+// fetched either way), then windowed to `limit`/`skip` so the tab can paginate
+// without fetching every opponent's user row; `total` drives the page count.
+export async function getHeadToHeadOpponents(
+  userId: string,
+  { limit, skip = 0 }: { limit?: number; skip?: number } = {},
+): Promise<HeadToHeadOpponents> {
   const matches = await prisma.ratingMatch.findMany({
     where: { status: MatchStatus.CONFIRMED, OR: nonPracticingSideOf(userId) },
     select: { player1Id: true, player2Id: true, reportedWinnerId: true },
@@ -124,25 +135,30 @@ export async function getHeadToHeadOpponents(userId: string, limit = 100): Promi
     record.set(opponentId, entry);
   }
 
-  const topIds = [...record.entries()].sort(([, a], [, b]) => b.games - a.games || b.wins - a.wins).slice(0, limit);
-  if (topIds.length === 0) return [];
+  const ranked = [...record.entries()].sort(([, a], [, b]) => b.games - a.games || b.wins - a.wins);
+  const total = ranked.length;
+  const page = limit === undefined ? ranked.slice(skip) : ranked.slice(skip, skip + limit);
+  if (page.length === 0) return { opponents: [], total };
 
   const opponents = await prisma.user.findMany({
-    where: { id: { in: topIds.map(([id]) => id) } },
+    where: { id: { in: page.map(([id]) => id) } },
     select: { id: true, username: true, avatarUrl: true, rating: true },
   });
   const opponentById = new Map(opponents.map((o) => [o.id, o]));
 
-  return topIds.map(([opponentId, { games, wins }]) => ({
-    opponentId,
-    username: opponentById.get(opponentId)?.username ?? "Unknown",
-    avatarUrl: opponentById.get(opponentId)?.avatarUrl ?? null,
-    rating: opponentById.get(opponentId)?.rating ?? 0,
-    games,
-    wins,
-    losses: games - wins,
-    winRate: Math.round((wins / games) * 100),
-  }));
+  return {
+    total,
+    opponents: page.map(([opponentId, { games, wins }]) => ({
+      opponentId,
+      username: opponentById.get(opponentId)?.username ?? "Unknown",
+      avatarUrl: opponentById.get(opponentId)?.avatarUrl ?? null,
+      rating: opponentById.get(opponentId)?.rating ?? 0,
+      games,
+      wins,
+      losses: games - wins,
+      winRate: Math.round((wins / games) * 100),
+    })),
+  };
 }
 
 export interface PlayerSeasonRecord {
