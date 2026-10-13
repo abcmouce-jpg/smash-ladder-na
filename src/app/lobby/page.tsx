@@ -19,6 +19,7 @@ import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser, to
 import { PushNudgeBanner } from "@/components/push-nudge-banner";
 import { SupporterBanner } from "@/components/supporter-banner";
 import { getSupporterCount } from "@/lib/public-stats";
+import { getAccountRestriction } from "@/lib/account";
 import {
   CANCEL_GRACE_PERIOD_SECONDS,
   getRoomHostId,
@@ -137,6 +138,24 @@ export default async function LobbyPage() {
           {lang === "es"
             ? "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento."
             : "Sign in with Discord (top right) to join the matchmaking lobby."}
+        </p>
+      </main>
+    );
+  }
+
+  // A banned player used to get the full lobby — queue button, live match,
+  // report buttons — and only hit the wall when they pressed something, as an
+  // opaque server-action error. Stop before any of that renders; the
+  // site-wide AccountRestrictionBanner above already states why.
+  const restriction = await getAccountRestriction(session.user.id);
+  if (restriction?.status === "BANNED") {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
+        <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
+        <p className="mt-2 text-sm text-muted-foreground">
+          {lang === "es"
+            ? "Tu cuenta está suspendida permanentemente, así que la sala no está disponible. Mira el aviso de arriba para más detalles."
+            : "Your account has been banned, so the lobby isn't available. See the notice above for details."}
         </p>
       </main>
     );

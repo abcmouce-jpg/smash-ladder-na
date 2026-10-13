@@ -981,6 +981,15 @@ export async function adminCorrectOldMatchResult(matchId: string, winnerId: stri
         reportedWinnerId: winnerId,
         secondReportWinnerId: winnerId,
         confirmationMethod: ConfirmationMethod.CORRECTED,
+        // Keep this match's own before/after snapshot consistent with the
+        // flipped winner — getPlayerMatchHistory (and other readers) show
+        // these columns directly, not the RatingHistory rows below, so
+        // leaving them at their pre-correction values would display a
+        // winner next to a rating line that still reflects them losing.
+        player1RatingBefore: p1.rating,
+        player1RatingAfter: p1NewRating,
+        player2RatingBefore: p2.rating,
+        player2RatingAfter: p2NewRating,
       },
     });
     // Keeps the per-game log consistent with the new overall winner — every

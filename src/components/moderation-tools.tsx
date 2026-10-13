@@ -32,6 +32,15 @@ export function ModerationStatusForm({
         Direct action — no report or threshold required. Current status:{" "}
         <span className="font-medium">{currentStatus.toLowerCase()}</span>.
       </p>
+      {/* Spelled out because the difference isn't obvious from the button
+          labels, and mods were reading a suspended player still appearing in
+          ranked as the suspension having silently failed. */}
+      <p className="text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">Suspend</span> keeps ranked play open — it only blocks Friendlies
+        posts and filing new reports.{" "}
+        <span className="font-medium text-foreground">Ban</span> blocks everything, including matchmaking. The reason you
+        type here is shown to the player.
+      </p>
       <form action={formAction} className="flex flex-wrap items-center gap-1.5">
         <select
           name="suspensionHours"

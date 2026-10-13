@@ -81,7 +81,20 @@ const devCredentials = Credentials({
 });
 
 const useDevCredentials = process.env.NODE_ENV === "development" && !process.env.AUTH_DISCORD_ID;
-const providers = useDevCredentials ? [devCredentials] : [Discord];
+
+// Discord now appends the RFC 9207 `iss` parameter to the redirect back to the
+// OAuth callback URL (e.g. `…/callback/discord?code=…&iss=https://discord.com`),
+// which oauth4webapi's `validateAuthResponse` validates against the authorization
+// server's issuer. With no issuer set on the provider, @auth/core falls back to
+// its placeholder `https://authjs.dev`, so that check fails for every user with
+// `unexpected "iss" (issuer) response parameter value` — surfacing as a
+// CallbackRouteError and the generic "There is a problem with the server
+// configuration" page, before any of this app's callbacks run. Discord's issuer
+// (per its OIDC discovery document) is what the `iss` value must equal.
+// clientId/clientSecret are still inferred from AUTH_DISCORD_ID/SECRET by
+// Auth.js; this only pins the issuer.
+const discordProvider = Discord({ issuer: "https://discord.com" });
+const providers = useDevCredentials ? [devCredentials] : [discordProvider];
 
 // Only one provider is ever registered above, but `signIn()` with no provider
 // id renders Auth.js's generic (unstyled) provider-picker page instead of
@@ -92,6 +105,11 @@ const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
   providers,
   session: { strategy: "jwt" },
   trustHost: true,
+  // Temporary — diagnosing the 2026-10-06 CallbackRouteError incident. Logs
+  // the full underlying cause (not just the generic wrapper message) for
+  // every auth request. Remove once root-caused; this is noisier than
+  // production logging should normally run.
+  debug: true,
   callbacks: {
     async signIn({ profile, credentials }) {
       // Checked before anything else, including the dev-credentials bypass —

@@ -348,3 +348,43 @@ export async function deleteMyAccount(userId: string) {
   // receiving match-found pushes nobody asked for.
   await prisma.pushSubscription.deleteMany({ where: { userId } });
 }
+
+export type AccountRestriction = {
+  status: "BANNED" | "SUSPENDED";
+  /** Null for an indefinite suspension, and always null for a ban. */
+  until: Date | null;
+  /** The mod's stated reason, from the ConductReport the action filed. */
+  reason: string | null;
+  at: Date | null;
+};
+
+// Everything the UI needs to tell a restricted player what happened, in one
+// read. Exists because the only signal they used to get was a server action
+// throwing — and Next.js strips thrown messages in production, so a banned
+// player clicking "I Won" saw an opaque error digest and reasonably
+// concluded the site was broken (see the 2026-10-12 reports). Returns null
+// for a player in good standing, which is the overwhelmingly common case.
+export async function getAccountRestriction(userId: string): Promise<AccountRestriction | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { status: true, suspendedUntil: true },
+  });
+  if (!user) return null;
+  const status = await liftExpiredSuspension(userId, user);
+  if (status === UserStatus.ACTIVE) return null;
+
+  // The reason lives on the ConductReport the ban/suspension filed, not on
+  // User — take the most recent one actioned against this player.
+  const report = await prisma.conductReport.findFirst({
+    where: { reportedUserId: userId, actionedAt: { not: null } },
+    orderBy: { actionedAt: "desc" },
+    select: { reason: true, actionedAt: true },
+  });
+
+  return {
+    status,
+    until: status === UserStatus.SUSPENDED ? user.suspendedUntil : null,
+    reason: report?.reason ?? null,
+    at: report?.actionedAt ?? null,
+  };
+}
