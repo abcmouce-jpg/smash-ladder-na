@@ -13,6 +13,7 @@ import { DiscordJoinGate } from "@/components/discord-join-gate";
 import { ThemeSync } from "@/components/theme-sync";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import { Toaster } from "@/components/ui/sonner";
+import { siteOrigin } from "@/lib/site-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,7 +26,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = "https://smash-ladder-na.vercel.app";
+// metadataBase resolves every relative canonical/og:url on the site, so
+// pinning it to the bare vercel.app domain made every page advertise a
+// different origin than the one serving it — a duplicate-content signal
+// against the real domain.
+const SITE_URL = siteOrigin();
 const TITLE = "Smash Ladder NA";
 const DESCRIPTION = "North American ranked ladder and matchmaking for Smash.";
 

@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const SITE_URL = "https://smash-ladder-na.vercel.app";
+import { siteOrigin } from "@/lib/site-url";
 
 // SEO-tool crawlers (backlink/rank checkers, not search engines — indexing
 // here buys them nothing we get anything back from) found hammering
@@ -32,6 +31,8 @@ export default function robots(): MetadataRoute.Robots {
       },
       ...BLOCKED_CRAWLER_USER_AGENTS.map((userAgent) => ({ userAgent, disallow: "/" })),
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    // Must name the origin actually serving this robots.txt — a sitemap on a
+    // different host is cross-domain and ignored.
+    sitemap: `${siteOrigin()}/sitemap.xml`,
   };
 }
