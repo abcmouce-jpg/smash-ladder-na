@@ -201,6 +201,11 @@ model User {
   matchFoundSound            MatchFoundSound @default(CHIME) // which sound the ping above plays: the original synthesized chime or the announcer voice clips. Defaults CHIME — the original match-found sound before PR #94 replaced it with announcer clips.
   quickMessages              String[]        @default([]) // self-declared match-chat one-liners (see comment-form.tsx's QUICK_MESSAGES); empty means "use the site default four", not "show none"
   notificationsDisabled      String[]        @default([]) // consolidated notification setting keys this player has turned off (see lib/notifications.ts); every listed setting is opt-out.
+  // When this player was last sent a "the season is running, come back" DM
+  // (see lib/reengagement.ts). Compared against the active season's startsAt
+  // rather than cleared, so each season gets at most one nudge per player and
+  // the batching cron can resume safely without double-messaging anyone.
+  reengagedAt                DateTime?
   startggUserId              String?         @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
   startggPlayerId            String? // start.gg's player id (currentUser.player.id) — distinct from the user id above; supermajor.gg profile links (?id=S...) key off this one
   startggSlug                String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})

@@ -46,3 +46,25 @@ export async function endSeason(formData: FormData) {
   revalidatePath("/admin/seasons");
   revalidatePath("/leaderboard");
 }
+
+// Reschedules when the active season auto-rolls-over, without ending it now.
+// Same restriction as endSeason — this is still season-timing territory, even
+// though (unlike endSeason) it touches no ratings.
+export async function rescheduleActiveSeasonEnd(formData: FormData) {
+  const userId = await requireModerator();
+  if (SEASON_MANAGER_USER_ID && userId !== SEASON_MANAGER_USER_ID) {
+    throw new Error("Rescheduling a season's end is restricted to one admin for now");
+  }
+
+  const raw = (formData.get("scheduledEndAtUtc") as string | null)?.trim();
+  if (!raw) throw new Error("Missing scheduledEndAtUtc");
+  const next = new Date(raw);
+  if (Number.isNaN(next.getTime())) throw new Error("Invalid date");
+
+  const { prisma } = await import("@/lib/db");
+  const active = await (await import("@/lib/seasons")).getActiveSeason();
+  if (!active) throw new Error("No active season");
+  await prisma.season.update({ where: { id: active.id }, data: { scheduledEndAt: next } });
+
+  revalidatePath("/admin/seasons");
+}
