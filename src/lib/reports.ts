@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { ConductAction, ReportStatus, UserStatus } from "@/generated/prisma/enums";
+import { ConductAction, LobbyEntryStatus, ReportStatus, UserStatus } from "@/generated/prisma/enums";
 import { isWiredClaimDisputedByOpponents, liftExpiredSuspension } from "@/lib/account";
 
 export async function fileMatchReport(reporterId: string, matchId: string, reason: string) {
@@ -187,6 +187,16 @@ export async function actionReport(
         actionSuspensionHours: newStatus === "SUSPENDED" ? (options.suspensionHours ?? null) : null,
       },
     }),
+    // Same as moderateUserDirectly: a ban has to pull them out of the queue,
+    // not just stop them re-entering it.
+    ...(isEscalation && newStatus === "BANNED"
+      ? [
+          prisma.ratingLobbyEntry.updateMany({
+            where: { userId: report.reportedUserId, status: LobbyEntryStatus.WAITING },
+            data: { status: LobbyEntryStatus.CANCELLED, cancelledAt: new Date() },
+          }),
+        ]
+      : []),
   ]);
 }
 
@@ -245,5 +255,17 @@ export async function moderateUserDirectly(
         actionSuspensionHours: newStatus === UserStatus.SUSPENDED ? (options.suspensionHours ?? null) : null,
       },
     }),
+    // Take a banned account out of the queue immediately rather than waiting
+    // for the entry to expire. The pairing queries skip banned users too, but
+    // leaving a live WAITING row around means the player still sees
+    // themselves "searching" with no explanation for why nothing happens.
+    ...(newStatus === UserStatus.BANNED
+      ? [
+          prisma.ratingLobbyEntry.updateMany({
+            where: { userId, status: LobbyEntryStatus.WAITING },
+            data: { status: LobbyEntryStatus.CANCELLED, cancelledAt: new Date() },
+          }),
+        ]
+      : []),
   ]);
 }
