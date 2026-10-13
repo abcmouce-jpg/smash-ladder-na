@@ -16,10 +16,11 @@ import { ProfileOverviewSection } from "./profile-overview";
 import { ProfileCharactersSection } from "./profile-characters";
 import { ProfileHeadToHeadSection } from "./profile-headtohead";
 import { ProfileSeasonsSection } from "./profile-seasons";
+import { ProfileMatchHistorySection } from "./profile-match-history";
 
-// The profile's four sections, driven purely by the `?tab=` query param so
+// The profile's sections, driven purely by the `?tab=` query param so
 // every view stays server-rendered and deep-linkable — no client tab state.
-const VALID_TABS = ["overview", "characters", "headtohead", "seasons"] as const;
+const VALID_TABS = ["overview", "characters", "headtohead", "seasons", "matches"] as const;
 type ProfileTab = (typeof VALID_TABS)[number];
 
 export default async function PlayerProfilePage({
@@ -27,10 +28,24 @@ export default async function PlayerProfilePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string; tab?: string; char?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    tab?: string;
+    char?: string;
+    season?: string;
+    character?: string;
+    against?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { page: pageParam, tab: tabParam, char: charParam } = await searchParams;
+  const {
+    page: pageParam,
+    tab: tabParam,
+    char: charParam,
+    season: seasonParam,
+    character: characterParam,
+    against: againstParam,
+  } = await searchParams;
   const requestedPage = Number(pageParam);
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const [session, lang] = await Promise.all([auth(), getLang()]);
@@ -75,6 +90,11 @@ export default async function PlayerProfilePage({
         className="mt-8"
         items={[
           { href: "?tab=overview", label: tabLabel("Overview", "Resumen"), active: tab === "overview" },
+          {
+            href: "?tab=matches",
+            label: tabLabel("Match History", "Historial de partidas"),
+            active: tab === "matches",
+          },
           { href: "?tab=characters", label: tabLabel("Characters", "Personajes"), active: tab === "characters" },
           { href: "?tab=headtohead", label: tabLabel("Head 2 Head", "Cara a Cara"), active: tab === "headtohead" },
           { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas"), active: tab === "seasons" },
@@ -94,7 +114,6 @@ export default async function PlayerProfilePage({
             practiceGamesPlayed={player.practiceGamesPlayed}
             isOwnProfile={isOwnProfile}
             isModerator={isModerator}
-            page={page}
             lang={lang}
           />
         )}
@@ -109,6 +128,19 @@ export default async function PlayerProfilePage({
         )}
         {tab === "headtohead" && <ProfileHeadToHeadSection id={id} lang={lang} />}
         {tab === "seasons" && <ProfileSeasonsSection id={id} lang={lang} />}
+        {tab === "matches" && (
+          <ProfileMatchHistorySection
+            id={id}
+            playerUsername={player.username}
+            page={page}
+            seasonParam={seasonParam}
+            playedParam={characterParam}
+            againstParam={againstParam}
+            isOwnProfile={isOwnProfile}
+            isModerator={isModerator}
+            lang={lang}
+          />
+        )}
       </div>
 
       {isModerator && !isOwnProfile && (
