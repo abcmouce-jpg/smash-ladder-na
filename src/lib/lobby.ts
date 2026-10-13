@@ -610,7 +610,11 @@ export async function retryPairForWaitingUser(userId: string) {
     if (!me.region) return;
 
     const myReach = getRegionsWithinDistance(me.region, me.maxMatchDistanceKm);
-    const myEffectiveGap = effectiveMaxRatingGap(me);
+    // This is the retry path for someone already sitting in the queue, so
+    // their own wait is exactly what the provisional cap should widen
+    // against — without it a provisional player searched with the strict
+    // ±300 band forever, which is the case the widening exists to fix.
+    const myEffectiveGap = effectiveMaxRatingGap(me, Date.now() - entry.joinedAt.getTime());
 
     const paired = await attemptPairing({
       userId,
