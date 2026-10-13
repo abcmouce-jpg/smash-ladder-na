@@ -10,6 +10,7 @@ import { QueueStatusBanner } from "@/components/queue-status-banner";
 import { PreSeasonBanner } from "@/components/pre-season-banner";
 import { SeasonEndingBanner } from "@/components/season-ending-banner";
 import { DiscordJoinGate } from "@/components/discord-join-gate";
+import { AccountRestrictionBanner } from "@/components/account-restriction-banner";
 import { ThemeSync } from "@/components/theme-sync";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import { Toaster } from "@/components/ui/sonner";
@@ -131,6 +132,10 @@ export default async function RootLayout({
           />
         )}
         {!isStreamOverlay && <SiteHeader />}
+        {/* First among the banners: if the account is restricted, that's the
+            one thing the player needs to read before anything else on the
+            page makes sense. */}
+        {!isStreamOverlay && <AccountRestrictionBanner />}
         {!isStreamOverlay && <PreSeasonBanner />}
         {!isStreamOverlay && <SeasonEndingBanner />}
         {!isStreamOverlay && <RegionSetupBanner />}
