@@ -11,7 +11,7 @@ import {
   endActiveSeasonIfDue,
   launchPreSeasonIfDue,
   addMonths,
-  SEASON_DURATION_MONTHS,
+  nextSeasonEndAt,
   PRE_SEASON_NAME,
   PRE_SEASON_STARTS_AT,
   PRE_SEASON_EXPECTED_END_AT,
@@ -58,6 +58,21 @@ describe("addMonths", () => {
     expect(addMonths(new Date("2026-01-31T12:00:00Z"), 1).toISOString()).toBe("2026-02-28T12:00:00.000Z");
     // Dec 31 + 2 months → Feb 28, 2027.
     expect(addMonths(new Date("2026-12-31T12:00:00Z"), 2).toISOString()).toBe("2027-02-28T12:00:00.000Z");
+  });
+});
+
+describe("nextSeasonEndAt", () => {
+  it("pins the next end to 8pm ET on the 25th, two months on", () => {
+    // Season 1's rollover (~3:13pm ET on Sept 25, 2026, EDT) → Nov 25, 2026 at
+    // 8pm EST (UTC-5) == 2026-11-26T01:00:00Z.
+    expect(nextSeasonEndAt(new Date("2026-09-25T19:13:00Z")).toISOString()).toBe("2026-11-26T01:00:00.000Z");
+  });
+
+  it("stays at 8pm ET across the EST/EDT switch", () => {
+    // Nov 25, 2026 (EST) → Jan 25, 2027 at 8pm EST == 2027-01-26T01:00:00Z.
+    expect(nextSeasonEndAt(new Date("2026-11-26T01:00:00Z")).toISOString()).toBe("2027-01-26T01:00:00.000Z");
+    // Jan 25, 2027 (EST) → Mar 25, 2027 at 8pm EDT (UTC-4) == 2027-03-26T00:00:00Z.
+    expect(nextSeasonEndAt(new Date("2027-01-26T01:00:00Z")).toISOString()).toBe("2027-03-26T00:00:00.000Z");
   });
 });
 
@@ -320,7 +335,7 @@ describe("endActiveSeasonAndStartNext", () => {
 
     const active = await getActiveSeason();
     expect(active?.name).toBe("Season 2");
-    expect(active?.scheduledEndAt?.getTime()).toBe(addMonths(after, SEASON_DURATION_MONTHS).getTime());
+    expect(active?.scheduledEndAt?.getTime()).toBe(nextSeasonEndAt(after).getTime());
   });
 
   it("uses an explicit scheduledEndAt when given one, and leaves the next season manual-only when passed null", async () => {
@@ -394,7 +409,7 @@ describe("endActiveSeasonIfDue", () => {
 
     const active = await getActiveSeason();
     expect(active?.name).toBe("Season 2");
-    expect(active?.scheduledEndAt?.getTime()).toBe(addMonths(dueAt, SEASON_DURATION_MONTHS).getTime());
+    expect(active?.scheduledEndAt?.getTime()).toBe(nextSeasonEndAt(dueAt).getTime());
 
     const cancelledMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: inFlight.id } });
     expect(cancelledMatch.status).toBe("CANCELLED");
@@ -424,7 +439,7 @@ describe("endActiveSeasonIfDue", () => {
     const season1 = await getActiveSeason();
     expect(season1?.name).toBe("Season 1");
     // Season 1 keeps the every-season 2-month cadence going.
-    expect(season1?.scheduledEndAt?.getTime()).toBe(addMonths(dueAt, SEASON_DURATION_MONTHS).getTime());
+    expect(season1?.scheduledEndAt?.getTime()).toBe(nextSeasonEndAt(dueAt).getTime());
 
     const statuses = await prisma.ratingMatch.findMany({
       where: { id: { in: [pending.id, reported.id, settled.id] } },
