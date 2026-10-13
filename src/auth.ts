@@ -105,6 +105,11 @@ const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
   providers,
   session: { strategy: "jwt" },
   trustHost: true,
+  // Temporary — diagnosing the 2026-10-06 CallbackRouteError incident. Logs
+  // the full underlying cause (not just the generic wrapper message) for
+  // every auth request. Remove once root-caused; this is noisier than
+  // production logging should normally run.
+  debug: true,
   callbacks: {
     async signIn({ profile, credentials }) {
       // Checked before anything else, including the dev-credentials bypass —

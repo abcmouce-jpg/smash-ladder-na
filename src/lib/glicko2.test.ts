@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
+  GLICKO2_INACTIVITY_PERIOD_MS,
   GLICKO2_INITIAL_RATING,
   GLICKO2_INITIAL_RD,
+  GLICKO2_MAX_RD,
+  applyGlicko2Inactivity,
   applyGlicko2Period,
   applyGlicko2Result,
+  glicko2InactivityPeriods,
   initialGlicko2State,
   type Glicko2State,
 } from "@/lib/glicko2";
@@ -37,6 +41,52 @@ describe("applyGlicko2Period", () => {
     expect(after.rating).toBe(before.rating);
     // RD can only grow when sitting out...
     expect(after.rd).toBeGreaterThan(before.rd);
+  });
+});
+
+describe("glicko2InactivityPeriods", () => {
+  it("counts only whole elapsed periods, and never goes negative", () => {
+    expect(glicko2InactivityPeriods(0)).toBe(0);
+    expect(glicko2InactivityPeriods(-1000)).toBe(0);
+    expect(glicko2InactivityPeriods(Number.NaN)).toBe(0);
+    expect(glicko2InactivityPeriods(GLICKO2_INACTIVITY_PERIOD_MS - 1)).toBe(0);
+    expect(glicko2InactivityPeriods(GLICKO2_INACTIVITY_PERIOD_MS)).toBe(1);
+    expect(glicko2InactivityPeriods(3.9 * GLICKO2_INACTIVITY_PERIOD_MS)).toBe(3);
+  });
+});
+
+describe("applyGlicko2Inactivity", () => {
+  it("returns the same state when nothing has elapsed", () => {
+    const before: Glicko2State = { rating: 1620, rd: 120, volatility: 0.05 };
+    expect(applyGlicko2Inactivity(before, 0)).toEqual(before);
+  });
+
+  it("keeps the rating but grows RD with each inactive period", () => {
+    const before: Glicko2State = { rating: 1620, rd: 80, volatility: 0.06 };
+    const one = applyGlicko2Inactivity(before, 1);
+    const ten = applyGlicko2Inactivity(before, 10);
+    expect(one.rating).toBe(before.rating);
+    expect(one.rd).toBeGreaterThan(before.rd);
+    expect(ten.rd).toBeGreaterThan(one.rd);
+  });
+
+  it("never pushes RD past a fresh player's maximum uncertainty", () => {
+    const before: Glicko2State = { rating: 1620, rd: 300, volatility: 0.06 };
+    const after = applyGlicko2Inactivity(before, 100_000);
+    expect(after.rating).toBe(before.rating);
+    expect(after.rd).toBeLessThanOrEqual(GLICKO2_MAX_RD);
+  });
+
+  it("ages a player's return so their next result moves more", () => {
+    const opponent: Glicko2State = { rating: 1500, rd: 60, volatility: 0.06 };
+    const returning: Glicko2State = { rating: 1500, rd: 60, volatility: 0.06 };
+    const active: Glicko2State = { rating: 1500, rd: 60, volatility: 0.06 };
+
+    const inactive = applyGlicko2Inactivity(returning, 30);
+    const agedMove = applyGlicko2Result(inactive, opponent, 1).p1.rating - 1500;
+    const freshMove = applyGlicko2Result(active, opponent, 1).p1.rating - 1500;
+
+    expect(agedMove).toBeGreaterThan(freshMove);
   });
 });
 
