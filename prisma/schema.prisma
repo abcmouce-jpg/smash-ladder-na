@@ -224,6 +224,7 @@ model User {
   postMatchMessage           String?         // Gold-exclusive: a short note (see POST_MATCH_MESSAGE_MAX_LENGTH in settings' save action) auto-posted as a MatchComment from this player the moment a match they're in reaches CONFIRMED — see applyEloAndConfirm. Setting UI itself gates on isEffectiveGoldSupporter, but the column has no such check, so a lapsed Gold account just stops getting it auto-posted rather than losing the saved text.
   status                     UserStatus      @default(ACTIVE)
   referredById               String? // set once, at account creation only (see auth.ts's signIn callback) — who this player's ?ref= link/cookie pointed at when they first signed up. Never touched again afterward.
+  signupSource               String? // set once, at account creation only (see auth.ts's signIn callback) — the ?src= campaign tag the visitor arrived under (e.g. "reddit-crazyhand"), so a post or ad can be told apart from organic signup. Distinct from referredById: that names a player, this names a campaign, and a visitor can carry both. Free-form but length-capped and charset-normalized in lib/campaigns.ts, since it comes from a client-controlled cookie.
   referredBy                 User?           @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   createdAt                  DateTime        @default(now())
   updatedAt                  DateTime        @updatedAt
@@ -260,6 +261,7 @@ model User {
   @@index([mainCharacter])
   @@index([region])
   @@index([referredById])
+  @@index([signupSource])
 }
 
 model RatingLobbyEntry {

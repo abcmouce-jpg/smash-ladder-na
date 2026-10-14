@@ -35,6 +35,17 @@ export function proxy(request: NextRequest) {
     response.cookies.set("ref", ref, { maxAge: 60 * 60 * 24 * 30, path: "/", sameSite: "lax" });
   }
 
+  // Campaign attribution — same mechanism, different axis: `?src=<tag>`
+  // records *where a post went up* rather than which player shared it (see
+  // lib/campaigns.ts). Kept as its own cookie so a link carrying both still
+  // credits the referrer and the campaign independently. Shorter window than
+  // referrals: this answers "did that post work", and a signup three weeks
+  // later is no longer evidence about the post.
+  const src = request.nextUrl.searchParams.get("src");
+  if (src) {
+    response.cookies.set("src", src, { maxAge: 60 * 60 * 24 * 7, path: "/", sameSite: "lax" });
+  }
+
   return response;
 }
 
