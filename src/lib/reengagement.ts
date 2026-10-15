@@ -36,10 +36,23 @@ type Candidate = {
 // Everyone eligible for a nudge right now, newest-active first so the most
 // recently engaged (and most likely to return) are reached first if the
 // campaign is ever cut short.
-async function findDormantPlayers(seasonStartsAt: Date, limit: number): Promise<Candidate[]> {
+async function findDormantPlayers(
+  seasonStartsAt: Date,
+  limit: number,
+  // Restricts the campaign to recipients a DM can actually reach. Discord
+  // refuses a bot DM (50007) to anyone who shares no server with the bot, and
+  // on the Season 1 pilot that predicted the outcome for all 25 recipients
+  // exactly: 12 of 12 server members received it, 13 of 13 non-members were
+  // refused. Filtering in SQL rather than after the fact matters twice over —
+  // a non-member is never stamped, so they stay eligible if they join later,
+  // and the run does not spend 1,309 consecutive failed DM attempts, which is
+  // the pattern Discord's abuse detection is watching for.
+  allowDiscordIds?: string[],
+): Promise<Candidate[]> {
   const candidates = await prisma.user.findMany({
     where: {
       status: UserStatus.ACTIVE,
+      ...(allowDiscordIds ? { discordId: { in: allowDiscordIds } } : {}),
       // Played before — this is a win-back, not an onboarding nudge.
       //
       // Must be asked of the match history, NOT of gamesPlayed: the rollover
@@ -146,9 +159,12 @@ export async function sendReengagementBatch({
   dryRun = false,
   delayMs,
   onResult,
+  allowDiscordIds,
 }: {
   limit?: number;
   dryRun?: boolean;
+  /** Only these recipients; see findDormantPlayers. */
+  allowDiscordIds?: string[];
   // A bulk campaign wants to go slower than the gameplay default and to print
   // as it goes; both are left to the caller rather than baked in here.
   delayMs?: number;
@@ -157,7 +173,7 @@ export async function sendReengagementBatch({
   const season = await getActiveSeason();
   if (!season) return null;
 
-  const batch = await findDormantPlayers(season.startsAt, limit);
+  const batch = await findDormantPlayers(season.startsAt, limit, allowDiscordIds);
   const result: ReengagementResult = {
     seasonName: season.name,
     eligible: batch.length,
@@ -232,9 +248,11 @@ export async function sendReengagementBatch({
 
 // How many players are still waiting on a nudge — for the admin preview, so
 // the size of a campaign is visible before it starts going out.
-export async function countDormantPlayers(): Promise<{ seasonName: string; remaining: number } | null> {
+export async function countDormantPlayers(
+  allowDiscordIds?: string[],
+): Promise<{ seasonName: string; remaining: number } | null> {
   const season = await getActiveSeason();
   if (!season) return null;
-  const candidates = await findDormantPlayers(season.startsAt, 100_000);
+  const candidates = await findDormantPlayers(season.startsAt, 100_000, allowDiscordIds);
   return { seasonName: season.name, remaining: candidates.length };
 }

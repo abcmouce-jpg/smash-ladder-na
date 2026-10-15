@@ -233,6 +233,33 @@ describe("findDormantPlayers (via sendReengagementBatch/countDormantPlayers)", (
     expect(await stampOf(dormant)).not.toBeNull();
   });
 
+  it("an allowlist keeps everyone else out of the batch entirely, unstamped", async () => {
+    // Deliverability is decided by sharing a server with the bot: on the Season
+    // 1 pilot that predicted all 25 outcomes (12/12 members delivered, 13/13
+    // non-members refused). Non-members must not merely fail — they must never
+    // be attempted, so they are not retired from the campaign and the run does
+    // not emit a long run of failures for Discord to read as spam.
+    const reachable = await createTestUser({ gamesPlayed: 0 });
+    const unreachable = await createTestUser({ gamesPlayed: 0 });
+    const opponent = await createTestUser({ gamesPlayed: 0 });
+    await playedSetAt(reachable, opponent, lastSeason);
+    await playedSetAt(unreachable, opponent, lastSeason);
+    await startSeason(seasonStart);
+
+    const sender = allSent();
+    await sendReengagementBatch({
+      limit: 500,
+      delayMs: 0,
+      allowDiscordIds: [reachable.discordId],
+    });
+
+    expect(await stampOf(reachable)).not.toBeNull();
+    expect(await stampOf(unreachable)).toBeNull();
+    const recipients = sender.mock.calls[0][0].map((r) => r.discordId);
+    expect(recipients).toContain(reachable.discordId);
+    expect(recipients).not.toContain(unreachable.discordId);
+  });
+
   it("a dry run reports the size without messaging or stamping anyone", async () => {
     const dormant = await createTestUser({ gamesPlayed: 0 });
     const opponent = await createTestUser({ gamesPlayed: 0 });

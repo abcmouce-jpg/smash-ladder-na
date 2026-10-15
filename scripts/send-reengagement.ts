@@ -27,6 +27,39 @@ import {
 } from "../src/lib/reengagement";
 import { emptyDMTally, verifyDiscordBotToken } from "../src/lib/discord-bot";
 
+const DISCORD_API = "https://discord.com/api/v10";
+
+// Every recipient who shares no server with the bot is refused by Discord
+// (50007) — on the Season 1 pilot that was 13 of 13, against 12 of 12 delivered
+// for server members. Pulling the roster once costs a handful of requests and
+// removes ~1,300 attempts that could only ever fail. Returns null when the
+// roster cannot be read, and the caller then falls back to not filtering rather
+// than silently mailing nobody.
+async function communityServerMemberIds(): Promise<Set<string> | null> {
+  const guildId = process.env.DISCORD_COMMUNITY_GUILD_ID;
+  if (!guildId || guildId === "[SENSITIVE]") return null;
+  const ids = new Set<string>();
+  let after = "0";
+  for (let page = 0; page < 60; page++) {
+    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members?limit=1000&after=${after}`, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+    });
+    if (!res.ok) {
+      console.error(
+        `Could not list server members (${res.status})` +
+          (res.status === 403 ? " — the bot lacks the GUILD_MEMBERS privileged intent." : ""),
+      );
+      return null;
+    }
+    const batch = (await res.json()) as { user?: { id: string } }[];
+    for (const member of batch) if (member.user?.id) ids.add(member.user.id);
+    if (batch.length < 1000) break;
+    after = batch[batch.length - 1].user!.id;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  return ids;
+}
+
 // Slower than the gameplay default of 1/sec. A burst of identical unsolicited
 // DMs is the exact pattern Discord's abuse detection flags, and this bot is
 // also the site's OAuth provider — a suspension would stop every player from
@@ -64,11 +97,27 @@ async function main() {
     return;
   }
 
-  const audience = await countDormantPlayers();
+  // --no-filter sends to the whole dormant audience, failures included, for a
+  // run that deliberately wants the unfiltered behaviour.
+  let allowDiscordIds: string[] | undefined;
+  if (!flag("no-filter")) {
+    const members = await communityServerMemberIds();
+    if (members) {
+      const everyone = await prisma.user.findMany({ select: { discordId: true } });
+      allowDiscordIds = everyone.map((u) => u.discordId).filter((id) => members.has(id));
+      console.log(`community server members: ${members.size}`);
+    } else {
+      console.warn("Proceeding without the reachability filter; expect most DMs to be refused.\n");
+    }
+  }
+
+  const audience = await countDormantPlayers(allowDiscordIds);
+  const unfiltered = allowDiscordIds ? await countDormantPlayers() : audience;
   console.log(`season        : ${season.name} (started ${season.startsAt.toISOString()})`);
   console.log(`site origin   : ${siteOrigin()}`);
   console.log(`database      : ${databaseHost()}`);
-  console.log(`still to reach : ${audience?.remaining ?? 0}`);
+  console.log(`still to reach : ${audience?.remaining ?? 0}` +
+    (allowDiscordIds ? ` reachable  (of ${unfiltered?.remaining ?? 0} dormant; the rest share no server with the bot)` : ""));
   console.log(`throttle      : ${delayMs} ms between DMs`);
   console.log(`limit         : ${Number.isFinite(limit) ? limit : "none (whole audience)"}`);
   console.log("");
@@ -122,6 +171,7 @@ async function main() {
     const result = await sendReengagementBatch({
       limit: batchLimit,
       delayMs,
+      allowDiscordIds,
       onResult: (discordId, outcome) => {
         totals[outcome] += 1;
         if (outcome !== "sent") console.log(`  ${outcome.padEnd(13)} ${discordId}`);
@@ -150,7 +200,7 @@ async function main() {
   for (const [outcome, count] of Object.entries(totals)) {
     if (count > 0) console.log(`  ${outcome.padEnd(13)} ${count}`);
   }
-  const left = await countDormantPlayers();
+  const left = await countDormantPlayers(allowDiscordIds);
   console.log(`  still to reach ${left?.remaining ?? 0}`);
 }
 
