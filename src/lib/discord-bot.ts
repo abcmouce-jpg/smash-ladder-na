@@ -74,37 +74,100 @@ export async function checkGuildMembership(
   }
 }
 
+// What became of one DM. Callers in the gameplay path ignore this (a failed
+// notification must never break a match action), but a bulk campaign has to be
+// able to tell "the recipient has DMs closed" from "we are being rate limited",
+// because the second one means stop and the first one does not.
+export type DiscordDMOutcome =
+  | "sent"
+  | "blocked" // 403 / 400: no shared server, DMs off, or account gone — permanent for this recipient
+  | "rate_limited" // 429 past the retry budget — the sender should back off, not carry on
+  | "error" // 5xx or network; worth retrying later
+  | "no_token";
+
+export type DiscordDMTally = Record<DiscordDMOutcome, number>;
+
 // Sends to many recipients one at a time instead of firing them all at once —
 // a burst of identical, unsolicited DMs (e.g. announcing a tournament to every
 // entrant) is exactly the pattern Discord's abuse detection flags, and it can
 // get the whole application (bot + OAuth login) suspended pending review.
-export async function sendDiscordDMsSequentially(recipients: { discordId: string }[], content: string, delayMs = 1000) {
+//
+// `onRateLimit` exists for the same reason: a campaign that keeps pushing
+// through 429s is precisely the behaviour that gets an application suspended,
+// and since the bot is also this site's OAuth provider a suspension locks every
+// player out of signing in. A bulk caller should pass a handler that aborts.
+export async function sendDiscordDMsSequentially(
+  recipients: { discordId: string }[],
+  content: string,
+  delayMs = 1000,
+  hooks: {
+    onResult?: (discordId: string, outcome: DiscordDMOutcome) => void;
+    onRateLimit?: (tally: DiscordDMTally) => boolean | void; // return true to stop
+  } = {},
+): Promise<DiscordDMTally> {
+  const tally: DiscordDMTally = { sent: 0, blocked: 0, rate_limited: 0, error: 0, no_token: 0 };
   for (const { discordId } of recipients) {
-    await sendDiscordDM(discordId, content);
+    const outcome = await sendDiscordDM(discordId, content);
+    tally[outcome] += 1;
+    hooks.onResult?.(discordId, outcome);
+    if (outcome === "rate_limited" && hooks.onRateLimit?.(tally) === true) break;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
+  return tally;
 }
 
 // Best-effort only: a DM can fail for reasons entirely outside our control
 // (the bot and recipient don't share a Discord server, the user has DMs
 // from server members turned off, etc.), so a failure here must never break
-// whatever gameplay action triggered it — swallow and move on.
-export async function sendDiscordDM(discordId: string, content: string) {
+// whatever gameplay action triggered it — swallow and move on. The outcome is
+// returned rather than thrown, so a bulk sender can see what happened while
+// gameplay callers can keep ignoring it.
+//
+// 429s are retried on Discord's own Retry-After, matching getDiscordUsername
+// and checkGuildMembership above. Without this the DM path silently dropped
+// every rate-limited message: `channelRes.ok` is false for a 429 just as it is
+// for a 403, so a bulk send would report nothing wrong while losing mail.
+export async function sendDiscordDM(
+  discordId: string,
+  content: string,
+  retriesLeft = 3,
+): Promise<DiscordDMOutcome> {
   try {
     const channelRes = await discordRequest("/users/@me/channels", {
       method: "POST",
       body: JSON.stringify({ recipient_id: discordId }),
     });
-    if (!channelRes?.ok) return;
+    if (!channelRes) return "no_token";
+    if (channelRes.status === 429) {
+      if (retriesLeft <= 0) return "rate_limited";
+      await waitOutRateLimit(channelRes);
+      return sendDiscordDM(discordId, content, retriesLeft - 1);
+    }
+    if (!channelRes.ok) return channelRes.status >= 500 ? "error" : "blocked";
     const channel = (await channelRes.json()) as { id: string };
 
-    await discordRequest(`/channels/${channel.id}/messages`, {
+    const messageRes = await discordRequest(`/channels/${channel.id}/messages`, {
       method: "POST",
       body: JSON.stringify({ content: content.slice(0, 1900) }),
     });
+    if (!messageRes) return "no_token";
+    if (messageRes.status === 429) {
+      if (retriesLeft <= 0) return "rate_limited";
+      await waitOutRateLimit(messageRes);
+      return sendDiscordDM(discordId, content, retriesLeft - 1);
+    }
+    if (!messageRes.ok) return messageRes.status >= 500 ? "error" : "blocked";
+    return "sent";
   } catch {
     // Notifications are a nice-to-have, not a dependency of the core flow.
+    return "error";
   }
+}
+
+async function waitOutRateLimit(res: Response) {
+  const body = (await res.json().catch(() => null)) as { retry_after?: number } | null;
+  const retryAfterMs = Math.ceil((body?.retry_after ?? 1) * 1000);
+  await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
 }
 
 // Posts to a public channel via an incoming webhook, not the bot token —

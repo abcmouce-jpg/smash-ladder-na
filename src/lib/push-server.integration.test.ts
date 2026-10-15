@@ -59,7 +59,7 @@ afterEach(() => {
 // The queue-opportunity ping now delivers over Discord too — reset the DM
 // transport per test so its calls don't accumulate across the suite.
 beforeEach(() => {
-  vi.spyOn(discordBot, "sendDiscordDM").mockReset().mockResolvedValue(undefined);
+  vi.spyOn(discordBot, "sendDiscordDM").mockReset().mockResolvedValue("sent");
 });
 
 function subscribeUser(userId: string, endpoint: string) {
