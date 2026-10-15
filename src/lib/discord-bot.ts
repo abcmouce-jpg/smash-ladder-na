@@ -74,18 +74,61 @@ export async function checkGuildMembership(
   }
 }
 
+// Confirms the bot token actually authenticates, before a caller spends an
+// audience finding out that it does not. The 25-recipient pilot of the
+// reengagement campaign burned 25 recipients on 401s because nothing checked
+// first: `vercel env pull` writes the literal string "[SENSITIVE]" for any
+// variable marked sensitive, so DISCORD_BOT_TOKEN was 11 characters of
+// placeholder and every request failed identically.
+export async function verifyDiscordBotToken(): Promise<
+  { ok: true; username: string } | { ok: false; reason: string }
+> {
+  if (!process.env.DISCORD_BOT_TOKEN) return { ok: false, reason: "DISCORD_BOT_TOKEN is not set" };
+  if (process.env.DISCORD_BOT_TOKEN === "[SENSITIVE]") {
+    return {
+      ok: false,
+      reason: "DISCORD_BOT_TOKEN is the literal \"[SENSITIVE]\" placeholder that `vercel env pull` "
+        + "writes for a sensitive variable — fetch the real token instead",
+    };
+  }
+  try {
+    const res = await discordRequest("/users/@me", { method: "GET" });
+    if (!res) return { ok: false, reason: "DISCORD_BOT_TOKEN is not set" };
+    if (res.status === 401) return { ok: false, reason: "Discord rejected the bot token (401)" };
+    if (!res.ok) return { ok: false, reason: `GET /users/@me returned ${res.status}` };
+    const me = (await res.json()) as { username?: string };
+    return { ok: true, username: me.username ?? "(unnamed bot)" };
+  } catch (error) {
+    return { ok: false, reason: `could not reach Discord: ${String(error)}` };
+  }
+}
+
 // What became of one DM. Callers in the gameplay path ignore this (a failed
 // notification must never break a match action), but a bulk campaign has to be
 // able to tell "the recipient has DMs closed" from "we are being rate limited",
 // because the second one means stop and the first one does not.
 export type DiscordDMOutcome =
   | "sent"
-  | "blocked" // 403 / 400: no shared server, DMs off, or account gone — permanent for this recipient
+  | "blocked" // 403 / 404 / 400: no shared server, DMs off, or account gone — permanent for this recipient
+  // 401. Nothing about the recipient is wrong, so this must never be counted
+  // as "blocked": a bad token blocks EVERY recipient, and the first version of
+  // this lumped the two together. A 25-recipient pilot then reported 25
+  // "blocked" users and retired all of them from the campaign, when in truth
+  // the token was the literal string "[SENSITIVE]" that `vercel env pull`
+  // writes for a variable marked sensitive, and not one DM had been attempted.
+  | "unauthorized"
   | "rate_limited" // 429 past the retry budget — the sender should back off, not carry on
   | "error" // 5xx or network; worth retrying later
   | "no_token";
 
 export type DiscordDMTally = Record<DiscordDMOutcome, number>;
+
+// One place to build a zeroed tally, so adding an outcome does not mean hunting
+// down every literal that spelled the set out (adding "unauthorized" broke
+// eight of them).
+export function emptyDMTally(): DiscordDMTally {
+  return { sent: 0, blocked: 0, unauthorized: 0, rate_limited: 0, error: 0, no_token: 0 };
+}
 
 // Sends to many recipients one at a time instead of firing them all at once —
 // a burst of identical, unsolicited DMs (e.g. announcing a tournament to every
@@ -105,11 +148,12 @@ export async function sendDiscordDMsSequentially(
     onRateLimit?: (tally: DiscordDMTally) => boolean | void; // return true to stop
   } = {},
 ): Promise<DiscordDMTally> {
-  const tally: DiscordDMTally = { sent: 0, blocked: 0, rate_limited: 0, error: 0, no_token: 0 };
+  const tally = emptyDMTally();
   for (const { discordId } of recipients) {
     const outcome = await sendDiscordDM(discordId, content);
     tally[outcome] += 1;
     hooks.onResult?.(discordId, outcome);
+    if (outcome === "unauthorized" || outcome === "no_token") break;
     if (outcome === "rate_limited" && hooks.onRateLimit?.(tally) === true) break;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
@@ -143,6 +187,7 @@ export async function sendDiscordDM(
       await waitOutRateLimit(channelRes);
       return sendDiscordDM(discordId, content, retriesLeft - 1);
     }
+    if (channelRes.status === 401) return "unauthorized";
     if (!channelRes.ok) return channelRes.status >= 500 ? "error" : "blocked";
     const channel = (await channelRes.json()) as { id: string };
 
@@ -156,6 +201,7 @@ export async function sendDiscordDM(
       await waitOutRateLimit(messageRes);
       return sendDiscordDM(discordId, content, retriesLeft - 1);
     }
+    if (messageRes.status === 401) return "unauthorized";
     if (!messageRes.ok) return messageRes.status >= 500 ? "error" : "blocked";
     return "sent";
   } catch {

@@ -96,7 +96,7 @@ describe("notifyCharacterGuideSubscribers", () => {
     for (const user of [author, follower, optedOut]) {
       await prisma.characterGuideSubscription.create({ data: { userId: user.id, character: "Samus" } });
     }
-    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue({ sent: 0, blocked: 0, rate_limited: 0, error: 0, no_token: 0 });
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(discordBot.emptyDMTally());
 
     await notifyCharacterGuideSubscribers("Dark Samus", author.id);
 

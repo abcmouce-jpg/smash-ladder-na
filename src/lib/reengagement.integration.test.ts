@@ -4,7 +4,7 @@ import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 import { DELETED_USERNAME } from "@/lib/account";
 import * as discordBot from "@/lib/discord-bot";
-import type { DiscordDMOutcome, DiscordDMTally } from "@/lib/discord-bot";
+import type { DiscordDMOutcome } from "@/lib/discord-bot";
 import { sendReengagementBatch, countDormantPlayers, reengagementMessage } from "@/lib/reengagement";
 
 // Mock sendDiscordDMsSequentially, not sendDiscordDM: the sequential sender
@@ -17,13 +17,14 @@ function fakeSender(outcomeFor: (index: number) => DiscordDMOutcome) {
   return vi
     .spyOn(discordBot, "sendDiscordDMsSequentially")
     .mockImplementation(async (recipients, _content, _delayMs, hooks = {}) => {
-      const tally: DiscordDMTally = { sent: 0, blocked: 0, rate_limited: 0, error: 0, no_token: 0 };
+      const tally = discordBot.emptyDMTally();
       let index = 0;
       for (const { discordId } of recipients) {
         const outcome = outcomeFor(index);
         index += 1;
         tally[outcome] += 1;
         hooks.onResult?.(discordId, outcome);
+        if (outcome === "unauthorized" || outcome === "no_token") break;
         if (outcome === "rate_limited" && hooks.onRateLimit?.(tally) === true) break;
       }
       return tally;
@@ -171,6 +172,28 @@ describe("findDormantPlayers (via sendReengagementBatch/countDormantPlayers)", (
 
     expect(await stampOf(deletedNow)).toBeNull();
     expect(await stampOf(deletedLegacy)).toBeNull();
+  });
+
+  it("rolls the stamp back and stops when the bot token is rejected", async () => {
+    // A 401 says nothing about the recipient — a bad token fails everyone
+    // identically. The first production pilot classified 401 as "blocked",
+    // so it reported 25 unreachable players and retired all 25 from the
+    // campaign while not a single DM had actually been attempted.
+    const a = await createTestUser({ gamesPlayed: 0 });
+    const b = await createTestUser({ gamesPlayed: 0 });
+    const opponent = await createTestUser({ gamesPlayed: 0 });
+    await playedSetAt(a, opponent, lastSeason);
+    await playedSetAt(b, opponent, lastSeason);
+    await startSeason(seasonStart);
+
+    fakeSender(() => "unauthorized");
+    const result = await sendReengagementBatch({ limit: 500, delayMs: 0 });
+
+    expect(result?.sent).toBe(0);
+    expect(result?.blocked).toBe(0);
+    expect(result?.requeued).toBeGreaterThanOrEqual(2);
+    expect(await stampOf(a)).toBeNull();
+    expect(await stampOf(b)).toBeNull();
   });
 
   it("rolls the stamp back for a rate-limited recipient and stops the run", async () => {

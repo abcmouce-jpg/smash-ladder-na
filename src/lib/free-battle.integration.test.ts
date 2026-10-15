@@ -329,7 +329,7 @@ describe("notifyMatchmakingSubscribers", () => {
     const author = await createTestUser();
     const candidate = await createTestUser();
     vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue(["role-mm"]);
-    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue({ sent: 0, blocked: 0, rate_limited: 0, error: 0, no_token: 0 });
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(discordBot.emptyDMTally());
 
     await notifyMatchmakingSubscribers(
       { comment: "anyone up?", region: null, minTier: null },
@@ -345,7 +345,7 @@ describe("notifyMatchmakingSubscribers", () => {
     const author = await createTestUser();
     await createTestUser();
     vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue([]);
-    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue({ sent: 0, blocked: 0, rate_limited: 0, error: 0, no_token: 0 });
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(discordBot.emptyDMTally());
 
     await notifyMatchmakingSubscribers(
       { comment: "anyone up?", region: null, minTier: null },
@@ -361,7 +361,7 @@ describe("notifyMatchmakingSubscribers", () => {
     const near = await createTestUser({ region: "New York", maxMatchDistanceKm: 640 });
     await createTestUser({ region: "USA Pacific", maxMatchDistanceKm: 640 }); // control: too far
     vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue(["role-mm"]);
-    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue({ sent: 0, blocked: 0, rate_limited: 0, error: 0, no_token: 0 });
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(discordBot.emptyDMTally());
 
     await notifyMatchmakingSubscribers(
       { comment: "gg", region: "USA East", minTier: null },
@@ -378,7 +378,7 @@ describe("notifyMatchmakingSubscribers", () => {
     await givePeakRating(qualifies.id, 1650);
     await createTestUser(); // control: never reached Elite
     vi.spyOn(discordBot, "getGuildMemberRoles").mockResolvedValue(["role-mm"]);
-    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue({ sent: 0, blocked: 0, rate_limited: 0, error: 0, no_token: 0 });
+    const dmSpy = vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockResolvedValue(discordBot.emptyDMTally());
 
     await notifyMatchmakingSubscribers(
       { comment: "elite only", region: null, minTier: "Elite" },
