@@ -13,6 +13,7 @@ import { UserStatus } from "@/generated/prisma/enums";
 import type { UserRole } from "@/generated/prisma/enums";
 import { extractClientIp, isIpBanned } from "@/lib/ip-bans";
 import { resolveReferrerId } from "@/lib/referrals";
+import { normalizeCampaignTag } from "@/lib/campaigns";
 import { defaultRegionFromGeoHeaders } from "@/lib/geo-region";
 import { checkGuildMembership } from "@/lib/discord-bot";
 import { isEffectiveSupporter } from "@/lib/supporters";
@@ -154,6 +155,12 @@ const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
       // there's no point looking this up for a returning sign-in.
       const referredById = existing ? null : await resolveReferrerId((await cookies()).get("ref")?.value);
 
+      // Same once-at-creation rule as referredById, and read from the same
+      // cookie jar — which post or ad a player first arrived through is a
+      // fact about their signup, so a later visit under a different campaign
+      // must not rewrite it.
+      const signupSource = existing ? null : normalizeCampaignTag((await cookies()).get("src")?.value);
+
       // Same "only for a genuinely new account" reasoning as referredById —
       // pre-fills region from Vercel's geolocation headers so a new player
       // can join the queue immediately instead of silently being stuck
@@ -197,6 +204,7 @@ const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
           lastKnownIp: ip ?? undefined,
           lastSignInAt: new Date(),
           referredById,
+          signupSource,
           region: defaultRegion ?? undefined,
         },
       });

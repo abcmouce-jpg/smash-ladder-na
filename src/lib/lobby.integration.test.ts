@@ -31,7 +31,7 @@ vi.mock("next/server", () => ({ after: (callback: () => unknown) => void callbac
 // DM. Stub the transport so tests never touch (or, with a real DISCORD_BOT_TOKEN
 // in a local .env, actually DM anyone through) Discord.
 beforeEach(() => {
-  vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
+  vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue("sent");
 });
 
 afterEach(() => {

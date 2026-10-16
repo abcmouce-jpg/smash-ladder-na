@@ -1864,6 +1864,13 @@ function GameSection({
             </>
           )}
         </p>
+        <StageProposalSection
+          matchId={match.id}
+          game={current}
+          userId={userId}
+          opponentName={opponentName}
+          lang={lang}
+        />
         {sameBans && (
           <div className="mt-3">
             <SameBansButton
@@ -1929,17 +1936,20 @@ function GameSection({
             </Button>
           </form>
         )}
-        <StageProposalSection
-          matchId={match.id}
-          game={current}
-          userId={userId}
-          opponentName={opponentName}
-          lang={lang}
-        />
       </CardContent>
     </>
   );
 }
+
+// The only two stages players actually agree on: of 300 reconstructed game-1
+// agreements, 184 were Small Battlefield and 104 Pokémon Stadium 2 — 96% of
+// them (scripts/feature-usage.ts). The rest of the pool stays available but
+// collapsed, so these two can be one click instead of two. The labels are the
+// shorthand players already type at each other in chat.
+const PROPOSAL_SHORTCUTS = [
+  { stage: "Small Battlefield", short: "Small?" },
+  { stage: "Pokémon Stadium 2", short: "PS2?" },
+] as const;
 
 // "Small?" — the mutual-agreement shortcut: either player can propose any
 // stage still on the table and the other side accepts or declines, at any
@@ -1982,7 +1992,7 @@ function StageProposalSection({
         ) : (
           <>
             <form action={acceptStageProposal.bind(null, matchId, game.gameNumber)}>
-              <Button type="submit" size="sm">
+              <Button type="submit" className="h-10 px-5 text-base font-semibold">
                 {lang === "es" ? "Aceptar" : "Accept"}
               </Button>
             </form>
@@ -1997,21 +2007,42 @@ function StageProposalSection({
     );
   }
 
+  const shortcuts = PROPOSAL_SHORTCUTS.filter((s) => game.stagesRemaining.includes(s.stage));
+  const rest = game.stagesRemaining.filter((stage) => !shortcuts.some((s) => s.stage === stage));
+
   return (
-    <details className="mt-3 group">
-      <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-        {lang === "es" ? "¿Proponer un escenario? (acuerdo mutuo)" : "Propose a stage? (mutual agreement)"}
-      </summary>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {game.stagesRemaining.map((stage) => (
-          <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
-            <Button type="submit" size="sm" variant="outline">
-              {stage}
-            </Button>
-          </form>
-        ))}
-      </div>
-    </details>
+    <div className="mt-3">
+      {shortcuts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {shortcuts.map(({ stage, short }) => (
+            <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
+              <Button type="submit" className="h-10 px-5 text-base font-semibold">
+                {short}
+              </Button>
+            </form>
+          ))}
+          <span className="text-xs text-muted-foreground">
+            {lang === "es" ? "Propón y sáltate el descarte" : "Propose it and skip striking"}
+          </span>
+        </div>
+      )}
+      {rest.length > 0 && (
+        <details className="mt-2 group">
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+            {lang === "es" ? "Proponer otro escenario" : "Propose a different stage"}
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {rest.map((stage) => (
+              <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
+                <Button type="submit" size="sm" variant="outline">
+                  {stage}
+                </Button>
+              </form>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
   );
 }
 

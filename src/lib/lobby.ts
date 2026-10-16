@@ -253,7 +253,7 @@ async function attemptPairing(params: {
       const candidate = candidates.find(
         (c) =>
           getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
-          ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user)) &&
+          ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user, Date.now() - c.joinedAt.getTime())) &&
           rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
           wiredRequirementAllows(me, c.user) &&
           practiceMatchAllowed(
@@ -610,7 +610,11 @@ export async function retryPairForWaitingUser(userId: string) {
     if (!me.region) return;
 
     const myReach = getRegionsWithinDistance(me.region, me.maxMatchDistanceKm);
-    const myEffectiveGap = effectiveMaxRatingGap(me);
+    // This is the retry path for someone already sitting in the queue, so
+    // their own wait is exactly what the provisional cap should widen
+    // against — without it a provisional player searched with the strict
+    // ±300 band forever, which is the case the widening exists to fix.
+    const myEffectiveGap = effectiveMaxRatingGap(me, Date.now() - entry.joinedAt.getTime());
 
     const paired = await attemptPairing({
       userId,
@@ -705,13 +709,21 @@ type MatchCandidate = {
   requireWiredOpponent: boolean;
 };
 
-function canMatch(a: MatchCandidate, b: MatchCandidate, lastMatchAt: Date | undefined) {
+function canMatch(
+  a: MatchCandidate,
+  b: MatchCandidate,
+  lastMatchAt: Date | undefined,
+  // How long each side has been queued, so a provisional player's rating-gap
+  // cap can relax the longer the strict band has failed them (see
+  // effectiveMaxRatingGap). Defaults to 0 = the original strict behaviour.
+  waits: { a: number; b: number } = { a: 0, b: 0 },
+) {
   if (!a.region || !b.region) return false;
   return (
     getRegionsWithinDistance(a.region, a.maxMatchDistanceKm).includes(b.region) &&
     getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region) &&
-    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(a)) &&
-    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(b)) &&
+    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(a, waits.a)) &&
+    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(b, waits.b)) &&
     rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours) &&
     wiredRequirementAllows(a, b)
   );
@@ -757,6 +769,9 @@ export async function sweepLobbyPairing(maxPairs = 50) {
     },
   });
 
+  // One clock for the whole sweep so every pair is judged against the same
+  // instant rather than drifting as the loop runs.
+  const sweepNow = Date.now();
   const used = new Set<string>();
   for (let i = 0; i < waiting.length && paired < maxPairs; i++) {
     const a = waiting[i];
@@ -768,7 +783,10 @@ export async function sweepLobbyPairing(maxPairs = 50) {
       if (
         used.has(b.id) ||
         blockedPairs.has(pairKey) ||
-        !canMatch(a.user, b.user, recentMatchPairs.get(pairKey)) ||
+        !canMatch(a.user, b.user, recentMatchPairs.get(pairKey), {
+          a: sweepNow - a.joinedAt.getTime(),
+          b: sweepNow - b.joinedAt.getTime(),
+        }) ||
         !practiceMatchAllowed(
           { isPracticing: a.isPracticing, avoidPracticeOpponents: a.user.avoidPracticeOpponents },
           { isPracticing: b.isPracticing, avoidPracticeOpponents: b.user.avoidPracticeOpponents },

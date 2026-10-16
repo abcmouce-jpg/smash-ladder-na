@@ -28,7 +28,7 @@ vi.mock("next/server", () => ({ after: (callback: () => unknown) => void callbac
 beforeEach(() => {
   // mockReset (not just mockResolvedValue) so calls don't accumulate across the
   // tests that trigger a rollover before this one.
-  vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockReset().mockResolvedValue(undefined);
+  vi.spyOn(discordBot, "sendDiscordDMsSequentially").mockReset().mockResolvedValue(discordBot.emptyDMTally());
 });
 
 async function createTestMatch(status: MatchStatus, confirmedAt: Date | null = null) {
