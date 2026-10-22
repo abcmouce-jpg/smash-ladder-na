@@ -22,7 +22,7 @@ import {
   POST_MATCH_MESSAGE_MAX_LENGTH,
 } from "@/lib/supporters";
 import { KOFI_URL } from "@/lib/links";
-import { listBlockedUsers } from "@/lib/blocks";
+import { listBlockedUsers, MAX_BLOCKS_PER_USER } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
@@ -317,8 +317,8 @@ function UserTab({
           <p className="text-sm font-medium">{lang === "es" ? "Jugadores bloqueados" : "Blocked players"}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {lang === "es"
-              ? "Los jugadores bloqueados nunca se emparejan contigo en la cola rankeada. Bloquear es permanente y no se puede deshacer."
-              : "Blocked players are never matched with you in ranked queueing. Blocking is permanent and can't be undone."}
+              ? `Los jugadores bloqueados nunca se emparejan contigo en la cola rankeada. Bloquear es permanente y no se puede deshacer. Has usado ${blocked.length} de ${MAX_BLOCKS_PER_USER}.`
+              : `Blocked players are never matched with you in ranked queueing. Blocking is permanent and can't be undone. You've used ${blocked.length} of ${MAX_BLOCKS_PER_USER}.`}
           </p>
           {blocked.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">

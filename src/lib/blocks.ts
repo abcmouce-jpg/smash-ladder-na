@@ -1,7 +1,14 @@
 import { prisma } from "@/lib/db";
 import { DELETED_USERNAME } from "@/lib/account";
 
-export const MAX_BLOCKS_PER_USER = 5;
+// Raised from 5 on 2026-10-21 after a player pointed out that the cap and the
+// permanence compound: blocks are never cleared — not by a season rollover,
+// which zeroes ratings and gamesPlayed but leaves Block rows alone — so a slot
+// spent on a misclick or on a one-off bad game in Season 1 is gone for good.
+// At five that meant the cap tightened the longer someone played, which
+// punished exactly the people who stayed. Ten keeps blocking a deliberate act
+// rather than a toggle while leaving room to be wrong a couple of times.
+export const MAX_BLOCKS_PER_USER = 10;
 
 export async function blockUser(blockerId: string, blockedId: string) {
   if (blockerId === blockedId) throw new Error("You can't block yourself");
