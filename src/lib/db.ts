@@ -9,8 +9,17 @@ import { config } from "dotenv";
 // production credentials in `.env` instead of the local database
 // `.env.development` points at. Pass DATABASE_URL inline to target a specific
 // database from a script.
-for (const file of [".env.development.local", ".env.local", ".env.development", ".env"]) {
-  if (existsSync(file)) config({ path: file });
+// Skipped under Next: the framework has already populated process.env by the
+// time this module runs, so the lookup only ever mattered for scripts started
+// through tsx. Guarding it also keeps the loop out of the server bundle —
+// since 16.4 Turbopack treats a dynamic fs path here as a build error, not a
+// warning ("Dynamic filesystem access causes tracing of the whole project"),
+// because it would otherwise trace every source file and the public folder
+// into the deployed server code. turbopackIgnore marks the call as deliberate.
+if (!process.env.NEXT_RUNTIME) {
+  for (const file of [".env.development.local", ".env.local", ".env.development", ".env"]) {
+    if (existsSync(/*turbopackIgnore: true*/ file)) config({ path: file });
+  }
 }
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
