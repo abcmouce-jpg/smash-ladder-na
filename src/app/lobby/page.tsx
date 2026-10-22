@@ -170,13 +170,23 @@ export default async function LobbyPage() {
   if (entry?.status === "WAITING") await touchWaitingLobbyEntry(session.user.id);
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { region: true, queueCooldownUntil: true, audioPingOnMatch: true, matchFoundSound: true },
+    select: {
+      region: true,
+      queueCooldownUntil: true,
+      audioPingOnMatch: true,
+      matchFoundSound: true,
+      // Only whether one exists, never the rows: this decides how often a
+      // backgrounded wait re-renders the page (see lib/lobby-poll.ts), and
+      // _count keeps it to a COUNT on the userId index.
+      _count: { select: { pushSubscriptions: true } },
+    },
   });
   // Region is required to queue (see joinLobbyAndTryPair), so the Lobby states
   // that up front and points at the settings card instead of letting the Find
   // Match button fail server-side with an error message.
   const hasRegion = Boolean(me?.region);
   const queueCooldownUntil = me?.queueCooldownUntil?.toISOString() ?? null;
+  const hasPushSubscription = (me?._count.pushSubscriptions ?? 0) > 0;
   const audioPingOnMatch = me?.audioPingOnMatch ?? true;
   const matchFoundSound = me?.matchFoundSound ?? "CHIME";
   const isInActiveMatch =
@@ -223,6 +233,7 @@ export default async function LobbyPage() {
           matchJustEnded: !!matchJustEnded,
           hasLeftMatch: !!myLeftAt,
         })}
+        hasPushSubscription={hasPushSubscription}
         audioPingOnMatch={audioPingOnMatch}
         matchFoundSound={matchFoundSound}
         lang={lang}
@@ -396,6 +407,7 @@ function ActivityLine({
   matched,
   isWaiting,
   poll,
+  hasPushSubscription = false,
   audioPingOnMatch = true,
   matchFoundSound = "CHIME",
   lang,
@@ -404,6 +416,7 @@ function ActivityLine({
   matched: boolean;
   isWaiting: boolean;
   poll: boolean;
+  hasPushSubscription?: boolean;
   audioPingOnMatch?: boolean;
   matchFoundSound?: MatchFoundSound;
   lang: Lang;
@@ -426,6 +439,7 @@ function ActivityLine({
         <LobbyPoller
           matched={matched}
           keepPollingInBackground={isWaiting}
+          hasPushSubscription={hasPushSubscription}
           audioPingOnMatch={audioPingOnMatch}
           matchFoundSound={matchFoundSound}
         />
