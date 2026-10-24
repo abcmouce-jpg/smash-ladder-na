@@ -2,6 +2,7 @@ import { PROVISIONAL_MIN_GAMES, RANK_TIERS, rankTierRatingRange, type RankTier }
 import { TierBadge } from "@/components/rank-badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { Lang } from "@/lib/i18n";
 
 // One row of the rank list: the real badge, the window it covers, and the
 // blurb. The range is passed in rather than derived here because the
@@ -39,7 +40,7 @@ const TIER_DESCRIPTIONS_ES: Record<string, string> = {
 // heading, dialog, or page markup: whichever surface shows the list owns its
 // own framing and its own outer spacing, which is what the className
 // pass-through is for.
-export function RankTierList({ className, lang = "en" }: { className?: string; lang?: "en" | "es" }) {
+export function RankTierList({ className, lang = "en" }: { className?: string; lang?: Lang }) {
   return (
     <Card className={cn("divide-y divide-border overflow-hidden py-0", className)}>
       {RANK_TIERS.map((tier) => (

@@ -3,15 +3,17 @@
 // the gateway's documented fallback: AI_GATEWAY_API_KEY locally,
 // VERCEL_OIDC_TOKEN automatically once deployed on Vercel — so production
 // needs no key of its own.
+import type { Lang } from "@/lib/i18n";
+
 const AI_GATEWAY_URL = "https://ai-gateway.vercel.sh/v1/chat/completions";
 const MODEL = "openai/gpt-4.1-nano";
 
-const LANG_NAMES: Record<string, string> = { en: "English", es: "Spanish" };
+const LANG_NAMES: Record<Lang, string> = { en: "English", es: "Spanish", ja: "Japanese" };
 
 // Chat messages are short and casual, so a translation failure (missing key,
 // gateway hiccup, rate limit) should never break the chat itself — callers
 // treat a thrown error as "show the original text instead."
-export async function translateText(text: string, targetLang: "en" | "es"): Promise<string> {
+export async function translateText(text: string, targetLang: Lang): Promise<string> {
   const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN;
   if (!apiKey) throw new Error("No AI Gateway credentials available");
 

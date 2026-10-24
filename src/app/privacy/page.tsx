@@ -1,6 +1,7 @@
 import { getLang } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "Privacy Policy — Smash Ladder NA" };
+export const metadata = { title: `Privacy Policy — ${SITE_NAME}` };
 
 export default async function PrivacyPage() {
   const lang = await getLang();

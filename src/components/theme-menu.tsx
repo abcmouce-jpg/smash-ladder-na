@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Lang } from "@/lib/i18n";
 
 const THEME_OPTIONS: { value: Theme; label: { en: string; es: string }; icon: typeof Sun }[] = [
   { value: "light", label: { en: "Light", es: "Claro" }, icon: Sun },
@@ -23,7 +24,7 @@ const THEME_OPTIONS: { value: Theme; label: { en: string; es: string }; icon: ty
 // click-and-see-what-happens loop, so this is an explicit menu with a
 // checkmark on the active mode instead — same underlying storage/apply logic
 // as the old ThemeToggle.
-export function ThemeMenu({ lang = "en" }: { lang?: "en" | "es" }) {
+export function ThemeMenu({ lang = "en" }: { lang?: Lang }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") return getStoredTheme();
     return "auto";

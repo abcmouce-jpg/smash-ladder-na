@@ -1,6 +1,7 @@
 import { getLang } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "Terms of Service — Smash Ladder NA" };
+export const metadata = { title: `Terms of Service — ${SITE_NAME}` };
 
 export default async function TermsPage() {
   const lang = await getLang();
@@ -15,7 +16,7 @@ export default async function TermsPage() {
           <section>
             <h2 className="text-sm font-medium text-foreground">Qué es esto</h2>
             <p className="mt-2">
-              Smash Ladder NA es un ladder rankeado de Super Smash Bros. administrado por la comunidad, organizado
+              {SITE_NAME} es un ladder rankeado de Super Smash Bros. administrado por la comunidad, organizado
               mediante inicio de sesión con Discord. Es gratis. Al iniciar sesión, aceptas estos términos.
             </p>
           </section>
@@ -76,7 +77,7 @@ export default async function TermsPage() {
             <p className="mt-2">
               El sitio se ofrece tal cual (&quot;as-is&quot;). No garantizamos disponibilidad continua, que el
               matchmaking siempre te encuentre una partida, ni que el servicio esté libre de errores. Nintendo no tiene
-              ninguna afiliación con este sitio — Smash Ladder NA es un proyecto comunitario independiente, hecho por
+              ninguna afiliación con este sitio — {SITE_NAME} es un proyecto comunitario independiente, hecho por
               fans.
             </p>
           </section>
@@ -117,7 +118,7 @@ export default async function TermsPage() {
         <section>
           <h2 className="text-sm font-medium text-foreground">What this is</h2>
           <p className="mt-2">
-            Smash Ladder NA is a community-run ranked ladder for Super Smash Bros., organized through Discord sign-in.
+            {SITE_NAME} is a community-run ranked ladder for Super Smash Bros., organized through Discord sign-in.
             It&apos;s free to use. By signing in, you agree to these terms.
           </p>
         </section>
@@ -174,7 +175,7 @@ export default async function TermsPage() {
           <h2 className="text-sm font-medium text-foreground">No warranty</h2>
           <p className="mt-2">
             The site is provided as-is. We don&apos;t guarantee uptime, that matchmaking will always find you a game, or
-            that the service will be error-free. Nintendo has no affiliation with this site — Smash Ladder NA is an
+            that the service will be error-free. Nintendo has no affiliation with this site — {SITE_NAME} is an
             independent, fan-run community project.
           </p>
         </section>

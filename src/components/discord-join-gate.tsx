@@ -5,6 +5,7 @@ import { DiscordIcon } from "@/components/discord-icon";
 import { signOut } from "@/auth";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/site";
 
 // Rendered by layout.tsx in place of the page itself for an already-signed-in
 // session that isn't (or no longer is) in the Discord server — the same
@@ -24,8 +25,8 @@ export async function DiscordJoinGate() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {lang === "es"
-              ? "Smash Ladder NA ahora requiere estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta."
-              : "Smash Ladder NA now requires being in our Discord server — it's how staff can actually reach you if something goes wrong with a match or an account."}
+              ? `${SITE_NAME} ahora requiere estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta.`
+              : `${SITE_NAME} now requires being in our Discord server — it's how staff can actually reach you if something goes wrong with a match or an account.`}
           </p>
           <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="w-full">
             <Button className="w-full gap-2">

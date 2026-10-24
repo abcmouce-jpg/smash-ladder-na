@@ -16,6 +16,7 @@ import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import { Toaster } from "@/components/ui/sonner";
 import { siteOrigin } from "@/lib/site-url";
 import "./globals.css";
+import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,8 +33,8 @@ const geistMono = Geist_Mono({
 // different origin than the one serving it — a duplicate-content signal
 // against the real domain.
 const SITE_URL = siteOrigin();
-const TITLE = "Smash Ladder NA";
-const DESCRIPTION = "North American ranked ladder and matchmaking for Smash.";
+const TITLE = SITE_NAME;
+const DESCRIPTION = SITE_DESCRIPTION;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

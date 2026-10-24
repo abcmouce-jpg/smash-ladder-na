@@ -6,8 +6,9 @@ import { getRankTier, isRatingVisible, PROVISIONAL_GAMES_THRESHOLD } from "@/lib
 import { formatRating } from "@/lib/rating-format";
 import { getCareerStats, getHiddenRatingMatchIds } from "@/lib/players";
 import { characterIconSlug } from "@/lib/character-icons";
+import { SITE_NAME } from "@/lib/site";
 
-export const alt = "Smash Ladder NA rank card";
+export const alt = `${SITE_NAME} rank card`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -63,7 +64,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           fontSize: 40,
         }}
       >
-        Smash Ladder NA
+        {SITE_NAME}
       </div>,
       { ...size },
     );

@@ -5,8 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DiscordIcon } from "@/components/discord-icon";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "Join our Discord — Smash Ladder NA" };
+export const metadata = { title: `Join our Discord — ${SITE_NAME}` };
 
 // Landed on by auth.ts's signIn callback returning this path instead of
 // true/false — Auth.js redirects here rather than completing the sign-in,
@@ -25,8 +26,8 @@ export default async function JoinDiscordPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {lang === "es"
-              ? "Para usar Smash Ladder NA necesitas estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta."
-              : "You need to be in our Discord server to use Smash Ladder NA — it's how staff can actually reach you if something goes wrong with a match or an account."}
+              ? `Para usar ${SITE_NAME} necesitas estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta.`
+              : `You need to be in our Discord server to use ${SITE_NAME} — it's how staff can actually reach you if something goes wrong with a match or an account.`}
           </p>
           <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="w-full">
             <Button className="w-full gap-2">

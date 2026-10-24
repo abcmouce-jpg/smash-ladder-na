@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Lang } from "@/lib/i18n";
 
 export type SettingsSaveState = { error: string | null; saved: boolean };
 
@@ -19,7 +20,7 @@ export function SettingsSaveForm({
   action: (prevState: SettingsSaveState, formData: FormData) => Promise<SettingsSaveState>;
   children: React.ReactNode;
   className?: string;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, saved: false });
 

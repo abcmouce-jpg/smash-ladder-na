@@ -24,9 +24,10 @@ import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
+import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Smash Ladder NA — Liga clasificatoria",
+  title: `${SITE_NAME} — Liga clasificatoria`,
   description: "Liga clasificatoria y emparejamiento de Norteamérica para Smash, en español.",
   alternates: { languages: { "en-US": "/" } },
 };

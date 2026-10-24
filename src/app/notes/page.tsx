@@ -20,9 +20,10 @@ import {
   updateMatchupNoteAction,
   voteOnGuideAction,
 } from "./actions";
+import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Notes — Smash Ladder NA",
+  title: `Notes — ${SITE_NAME}`,
   description: "Your private matchup notes and every public community character guide.",
   alternates: { languages: { "es-MX": "/es" } },
 };

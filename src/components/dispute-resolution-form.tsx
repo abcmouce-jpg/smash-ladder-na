@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import type { Lang } from "@/lib/i18n";
 
 type DisputeResolutionState = { error: string | null; message: string | null };
 
@@ -16,7 +17,7 @@ export function DisputeResolutionForm({
   myId: string;
   opponentId: string;
   opponentUsername: string;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, message: null });
 

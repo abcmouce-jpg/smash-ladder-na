@@ -3,6 +3,7 @@ import { Coffee } from "lucide-react";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { getSupporterCount } from "@/lib/public-stats";
+import { SITE_NAME } from "@/lib/site";
 
 export async function SiteFooter() {
   const [lang, supporterCount] = await Promise.all([getLang(), getSupporterCount()]);
@@ -12,8 +13,8 @@ export async function SiteFooter() {
       <div className="mx-auto flex max-w-3xl flex-col gap-3 px-6 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:py-4">
         <p>
           {lang === "es"
-            ? "Smash Ladder NA — un proyecto comunitario independiente, hecho por fans. No afiliado a Nintendo."
-            : "Smash Ladder NA — an independent, fan-run community project. Not affiliated with Nintendo."}
+            ? `${SITE_NAME} — un proyecto comunitario independiente, hecho por fans. No afiliado a Nintendo.`
+            : `${SITE_NAME} — an independent, fan-run community project. Not affiliated with Nintendo.`}
         </p>
         <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Link href="/about" prefetch={false} className="hover:text-foreground hover:underline">

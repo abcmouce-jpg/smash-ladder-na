@@ -3,6 +3,7 @@ import { CharacterIcon } from "@/components/character-icon";
 import { Badge } from "@/components/ui/badge";
 import { formatUsagePercent } from "@/lib/character-usage-display";
 import type { CharacterUsage } from "@/lib/players";
+import type { Lang } from "@/lib/i18n";
 
 export function winRateVariant(winRate: number): "success" | "warning" | "destructive" {
   if (winRate >= 55) return "success";
@@ -17,7 +18,7 @@ export function CharacterUsageCard({
 }: {
   usage: CharacterUsage[];
   mainCharacter: string | null;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   if (usage.length === 0) return null;
 

@@ -5,6 +5,8 @@ import { MATCH_RATING_GAP_PRESETS } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { CONFIGURABLE_NOTIFICATION_KEYS } from "@/lib/notifications";
+import type { Lang } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/site";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -14,7 +16,7 @@ const LAUNCH_REGION_LOCK = process.env.LAUNCH_REGION_LOCK?.trim() || null;
 function requireRegionUnlocked(region: string | null) {
   if (LAUNCH_REGION_LOCK && region !== LAUNCH_REGION_LOCK) {
     throw new Error(
-      `Smash Ladder NA is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
+      `${SITE_NAME} is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
     );
   }
 }
@@ -223,7 +225,8 @@ export async function setQuickMessages(userId: string, messages: string[]) {
 // bounces to — see the field's own comment in schema.prisma. `null` means
 // English (the default); anything else falls back to English too, so a
 // future removed-language value can't strand someone on a 404.
-export async function setPreferredLanguage(userId: string, language: "es" | null) {
+// null = English (the default), so the column stays empty for most rows.
+export async function setPreferredLanguage(userId: string, language: Exclude<Lang, "en"> | null) {
   await prisma.user.update({ where: { id: userId }, data: { preferredLanguage: language } });
 }
 

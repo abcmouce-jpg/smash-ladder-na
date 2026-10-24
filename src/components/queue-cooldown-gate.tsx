@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Lang } from "@/lib/i18n";
 
 function msRemaining(deadlineMs: number) {
   return Math.max(0, deadlineMs - Date.now());
@@ -18,7 +19,7 @@ export function QueueCooldownGate({
 }: {
   cooldownUntil: string | null;
   children: React.ReactNode;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const deadlineMs = cooldownUntil ? new Date(cooldownUntil).getTime() : 0;
   const [remainingMs, setRemainingMs] = useState(() => msRemaining(deadlineMs));

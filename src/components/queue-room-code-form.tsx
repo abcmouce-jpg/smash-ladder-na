@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useActionState } from "react";
 import { useFlashOnChange } from "@/lib/use-flash-on-change";
 import type { RoomCodeState } from "@/app/lobby/actions";
+import type { Lang } from "@/lib/i18n";
 
 // Idle time before a typed code is pushed to the server — long enough that a
 // code typed straight through only saves once, short enough that the value is
@@ -26,7 +27,7 @@ export function QueueRoomCodeForm({
 }: {
   initialValue: string;
   action: (prevState: RoomCodeState, formData: FormData) => Promise<RoomCodeState>;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, savedValue: null });
   const flashing = useFlashOnChange(state.savedValue);

@@ -11,6 +11,7 @@ import { MatchChatLog } from "@/components/match-chat-log";
 import { cn } from "@/lib/utils";
 import type { MatchHistoryEntryData } from "@/lib/players";
 import { formatRating } from "@/lib/rating-format";
+import type { Lang } from "@/lib/i18n";
 
 // The page hands this component the same entry getPlayerMatchHistory
 // returns, except confirmedAt must be serialized to an ISO string first
@@ -64,7 +65,7 @@ function CharacterGroup({ names }: { names: string[] }) {
 // Character line: "your characters vs their characters", icons and names.
 // Wraps rather than clips, so three long-ish names on a narrow phone still
 // read in full instead of pushing the opponent's side out of view.
-function CharactersLine({ mine, theirs, lang }: { mine: string[]; theirs: string[]; lang?: "en" | "es" }) {
+function CharactersLine({ mine, theirs, lang }: { mine: string[]; theirs: string[]; lang?: Lang }) {
   if (mine.length === 0 && theirs.length === 0) return null;
   return (
     <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
@@ -99,7 +100,7 @@ export function MatchHistoryEntry({
   /** Moderator override: show even the match's own hidden rating trail (see ratingRevealed). */
   canSeeHiddenRatings?: boolean;
   children?: ReactNode;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -244,7 +245,7 @@ function MatchDetailsModal({
   viewedPlayerName: string;
   chatLogAction?: ComponentProps<typeof MatchChatLog>["action"];
   onClose: () => void;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   // Close on Escape.
   useEffect(() => {

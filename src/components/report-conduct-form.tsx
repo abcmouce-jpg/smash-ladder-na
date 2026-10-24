@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import type { Lang } from "@/lib/i18n";
 
 type ReportConductState = { error: string | null; message: string | null };
 
@@ -10,7 +11,7 @@ export function ReportConductForm({
   lang = "en",
 }: {
   action: (prevState: ReportConductState, formData: FormData) => Promise<ReportConductState>;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, message: null });
 

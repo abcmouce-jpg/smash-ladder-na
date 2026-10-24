@@ -1,17 +1,19 @@
 import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "About — Smash Ladder NA" };
+export const metadata = { title: `About — ${SITE_NAME}` };
 
 const copy = {
   en: {
     heading: "About",
-    subtitle: "Who's behind Smash Ladder NA and what it's for.",
+    subtitle: `Who's behind ${SITE_NAME} and what it's for.`,
     whatTitle: "What this is",
     what: (
       <>
-        Smash Ladder NA is a ranked ladder and matchmaking site for the North American Super Smash Bros. Ultimate
+        {SITE_NAME} is a ranked ladder and matchmaking site for the North American Super Smash Bros. Ultimate
         community. Sign in with Discord, set a region and match preferences, and get paired against opponents around
         your skill level — no bracket, no sign-up window, just queue up and play. Preseason launched July 2026, with a
         full first season to follow.
@@ -66,11 +68,11 @@ const copy = {
   },
   es: {
     heading: "Acerca de",
-    subtitle: "Quién está detrás de Smash Ladder NA y para qué sirve.",
+    subtitle: `Quién está detrás de ${SITE_NAME} y para qué sirve.`,
     whatTitle: "Qué es esto",
     what: (
       <>
-        Smash Ladder NA es un sitio de liga clasificatoria y emparejamiento para la comunidad de Super Smash Bros.
+        {SITE_NAME} es un sitio de liga clasificatoria y emparejamiento para la comunidad de Super Smash Bros.
         Ultimate de Norteamérica. Inicia sesión con Discord, define una región y tus preferencias de partida, y te
         emparejamos con rivales de tu nivel — sin bracket, sin ventana de inscripción, solo entrar a la cola y jugar. La
         preseason arrancó en julio de 2026, con una primera temporada completa después.
@@ -123,11 +125,11 @@ const copy = {
     communityDiscord: "servidor de Discord de la comunidad",
     rules: "Reglas",
   },
-};
+} satisfies Partial<Record<Lang, unknown>>;
 
 export default async function AboutPage() {
   const [lang, goldSupporters] = await Promise.all([getLang(), getCurrentGoldSupporters()]);
-  const t = copy[lang];
+  const t = lang in copy ? copy[lang as keyof typeof copy] : copy.en;
 
   const faqLink = (
     <a href="/faq" className="underline">

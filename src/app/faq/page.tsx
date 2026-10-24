@@ -1,8 +1,9 @@
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "Q&A — Smash Ladder NA" };
+export const metadata = { title: `Q&A — ${SITE_NAME}` };
 
 function QA({ q, children }: { q: string; children: React.ReactNode }) {
   return (

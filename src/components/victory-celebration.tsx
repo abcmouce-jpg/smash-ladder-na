@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Trophy } from "lucide-react";
 import { playTierUpChime, playVictoryChime } from "@/lib/sound";
 import { formatRating } from "@/lib/rating-format";
+import type { Lang } from "@/lib/i18n";
 
 const CONFETTI_COLORS = ["#f43f5e", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"];
 
@@ -83,7 +84,7 @@ export function VictoryCelebration({
   ratingAfter: number;
   tierUp: boolean;
   tierName?: string;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const displayRating = useCountUp(ratingBefore, ratingAfter);
   // Matched to the count-up's rounded end value (and the trail elsewhere) so

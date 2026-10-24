@@ -3,6 +3,7 @@
 import { useActionState, useRef, useCallback, startTransition, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_QUICK_MESSAGES } from "@/lib/quick-messages";
+import type { Lang } from "@/lib/i18n";
 
 type SendCommentState = { error: string | null };
 
@@ -20,7 +21,7 @@ export function CommentForm({
   // resolveQuickMessages in lib/quick-messages.ts. Falls back to the site
   // default here too so callers that haven't been updated still work.
   quickMessages?: string[];
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const lastTypingSignal = useRef(0);

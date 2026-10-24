@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Check, Loader2 } from "lucide-react";
+import type { Lang } from "@/lib/i18n";
 
 export type MatchSettingsState = { error: string | null; saved: boolean };
 
@@ -17,7 +18,7 @@ export function MatchSettingsForm({
   action: (prevState: MatchSettingsState, formData: FormData) => Promise<MatchSettingsState>;
   className?: string;
   children: React.ReactNode;
-  lang?: "en" | "es";
+  lang?: Lang;
   disabled?: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, saved: false });

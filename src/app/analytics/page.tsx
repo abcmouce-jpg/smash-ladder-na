@@ -9,8 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RatingTrendChart } from "@/components/rating-trend-chart";
 import { WinRateBars } from "@/components/win-rate-bars";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "Analytics — Smash Ladder NA" };
+export const metadata = { title: `Analytics — ${SITE_NAME}` };
 
 export default async function AnalyticsPage() {
   const [session, lang] = await Promise.all([auth(), getLang()]);

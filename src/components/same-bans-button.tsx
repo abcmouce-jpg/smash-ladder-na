@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
+import type { Lang } from "@/lib/i18n";
 
 export function SameBansButton({
   action,
@@ -16,7 +17,7 @@ export function SameBansButton({
   gameNumber: number;
   stages: string[];
   canAct: boolean;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const isTouch = useIsTouchDevice();
   const stagesText = stages.join(", ");

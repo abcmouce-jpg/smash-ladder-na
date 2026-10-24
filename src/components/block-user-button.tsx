@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
+import type { Lang } from "@/lib/i18n";
 
 type BlockState = { error: string | null };
 
@@ -14,7 +15,7 @@ export function BlockUserButton({
 }: {
   action: (prevState: BlockState, formData: FormData) => Promise<BlockState>;
   username: string;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const [confirm, confirmDialog] = useConfirm();

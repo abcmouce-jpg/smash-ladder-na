@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Loader2, Swords } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { JoinLobbyState } from "@/app/lobby/actions";
+import type { Lang } from "@/lib/i18n";
 
 // This form fully remounts every time the lobby page re-renders around it —
 // e.g. cancel a match then requeue — so without this the checkbox silently
@@ -20,7 +21,7 @@ export function JoinLobbyForm({
 }: {
   action: (prevState: JoinLobbyState, formData: FormData) => Promise<JoinLobbyState>;
   className?: string;
-  lang?: "en" | "es";
+  lang?: Lang;
   /** Region is required to queue, so the lobby gates the button on it rather
    *  than letting the server reject an unqueueable join. */
   hasRegion?: boolean;

@@ -9,6 +9,7 @@ const UNITS = ["days", "hours", "minutes", "seconds"] as const;
 const UNIT_LABELS: Record<Lang, Record<(typeof UNITS)[number], string>> = {
   en: { days: "Days", hours: "Hours", minutes: "Min", seconds: "Sec" },
   es: { days: "Días", hours: "Horas", minutes: "Min", seconds: "Seg" },
+  ja: { days: "日", hours: "時間", minutes: "分", seconds: "秒" },
 };
 
 // Ticks client-side only; the server renders whatever the first render

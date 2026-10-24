@@ -1,6 +1,7 @@
 "use client";
 
 import { CharacterSelect } from "@/components/character-select";
+import type { Lang } from "@/lib/i18n";
 
 /**
  * Wraps CharacterSelect in a label so it slots into the leaderboard's
@@ -13,7 +14,7 @@ export function CharacterFilterSelect({
   className,
 }: {
   defaultValue: string;
-  lang?: "en" | "es";
+  lang?: Lang;
   /** Forwarded to CharacterSelect's trigger — see its className doc. */
   className?: string;
 }) {

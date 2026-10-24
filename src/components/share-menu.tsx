@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { rankCardUrl, tweetIntentUrl } from "@/lib/share";
+import type { Lang } from "@/lib/i18n";
 
 // Every way to share a profile, behind one button.
 //
@@ -29,7 +30,7 @@ export function ShareMenu({
   url: string;
   text: string;
   playerId: string;
-  lang: "en" | "es";
+  lang: Lang;
 }) {
   const [copied, setCopied] = useState(false);
 

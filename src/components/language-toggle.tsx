@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Lang } from "@/lib/i18n";
 
 const LANGUAGES = [
   { value: "en", label: "English", short: "EN" },
@@ -25,7 +26,7 @@ export function LanguageToggle({
   enAction,
   esAction,
 }: {
-  lang: "en" | "es";
+  lang: Lang;
   enAction: () => Promise<void>;
   esAction: () => Promise<void>;
 }) {

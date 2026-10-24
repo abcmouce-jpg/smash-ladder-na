@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useFlashOnChange } from "@/lib/use-flash-on-change";
 import type { RoomCodeState } from "@/app/lobby/actions";
+import type { Lang } from "@/lib/i18n";
 
 // The setter's own editable room code field — flashes and plays a short
 // blip on a successful save (in addition to the input already showing
@@ -16,7 +17,7 @@ export function RoomCodeForm({
 }: {
   initialValue: string;
   action: (prevState: RoomCodeState, formData: FormData) => Promise<RoomCodeState>;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, savedValue: null });
   const flashing = useFlashOnChange(state.savedValue);

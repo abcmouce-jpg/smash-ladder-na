@@ -6,9 +6,10 @@ import { SectionTabs } from "@/components/section-tabs";
 import { StatsOverviewSection } from "./overview-section";
 import { StatsCharactersSection } from "./characters-section";
 import { StatsSeasonsSection } from "./seasons-section";
+import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Stats — Smash Ladder NA",
+  title: `Stats — ${SITE_NAME}`,
   description: "Ladder activity, season champions, and character meta across the North American Smash ladder.",
 };
 

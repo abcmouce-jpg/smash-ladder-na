@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { createTournamentAction } from "@/app/tournaments/actions";
+import type { Lang } from "@/lib/i18n";
 
-export function CreateTournamentForm({ lang = "en" }: { lang?: "en" | "es" }) {
+export function CreateTournamentForm({ lang = "en" }: { lang?: Lang }) {
   const [state, formAction, isPending] = useActionState(createTournamentAction, { error: null });
 
   return (

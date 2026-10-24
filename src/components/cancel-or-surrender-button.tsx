@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
+import type { Lang } from "@/lib/i18n";
 
 type ActionState = { error: string | null };
 
@@ -27,7 +28,7 @@ export function CancelOrSurrenderButton({
   // Only meaningful for mode === "cancel" — see CANCEL_GRACE_PERIOD_SECONDS
   // in lib/matches.ts. Ignored for "surrender", which has no grace period.
   cancelReadyAt?: string;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const [confirm, confirmDialog, closeConfirm] = useConfirm();

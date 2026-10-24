@@ -1,3 +1,5 @@
+import { REGION_SET } from "@/lib/site";
+
 // USA/Canada broad regions predate state/province-level granularity below —
 // kept in place rather than removed because ~680 of ~785 existing players
 // already have one of these eight set, and removing them would silently
@@ -91,7 +93,72 @@ const REST_OF_WORLD = [
   "Other",
 ] as const;
 
-export const MATCH_REGIONS = [
+
+// Japan — added 2026-10-24, when スマメイト shut down and left the Japanese
+// scene without a ladder. This instance starts on an empty database, so it
+// gets none of the legacy broad regions above: 47 prefectures is the only
+// granularity anyone needs, and the 地方 split below is just how the picker
+// groups them. Prefectures carry their official 都/道/府/県 suffix so the
+// dropdown reads the way a Japanese player expects.
+const JAPAN_HOKKAIDO_TOHOKU = ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"] as const;
+const JAPAN_KANTO = ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"] as const;
+const JAPAN_CHUBU = [
+  "新潟県",
+  "富山県",
+  "石川県",
+  "福井県",
+  "山梨県",
+  "長野県",
+  "岐阜県",
+  "静岡県",
+  "愛知県",
+] as const;
+const JAPAN_KINKI = ["三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県"] as const;
+const JAPAN_CHUGOKU_SHIKOKU = [
+  "鳥取県",
+  "島根県",
+  "岡山県",
+  "広島県",
+  "山口県",
+  "徳島県",
+  "香川県",
+  "愛媛県",
+  "高知県",
+] as const;
+const JAPAN_KYUSHU_OKINAWA = [
+  "福岡県",
+  "佐賀県",
+  "長崎県",
+  "熊本県",
+  "大分県",
+  "宮崎県",
+  "鹿児島県",
+  "沖縄県",
+] as const;
+
+// The counterpart to REST_OF_WORLD, from a Japanese player's point of view —
+// 東アジア first because that is the only overseas option with a playable
+// ping. 海外（その他） has no coordinates on purpose, so like "Other" above
+// it only ever matches itself.
+const JAPAN_OVERSEAS = [
+  "海外（東アジア）",
+  "海外（東南アジア）",
+  "海外（北米）",
+  "海外（欧州）",
+  "海外（オセアニア）",
+  "海外（その他）",
+] as const;
+
+const JAPAN_PREFECTURES = [
+  ...JAPAN_HOKKAIDO_TOHOKU,
+  ...JAPAN_KANTO,
+  ...JAPAN_CHUBU,
+  ...JAPAN_KINKI,
+  ...JAPAN_CHUGOKU_SHIKOKU,
+  ...JAPAN_KYUSHU_OKINAWA,
+] as const;
+
+const NA_REGIONS = [
   ...USA_BROAD,
   ...USA_STATES,
   ...CANADA_BROAD,
@@ -99,18 +166,48 @@ export const MATCH_REGIONS = [
   ...REST_OF_WORLD,
 ] as const;
 
-export type MatchRegion = (typeof MATCH_REGIONS)[number];
+const JP_REGIONS = [...JAPAN_PREFECTURES, ...JAPAN_OVERSEAS] as const;
+
+/**
+ * Every value either instance can store. The type stays the union of both so
+ * a shared helper can be handed any stored region, while MATCH_REGIONS below
+ * — what validation and the pickers actually read — is only this instance's.
+ */
+export type MatchRegion = (typeof NA_REGIONS)[number] | (typeof JP_REGIONS)[number];
+
+// Matchmaking is distance-based, so the two pools have to be separated at the
+// catalog rather than filtered after the fact: a Japanese player must never
+// be offered a North American region, or the other way round. Each instance's
+// database only ever holds its own set.
+export const MATCH_REGIONS: readonly MatchRegion[] = REGION_SET === "jp" ? JP_REGIONS : NA_REGIONS;
 
 // Drives the picker's <optgroup> sections — purely presentational grouping,
 // doesn't affect matching (that's all distance math over REGION_COORDINATES
 // below, which doesn't care which group a region is in).
-export const MATCH_REGION_GROUPS: { label: string; regions: readonly MatchRegion[] }[] = [
+type MatchRegionGroup = { label: string; regions: readonly MatchRegion[] };
+
+const NA_REGION_GROUPS: MatchRegionGroup[] = [
   { label: "USA (broad)", regions: USA_BROAD },
   { label: "USA (state)", regions: USA_STATES },
   { label: "Canada (broad)", regions: CANADA_BROAD },
   { label: "Canada (province/territory)", regions: CANADA_PROVINCES },
   { label: "Elsewhere", regions: REST_OF_WORLD },
 ];
+
+// 47 prefectures in one <optgroup> is unreadable, so they are grouped by
+// 地方 — the split every Japanese player already thinks in.
+const JP_REGION_GROUPS: MatchRegionGroup[] = [
+  { label: "北海道・東北", regions: JAPAN_HOKKAIDO_TOHOKU },
+  { label: "関東", regions: JAPAN_KANTO },
+  { label: "中部", regions: JAPAN_CHUBU },
+  { label: "近畿", regions: JAPAN_KINKI },
+  { label: "中国・四国", regions: JAPAN_CHUGOKU_SHIKOKU },
+  { label: "九州・沖縄", regions: JAPAN_KYUSHU_OKINAWA },
+  { label: "海外", regions: JAPAN_OVERSEAS },
+];
+
+export const MATCH_REGION_GROUPS: MatchRegionGroup[] =
+  REGION_SET === "jp" ? JP_REGION_GROUPS : NA_REGION_GROUPS;
 
 // One level coarser than region, for players who think "which country" long
 // before they think "which state" — the leaderboard's country filter reads
@@ -119,14 +216,22 @@ export const MATCH_REGION_GROUPS: { label: string; regions: readonly MatchRegion
 // America/South America/Europe/Asia/Oceania/"Other" itself) since none of
 // those get individual-region granularity the way USA/Canada do; it isn't a
 // "country" so much as "not USA, Canada, or Mexico."
-export const MATCH_COUNTRIES = ["United States", "Canada", "Mexico", "Other"] as const;
-export type MatchCountry = (typeof MATCH_COUNTRIES)[number];
+const NA_COUNTRIES = ["United States", "Canada", "Mexico", "Other"] as const;
+// Japan's own split is thinner — there is one country worth naming, and the
+// prefectures already give every useful narrowing below it.
+const JP_COUNTRIES = ["日本", "海外"] as const;
 
-const COUNTRY_TO_REGIONS: Record<MatchCountry, readonly string[]> = {
+export type MatchCountry = (typeof NA_COUNTRIES)[number] | (typeof JP_COUNTRIES)[number];
+
+export const MATCH_COUNTRIES: readonly MatchCountry[] = REGION_SET === "jp" ? JP_COUNTRIES : NA_COUNTRIES;
+
+const COUNTRY_TO_REGIONS: Partial<Record<MatchCountry, readonly string[]>> = {
   "United States": [...USA_BROAD, ...USA_STATES],
   Canada: [...CANADA_BROAD, ...CANADA_PROVINCES],
   Mexico: ["Mexico North", "Mexico Central"],
   Other: REST_OF_WORLD.filter((r) => r !== "Mexico North" && r !== "Mexico Central"),
+  日本: JAPAN_PREFECTURES,
+  海外: JAPAN_OVERSEAS,
 };
 
 // Every MATCH_REGIONS value covered by a country — for filtering the
@@ -134,7 +239,7 @@ const COUNTRY_TO_REGIONS: Record<MatchCountry, readonly string[]> = {
 // Copied into a plain mutable array since Prisma's `in` filter wants
 // string[], not the readonly array COUNTRY_TO_REGIONS holds.
 export function expandCountryForSearch(country: MatchCountry): string[] {
-  return [...COUNTRY_TO_REGIONS[country]];
+  return [...(COUNTRY_TO_REGIONS[country] ?? [])];
 }
 
 // Approximate representative coordinates per region, used only to rank
@@ -231,6 +336,63 @@ const REGION_COORDINATES: Record<string, [number, number]> = {
   "Northwest Territories": [62.45, -114.37],
   Yukon: [60.72, -135.05],
   Nunavut: [63.75, -68.51],
+
+  // Japan — anchored on each prefecture's 県庁所在地 (capital city), which is
+  // where its scene actually concentrates.
+  北海道: [43.06, 141.35],
+  青森県: [40.82, 140.74],
+  岩手県: [39.7, 141.15],
+  宮城県: [38.27, 140.87],
+  秋田県: [39.72, 140.1],
+  山形県: [38.24, 140.36],
+  福島県: [37.75, 140.47],
+  茨城県: [36.34, 140.45],
+  栃木県: [36.57, 139.88],
+  群馬県: [36.39, 139.06],
+  埼玉県: [35.86, 139.65],
+  千葉県: [35.61, 140.12],
+  東京都: [35.69, 139.69],
+  神奈川県: [35.45, 139.64],
+  新潟県: [37.9, 139.02],
+  富山県: [36.7, 137.21],
+  石川県: [36.59, 136.63],
+  福井県: [36.07, 136.22],
+  山梨県: [35.66, 138.57],
+  長野県: [36.65, 138.18],
+  岐阜県: [35.39, 136.72],
+  静岡県: [34.98, 138.38],
+  愛知県: [35.18, 136.91],
+  三重県: [34.73, 136.51],
+  滋賀県: [35.0, 135.87],
+  京都府: [35.02, 135.76],
+  大阪府: [34.69, 135.5],
+  兵庫県: [34.69, 135.2],
+  奈良県: [34.69, 135.83],
+  和歌山県: [34.23, 135.17],
+  鳥取県: [35.5, 134.24],
+  島根県: [35.47, 133.05],
+  岡山県: [34.66, 133.93],
+  広島県: [34.4, 132.46],
+  山口県: [34.19, 131.47],
+  徳島県: [34.07, 134.56],
+  香川県: [34.34, 134.04],
+  愛媛県: [33.84, 132.77],
+  高知県: [33.56, 133.53],
+  福岡県: [33.61, 130.42],
+  佐賀県: [33.25, 130.3],
+  長崎県: [32.74, 129.87],
+  熊本県: [32.79, 130.74],
+  大分県: [33.24, 131.61],
+  宮崎県: [31.91, 131.42],
+  鹿児島県: [31.56, 130.56],
+  沖縄県: [26.21, 127.68],
+
+  // Overseas, as seen from Japan. 海外（その他） is deliberately absent.
+  "海外（東アジア）": [37.57, 126.98],
+  "海外（東南アジア）": [1.3, 103.8],
+  "海外（北米）": [34.0, -118.2],
+  "海外（欧州）": [48.9, 2.3],
+  "海外（オセアニア）": [-33.9, 151.2],
 };
 
 // Reference city shown next to a region name in the picker so players can
@@ -257,6 +419,13 @@ export const REGION_REFERENCE_CITY: Partial<Record<MatchRegion, string>> = {
   "East Asia": "Tokyo",
   "Southeast Asia": "Singapore",
   Oceania: "Sydney",
+
+  // Prefecture names are places already; only the overseas buckets need one.
+  "海外（東アジア）": "ソウル",
+  "海外（東南アジア）": "シンガポール",
+  "海外（北米）": "ロサンゼルス",
+  "海外（欧州）": "パリ",
+  "海外（オセアニア）": "シドニー",
 };
 
 // Great-circle distance between two regions' representative points, in km.
@@ -306,7 +475,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // Wide/Long-range/Very long-range (7,200–15,000km) collapses into one
 // coarser top step instead, since that distinction rarely mattered in
 // practice — past a few thousand miles, ping is bad either way.
-export const MATCH_DISTANCE_PRESETS = [
+const NA_DISTANCE_PRESETS = [
   { label: "Same region only", km: 0 },
   { label: "Very close (~150 mi)", km: 240 },
   { label: "Close (~400 mi)", km: 640 },
@@ -316,7 +485,29 @@ export const MATCH_DISTANCE_PRESETS = [
   { label: "Worldwide", km: null },
 ] as const;
 
-export const DEFAULT_MATCH_DISTANCE_KM = 2400;
+// Japan's own ladder. The steps are not the NA ones converted: Japan spans
+// ~2,500km against North America's ~5,000, so reusing the NA list would
+// leave three presets that all mean "anywhere in the country." Labelled in
+// km because that is what Japan reads distances in. Same warning as above
+// applies — these values are what setMaxMatchDistance validates against, so
+// changing one orphans every player already storing it.
+const JP_DISTANCE_PRESETS = [
+  { label: "同じ都道府県のみ", km: 0 },
+  { label: "ごく近い（約50km）", km: 50 },
+  { label: "近い（約150km）", km: 150 },
+  { label: "近隣（約300km）", km: 300 },
+  { label: "中距離（約600km）", km: 600 },
+  { label: "広域（約1,200km）", km: 1200 },
+  { label: "全国・海外", km: null },
+] as const;
+
+export const MATCH_DISTANCE_PRESETS: readonly { label: string; km: number | null }[] =
+  REGION_SET === "jp" ? JP_DISTANCE_PRESETS : NA_DISTANCE_PRESETS;
+
+// Both default to roughly half their region's span — wide enough that a
+// brand-new ladder with few players online still finds someone, which
+// matters more at launch than shaving latency.
+export const DEFAULT_MATCH_DISTANCE_KM = REGION_SET === "jp" ? 1200 : 2400;
 
 // Includes the region itself, so callers can treat this as the whole set of
 // regions worth matching against without a separate same-region check.

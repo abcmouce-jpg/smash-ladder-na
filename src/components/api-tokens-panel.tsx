@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { Lang } from "@/lib/i18n";
 
 type GenerateApiTokenState = { error: string | null; rawToken: string | null };
 
@@ -16,7 +17,7 @@ export function ApiTokensPanel({
   tokens: ApiTokenSummary[];
   generateAction: (prevState: GenerateApiTokenState, formData: FormData) => Promise<GenerateApiTokenState>;
   revokeAction: (tokenId: string) => Promise<void>;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(generateAction, { error: null, rawToken: null });
   const [revokingId, setRevokingId] = useState<string | null>(null);

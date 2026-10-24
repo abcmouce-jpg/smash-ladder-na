@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { rankCardUrl, tweetIntentUrl } from "./share";
+import { SITE_NAME } from "@/lib/site";
 
 describe("tweetIntentUrl", () => {
   it("encodes the text and the url into a single parameter", () => {
-    const url = tweetIntentUrl("elfy is rated 1673 on Smash Ladder NA.", "https://example.com/players/abc");
+    const url = tweetIntentUrl(`elfy is rated 1673 on ${SITE_NAME}.`, "https://example.com/players/abc");
     expect(url).toBe(
       "https://twitter.com/intent/tweet?text=elfy%20is%20rated%201673%20on%20Smash%20Ladder%20NA.%20https%3A%2F%2Fexample.com%2Fplayers%2Fabc",
     );

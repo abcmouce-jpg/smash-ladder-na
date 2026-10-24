@@ -17,7 +17,7 @@ import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
 import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
-import { SITE_URL } from "@/lib/site";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import type { Lang } from "@/lib/i18n";
 import type { BlockState } from "../actions";
 
@@ -69,18 +69,18 @@ export function PlayerProfileHeader({
     lang === "es"
       ? !ratingVisible
         ? isOwnProfile
-          ? "¡Estoy en Smash Ladder NA!"
-          : `${player.username} está en Smash Ladder NA.`
+          ? `¡Estoy en ${SITE_NAME}!`
+          : `${player.username} está en ${SITE_NAME}.`
         : isOwnProfile
-          ? `¡Tengo ${ratingLabel} de clasificación en Smash Ladder NA!`
-          : `${player.username} tiene ${ratingLabel} de clasificación en Smash Ladder NA.`
+          ? `¡Tengo ${ratingLabel} de clasificación en ${SITE_NAME}!`
+          : `${player.username} tiene ${ratingLabel} de clasificación en ${SITE_NAME}.`
       : !ratingVisible
         ? isOwnProfile
-          ? "I'm on Smash Ladder NA!"
-          : `${player.username} is on Smash Ladder NA.`
+          ? `I'm on ${SITE_NAME}!`
+          : `${player.username} is on ${SITE_NAME}.`
         : isOwnProfile
-          ? `I'm rated ${ratingLabel} on Smash Ladder NA!`
-          : `${player.username} is rated ${ratingLabel} on Smash Ladder NA.`;
+          ? `I'm rated ${ratingLabel} on ${SITE_NAME}!`
+          : `${player.username} is rated ${ratingLabel} on ${SITE_NAME}.`;
   const profileUrl = `${SITE_URL}/players/${player.id}`;
 
   return (
@@ -134,8 +134,8 @@ export function PlayerProfileHeader({
               {player.isSupporter && (
                 <p className="text-xs text-muted-foreground">
                   {lang === "es"
-                    ? `${player.username} ha donado para apoyar Smash Ladder NA — ¡gracias!`
-                    : `${player.username} has donated to support Smash Ladder NA — thank you!`}
+                    ? `${player.username} ha donado para apoyar ${SITE_NAME} — ¡gracias!`
+                    : `${player.username} has donated to support ${SITE_NAME} — thank you!`}
                 </p>
               )}
             </div>

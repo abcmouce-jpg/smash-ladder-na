@@ -6,6 +6,7 @@ import { isNotificationEnabled } from "@/lib/notifications";
 import { getActiveSeason } from "@/lib/seasons";
 import { siteOrigin } from "@/lib/site-url";
 import { LADDER_TIME_ZONE } from "@/lib/timezone";
+import { SITE_NAME } from "@/lib/site";
 
 // Win back players who played a previous season but haven't shown up for the
 // current one. The rollover announcement already goes out the moment a season
@@ -127,7 +128,7 @@ export function reengagementMessage(seasonName: string, endsAt: Date | null) {
       })}.`
     : "";
   return [
-    `👋 ${seasonName} is underway on Smash Ladder NA and you haven't played a set yet.${deadline}`,
+    `👋 ${seasonName} is underway on ${SITE_NAME} and you haven't played a set yet.${deadline}`,
     "",
     "Ratings reset at the start of the season, so everyone's on the same footing — queue up whenever you've got a few minutes and you'll be paired with someone around your level.",
     "",

@@ -181,7 +181,7 @@ model User {
   mainCharacter              String? // auto-computed from real play by recomputeCharacterUsage — powers the character-filtered leaderboard and /characters index; display elsewhere reads live usage instead (see getCharacterUsage)
   secondaryCharacters        String[]        @default([]) // same source as mainCharacter
   region                     String? // self-declared match region; drives distance-based matchmaking
-  preferredLanguage          String? // "es" or null (English, the default) — only controls which landing page ("/" vs "/es") a signed-in visit to "/" bounces to; the rest of the site has no Spanish translation yet, so this isn't a general i18n switch
+  preferredLanguage          String? // "es" | "ja" | null (English, the default). Keep in step with Lang in lib/i18n.ts, which is the source of truth; "ja" added 2026-10-23 for the Japanese version. Stored null rather than "en" so the column stays empty for the majority. Drives getLang() for signed-in viewers and which landing page "/" bounces to.
   maxMatchDistanceKm         Int?            @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
   maxRatingGap               Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
   rematchCooldownHours       Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
