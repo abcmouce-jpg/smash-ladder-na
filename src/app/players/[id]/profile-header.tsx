@@ -14,12 +14,18 @@ import { BlockUserButton } from "@/components/block-user-button";
 import { ShareMenu } from "@/components/share-menu";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
-import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
+import {
+  getCurrentMatchForUser,
+  getPlayerProfile,
+  type CharacterUsage,
+  type HeadToHead,
+} from "@/lib/players";
 import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import type { Lang } from "@/lib/i18n";
 import type { BlockState } from "../actions";
+import { tr } from "@/lib/lang";
 
 // The profile header is shared chrome — it renders above every tab and is
 // identical no matter which one is active. The "currently in a match" card
@@ -50,7 +56,10 @@ export function PlayerProfileHeader({
   viewerId: string | null;
   isOwnProfile: boolean;
   isModerator: boolean;
-  blockAction: (prevState: BlockState, formData: FormData) => Promise<BlockState>;
+  blockAction: (
+    prevState: BlockState,
+    formData: FormData,
+  ) => Promise<BlockState>;
   lang: Lang;
 }) {
   const inMatch = currentMatch !== null;
@@ -58,29 +67,40 @@ export function PlayerProfileHeader({
   // account — see getPlayerProfile) still reaches a mod/admin viewer, same
   // reasoning as the cancel-count/connection-report badges further down.
   const discordHiddenFromPublic = Boolean(player.hideDiscordUsername);
-  const showDiscord = Boolean(player.discordUsername && (!discordHiddenFromPublic || isModerator));
+  const showDiscord = Boolean(
+    player.discordUsername && (!discordHiddenFromPublic || isModerator),
+  );
 
   const ratingVisible = isRatingVisible(player.gamesPlayed, isModerator);
   const tier = getRankTier(player.rating, player.gamesPlayed);
-  const ratingLabel = tier ? `${formatRating(player.rating)} (${tier.name})` : `${formatRating(player.rating)}`;
+  const ratingLabel = tier
+    ? `${formatRating(player.rating)} (${tier.name})`
+    : `${formatRating(player.rating)}`;
   // A provisional player's rating isn't public (see isRatingVisible), so the
   // share text drops the number rather than advertising a hidden one.
-  const shareText =
-    lang === "es"
-      ? !ratingVisible
-        ? isOwnProfile
-          ? `¡Estoy en ${SITE_NAME}!`
-          : `${player.username} está en ${SITE_NAME}.`
-        : isOwnProfile
-          ? `¡Tengo ${ratingLabel} de clasificación en ${SITE_NAME}!`
-          : `${player.username} tiene ${ratingLabel} de clasificación en ${SITE_NAME}.`
-      : !ratingVisible
-        ? isOwnProfile
-          ? `I'm on ${SITE_NAME}!`
-          : `${player.username} is on ${SITE_NAME}.`
-        : isOwnProfile
-          ? `I'm rated ${ratingLabel} on ${SITE_NAME}!`
-          : `${player.username} is rated ${ratingLabel} on ${SITE_NAME}.`;
+  const shareText = !ratingVisible
+    ? isOwnProfile
+      ? tr(lang, {
+          en: `I'm on ${SITE_NAME}!`,
+          es: `¡Estoy en ${SITE_NAME}!`,
+          ja: `${SITE_NAME}やってます！`,
+        })
+      : tr(lang, {
+          en: `${player.username} is on ${SITE_NAME}.`,
+          es: `${player.username} está en ${SITE_NAME}.`,
+          ja: `${player.username}さんは${SITE_NAME}でプレイしています。`,
+        })
+    : isOwnProfile
+      ? tr(lang, {
+          en: `I'm rated ${ratingLabel} on ${SITE_NAME}!`,
+          es: `¡Tengo ${ratingLabel} de clasificación en ${SITE_NAME}!`,
+          ja: `${SITE_NAME}でレート${ratingLabel}です！`,
+        })
+      : tr(lang, {
+          en: `${player.username} is rated ${ratingLabel} on ${SITE_NAME}.`,
+          es: `${player.username} tiene ${ratingLabel} de clasificación en ${SITE_NAME}.`,
+          ja: `${player.username}さんは${SITE_NAME}でレート${ratingLabel}です。`,
+        });
   const profileUrl = `${SITE_URL}/players/${player.id}`;
 
   return (
@@ -99,22 +119,39 @@ export function PlayerProfileHeader({
             )}
             <div className="min-w-0">
               <h1 className="flex flex-wrap items-center gap-1.5 wrap-break-word text-xl font-semibold tracking-tight sm:gap-2 sm:text-2xl">
-                <span className={player.isGoldSupporter ? "text-amber-500 dark:text-amber-400" : undefined}>
+                <span
+                  className={
+                    player.isGoldSupporter
+                      ? "text-amber-500 dark:text-amber-400"
+                      : undefined
+                  }
+                >
                   {player.username}
                 </span>
                 {player.role !== "USER" && (
-                  <Badge variant={player.role === "ADMIN" ? "warning" : "secondary"} className="text-xs">
+                  <Badge
+                    variant={player.role === "ADMIN" ? "warning" : "secondary"}
+                    className="text-xs"
+                  >
                     {player.role.toLowerCase()}
                   </Badge>
                 )}
                 {player.isGoldSupporter ? (
                   <Badge variant="warning" className="text-xs">
-                    {lang === "es" ? "🏆 Patrocinador Gold" : "🏆 Gold Supporter"}
+                    {tr(lang, {
+                      en: "🏆 Gold Supporter",
+                      es: "🏆 Patrocinador Gold",
+                      ja: "🏆 ゴールドサポーター",
+                    })}
                   </Badge>
                 ) : (
                   player.isSupporter && (
                     <Badge variant="success" className="text-xs">
-                      {lang === "es" ? "💖 Patrocinador" : "💖 Supporter"}
+                      {tr(lang, {
+                        en: "💖 Supporter",
+                        es: "💖 Patrocinador",
+                        ja: "💖 サポーター",
+                      })}
                     </Badge>
                   )
                 )}
@@ -122,20 +159,22 @@ export function PlayerProfileHeader({
               </h1>
               <p className="text-sm tabular-nums text-muted-foreground">
                 {ratingVisible ? (
-                  lang === "es" ? (
-                    `${formatRating(player.rating)} de clasificación`
-                  ) : (
-                    `${formatRating(player.rating)} rating`
-                  )
+                  tr(lang, {
+                    en: `${formatRating(player.rating)} rating`,
+                    es: `${formatRating(player.rating)} de clasificación`,
+                    ja: `レート ${formatRating(player.rating)}`,
+                  })
                 ) : (
                   <RatingHidden gamesPlayed={player.gamesPlayed} lang={lang} />
                 )}
               </p>
               {player.isSupporter && (
                 <p className="text-xs text-muted-foreground">
-                  {lang === "es"
-                    ? `${player.username} ha donado para apoyar ${SITE_NAME} — ¡gracias!`
-                    : `${player.username} has donated to support ${SITE_NAME} — thank you!`}
+                  {tr(lang, {
+                    en: `${player.username} has donated to support ${SITE_NAME} — thank you!`,
+                    es: `${player.username} ha donado para apoyar ${SITE_NAME} — ¡gracias!`,
+                    ja: `${player.username}さんは${SITE_NAME}を支援してくれました。ありがとうございます！`,
+                  })}
                 </p>
               )}
             </div>
@@ -143,7 +182,14 @@ export function PlayerProfileHeader({
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3">
             {showDiscord && (
-              <Badge variant="outline" title={discordHiddenFromPublic ? "Hidden from other players — mod/admin only" : undefined}>
+              <Badge
+                variant="outline"
+                title={
+                  discordHiddenFromPublic
+                    ? "Hidden from other players — mod/admin only"
+                    : undefined
+                }
+              >
                 <DiscordIcon className="size-3" />
                 {player.discordUsername}
                 {discordHiddenFromPublic && <EyeOff className="size-3" />}
@@ -154,7 +200,7 @@ export function PlayerProfileHeader({
                 href={`https://twitch.tv/${player.twitchUsername}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`${lang === "es" ? "Canal de Twitch" : "Twitch channel"}: ${
+                aria-label={`${tr(lang, { en: "Twitch channel", es: "Canal de Twitch", ja: "Twitch チャンネル" })}: ${
                   player.twitchDisplayName ?? player.twitchUsername
                 }`}
               >
@@ -165,7 +211,11 @@ export function PlayerProfileHeader({
               </a>
             )}
             {player.startggSlug && (
-              <a href={startggProfileUrl(player.startggSlug)} target="_blank" rel="noopener noreferrer">
+              <a
+                href={startggProfileUrl(player.startggSlug)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Badge variant="outline">
                   <StartggIcon className="size-3" />
                   start.gg
@@ -173,14 +223,27 @@ export function PlayerProfileHeader({
               </a>
             )}
             {player.startggSlug && player.startggPlayerId && (
-              <a href={supermajorProfileUrl(player.startggPlayerId)} target="_blank" rel="noopener noreferrer">
+              <a
+                href={supermajorProfileUrl(player.startggPlayerId)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Badge variant="outline">
-                  <Image src="/supermajor-icon.png" alt="" width={24} height={24} className="size-3" />
+                  <Image
+                    src="/supermajor-icon.png"
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="size-3"
+                  />
                   supermajor.gg
                 </Badge>
               </a>
             )}
-            <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+            <RankBadge
+              rating={player.rating}
+              gamesPlayed={player.gamesPlayed}
+            />
             {player.region && (
               <Badge variant="outline">
                 <MapPin className="size-3" />
@@ -190,14 +253,16 @@ export function PlayerProfileHeader({
             {player.wiredConnection && (
               <Badge variant="outline">
                 <Cable className="size-3" />
-                {lang === "es" ? "Por cable" : "Wired"}
+                {tr(lang, { en: "Wired", es: "Por cable", ja: "有線" })}
               </Badge>
             )}
             {player.noShowCount > 0 && (
               <Badge variant="warning">
-                {lang === "es"
-                  ? `${player.noShowCount} ${player.noShowCount === 1 ? "no-show" : "no-shows"}`
-                  : `${player.noShowCount} no-show${player.noShowCount === 1 ? "" : "s"}`}
+                {tr(lang, {
+                  en: `${player.noShowCount} no-show${player.noShowCount === 1 ? "" : "s"}`,
+                  es: `${player.noShowCount} ${player.noShowCount === 1 ? "no-show" : "no-shows"}`,
+                  ja: `不参加${player.noShowCount}回`,
+                })}
               </Badge>
             )}
             {isModerator && player.cancelCount > 0 && (
@@ -214,26 +279,48 @@ export function PlayerProfileHeader({
           </div>
           {headToHead && (
             <p className="mt-1.5 text-sm tabular-nums text-muted-foreground">
-              {lang === "es" ? "Tu récord: " : "Your record: "}
+              {tr(lang, {
+                en: "Your record: ",
+                es: "Tu récord: ",
+                ja: "あなたの戦績：",
+              })}
               {headToHead.wins}W–{headToHead.losses}L
             </p>
           )}
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
-          <ShareMenu url={profileUrl} text={shareText} playerId={player.id} lang={lang} />
+          <ShareMenu
+            url={profileUrl}
+            text={shareText}
+            playerId={player.id}
+            lang={lang}
+          />
           {viewerId &&
             !isOwnProfile &&
             (blocked ? (
-              <Badge variant="outline">{lang === "es" ? "Bloqueado" : "Blocked"}</Badge>
+              <Badge variant="outline">
+                {tr(lang, {
+                  en: "Blocked",
+                  es: "Bloqueado",
+                  ja: "ブロック済み",
+                })}
+              </Badge>
             ) : (
-              <BlockUserButton action={blockAction} username={player.username} lang={lang} />
+              <BlockUserButton
+                action={blockAction}
+                username={player.username}
+                lang={lang}
+              />
             ))}
         </div>
       </div>
 
       {inMatch && isLiveOnTwitch && player.twitchUsername && (
-        <TwitchLiveEmbed username={player.twitchUsername} parentHost={parentHost} />
+        <TwitchLiveEmbed
+          username={player.twitchUsername}
+          parentHost={parentHost}
+        />
       )}
 
       {currentMatch && (
@@ -254,7 +341,11 @@ function isDisputedGame(game: {
   reportedWinnerId: string | null;
   secondReportWinnerId: string | null;
 }) {
-  return !game.winnerId && !!game.secondReportWinnerId && game.secondReportWinnerId !== game.reportedWinnerId;
+  return (
+    !game.winnerId &&
+    !!game.secondReportWinnerId &&
+    game.secondReportWinnerId !== game.reportedWinnerId
+  );
 }
 
 function CurrentMatchCard({
@@ -274,11 +365,16 @@ function CurrentMatchCard({
   const opponent = isPlayer1 ? match.player2 : match.player1;
   const myName = isPlayer1 ? match.player1.username : match.player2.username;
   const myRating = isPlayer1 ? match.player1.rating : match.player2.rating;
-  const myGamesPlayed = isPlayer1 ? match.player1.gamesPlayed : match.player2.gamesPlayed;
+  const myGamesPlayed = isPlayer1
+    ? match.player1.gamesPlayed
+    : match.player2.gamesPlayed;
   // Each side is gated on its own games played — one provisional player in the
   // set doesn't hide the other's established rating.
   const myRatingVisible = isRatingVisible(myGamesPlayed, viewerIsModerator);
-  const opponentRatingVisible = isRatingVisible(opponent.gamesPlayed, viewerIsModerator);
+  const opponentRatingVisible = isRatingVisible(
+    opponent.gamesPlayed,
+    viewerIsModerator,
+  );
 
   const wins = { me: 0, opponent: 0 };
   for (const game of match.games) {
@@ -289,10 +385,14 @@ function CurrentMatchCard({
   // doesn't block the set — progressSet immediately creates the next game —
   // so it must be skipped here the same way the lobby does, or the card
   // shows a stale game number.
-  const currentGame = match.games.find((game) => !game.winnerId && !isDisputedGame(game)) ?? null;
+  const currentGame =
+    match.games.find((game) => !game.winnerId && !isDisputedGame(game)) ?? null;
   const lastGame = match.games[match.games.length - 1];
   const gameNumber =
-    currentGame?.gameNumber ?? (lastGame && isDisputedGame(lastGame) ? lastGame.gameNumber : match.games.length + 1);
+    currentGame?.gameNumber ??
+    (lastGame && isDisputedGame(lastGame)
+      ? lastGame.gameNumber
+      : match.games.length + 1);
   const myCharacter = currentGame
     ? currentGame.actorAId === userId
       ? currentGame.actorACharacter
@@ -306,14 +406,20 @@ function CurrentMatchCard({
   // Game 1 is a blind pick — characters stay hidden until both sides have
   // locked in, same as the in-lobby pick UI.
   const showCharacters =
-    currentGame !== null && (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
+    currentGame !== null &&
+    (currentGame.gameNumber !== 1 ||
+      (myCharacter !== null && opponentCharacter !== null));
 
   return (
     <Card className="mt-8">
       <CardContent className="pt-4">
         <p className="flex items-center gap-2 text-sm font-medium">
           <Swords className="size-4 text-muted-foreground" />
-          {lang === "es" ? "Actualmente en una partida" : "Currently in a match"}
+          {tr(lang, {
+            en: "Currently in a match",
+            es: "Actualmente en una partida",
+            ja: "対戦中",
+          })}
         </p>
 
         <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -321,17 +427,20 @@ function CurrentMatchCard({
             {showCharacters && myCharacter ? (
               <CharacterIcon name={myCharacter} size={32} />
             ) : (
-              <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+              <span
+                aria-hidden
+                className="size-8 shrink-0 rounded-full border border-dashed border-border"
+              />
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{myName}</p>
               <p className="text-xs text-muted-foreground tabular-nums">
                 {myRatingVisible ? (
-                  lang === "es" ? (
-                    `${formatRating(myRating)} de clasificación`
-                  ) : (
-                    `${formatRating(myRating)} rating`
-                  )
+                  tr(lang, {
+                    en: `${formatRating(myRating)} rating`,
+                    es: `${formatRating(myRating)} de clasificación`,
+                    ja: `レート ${formatRating(myRating)}`,
+                  })
                 ) : (
                   <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} />
                 )}
@@ -344,7 +453,11 @@ function CurrentMatchCard({
               {wins.me}–{wins.opponent}
             </p>
             <p className="text-xs text-muted-foreground">
-              {lang === "es" ? `Juego ${gameNumber} de 5` : `Game ${gameNumber} of 5`}
+              {tr(lang, {
+                en: `Game ${gameNumber} of 5`,
+                es: `Juego ${gameNumber} de 5`,
+                ja: `第${gameNumber}試合 / 全5試合`,
+              })}
             </p>
           </div>
 
@@ -353,11 +466,16 @@ function CurrentMatchCard({
               (showCharacters && opponentCharacter ? (
                 <CharacterIcon name={opponentCharacter} size={32} />
               ) : (
-                <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+                <span
+                  aria-hidden
+                  className="size-8 shrink-0 rounded-full border border-dashed border-border"
+                />
               ))}
             <div className="min-w-0">
               {zenMode ? (
-                <p className="truncate text-right text-sm font-medium">{lang === "es" ? "Rival" : "Opponent"}</p>
+                <p className="truncate text-right text-sm font-medium">
+                  {tr(lang, { en: "Opponent", es: "Rival", ja: "相手" })}
+                </p>
               ) : (
                 <Link
                   href={`/players/${opponent.id}`}
@@ -369,13 +487,16 @@ function CurrentMatchCard({
               {!zenMode && (
                 <p className="text-right text-xs text-muted-foreground tabular-nums">
                   {opponentRatingVisible ? (
-                    lang === "es" ? (
-                      `${formatRating(opponent.rating)} de clasificación`
-                    ) : (
-                      `${formatRating(opponent.rating)} rating`
-                    )
+                    tr(lang, {
+                      en: `${formatRating(opponent.rating)} rating`,
+                      es: `${formatRating(opponent.rating)} de clasificación`,
+                      ja: `レート ${formatRating(opponent.rating)}`,
+                    })
                   ) : (
-                    <RatingHidden gamesPlayed={opponent.gamesPlayed} lang={lang} />
+                    <RatingHidden
+                      gamesPlayed={opponent.gamesPlayed}
+                      lang={lang}
+                    />
                   )}
                 </p>
               )}

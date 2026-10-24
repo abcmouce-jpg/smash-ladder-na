@@ -63,3 +63,29 @@ export const DISPLAY_TIME_ZONE =
  * until that call is made. Flip this, not the copy, when it is.
  */
 export const HAS_PRIZE_POOL = REGION_SET !== "jp";
+
+/**
+ * Which scene this instance serves, as an adjective, for the copy that names
+ * it ("a hub for the North American Smash community"). Per language rather
+ * than one env string, because the home page says this in whichever language
+ * the visitor reads — an English speaker on the Japanese ladder should be
+ * told it is the Japanese one, not shown Japanese text or, worse, told it is
+ * North American.
+ */
+export const SCENE_LABEL: Record<Lang, string> =
+  REGION_SET === "jp"
+    ? { en: "Japanese", es: "japonesa", ja: "日本の" }
+    : { en: "North American", es: "norteamericana", ja: "北米の" };
+
+/**
+ * SITE_NAME split for the home page's heading, which colours the last word
+ * ("Smash Ladder <NA>"). Split rather than hardcoded so the Japanese
+ * instance's name highlights its own last word; a one-word name keeps `lead`
+ * empty and colours the whole thing.
+ */
+export const SITE_NAME_PARTS = (() => {
+  const at = SITE_NAME.lastIndexOf(" ");
+  return at <= 0
+    ? { lead: "", accent: SITE_NAME }
+    : { lead: SITE_NAME.slice(0, at), accent: SITE_NAME.slice(at + 1) };
+})();

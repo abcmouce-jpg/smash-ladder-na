@@ -24,6 +24,8 @@ import { LiveStreamStage } from "@/components/live-streams/stage";
 import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
+import { tr, trNode } from "@/lib/lang";
+import { SCENE_LABEL, SITE_NAME_PARTS } from "@/lib/site";
 
 export const metadata: Metadata = {
   alternates: { languages: { "es-MX": "/es" } },
@@ -31,7 +33,13 @@ export const metadata: Metadata = {
 
 // Shared home section header: small-caps label with the accent tick on the
 // left, optional action link on the right.
-function SectionHeading({ label, action }: { label: string; action?: ReactNode }) {
+function SectionHeading({
+  label,
+  action,
+}: {
+  label: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
       <h2 className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
@@ -60,33 +68,54 @@ export default async function Home() {
     getFriendliesPosts(6),
     getMatchesPerDay(30),
   ]);
-  const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
-  const liveEntries = feed.filter((entry) => entry.hasLiveStreamer).map(serializeSetEntry);
+  const parentHost =
+    (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
+  const liveEntries = feed
+    .filter((entry) => entry.hasLiveStreamer)
+    .map(serializeSetEntry);
   const ratingVisible = Boolean(
-    me && user && isRatingVisible(me.gamesPlayed, user.role === "MOD" || user.role === "ADMIN"),
+    me &&
+    user &&
+    isRatingVisible(
+      me.gamesPlayed,
+      user.role === "MOD" || user.role === "ADMIN",
+    ),
   );
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <h1 className="mt-4 text-4xl font-semibold tracking-tight text-balance">
-        Smash Ladder <span className="text-primary">NA</span>
+        {SITE_NAME_PARTS.lead && `${SITE_NAME_PARTS.lead} `}
+        <span className="text-primary">{SITE_NAME_PARTS.accent}</span>
       </h1>
       <p className="mt-3 max-w-md text-muted-foreground">
-        {lang === "es"
-          ? "Una liga clasificatoria y emparejamiento para la comunidad de Smash de Norteamérica."
-          : "A ranked ladder and matchmaking hub for the North American Smash community."}
+        {tr(lang, {
+          en: `A ranked ladder and matchmaking hub for the ${SCENE_LABEL.en} Smash community.`,
+          es: `Una liga clasificatoria y emparejamiento para la comunidad de Smash ${SCENE_LABEL.es}.`,
+          ja: `${SCENE_LABEL.ja}スマブラコミュニティ向けの、レート対戦とマッチングのサイト。`,
+        })}
       </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         {user ? (
           <>
             <Button asChild size="lg">
-              <Link href="/lobby">{lang === "es" ? "Ir a la Sala" : "Go to Lobby"}</Link>
+              <Link href="/lobby">
+                {tr(lang, {
+                  en: "Go to Lobby",
+                  es: "Ir a la Sala",
+                  ja: "ロビーへ",
+                })}
+              </Link>
             </Button>
             <Button asChild variant="outline" size="lg">
               <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
                 <DiscordIcon className="size-4" />
-                {lang === "es" ? "Únete a nuestro servidor de Discord" : "Join Our Discord Server"}
+                {tr(lang, {
+                  en: "Join Our Discord Server",
+                  es: "Únete a nuestro servidor de Discord",
+                  ja: "Discord サーバーに参加",
+                })}
               </a>
             </Button>
           </>
@@ -100,13 +129,21 @@ export default async function Home() {
             >
               <Button type="submit" size="lg">
                 <DiscordIcon className="size-4" />
-                {lang === "es" ? "Inicia sesión con Discord" : "Log in with Discord"}
+                {tr(lang, {
+                  en: "Log in with Discord",
+                  es: "Inicia sesión con Discord",
+                  ja: "Discord でログイン",
+                })}
               </Button>
             </form>
             <Button asChild variant="outline" size="lg">
               <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
                 <DiscordIcon className="size-4" />
-                {lang === "es" ? "Únete a nuestro servidor de Discord" : "Join Our Discord Server"}
+                {tr(lang, {
+                  en: "Join Our Discord Server",
+                  es: "Únete a nuestro servidor de Discord",
+                  ja: "Discord サーバーに参加",
+                })}
               </a>
             </Button>
           </>
@@ -117,16 +154,36 @@ export default async function Home() {
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
           {!ratingVisible ? (
             <RatingHidden gamesPlayed={me.gamesPlayed} lang={lang} />
-          ) : lang === "es" ? (
-            <>
-              Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span>{" "}
-              en {me.gamesPlayed} partidas.
-            </>
           ) : (
-            <>
-              You&apos;re <span className="font-medium text-foreground">{formatRating(me.rating)}</span> rated across{" "}
-              {me.gamesPlayed} sets.
-            </>
+            trNode(lang, {
+              en: (
+                <>
+                  You&apos;re{" "}
+                  <span className="font-medium text-foreground">
+                    {formatRating(me.rating)}
+                  </span>{" "}
+                  rated across {me.gamesPlayed} sets.
+                </>
+              ),
+              es: (
+                <>
+                  Tienes una clasificación de{" "}
+                  <span className="font-medium text-foreground">
+                    {formatRating(me.rating)}
+                  </span>{" "}
+                  en {me.gamesPlayed} partidas.
+                </>
+              ),
+              ja: (
+                <>
+                  {me.gamesPlayed}セットを戦って、レートは{" "}
+                  <span className="font-medium text-foreground">
+                    {formatRating(me.rating)}
+                  </span>{" "}
+                  です。
+                </>
+              ),
+            })
           )}
         </p>
       )}
@@ -138,25 +195,41 @@ export default async function Home() {
               <span className="live-pulse absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="font-medium text-foreground">{stats.playingNow}</span>{" "}
-            {lang === "es" ? "jugando ahora" : "playing now"}
+            <span className="font-medium text-foreground">
+              {stats.playingNow}
+            </span>{" "}
+            {tr(lang, { en: "playing now", es: "jugando ahora", ja: "対戦中" })}
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.totalPlayers}</span>{" "}
-          {lang === "es" ? "jugadores" : "players"}
+          <span className="font-medium text-foreground">
+            {stats.totalPlayers}
+          </span>{" "}
+          {tr(lang, { en: "players", es: "jugadores", ja: "プレイヤー" })}
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.matchesToday}</span>{" "}
-          {lang === "es" ? "partidas hoy" : "matches today"}
+          <span className="font-medium text-foreground">
+            {stats.matchesToday}
+          </span>{" "}
+          {tr(lang, {
+            en: "matches today",
+            es: "partidas hoy",
+            ja: "今日の試合",
+          })}
         </span>
       </div>
 
       {liveEntries.length > 0 && (
         <div className="mt-10">
-          <SectionHeading label={lang === "es" ? "En vivo en Twitch" : "Live on Twitch"} />
+          <SectionHeading
+            label={tr(lang, {
+              en: "Live on Twitch",
+              es: "En vivo en Twitch",
+              ja: "Twitch で配信中",
+            })}
+          />
           <LiveStreamProvider>
             <div className="mt-3">
               <LiveStreamStage entries={liveEntries} parentHost={parentHost} />
@@ -169,13 +242,21 @@ export default async function Home() {
       {stats.topPlayers.length > 0 && (
         <div className="mt-10">
           <SectionHeading
-            label={lang === "es" ? "Los mejores de la liga" : "Top of the ladder"}
+            label={tr(lang, {
+              en: "Top of the ladder",
+              es: "Los mejores de la liga",
+              ja: "ランキング上位",
+            })}
             action={
               <Link
                 href="/leaderboard"
                 className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                {lang === "es" ? "Ver todos →" : "See all →"}
+                {tr(lang, {
+                  en: "See all →",
+                  es: "Ver todos →",
+                  ja: "すべて見る →",
+                })}
               </Link>
             }
           />
@@ -184,7 +265,9 @@ export default async function Home() {
               <Link key={p.id} href={`/players/${p.id}`}>
                 <Card className="h-full py-0 transition-colors hover:border-foreground/30">
                   <CardContent className="flex items-center gap-3 py-3">
-                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">{["🥇", "🥈", "🥉"][i]}</span>
+                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">
+                      {["🥇", "🥈", "🥉"][i]}
+                    </span>
                     {p.avatarUrl && (
                       <Image
                         src={p.avatarUrl}
@@ -195,12 +278,22 @@ export default async function Home() {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{p.username}</p>
+                      <p className="truncate text-sm font-medium">
+                        {p.username}
+                      </p>
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         <p className="text-xs tabular-nums text-muted-foreground">
-                          {formatRating(p.rating)} {lang === "es" ? "de clasificación" : "rating"}
+                          {formatRating(p.rating)}{" "}
+                          {tr(lang, {
+                            en: "rating",
+                            es: "de clasificación",
+                            ja: "レート",
+                          })}
                         </p>
-                        <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
+                        <RankBadge
+                          rating={p.rating}
+                          gamesPlayed={p.gamesPlayed}
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -212,13 +305,25 @@ export default async function Home() {
       )}
 
       <div className="mt-10">
-        <SectionHeading label={lang === "es" ? "Amistosos" : "Friendlies"} />
+        <SectionHeading
+          label={tr(lang, {
+            en: "Friendlies",
+            es: "Amistosos",
+            ja: "フリー対戦",
+          })}
+        />
         <FriendliesPosts
           posts={posts}
           lang={lang}
           emptyAction={
             <Button asChild variant="secondary" size="sm" className="mt-3">
-              <Link href="/friendlies">{lang === "es" ? "Abrir Amistosos" : "Open Friendlies"}</Link>
+              <Link href="/friendlies">
+                {tr(lang, {
+                  en: "Open Friendlies",
+                  es: "Abrir Amistosos",
+                  ja: "募集中のフリー対戦",
+                })}
+              </Link>
             </Button>
           }
         />
@@ -227,7 +332,11 @@ export default async function Home() {
             href="/friendlies"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            {lang === "es" ? "Publica en Amistosos →" : "Post on Friendlies →"}
+            {tr(lang, {
+              en: "Post on Friendlies →",
+              es: "Publica en Amistosos →",
+              ja: "フリー対戦に投稿する →",
+            })}
           </Link>
         ) : (
           <a
@@ -236,13 +345,23 @@ export default async function Home() {
             rel="noreferrer"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            {lang === "es" ? "Únete a nuestro Discord para encontrar partidas" : "Join our Discord to find games"}
+            {tr(lang, {
+              en: "Join our Discord to find games",
+              es: "Únete a nuestro Discord para encontrar partidas",
+              ja: "Discord に参加して対戦相手を見つける",
+            })}
           </a>
         )}
       </div>
 
       <div className="mt-10">
-        <SectionHeading label={lang === "es" ? "Partidas por día" : "Matches per day"} />
+        <SectionHeading
+          label={tr(lang, {
+            en: "Matches per day",
+            es: "Partidas por día",
+            ja: "1日あたりの試合数",
+          })}
+        />
         <Card className="mt-3">
           <CardContent className="pt-4">
             <MatchesPerDayChart timestamps={matchTimestamps} lang={lang} />
