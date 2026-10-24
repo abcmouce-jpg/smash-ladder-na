@@ -11,7 +11,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
 import { SectionTabs } from "@/components/section-tabs";
 import { SettingsSaveForm } from "@/components/settings-save-form";
-import { NOTIFICATION_DEFS, isNotificationEnabled, type NotificationDef } from "@/lib/notifications";
+import {
+  NOTIFICATION_DEFS,
+  isNotificationEnabled,
+  type NotificationDef,
+} from "@/lib/notifications";
 import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
 import {
@@ -24,7 +28,10 @@ import {
 import { KOFI_URL } from "@/lib/links";
 import { listBlockedUsers, MAX_BLOCKS_PER_USER } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
-import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
+import {
+  DEFAULT_QUICK_MESSAGES,
+  MAX_QUICK_MESSAGE_LENGTH,
+} from "@/lib/quick-messages";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
 import { listApiTokens } from "@/lib/api-tokens";
 import { ApiTokensPanel } from "@/components/api-tokens-panel";
@@ -39,15 +46,25 @@ import {
   updatePostMatchMessageAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
+import { tr, trNode } from "@/lib/lang";
 
 // ?tab= picks which group of settings renders, so each stays deep-linkable and
 // server-rendered — same pattern as the Stats, Notes, and profile pages.
 const VALID_TABS = ["user", "lobby", "notifications", "apps"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
 
-type TwitchConnection = { username: string; displayName: string | null; profileImageUrl: string | null } | null;
+type TwitchConnection = {
+  username: string;
+  displayName: string | null;
+  profileImageUrl: string | null;
+} | null;
 type StartggConnection = { slug: string; gamerTag: string | null } | null;
-type ApiTokenSummary = { id: string; name: string; createdAt: string; lastUsedAt: string | null };
+type ApiTokenSummary = {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
 
 export default async function SettingsPage({
   searchParams,
@@ -61,7 +78,13 @@ export default async function SettingsPage({
   }>;
 }) {
   const session = await auth();
-  const { tab: tabParam, startggConnected, startggError, twitchConnected, twitchError } = await searchParams;
+  const {
+    tab: tabParam,
+    startggConnected,
+    startggError,
+    twitchConnected,
+    twitchError,
+  } = await searchParams;
   const host = (await headers()).get("host") ?? "";
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
   const lang = await getLang();
@@ -71,50 +94,55 @@ export default async function SettingsPage({
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "es"
-            ? "Inicia sesión con Discord (arriba a la derecha) para administrar tus ajustes."
-            : "Sign in with Discord (top right) to manage your settings."}
+          {tr(lang, {
+            en: "Sign in with Discord (top right) to manage your settings.",
+            es: "Inicia sesión con Discord (arriba a la derecha) para administrar tus ajustes.",
+            ja: "右上の Discord でログインすると、設定を変更できます。",
+          })}
         </p>
       </main>
     );
   }
 
-  const [me, blocked, referralCount, apiTokens, supporterCode] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        username: true,
-        discordUsername: true,
-        hideDiscordUsername: true,
-        startggUserId: true,
-        startggSlug: true,
-        startggGamerTag: true,
-        twitchUserId: true,
-        twitchUsername: true,
-        twitchDisplayName: true,
-        twitchProfileImageUrl: true,
-        arenaPassword: true,
-        avoidPracticeOpponents: true,
-        audioPingOnMatch: true,
-        matchFoundSound: true,
-        notifyQueueOpportunities: true,
-        notifyQueueOpportunitiesDm: true,
-        notificationsDisabled: true,
-        quickMessages: true,
-        isSupporter: true,
-        isGoldSupporter: true,
-        supporterExpiresAt: true,
-        postMatchMessage: true,
-        _count: { select: { pushSubscriptions: true } },
-      },
-    }),
-    listBlockedUsers(session.user.id),
-    getReferralCount(session.user.id),
-    listApiTokens(session.user.id),
-    getOrCreateSupporterCode(session.user.id),
-  ]);
+  const [me, blocked, referralCount, apiTokens, supporterCode] =
+    await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          username: true,
+          discordUsername: true,
+          hideDiscordUsername: true,
+          startggUserId: true,
+          startggSlug: true,
+          startggGamerTag: true,
+          twitchUserId: true,
+          twitchUsername: true,
+          twitchDisplayName: true,
+          twitchProfileImageUrl: true,
+          arenaPassword: true,
+          avoidPracticeOpponents: true,
+          audioPingOnMatch: true,
+          matchFoundSound: true,
+          notifyQueueOpportunities: true,
+          notifyQueueOpportunitiesDm: true,
+          notificationsDisabled: true,
+          quickMessages: true,
+          isSupporter: true,
+          isGoldSupporter: true,
+          supporterExpiresAt: true,
+          postMatchMessage: true,
+          _count: { select: { pushSubscriptions: true } },
+        },
+      }),
+      listBlockedUsers(session.user.id),
+      getReferralCount(session.user.id),
+      listApiTokens(session.user.id),
+      getOrCreateSupporterCode(session.user.id),
+    ]);
 
-  const tab: SettingsTab = VALID_TABS.includes((tabParam ?? "") as SettingsTab) ? (tabParam as SettingsTab) : "user";
+  const tab: SettingsTab = VALID_TABS.includes((tabParam ?? "") as SettingsTab)
+    ? (tabParam as SettingsTab)
+    : "user";
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -123,11 +151,23 @@ export default async function SettingsPage({
       <SectionTabs
         className="mt-8"
         items={[
-          { href: "?tab=user", label: lang === "es" ? "Usuario" : "User", active: tab === "user" },
-          { href: "?tab=lobby", label: lang === "es" ? "Sala" : "Lobby", active: tab === "lobby" },
+          {
+            href: "?tab=user",
+            label: tr(lang, { en: "User", es: "Usuario", ja: "ユーザー" }),
+            active: tab === "user",
+          },
+          {
+            href: "?tab=lobby",
+            label: tr(lang, { en: "Lobby", es: "Sala", ja: "ロビー" }),
+            active: tab === "lobby",
+          },
           {
             href: "?tab=notifications",
-            label: lang === "es" ? "Notificaciones" : "Notifications",
+            label: tr(lang, {
+              en: "Notifications",
+              es: "Notificaciones",
+              ja: "通知",
+            }),
             active: tab === "notifications",
           },
           { href: "?tab=apps", label: "Apps", active: tab === "apps" },
@@ -195,7 +235,11 @@ export default async function SettingsPage({
           }
           twitchJustConnected={twitchConnected === "1"}
           twitchError={twitchError}
-          startgg={me?.startggUserId && me.startggSlug ? { slug: me.startggSlug, gamerTag: me.startggGamerTag } : null}
+          startgg={
+            me?.startggUserId && me.startggSlug
+              ? { slug: me.startggSlug, gamerTag: me.startggGamerTag }
+              : null
+          }
           startggJustConnected={startggConnected === "1"}
           startggError={startggError}
           apiTokens={apiTokens.map((token) => ({
@@ -242,13 +286,25 @@ function UserTab({
     <div className="mt-6 flex flex-col gap-4">
       <Card>
         <CardContent className="pt-4">
-          <SettingsSaveForm action={updateUserSettingsAction} lang={lang} className="flex flex-col gap-4">
+          <SettingsSaveForm
+            action={updateUserSettingsAction}
+            lang={lang}
+            className="flex flex-col gap-4"
+          >
             <label className="flex flex-col gap-1 text-sm">
-              <span>{lang === "es" ? "Nombre de usuario" : "Username"}</span>
+              <span>
+                {tr(lang, {
+                  en: "Username",
+                  es: "Nombre de usuario",
+                  ja: "ユーザー名",
+                })}
+              </span>
               <span className="text-xs font-normal text-muted-foreground">
-                {lang === "es"
-                  ? "Se muestra en todo el sitio en vez de tu nombre de Discord — útil si no coinciden."
-                  : "Shown everywhere on the site instead of your Discord name — handy if they don't match."}
+                {tr(lang, {
+                  en: "Shown everywhere on the site instead of your Discord name — handy if they don't match.",
+                  es: "Se muestra en todo el sitio en vez de tu nombre de Discord — útil si no coinciden.",
+                  ja: "サイト上では Discord の名前ではなく、この名前が表示されます。名前を揃えたくない場合に便利です。",
+                })}
               </span>
               <input
                 name="username"
@@ -270,16 +326,24 @@ function UserTab({
               />
               <span>
                 <span className="font-medium">
-                  {lang === "es" ? "Ocultar mi Discord de mi perfil" : "Hide my Discord from my profile"}
+                  {tr(lang, {
+                    en: "Hide my Discord from my profile",
+                    es: "Ocultar mi Discord de mi perfil",
+                    ja: "プロフィールで Discord を非表示にする",
+                  })}
                 </span>
                 <span className="block text-xs font-normal text-muted-foreground">
-                  {lang === "es"
-                    ? `Tu perfil muestra tu nombre de usuario de Discord${
-                        discordUsername ? ` (${discordUsername})` : ""
-                      }, incluso si es igual a tu nombre de usuario aquí. Actívalo para ocultarlo de los demás.`
-                    : `Your profile shows your Discord username${
-                        discordUsername ? ` (${discordUsername})` : ""
-                      }, even when it matches your username here. Turn this on to hide it from everyone else.`}
+                  {tr(lang, {
+                    en: `Your profile shows your Discord username${
+                      discordUsername ? ` (${discordUsername})` : ""
+                    }, even when it matches your username here. Turn this on to hide it from everyone else.`,
+                    es: `Tu perfil muestra tu nombre de usuario de Discord${
+                      discordUsername ? ` (${discordUsername})` : ""
+                    }, incluso si es igual a tu nombre de usuario aquí. Actívalo para ocultarlo de los demás.`,
+                    ja: `プロフィールには Discord のユーザー名${
+                      discordUsername ? `（${discordUsername}）` : ""
+                    }が表示されます。ここのユーザー名と同じ場合も表示されます。これをオンにすると、他の人からは見えなくなります。`,
+                  })}
                 </span>
               </span>
             </label>
@@ -295,7 +359,11 @@ function UserTab({
 
       <Card>
         <CardContent className="pt-4">
-          <InviteLinkCard userId={userId} referralCount={referralCount} lang={lang} />
+          <InviteLinkCard
+            userId={userId}
+            referralCount={referralCount}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 
@@ -314,21 +382,36 @@ function UserTab({
 
       <Card>
         <CardContent className="pt-4">
-          <p className="text-sm font-medium">{lang === "es" ? "Jugadores bloqueados" : "Blocked players"}</p>
+          <p className="text-sm font-medium">
+            {tr(lang, {
+              en: "Blocked players",
+              es: "Jugadores bloqueados",
+              ja: "ブロックしたプレイヤー",
+            })}
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {lang === "es"
-              ? `Los jugadores bloqueados nunca se emparejan contigo en la cola rankeada. Bloquear es permanente y no se puede deshacer. Has usado ${blocked.length} de ${MAX_BLOCKS_PER_USER}.`
-              : `Blocked players are never matched with you in ranked queueing. Blocking is permanent and can't be undone. You've used ${blocked.length} of ${MAX_BLOCKS_PER_USER}.`}
+            {tr(lang, {
+              en: `Blocked players are never matched with you in ranked queueing. Blocking is permanent and can't be undone. You've used ${blocked.length} of ${MAX_BLOCKS_PER_USER}.`,
+              es: `Los jugadores bloqueados nunca se emparejan contigo en la cola rankeada. Bloquear es permanente y no se puede deshacer. Has usado ${blocked.length} de ${MAX_BLOCKS_PER_USER}.`,
+              ja: `ブロックしたプレイヤーとは、レート対戦でマッチングしません。ブロックは永続で、解除できません。現在${MAX_BLOCKS_PER_USER}件中${blocked.length}件を使用しています。`,
+            })}
           </p>
           {blocked.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              {lang === "es" ? "No has bloqueado a nadie." : "You haven't blocked anyone."}
+              {tr(lang, {
+                en: "You haven't blocked anyone.",
+                es: "No has bloqueado a nadie.",
+                ja: "まだ誰もブロックしていません。",
+              })}
             </p>
           ) : (
             <ul className="mt-3 flex flex-col gap-2">
               {blocked.map((b) => (
                 <li key={b.id} className="text-sm">
-                  <Link href={`/players/${b.blocked.id}`} className="hover:underline">
+                  <Link
+                    href={`/players/${b.blocked.id}`}
+                    className="hover:underline"
+                  >
                     {b.blocked.username}
                   </Link>
                 </li>
@@ -356,13 +439,20 @@ function LobbyTab({
   quickMessages: string[];
   lang: Lang;
 }) {
-  const quickMessageSlots = Array.from({ length: DEFAULT_QUICK_MESSAGES.length }, (_, i) => quickMessages[i] ?? "");
+  const quickMessageSlots = Array.from(
+    { length: DEFAULT_QUICK_MESSAGES.length },
+    (_, i) => quickMessages[i] ?? "",
+  );
 
   return (
     <div className="mt-6 flex flex-col gap-4">
       <Card>
         <CardContent className="pt-4">
-          <SettingsSaveForm action={updateLobbySettingsAction} lang={lang} className="flex flex-col gap-5">
+          <SettingsSaveForm
+            action={updateLobbySettingsAction}
+            lang={lang}
+            className="flex flex-col gap-5"
+          >
             <label className="flex items-start gap-2 text-sm">
               <input
                 key={String(avoidPracticeOpponents)}
@@ -373,14 +463,18 @@ function LobbyTab({
               />
               <span>
                 <span className="font-medium">
-                  {lang === "es"
-                    ? "No emparejarme con rivales que están practicando"
-                    : "Don't match me with opponents who are practicing"}
+                  {tr(lang, {
+                    en: "Don't match me with opponents who are practicing",
+                    es: "No emparejarme con rivales que están practicando",
+                    ja: "練習中の相手とはマッチしない",
+                  })}
                 </span>
                 <span className="block text-xs font-normal text-muted-foreground">
-                  {lang === "es"
-                    ? "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo."
-                    : "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely."}
+                  {tr(lang, {
+                    en: "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely.",
+                    es: "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo.",
+                    ja: "練習中の相手の結果は、相手のランクに影響しません。これをオンにすると、そうした対戦自体を避けられます。",
+                  })}
                 </span>
               </span>
             </label>
@@ -396,36 +490,74 @@ function LobbyTab({
                 />
                 <span>
                   <span className="font-medium">
-                    {lang === "es" ? "Sonido al ser emparejado" : "Audio ping when matched"}
+                    {tr(lang, {
+                      en: "Audio ping when matched",
+                      es: "Sonido al ser emparejado",
+                      ja: "マッチしたら音で知らせる",
+                    })}
                   </span>
                   <span className="block text-xs font-normal text-muted-foreground">
-                    {lang === "es"
-                      ? "Reproduce un sonido en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
-                      : "Plays a sound on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
+                    {tr(lang, {
+                      en: "Plays a sound on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued.",
+                      es: "Reproduce un sonido en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo.",
+                      ja: "マッチが成立するとロビーのページで音が鳴ります。待機中ずっとタブを開いて見ておく必要がなくなります。",
+                    })}
                   </span>
                 </span>
               </label>
               <div className="flex items-center justify-between gap-2 pl-6">
-                <span className="text-sm">{lang === "es" ? "Sonido" : "Sound"}</span>
-                <MatchFoundSoundPicker key={matchFoundSound} defaultValue={matchFoundSound} lang={lang} />
+                <span className="text-sm">
+                  {tr(lang, { en: "Sound", es: "Sonido", ja: "音" })}
+                </span>
+                <MatchFoundSoundPicker
+                  key={matchFoundSound}
+                  defaultValue={matchFoundSound}
+                  lang={lang}
+                />
               </div>
             </div>
 
             <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">{lang === "es" ? "Contraseña de sala" : "Arena password"}</span>
+              <span className="font-medium">
+                {tr(lang, {
+                  en: "Arena password",
+                  es: "Contraseña de sala",
+                  ja: "アリーナのパスワード",
+                })}
+              </span>
               <span className="text-xs font-normal text-muted-foreground">
-                {lang === "es" ? (
-                  <>
-                    Se muestra a tu rival como la contraseña que debe poner en la sala del juego. Déjalo en blanco para
-                    usar el valor por defecto del ladder (
-                    <span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>).
-                  </>
-                ) : (
-                  <>
-                    Shown to your opponent as what to set the in-game room password to. Leave blank to use the ladder
-                    default (<span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>).
-                  </>
-                )}
+                {trNode(lang, {
+                  en: (
+                    <>
+                      Shown to your opponent as what to set the in-game room
+                      password to. Leave blank to use the ladder default (
+                      <span className="font-medium text-foreground">
+                        {DEFAULT_ARENA_PASSWORD}
+                      </span>
+                      ).
+                    </>
+                  ),
+                  es: (
+                    <>
+                      Se muestra a tu rival como la contraseña que debe poner en
+                      la sala del juego. Déjalo en blanco para usar el valor por
+                      defecto del ladder (
+                      <span className="font-medium text-foreground">
+                        {DEFAULT_ARENA_PASSWORD}
+                      </span>
+                      ).
+                    </>
+                  ),
+                  ja: (
+                    <>
+                      ゲーム内の部屋に設定するパスワードとして、相手に表示されます。空欄にすると既定値（
+                      <span className="font-medium text-foreground">
+                        {DEFAULT_ARENA_PASSWORD}
+                      </span>
+                      ）が使われます。
+                    </>
+                  ),
+                })}
               </span>
               <input
                 name="arenaPassword"
@@ -439,12 +571,18 @@ function LobbyTab({
 
             <div className="flex flex-col gap-2">
               <p className="text-sm font-medium">
-                {lang === "es" ? "Mensajes rápidos del chat" : "Chat quick messages"}
+                {tr(lang, {
+                  en: "Chat quick messages",
+                  es: "Mensajes rápidos del chat",
+                  ja: "チャットの定型文",
+                })}
               </p>
               <p className="text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "Los botones que aparecen sobre el chat de la partida. Deja uno en blanco para usar el valor por defecto."
-                  : "The buttons shown above the match chat. Leave one blank to use the site default for that slot."}
+                {tr(lang, {
+                  en: "The buttons shown above the match chat. Leave one blank to use the site default for that slot.",
+                  es: "Los botones que aparecen sobre el chat de la partida. Deja uno en blanco para usar el valor por defecto.",
+                  ja: "試合チャットの上に表示されるボタンです。空欄にすると、その枠は既定の文言になります。",
+                })}
               </p>
               <div className="flex flex-wrap gap-2">
                 {quickMessageSlots.map((value, i) => (
@@ -472,7 +610,15 @@ function LobbyTab({
 // key as a checked `notifications` value (the action rebuilds
 // notificationsDisabled from whatever is left checked); the opt-in
 // queue-opportunity push submits under its own field.
-function NotificationToggle({ def, enabled, lang }: { def: NotificationDef; enabled: boolean; lang: Lang }) {
+function NotificationToggle({
+  def,
+  enabled,
+  lang,
+}: {
+  def: NotificationDef;
+  enabled: boolean;
+  lang: Lang;
+}) {
   return (
     <label className="flex items-start gap-2 text-sm">
       <input
@@ -485,7 +631,9 @@ function NotificationToggle({ def, enabled, lang }: { def: NotificationDef; enab
       />
       <span>
         <span className="font-medium">{def.label[lang]}</span>
-        <span className="block text-xs font-normal text-muted-foreground">{def.description[lang]}</span>
+        <span className="block text-xs font-normal text-muted-foreground">
+          {def.description[lang]}
+        </span>
       </span>
     </label>
   );
@@ -504,7 +652,11 @@ function NotificationsTab({
   pushEnabled: boolean;
   lang: Lang;
 }) {
-  const prefs = { notificationsDisabled, notifyQueueOpportunities, notifyQueueOpportunitiesDm };
+  const prefs = {
+    notificationsDisabled,
+    notifyQueueOpportunities,
+    notifyQueueOpportunitiesDm,
+  };
   const pushTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "push");
   const dmTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "discord");
 
@@ -518,13 +670,25 @@ function NotificationsTab({
 
       <Card>
         <CardContent className="pt-4">
-          <SettingsSaveForm action={updateNotificationSettingsAction} lang={lang} className="flex flex-col gap-5">
+          <SettingsSaveForm
+            action={updateNotificationSettingsAction}
+            lang={lang}
+            className="flex flex-col gap-5"
+          >
             <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium">{lang === "es" ? "Notificaciones push" : "Browser push"}</p>
+              <p className="text-sm font-medium">
+                {tr(lang, {
+                  en: "Browser push",
+                  es: "Notificaciones push",
+                  ja: "ブラウザのプッシュ通知",
+                })}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "Qué enviar al navegador, una vez activado arriba."
-                  : "What to send to the browser, once push is enabled above."}
+                {tr(lang, {
+                  en: "What to send to the browser, once push is enabled above.",
+                  es: "Qué enviar al navegador, una vez activado arriba.",
+                  ja: "上でプッシュ通知を有効にしたうえで、何を送るかを選べます。",
+                })}
               </p>
               {pushTypes.map((def) => (
                 <NotificationToggle
@@ -537,11 +701,19 @@ function NotificationsTab({
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border pt-4">
-              <p className="text-sm font-medium">{lang === "es" ? "MD de Discord" : "Discord DMs"}</p>
+              <p className="text-sm font-medium">
+                {tr(lang, {
+                  en: "Discord DMs",
+                  es: "MD de Discord",
+                  ja: "Discord の DM",
+                })}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "El bot solo puede enviarte un MD si compartes servidor con él y tienes activados los MD de miembros del servidor."
-                  : "The bot can only DM you if you share a server with it and have DMs from server members enabled."}
+                {tr(lang, {
+                  en: "The bot can only DM you if you share a server with it and have DMs from server members enabled.",
+                  es: "El bot solo puede enviarte un MD si compartes servidor con él y tienes activados los MD de miembros del servidor.",
+                  ja: "bot が DM を送れるのは、bot と同じサーバーに参加していて、サーバーメンバーからの DM を許可している場合のみです。",
+                })}
               </p>
               {dmTypes.map((def) => (
                 <NotificationToggle
@@ -588,7 +760,12 @@ function AppsTab({
     <div className="mt-6 flex flex-col gap-4">
       <Card>
         <CardContent className="pt-4">
-          <TwitchConnectCard connected={twitch} justConnected={twitchJustConnected} error={twitchError} lang={lang} />
+          <TwitchConnectCard
+            connected={twitch}
+            justConnected={twitchJustConnected}
+            error={twitchError}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 
@@ -605,13 +782,24 @@ function AppsTab({
 
       <Card>
         <CardContent className="pt-4">
-          <StreamOverlayCard userId={userId} host={host} protocol={protocol} lang={lang} />
+          <StreamOverlayCard
+            userId={userId}
+            host={host}
+            protocol={protocol}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="pt-4">
-          <p className="mb-1 text-sm font-medium">{lang === "es" ? "Tokens de API" : "API tokens"}</p>
+          <p className="mb-1 text-sm font-medium">
+            {tr(lang, {
+              en: "API tokens",
+              es: "Tokens de API",
+              ja: "API トークン",
+            })}
+          </p>
           <ApiTokensPanel
             tokens={apiTokens}
             generateAction={generateApiTokenAction}
@@ -624,16 +812,32 @@ function AppsTab({
   );
 }
 
-function InviteLinkCard({ userId, referralCount, lang }: { userId: string; referralCount: number; lang: Lang }) {
+function InviteLinkCard({
+  userId,
+  referralCount,
+  lang,
+}: {
+  userId: string;
+  referralCount: number;
+  lang: Lang;
+}) {
   const link = referralLink(userId);
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Invita a un amigo" : "Invite a friend"}</p>
+      <p className="font-medium">
+        {tr(lang, {
+          en: "Invite a friend",
+          es: "Invita a un amigo",
+          ja: "友達を招待する",
+        })}
+      </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? "Comparte este enlace — cuando alguien se registre a través de él, contará como tu invitación."
-          : "Share this link — anyone who signs up through it counts as your invite."}
+        {tr(lang, {
+          en: "Share this link — anyone who signs up through it counts as your invite.",
+          es: "Comparte este enlace — cuando alguien se registre a través de él, contará como tu invitación.",
+          ja: "このリンクを共有してください。ここから登録した人が、あなたの招待として記録されます。",
+        })}
       </p>
       <div className="mt-3 flex items-center gap-2">
         <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
@@ -642,9 +846,11 @@ function InviteLinkCard({ userId, referralCount, lang }: { userId: string; refer
         <CopyButton text={link} />
       </div>
       <p className="mt-2 text-xs tabular-nums text-muted-foreground">
-        {lang === "es"
-          ? `${referralCount} ${referralCount === 1 ? "persona invitada ha" : "personas invitadas han"} empezado a jugar.`
-          : `${referralCount} ${referralCount === 1 ? "person you invited has" : "people you invited have"} started playing.`}
+        {tr(lang, {
+          en: `${referralCount} ${referralCount === 1 ? "person you invited has" : "people you invited have"} started playing.`,
+          es: `${referralCount} ${referralCount === 1 ? "persona invitada ha" : "personas invitadas han"} empezado a jugar.`,
+          ja: `あなたが招待した${referralCount}人がプレイを始めました。`,
+        })}
       </p>
     </div>
   );
@@ -666,24 +872,29 @@ function SupporterCard({
   lang: Lang;
 }) {
   const expiresLabel = supporterExpiresAt
-    ? new Date(supporterExpiresAt).toLocaleDateString(lang === "es" ? "es-MX" : "en-US", { dateStyle: "long" })
+    ? new Date(supporterExpiresAt).toLocaleDateString(
+        tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" }),
+        { dateStyle: "long" },
+      )
     : null;
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
       <p className="font-medium">
         {isGoldSupporter
-          ? lang === "es"
-            ? "🏆 Colaborador Gold"
-            : "🏆 Gold Supporter"
-          : lang === "es"
-            ? "Colaborador"
-            : "Supporter"}
+          ? tr(lang, {
+              en: "🏆 Gold Supporter",
+              es: "🏆 Colaborador Gold",
+              ja: "🏆 ゴールドサポーター",
+            })
+          : tr(lang, { en: "Supporter", es: "Colaborador", ja: "サポーター" })}
       </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? `Dona en Ko-fi y pega este código en el mensaje de la donación. $3+ quita los anuncios y da la insignia de colaborador; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ da la insignia Gold y aparece primero en la página de colaboradores.`
-          : `Donate on Ko-fi and paste this code into the donation message. $3+ removes ads and gives the supporter badge; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ gives the Gold badge and top placement on the supporters page.`}
+        {tr(lang, {
+          en: `Donate on Ko-fi and paste this code into the donation message. $3+ removes ads and gives the supporter badge; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ gives the Gold badge and top placement on the supporters page.`,
+          es: `Dona en Ko-fi y pega este código en el mensaje de la donación. $3+ quita los anuncios y da la insignia de colaborador; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ da la insignia Gold y aparece primero en la página de colaboradores.`,
+          ja: `Ko-fi で寄付し、寄付メッセージにこのコードを貼り付けてください。$3以上で広告が消え、サポーターのバッジが付きます。$${GOLD_SUPPORTER_MIN_AMOUNT_USD}以上でゴールドバッジと、サポーターページでの上位掲載が付きます。`,
+        })}
       </p>
       <div className="mt-3 flex items-center gap-2">
         <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
@@ -693,49 +904,73 @@ function SupporterCard({
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
         {isSupporter && expiresLabel
-          ? lang === "es"
-            ? `Activo hasta el ${expiresLabel} (se extiende con cada pago de Ko-fi).`
-            : `Active until ${expiresLabel} (extends with each Ko-fi payment).`
+          ? tr(lang, {
+              en: `Active until ${expiresLabel} (extends with each Ko-fi payment).`,
+              es: `Activo hasta el ${expiresLabel} (se extiende con cada pago de Ko-fi).`,
+              ja: `${expiresLabel}まで有効（Ko-fi での支払いごとに延長されます）。`,
+            })
           : isSupporter
-            ? lang === "es"
-              ? "Activo — otorgado por el staff."
-              : "Active — granted by staff."
-            : lang === "es"
-              ? "Aún no está activo. Puede tardar unos minutos después de donar."
-              : "Not active yet. May take a few minutes after donating to show up."}
+            ? tr(lang, {
+                en: "Active — granted by staff.",
+                es: "Activo — otorgado por el staff.",
+                ja: "有効 — スタッフによる付与です。",
+              })
+            : tr(lang, {
+                en: "Not active yet. May take a few minutes after donating to show up.",
+                es: "Aún no está activo. Puede tardar unos minutos después de donar.",
+                ja: "まだ有効ではありません。寄付の反映に数分かかる場合があります。",
+              })}
       </p>
       <div className="mt-2 flex gap-2">
         <a href={KOFI_URL} target="_blank" rel="noreferrer">
           <Button type="button" variant="outline" size="sm">
-            {lang === "es" ? "Ir a Ko-fi" : "Go to Ko-fi"}
+            {tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi", ja: "Ko-fi へ" })}
           </Button>
         </a>
         {isGoldSupporter && (
           <a href="/analytics">
             <Button type="button" variant="outline" size="sm">
-              {lang === "es" ? "📊 Ver mi análisis" : "📊 View my analytics"}
+              {tr(lang, {
+                en: "📊 View my analytics",
+                es: "📊 Ver mi análisis",
+                ja: "📊 自分の統計を見る",
+              })}
             </Button>
           </a>
         )}
       </div>
 
       {isGoldSupporter && (
-        <SettingsSaveForm action={updatePostMatchMessageAction} lang={lang} className="mt-4 flex flex-col gap-1.5 border-t border-border pt-4">
+        <SettingsSaveForm
+          action={updatePostMatchMessageAction}
+          lang={lang}
+          className="mt-4 flex flex-col gap-1.5 border-t border-border pt-4"
+        >
           <label className="flex flex-col gap-1">
             <span className="font-medium text-foreground">
-              {lang === "es" ? "Mensaje de fin de partida" : "Post-match message"}
+              {tr(lang, {
+                en: "Post-match message",
+                es: "Mensaje de fin de partida",
+                ja: "試合後のメッセージ",
+              })}
             </span>
             <span className="text-xs font-normal text-muted-foreground">
-              {lang === "es"
-                ? "Se publica automáticamente en el chat de la partida cuando esta se confirma. Déjalo vacío para no publicar nada."
-                : "Auto-posted in the match chat the moment a match of yours is confirmed. Leave blank to post nothing."}
+              {tr(lang, {
+                en: "Auto-posted in the match chat the moment a match of yours is confirmed. Leave blank to post nothing.",
+                es: "Se publica automáticamente en el chat de la partida cuando esta se confirma. Déjalo vacío para no publicar nada.",
+                ja: "自分の試合が確定した瞬間に、試合チャットへ自動投稿されます。空欄にすると何も投稿しません。",
+              })}
             </span>
             <input
               name="postMatchMessage"
               type="text"
               maxLength={POST_MATCH_MESSAGE_MAX_LENGTH}
               defaultValue={postMatchMessage}
-              placeholder={lang === "es" ? "GG, ¡buenas partidas!" : "GG, good games!"}
+              placeholder={tr(lang, {
+                en: "GG, good games!",
+                es: "GG, ¡buenas partidas!",
+                ja: "GG、ありがとうございました！",
+              })}
               className="mt-1 h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
             />
           </label>
@@ -760,19 +995,36 @@ function StreamOverlayCard({
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Overlay de stream" : "Stream overlay"}</p>
+      <p className="font-medium">
+        {tr(lang, {
+          en: "Stream overlay",
+          es: "Overlay de stream",
+          ja: "配信用オーバーレイ",
+        })}
+      </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es" ? (
-          <>
-            Usa esta URL como Browser Source en OBS (configurada a <strong>1920 x 1080</strong>) para mostrar tu
-            clasificación, partidas recientes, y la partida actual en tu stream.
-          </>
-        ) : (
-          <>
-            Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your rating, recent
-            matches, and current match info on stream.
-          </>
-        )}
+        {trNode(lang, {
+          en: (
+            <>
+              Use this URL as an OBS Browser Source (set to{" "}
+              <strong>1920 x 1080</strong>) to show your rating, recent matches,
+              and current match info on stream.
+            </>
+          ),
+          es: (
+            <>
+              Usa esta URL como Browser Source en OBS (configurada a{" "}
+              <strong>1920 x 1080</strong>) para mostrar tu clasificación,
+              partidas recientes, y la partida actual en tu stream.
+            </>
+          ),
+          ja: (
+            <>
+              この URL を OBS のブラウザソース（<strong>1920 x 1080</strong>
+              に設定）として使うと、レート・最近の試合・現在の試合情報を配信に表示できます。
+            </>
+          ),
+        })}
       </p>
       <div className="mt-3">
         <OverlayUrlToggle baseUrl={overlayUrl} />
@@ -794,24 +1046,50 @@ function TwitchConnectCard({
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Cuenta de Twitch" : "Twitch account"}</p>
+      <p className="font-medium">
+        {tr(lang, {
+          en: "Twitch account",
+          es: "Cuenta de Twitch",
+          ja: "Twitch アカウント",
+        })}
+      </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? "Conecta tu cuenta de Twitch para acceder a una página de overlay personalizada. El overlay muestra tu clasificación, rango, y partidas recientes — perfecto como Browser Source de OBS para tu stream."
-          : "Connect your Twitch account to access a custom stream overlay page. The overlay shows your rating, rank, and recent matches — perfect as an OBS Browser Source for your stream."}
+        {tr(lang, {
+          en: "Connect your Twitch account to access a custom stream overlay page. The overlay shows your rating, rank, and recent matches — perfect as an OBS Browser Source for your stream.",
+          es: "Conecta tu cuenta de Twitch para acceder a una página de overlay personalizada. El overlay muestra tu clasificación, rango, y partidas recientes — perfecto como Browser Source de OBS para tu stream.",
+          ja: "Twitch アカウントを連携すると、専用の配信オーバーレイページが使えます。レート・ランク・最近の試合が表示され、OBS のブラウザソースとしてそのまま配信に載せられます。",
+        })}
       </p>
       {connected ? (
         <>
-          {justConnected && <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>}
+          {justConnected && (
+            <p className="text-xs text-emerald-600">
+              {tr(lang, {
+                en: "Connected!",
+                es: "¡Conectado!",
+                ja: "連携済み！",
+              })}
+            </p>
+          )}
           <div className="mt-1 flex items-center gap-2">
             {connected.profileImageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={connected.profileImageUrl} alt="" className="size-6 rounded-full" />
+              <img
+                src={connected.profileImageUrl}
+                alt=""
+                className="size-6 rounded-full"
+              />
             )}
-            <span className="font-medium">{connected.displayName ?? connected.username} ✓</span>
+            <span className="font-medium">
+              {connected.displayName ?? connected.username} ✓
+            </span>
             <form action={disconnectTwitchAction}>
               <Button type="submit" size="sm" variant="outline">
-                {lang === "es" ? "Desconectar" : "Disconnect"}
+                {tr(lang, {
+                  en: "Disconnect",
+                  es: "Desconectar",
+                  ja: "連携を解除",
+                })}
               </Button>
             </form>
           </div>
@@ -819,7 +1097,11 @@ function TwitchConnectCard({
       ) : (
         <a href="/api/twitch/connect" className="mt-1 self-start">
           <Button type="button" size="sm">
-            {lang === "es" ? "Conectar con Twitch" : "Connect with Twitch"}
+            {tr(lang, {
+              en: "Connect with Twitch",
+              es: "Conectar con Twitch",
+              ja: "Twitch と連携する",
+            })}
           </Button>
         </a>
       )}
@@ -841,15 +1123,31 @@ function StartggConnectCard({
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Perfil de start.gg" : "start.gg profile"}</p>
+      <p className="font-medium">
+        {tr(lang, {
+          en: "start.gg profile",
+          es: "Perfil de start.gg",
+          ja: "start.gg のプロフィール",
+        })}
+      </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? "Verificado mediante inicio de sesión de start.gg, no un enlace que escribes — así nadie más puede adjudicarse tus resultados."
-          : "Verified via start.gg sign-in, not a link you type in — so nobody else can claim your results as their own."}
+        {tr(lang, {
+          en: "Verified via start.gg sign-in, not a link you type in — so nobody else can claim your results as their own.",
+          es: "Verificado mediante inicio de sesión de start.gg, no un enlace que escribes — así nadie más puede adjudicarse tus resultados.",
+          ja: "start.gg でのログインによって確認されます。自分で入力するリンクではないため、他人があなたの戦績を自分のものとして登録することはできません。",
+        })}
       </p>
       {connected ? (
         <>
-          {justConnected && <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>}
+          {justConnected && (
+            <p className="text-xs text-emerald-600">
+              {tr(lang, {
+                en: "Connected!",
+                es: "¡Conectado!",
+                ja: "連携済み！",
+              })}
+            </p>
+          )}
           <div className="mt-1 flex items-center gap-2">
             <a
               href={startggProfileUrl(connected.slug)}
@@ -861,7 +1159,11 @@ function StartggConnectCard({
             </a>
             <form action={disconnectStartggAction}>
               <Button type="submit" size="sm" variant="outline">
-                {lang === "es" ? "Desconectar" : "Disconnect"}
+                {tr(lang, {
+                  en: "Disconnect",
+                  es: "Desconectar",
+                  ja: "連携を解除",
+                })}
               </Button>
             </form>
           </div>
@@ -869,7 +1171,11 @@ function StartggConnectCard({
       ) : (
         <a href="/api/startgg/connect" className="mt-1 self-start">
           <Button type="button" size="sm">
-            {lang === "es" ? "Conectar con start.gg" : "Connect with start.gg"}
+            {tr(lang, {
+              en: "Connect with start.gg",
+              es: "Conectar con start.gg",
+              ja: "start.gg と連携する",
+            })}
           </Button>
         </a>
       )}
@@ -882,7 +1188,9 @@ function PageTitle({ lang }: { lang: Lang }) {
   return (
     <div className="flex items-center gap-2">
       <Settings className="size-5 text-muted-foreground" />
-      <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Ajustes" : "Settings"}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        {tr(lang, { en: "Settings", es: "Ajustes", ja: "設定" })}
+      </h1>
     </div>
   );
 }
@@ -909,12 +1217,20 @@ function PreferredLanguageForm({ currentLang }: { currentLang: Lang }) {
       </div>
       <div className="flex shrink-0 gap-2">
         <form action={setEnglish}>
-          <Button type="submit" size="sm" variant={currentLang === "en" ? "default" : "outline"}>
+          <Button
+            type="submit"
+            size="sm"
+            variant={currentLang === "en" ? "default" : "outline"}
+          >
             English
           </Button>
         </form>
         <form action={setSpanish}>
-          <Button type="submit" size="sm" variant={currentLang === "es" ? "default" : "outline"}>
+          <Button
+            type="submit"
+            size="sm"
+            variant={currentLang === "es" ? "default" : "outline"}
+          >
             Español
           </Button>
         </form>

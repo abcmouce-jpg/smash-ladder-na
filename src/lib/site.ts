@@ -12,7 +12,8 @@
 import type { Lang } from "@/lib/i18n";
 
 /** Display name of this instance. */
-export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Smash Ladder NA";
+export const SITE_NAME =
+  process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Smash Ladder NA";
 
 /** One-line description, used in metadata, the manifest and OG images. */
 export const SITE_DESCRIPTION =
@@ -35,11 +36,30 @@ export const DEFAULT_LANG: Lang = (() => {
  * filtering after the fact.
  */
 export type RegionSet = "na" | "jp";
-export const REGION_SET: RegionSet = process.env.NEXT_PUBLIC_REGION_SET?.trim() === "jp" ? "jp" : "na";
+export const REGION_SET: RegionSet =
+  process.env.NEXT_PUBLIC_REGION_SET?.trim() === "jp" ? "jp" : "na";
 
 // The custom domain, for links meant to be shared off-site (an X intent,
 // a Discord message) where the nicer branded URL matters. layout.tsx,
 // robots.ts, and sitemap.ts each still hardcode the vercel.app domain for
 // SEO canonicalization — a separate, pre-existing decision this doesn't
 // touch.
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://nasmashmate.com";
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://nasmashmate.com";
+
+/**
+ * Time zone dates are displayed in. A season ends at one instant worldwide;
+ * this is only which clock to show it on, so it follows the instance rather
+ * than the viewer's browser (a server-rendered date has no browser to ask).
+ */
+export const DISPLAY_TIME_ZONE =
+  REGION_SET === "jp" ? "Asia/Tokyo" : "America/New_York";
+
+/**
+ * Whether this instance runs the cash prize program. North America's is a
+ * USD pool split among the season's top 3; Japan has no prize program
+ * decided, and offering one there needs the money to come from sponsorship
+ * rather than entry fees to stay clear of 賭博罪, so the banner stays off
+ * until that call is made. Flip this, not the copy, when it is.
+ */
+export const HAS_PRIZE_POOL = REGION_SET !== "jp";
