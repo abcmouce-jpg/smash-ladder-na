@@ -15,7 +15,12 @@ import {
 import { auth } from "@/auth";
 import { getMatchupNote } from "@/lib/matchup-notes";
 import { prisma } from "@/lib/db";
-import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser, touchWaitingLobbyEntry } from "@/lib/lobby";
+import {
+  getActiveLobbyEntry,
+  getLobbyActivityStats,
+  retryPairForWaitingUser,
+  touchWaitingLobbyEntry,
+} from "@/lib/lobby";
 import { PushNudgeBanner } from "@/components/push-nudge-banner";
 import { SupporterBanner } from "@/components/supporter-banner";
 import { getSupporterCount } from "@/lib/public-stats";
@@ -28,7 +33,12 @@ import {
 } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
 import { resolveQuickMessages } from "@/lib/quick-messages";
-import { currentStreak, getHeadToHead, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
+import {
+  currentStreak,
+  getHeadToHead,
+  getPlayerMatchHistory,
+  getTopCharacters,
+} from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
   REPORT_TIMEOUT_MS,
@@ -42,12 +52,25 @@ import {
   lastUsedMoveset,
   secondsUntil,
 } from "@/lib/match-games";
-import { stageImagePath, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import {
+  stageImagePath,
+  GAME_ONE_STAGES,
+  COUNTERPICK_STAGES,
+} from "@/lib/stages";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
-import { MATCH_DISTANCE_PRESETS, MATCH_REGION_GROUPS, REGION_REFERENCE_CITY } from "@/lib/regions";
-import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier, isRatingVisible } from "@/lib/rank-tier";
+import {
+  MATCH_DISTANCE_PRESETS,
+  MATCH_REGION_GROUPS,
+  REGION_REFERENCE_CITY,
+} from "@/lib/regions";
+import {
+  MATCH_RATING_GAP_PRESETS,
+  didTierUp,
+  getRankTier,
+  isRatingVisible,
+} from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
@@ -56,10 +79,19 @@ import { cn } from "@/lib/utils";
 import { PageHeading } from "@/components/page-heading";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterPickForm } from "@/components/character-pick";
-import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
+import {
+  OptionSelect,
+  type OptionSelectOption,
+} from "@/components/option-select";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RoomCodeForm } from "@/components/room-code-form";
 import { QueueRoomCodeForm } from "@/components/queue-room-code-form";
@@ -79,7 +111,10 @@ import { CommentForm } from "@/components/comment-form";
 import { ChatMessages } from "@/components/chat-messages";
 import { TypingIndicator } from "@/components/typing-indicator";
 import { ReportConductForm } from "@/components/report-conduct-form";
-import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
+import {
+  MatchSettingsForm,
+  type MatchSettingsState,
+} from "@/components/match-settings-form";
 import { getLang, type Lang } from "@/lib/i18n";
 import {
   acceptStageProposal,
@@ -118,8 +153,11 @@ import {
   updateWiredConnection,
   updateZenMode,
 } from "./actions";
+import { tr, trNode } from "@/lib/lang";
 
-type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
+type Match = NonNullable<
+  NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]
+>;
 
 export default async function LobbyPage() {
   const [session, activity, lang, supporterCount] = await Promise.all([
@@ -132,12 +170,23 @@ export default async function LobbyPage() {
   if (!session?.user?.id) {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
-        <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
-        <ActivityLine inMatch={activity.inMatch} matched={false} isWaiting={false} poll={false} lang={lang} />
+        <PageHeading
+          icon={Swords}
+          title={tr(lang, { en: "Lobby", es: "Sala", ja: "ロビー" })}
+        />
+        <ActivityLine
+          inMatch={activity.inMatch}
+          matched={false}
+          isWaiting={false}
+          poll={false}
+          lang={lang}
+        />
         <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "es"
-            ? "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento."
-            : "Sign in with Discord (top right) to join the matchmaking lobby."}
+          {tr(lang, {
+            en: "Sign in with Discord (top right) to join the matchmaking lobby.",
+            es: "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento.",
+            ja: "右上の Discord でログインすると、マッチングロビーに参加できます。",
+          })}
         </p>
       </main>
     );
@@ -151,11 +200,16 @@ export default async function LobbyPage() {
   if (restriction?.status === "BANNED") {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
-        <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
+        <PageHeading
+          icon={Swords}
+          title={tr(lang, { en: "Lobby", es: "Sala", ja: "ロビー" })}
+        />
         <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "es"
-            ? "Tu cuenta está suspendida permanentemente, así que la sala no está disponible. Mira el aviso de arriba para más detalles."
-            : "Your account has been banned, so the lobby isn't available. See the notice above for details."}
+          {tr(lang, {
+            en: "Your account has been banned, so the lobby isn't available. See the notice above for details.",
+            es: "Tu cuenta está suspendida permanentemente, así que la sala no está disponible. Mira el aviso de arriba para más detalles.",
+            ja: "アカウントが利用停止のため、ロビーは使えません。詳細は上の通知を確認してください。",
+          })}
         </p>
       </main>
     );
@@ -167,7 +221,8 @@ export default async function LobbyPage() {
   // this page every ~5s while WAITING), so renew their queue spot — without
   // this, LOBBY_ENTRY_TTL_MS was a hard cap and an attentive player got dropped
   // mid-wait. Gated on actually waiting so an idle visitor pays nothing for it.
-  if (entry?.status === "WAITING") await touchWaitingLobbyEntry(session.user.id);
+  if (entry?.status === "WAITING")
+    await touchWaitingLobbyEntry(session.user.id);
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
@@ -198,7 +253,9 @@ export default async function LobbyPage() {
   const matchJustEnded =
     entry?.status === "PAIRED" &&
     entry.match &&
-    (entry.match.status === "CONFIRMED" || entry.match.status === "CANCELLED" || entry.match.status === "EXPIRED");
+    (entry.match.status === "CONFIRMED" ||
+      entry.match.status === "CANCELLED" ||
+      entry.match.status === "EXPIRED");
   const myLeftAt =
     matchJustEnded && entry?.match
       ? entry.match.player1Id === session.user.id
@@ -215,14 +272,20 @@ export default async function LobbyPage() {
   // Rated ratings stay visible to moderators even while a player is provisional
   // (see isRatingVisible); the lobby's own match view is the one place a
   // non-mod player can be looking at another provisional player's number.
-  const viewerIsModerator = session.user.role === "MOD" || session.user.role === "ADMIN";
+  const viewerIsModerator =
+    session.user.role === "MOD" || session.user.role === "ADMIN";
   // The queue + settings stack only makes sense with no live match to focus on;
   // once a match ends it comes back below the results panel.
   const showQueueArea = !isInActiveMatch;
 
   return (
-    <main className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}>
-      <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
+    <main
+      className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}
+    >
+      <PageHeading
+        icon={Swords}
+        title={tr(lang, { en: "Lobby", es: "Sala", ja: "ロビー" })}
+      />
       <ActivityLine
         inMatch={activity.inMatch}
         matched={!!isInActiveMatch}
@@ -241,7 +304,12 @@ export default async function LobbyPage() {
       <PushNudgeBanner lang={lang} />
 
       {showMatchPanel && entry?.match && (
-        <PairedView userId={session.user.id} match={entry.match} viewerIsModerator={viewerIsModerator} lang={lang} />
+        <PairedView
+          userId={session.user.id}
+          match={entry.match}
+          viewerIsModerator={viewerIsModerator}
+          lang={lang}
+        />
       )}
 
       {showQueueArea && (
@@ -257,22 +325,38 @@ export default async function LobbyPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-base">
-                      {lang === "es" ? "Buscando rival…" : "Searching for an opponent…"}
+                      {tr(lang, {
+                        en: "Searching for an opponent…",
+                        es: "Buscando rival…",
+                        ja: "対戦相手を探しています…",
+                      })}
                     </CardTitle>
                     <CardDescription className="mt-0.5">
-                      {lang === "es" ? "Activa las notificaciones en " : "Turn on notifications in "}
+                      {tr(lang, {
+                        en: "Turn on notifications in ",
+                        es: "Activa las notificaciones en ",
+                        ja: "マッチを見逃さないよう、",
+                      })}
                       <Link
                         href="/settings?tab=notifications#push-notifications"
                         className="text-foreground underline underline-offset-2"
                       >
-                        {lang === "es" ? "Ajustes" : "Settings"}
+                        {tr(lang, {
+                          en: "Settings",
+                          es: "Ajustes",
+                          ja: "設定",
+                        })}
                       </Link>
-                      {lang === "es" ? " para no perderte la partida." : " so you don't miss the match."}
+                      {tr(lang, {
+                        en: " so you don't miss the match.",
+                        es: " para no perderte la partida.",
+                        ja: "で通知をオンにしてください。",
+                      })}
                     </CardDescription>
                   </div>
                   <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Clock className="size-3.5" />
-                    {lang === "es" ? "En cola" : "In queue"}
+                    {tr(lang, { en: "In queue", es: "En cola", ja: "待機中" })}
                     <span className="font-medium tabular-nums text-foreground">
                       <QueueTimer joinedAt={entry.joinedAt.toISOString()} />
                     </span>
@@ -282,7 +366,11 @@ export default async function LobbyPage() {
               <CardContent className="pt-4">
                 <form action={cancelLobby}>
                   <Button type="submit" variant="outline">
-                    {lang === "es" ? "Cancelar búsqueda" : "Cancel search"}
+                    {tr(lang, {
+                      en: "Cancel search",
+                      es: "Cancelar búsqueda",
+                      ja: "待機をやめる",
+                    })}
                   </Button>
                 </form>
                 <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4">
@@ -293,9 +381,11 @@ export default async function LobbyPage() {
                   />
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      {lang === "es"
-                        ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
-                        : "Wait feeling long? Invite a friend to get matched faster."}
+                      {tr(lang, {
+                        en: "Wait feeling long? Invite a friend to get matched faster.",
+                        es: "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido.",
+                        ja: "待ち時間が長いですか？友達を誘うと早くマッチします。",
+                      })}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
                       <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
@@ -317,17 +407,23 @@ export default async function LobbyPage() {
                   <div>
                     <CardTitle className="text-base">
                       {matchJustEnded
-                        ? lang === "es"
-                          ? "¿Listo para otra partida?"
-                          : "Ready for another match?"
-                        : lang === "es"
-                          ? "¿Listo para jugar?"
-                          : "Ready to play?"}
+                        ? tr(lang, {
+                            en: "Ready for another match?",
+                            es: "¿Listo para otra partida?",
+                            ja: "もう一戦やりますか？",
+                          })
+                        : tr(lang, {
+                            en: "Ready to play?",
+                            es: "¿Listo para jugar?",
+                            ja: "対戦しますか？",
+                          })}
                     </CardTitle>
                     <CardDescription className="mt-0.5">
-                      {lang === "es"
-                        ? "Entra en la cola y te emparejaremos con un rival cercano."
-                        : "Join the queue and we'll pair you with a nearby opponent."}
+                      {tr(lang, {
+                        en: "Join the queue and we'll pair you with a nearby opponent.",
+                        es: "Entra en la cola y te emparejaremos con un rival cercano.",
+                        ja: "待機すると、近くの相手とマッチングします。",
+                      })}
                     </CardDescription>
                   </div>
                 </div>
@@ -337,34 +433,65 @@ export default async function LobbyPage() {
                   <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                     <MapPin className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <p className="text-muted-foreground">
-                      {lang === "es" ? (
-                        <>
-                          Elige tu <span className="font-medium text-foreground">región de partida</span> en los ajustes
-                          de abajo para poder buscar partida.{" "}
-                          <a
-                            href="#match-settings"
-                            className="font-medium text-foreground underline underline-offset-2"
-                          >
-                            Elegir región ↓
-                          </a>
-                        </>
-                      ) : (
-                        <>
-                          Choose your <span className="font-medium text-foreground">match region</span> in the settings
-                          below to start matching.{" "}
-                          <a
-                            href="#match-settings"
-                            className="font-medium text-foreground underline underline-offset-2"
-                          >
-                            Set region ↓
-                          </a>
-                        </>
-                      )}
+                      {trNode(lang, {
+                        en: (
+                          <>
+                            Choose your{" "}
+                            <span className="font-medium text-foreground">
+                              match region
+                            </span>{" "}
+                            in the settings below to start matching.{" "}
+                            <a
+                              href="#match-settings"
+                              className="font-medium text-foreground underline underline-offset-2"
+                            >
+                              Set region ↓
+                            </a>
+                          </>
+                        ),
+                        es: (
+                          <>
+                            Elige tu{" "}
+                            <span className="font-medium text-foreground">
+                              región de partida
+                            </span>{" "}
+                            en los ajustes de abajo para poder buscar partida.{" "}
+                            <a
+                              href="#match-settings"
+                              className="font-medium text-foreground underline underline-offset-2"
+                            >
+                              Elegir región ↓
+                            </a>
+                          </>
+                        ),
+                        ja: (
+                          <>
+                            下の設定で
+                            <span className="font-medium text-foreground">
+                              対戦地域
+                            </span>
+                            を選ぶと、対戦相手を探せます。{" "}
+                            <a
+                              href="#match-settings"
+                              className="font-medium text-foreground underline underline-offset-2"
+                            >
+                              地域を設定する ↓
+                            </a>
+                          </>
+                        ),
+                      })}
                     </p>
                   </div>
                 )}
-                <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
-                  <JoinLobbyForm action={joinLobby} lang={lang} hasRegion={hasRegion} />
+                <QueueCooldownGate
+                  cooldownUntil={queueCooldownUntil}
+                  lang={lang}
+                >
+                  <JoinLobbyForm
+                    action={joinLobby}
+                    lang={lang}
+                    hasRegion={hasRegion}
+                  />
                 </QueueCooldownGate>
               </CardContent>
             </Card>
@@ -377,21 +504,39 @@ export default async function LobbyPage() {
                   <SlidersHorizontal className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <CardTitle className="text-base">{lang === "es" ? "Ajustes de partida" : "Match settings"}</CardTitle>
+                  <CardTitle className="text-base">
+                    {tr(lang, {
+                      en: "Match settings",
+                      es: "Ajustes de partida",
+                      ja: "対戦設定",
+                    })}
+                  </CardTitle>
                   <CardDescription className="mt-0.5">
-                    {lang === "es" ? "Con quién te emparejamos y cómo." : "Who you match with, and how."}
+                    {tr(lang, {
+                      en: "Who you match with, and how.",
+                      es: "Con quién te emparejamos y cómo.",
+                      ja: "誰と、どのようにマッチするか。",
+                    })}
                   </CardDescription>
                 </div>
                 {isWaiting && (
                   <Badge variant="outline" className="shrink-0">
                     <Lock className="size-3" />
-                    {lang === "es" ? "Bloqueados" : "Locked"}
+                    {tr(lang, {
+                      en: "Locked",
+                      es: "Bloqueados",
+                      ja: "変更不可",
+                    })}
                   </Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent className="pt-4">
-              <MatchmakingForm userId={session.user.id} lang={lang} disabled={isWaiting} />
+              <MatchmakingForm
+                userId={session.user.id}
+                lang={lang}
+                disabled={isWaiting}
+              />
             </CardContent>
           </Card>
         </>
@@ -425,15 +570,26 @@ function ActivityLine({
     <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
       <Users className="size-3.5" />
       <span className="tabular-nums">
-        {lang === "es" ? (
-          <>
-            <span className="font-medium text-foreground">{inMatch}</span> jugando ahora
-          </>
-        ) : (
-          <>
-            <span className="font-medium text-foreground">{inMatch}</span> playing now
-          </>
-        )}
+        {trNode(lang, {
+          en: (
+            <>
+              <span className="font-medium text-foreground">{inMatch}</span>{" "}
+              playing now
+            </>
+          ),
+          es: (
+            <>
+              <span className="font-medium text-foreground">{inMatch}</span>{" "}
+              jugando ahora
+            </>
+          ),
+          ja: (
+            <>
+              <span className="font-medium text-foreground">{inMatch}</span>{" "}
+              人が対戦中
+            </>
+          ),
+        })}
       </span>
       {poll && (
         <LobbyPoller
@@ -452,15 +608,26 @@ const WORLDWIDE_VALUE = "worldwide";
 const ANY_RATING_VALUE = "any";
 const ANYTIME_VALUE = "anytime";
 
-const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group) =>
-  group.regions.map((r) => ({
-    value: r,
-    label: REGION_REFERENCE_CITY[r] ? `${r} (${REGION_REFERENCE_CITY[r]})` : r,
-    group: group.label,
-  })),
+const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap(
+  (group) =>
+    group.regions.map((r) => ({
+      value: r,
+      label: REGION_REFERENCE_CITY[r]
+        ? `${r} (${REGION_REFERENCE_CITY[r]})`
+        : r,
+      group: group.label,
+    })),
 );
 
-async function MatchmakingForm({ userId, lang, disabled = false }: { userId: string; lang: Lang; disabled?: boolean }) {
+async function MatchmakingForm({
+  userId,
+  lang,
+  disabled = false,
+}: {
+  userId: string;
+  lang: Lang;
+  disabled?: boolean;
+}) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -476,23 +643,41 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
   });
 
   // Wired can be refused (too many cancels), so it goes last and can't strand the others
-  async function action(_prevState: MatchSettingsState, formData: FormData): Promise<MatchSettingsState> {
+  async function action(
+    _prevState: MatchSettingsState,
+    formData: FormData,
+  ): Promise<MatchSettingsState> {
     "use server";
     try {
       await updateRegion(String(formData.get("region") ?? ""));
       const distance = String(formData.get("maxMatchDistanceKm") ?? "");
-      await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
+      await updateMaxMatchDistance(
+        distance === WORLDWIDE_VALUE ? null : Number(distance),
+      );
       const ratingGap = String(formData.get("maxRatingGap") ?? "");
-      await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
-      const rematchCooldown = String(formData.get("rematchCooldownHours") ?? "");
-      await updateRematchCooldown(rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown));
-      await updateRequireWiredOpponent(formData.get("requireWiredOpponent") === "on");
-      await updateAvoidPracticeOpponents(formData.get("avoidPracticeOpponents") === "on");
+      await updateMaxRatingGap(
+        ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap),
+      );
+      const rematchCooldown = String(
+        formData.get("rematchCooldownHours") ?? "",
+      );
+      await updateRematchCooldown(
+        rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown),
+      );
+      await updateRequireWiredOpponent(
+        formData.get("requireWiredOpponent") === "on",
+      );
+      await updateAvoidPracticeOpponents(
+        formData.get("avoidPracticeOpponents") === "on",
+      );
       await updateZenMode(formData.get("zenMode") === "on");
       await updateWiredConnection(formData.get("wired") === "on");
     } catch (err) {
       return {
-        error: err instanceof Error ? err.message : "Something went wrong — try again.",
+        error:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong — try again.",
         saved: false,
       };
     }
@@ -502,31 +687,58 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
   const missingRegion = !me?.region;
 
   return (
-    <MatchSettingsForm action={action} className="flex flex-col gap-6" lang={lang} disabled={disabled}>
+    <MatchSettingsForm
+      action={action}
+      className="flex flex-col gap-6"
+      lang={lang}
+      disabled={disabled}
+    >
       {disabled && (
         <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          {lang === "es"
-            ? "Estás en la cola, así que estos ajustes están bloqueados — cancela la búsqueda para cambiarlos."
-            : "You're in the queue, so these settings are locked — cancel your search to change them."}
+          {tr(lang, {
+            en: "You're in the queue, so these settings are locked — cancel your search to change them.",
+            es: "Estás en la cola, así que estos ajustes están bloqueados — cancela la búsqueda para cambiarlos.",
+            ja: "待機中は設定を変更できません。変えるには待機をやめてください。",
+          })}
         </p>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           <span className="flex items-center gap-1.5">
-            {lang === "es" ? "Región de partida" : "Match region"}
-            {missingRegion && <Badge variant="warning">{lang === "es" ? "Requerido" : "Required"}</Badge>}
+            {tr(lang, {
+              en: "Match region",
+              es: "Región de partida",
+              ja: "対戦地域",
+            })}
+            {missingRegion && (
+              <Badge variant="warning">
+                {tr(lang, { en: "Required", es: "Requerido", ja: "必須" })}
+              </Badge>
+            )}
           </span>
           <OptionSelect
             key={me?.region ?? ""}
             name="region"
             defaultValue={me?.region ?? ""}
-            placeholder={lang === "es" ? "Sin definir" : "Not set"}
-            clearLabel={lang === "es" ? "Sin definir" : "Not set"}
+            placeholder={tr(lang, {
+              en: "Not set",
+              es: "Sin definir",
+              ja: "未設定",
+            })}
+            clearLabel={tr(lang, {
+              en: "Not set",
+              es: "Sin definir",
+              ja: "未設定",
+            })}
             className="w-full"
             searchable
             autoSubmit
-            searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
+            searchPlaceholder={tr(lang, {
+              en: "Search regions…",
+              es: "Buscar regiones…",
+              ja: "地域を検索…",
+            })}
             disabled={disabled}
             options={REGION_OPTIONS}
           />
@@ -534,7 +746,11 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
 
         <MatchSettingSelect
           name="maxMatchDistanceKm"
-          label={lang === "es" ? "Distancia de partida" : "Match distance"}
+          label={tr(lang, {
+            en: "Match distance",
+            es: "Distancia de partida",
+            ja: "対戦距離",
+          })}
           defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
           resetKey={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
           disabled={disabled}
@@ -546,7 +762,11 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
 
         <MatchSettingSelect
           name="maxRatingGap"
-          label={lang === "es" ? "Diferencia de clasificación" : "Rating gap"}
+          label={tr(lang, {
+            en: "Rating gap",
+            es: "Diferencia de clasificación",
+            ja: "レート差",
+          })}
           defaultValue={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           resetKey={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           disabled={disabled}
@@ -558,7 +778,11 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
 
         <MatchSettingSelect
           name="rematchCooldownHours"
-          label={lang === "es" ? "Espera de revancha" : "Rematch cooldown"}
+          label={tr(lang, {
+            en: "Rematch cooldown",
+            es: "Espera de revancha",
+            ja: "再戦の間隔",
+          })}
           defaultValue={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
           resetKey={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
           disabled={disabled}
@@ -580,55 +804,88 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
               disabled={disabled}
               className="size-4 rounded border-border disabled:opacity-60"
             />
-            {lang === "es" ? "En una conexión por cable (LAN)" : "On a wired (LAN) connection"}
+            {tr(lang, {
+              en: "On a wired (LAN) connection",
+              es: "En una conexión por cable (LAN)",
+              ja: "有線（LAN）接続",
+            })}
           </label>
           {/* Kept outside the label so clicking the link doesn't toggle the box. */}
           <p className="mt-1.5 pl-6 text-xs text-muted-foreground">
-            {lang === "es" ? (
-              <>
-                Se desactiva solo si tus cancelaciones superan el 25% de tus cancelaciones más partidas jugadas, o si
-                suficientes rivales reportan un problema de conexión contigo — consulta las{" "}
-                <Link href="/rules" className="text-foreground underline underline-offset-2">
-                  Reglas
-                </Link>
-                .
-              </>
-            ) : (
-              <>
-                Auto-clears if your cancels pass 25% of cancels plus games played, or if enough opponents report a
-                connection issue with you — see the{" "}
-                <Link href="/rules" className="text-foreground underline underline-offset-2">
-                  Rules
-                </Link>
-                .
-              </>
-            )}
+            {trNode(lang, {
+              en: (
+                <>
+                  Auto-clears if your cancels pass 25% of cancels plus games
+                  played, or if enough opponents report a connection issue with
+                  you — see the{" "}
+                  <Link
+                    href="/rules"
+                    className="text-foreground underline underline-offset-2"
+                  >
+                    Rules
+                  </Link>
+                  .
+                </>
+              ),
+              es: (
+                <>
+                  Se desactiva solo si tus cancelaciones superan el 25% de tus
+                  cancelaciones más partidas jugadas, o si suficientes rivales
+                  reportan un problema de conexión contigo — consulta las{" "}
+                  <Link
+                    href="/rules"
+                    className="text-foreground underline underline-offset-2"
+                  >
+                    Reglas
+                  </Link>
+                  .
+                </>
+              ),
+              ja: (
+                <>
+                  キャンセル数が「キャンセル＋試合数」の25%を超えた場合、または十分な数の相手から回線の問題を報告された場合に自動で解除されます。詳しくは
+                  <Link
+                    href="/rules"
+                    className="text-foreground underline underline-offset-2"
+                  >
+                    ルール
+                  </Link>
+                  をご覧ください。
+                </>
+              ),
+            })}
           </p>
         </div>
 
         <MatchSettingToggle
           name="requireWiredOpponent"
           checked={me?.requireWiredOpponent ?? false}
-          label={lang === "es" ? "Solo rivales por cable" : "Only match with wired opponents"}
+          label={tr(lang, {
+            en: "Only match with wired opponents",
+            es: "Solo rivales por cable",
+            ja: "有線接続の相手のみとマッチする",
+          })}
           disabled={disabled}
         />
         <MatchSettingToggle
           name="avoidPracticeOpponents"
           checked={me?.avoidPracticeOpponents ?? false}
-          label={
-            lang === "es" ? "Evitar rivales que están practicando" : "Don't match me with opponents who are practicing"
-          }
+          label={tr(lang, {
+            en: "Don't match me with opponents who are practicing",
+            es: "Evitar rivales que están practicando",
+            ja: "練習中の相手とはマッチしない",
+          })}
           disabled={disabled}
         />
         <MatchSettingToggle
           name="zenMode"
           checked={me?.zenMode ?? false}
-          label={lang === "es" ? "Modo Zen" : "Zen Mode"}
-          hint={
-            lang === "es"
-              ? "Oculta la clasificación, el nombre, los personajes y el avatar de tu rival."
-              : "Hide your opponent's rating, name, characters, and avatar."
-          }
+          label={tr(lang, { en: "Zen Mode", es: "Modo Zen", ja: "ゼンモード" })}
+          hint={tr(lang, {
+            en: "Hide your opponent's rating, name, characters, and avatar.",
+            es: "Oculta la clasificación, el nombre, los personajes y el avatar de tu rival.",
+            ja: "相手のレート・名前・使用キャラ・アイコンを隠します。",
+          })}
           disabled={disabled}
         />
       </div>
@@ -696,7 +953,11 @@ function MatchSettingToggle({
       />
       <span>
         <span className="font-medium">{label}</span>
-        {hint && <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{hint}</span>}
+        {hint && (
+          <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+            {hint}
+          </span>
+        )}
       </span>
     </label>
   );
@@ -737,20 +998,33 @@ async function PairedView({
     },
   });
   const zenMode = me?.zenMode ?? false;
-  const displayName = zenMode ? (lang === "es" ? "Rival" : "Opponent") : opponent.username;
+  const displayName = zenMode
+    ? tr(lang, { en: "Opponent", es: "Rival", ja: "相手" })
+    : opponent.username;
   // Doesn't hide the opponent's real name/rating from them (that's what
   // zenMode above does, one-directionally) — just lets them know you have
   // it on, so they're not confused if you're less chatty/less findable.
   const opponentInZenMode = opponent.zenMode;
-  const opponentIsPracticing = isPlayer1 ? match.player2IsPracticing : match.player1IsPracticing;
-  const myIsPracticing = isPlayer1 ? match.player1IsPracticing : match.player2IsPracticing;
+  const opponentIsPracticing = isPlayer1
+    ? match.player2IsPracticing
+    : match.player1IsPracticing;
+  const myIsPracticing = isPlayer1
+    ? match.player1IsPracticing
+    : match.player2IsPracticing;
 
-  if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
+  if (
+    match.status === "CONFIRMED" ||
+    match.status === "CANCELLED" ||
+    match.status === "EXPIRED"
+  ) {
     // Opponent may have queued into (and already be playing) a new match since
     // this one ended — a stale rematch request would otherwise just sit there
     // showing "Waiting…" forever, since requestRematch silently no-ops in that
     // case (see the eitherAlreadyPlaying check in lib/matches.ts).
-    const opponentUnavailable = !myLeftAt && !opponentLeftAt ? !!(await getUnresolvedMatchForUser(opponent.id)) : false;
+    const opponentUnavailable =
+      !myLeftAt && !opponentLeftAt
+        ? !!(await getUnresolvedMatchForUser(opponent.id))
+        : false;
     const chat = (
       <CommentsSection
         userId={userId}
@@ -765,7 +1039,12 @@ async function PairedView({
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <Card>
           {match.status === "CONFIRMED" ? (
-            <ConfirmedSection userId={userId} match={match} viewerIsModerator={viewerIsModerator} lang={lang} />
+            <ConfirmedSection
+              userId={userId}
+              match={match}
+              viewerIsModerator={viewerIsModerator}
+              lang={lang}
+            />
           ) : (
             <TerminatedSection status={match.status} lang={lang} />
           )}
@@ -774,15 +1053,26 @@ async function PairedView({
               <RematchSection
                 matchId={match.id}
                 opponentName={displayName}
-                myRequestedAt={isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt}
-                opponentRequestedAt={isPlayer1 ? match.player2RematchRequestedAt : match.player1RematchRequestedAt}
+                myRequestedAt={
+                  isPlayer1
+                    ? match.player1RematchRequestedAt
+                    : match.player2RematchRequestedAt
+                }
+                opponentRequestedAt={
+                  isPlayer1
+                    ? match.player2RematchRequestedAt
+                    : match.player1RematchRequestedAt
+                }
                 opponentLeftAt={opponentLeftAt}
                 opponentUnavailable={opponentUnavailable}
                 lang={lang}
               />
-              <form action={leaveMatchAction.bind(null, match.id)} className="ml-auto">
+              <form
+                action={leaveMatchAction.bind(null, match.id)}
+                className="ml-auto"
+              >
                 <Button type="submit" variant="outline" size="sm">
-                  {lang === "es" ? "Salir" : "Leave"}
+                  {tr(lang, { en: "Leave", es: "Salir", ja: "退出" })}
                 </Button>
               </form>
             </CardContent>
@@ -793,9 +1083,11 @@ async function PairedView({
               prefetch={false}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
-              {lang === "es"
-                ? "Ver todos los detalles de la partida en tu perfil →"
-                : "View full match details on your profile →"}
+              {tr(lang, {
+                en: "View full match details on your profile →",
+                es: "Ver todos los detalles de la partida en tu perfil →",
+                ja: "プロフィールで試合の詳細を見る →",
+              })}
             </Link>
           </CardContent>
         </Card>
@@ -812,7 +1104,9 @@ async function PairedView({
   const myTopCharacters = (await getTopCharacters(userId, 3)).filter((c) =>
     (SMASH_CHARACTERS as readonly string[]).includes(c),
   );
-  const opponentStreak = currentStreak(await getPlayerMatchHistory(opponent.id));
+  const opponentStreak = currentStreak(
+    await getPlayerMatchHistory(opponent.id),
+  );
   // Lifetime record vs this specific opponent (confirmed, non-practice sets
   // only). Skipped in zen mode — like the streak badge, it would give away
   // who the masked opponent is.
@@ -821,8 +1115,12 @@ async function PairedView({
   // outright (see its gameInProgress check) — surrenderMatch isn't, so the
   // button always means "surrender" from that point on, no need to spend a
   // query re-checking opponent engagement.
-  const gameDecided = games.some((g) => g.winnerId !== null || g.reportedById !== null);
-  const opponentEngaged = gameDecided ? true : await hasOpponentEngaged(match.id, opponent.id);
+  const gameDecided = games.some(
+    (g) => g.winnerId !== null || g.reportedById !== null,
+  );
+  const opponentEngaged = gameDecided
+    ? true
+    : await hasOpponentEngaged(match.id, opponent.id);
 
   const chat = (
     <CommentsSection
@@ -862,10 +1160,15 @@ async function PairedView({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <Card>
           <CardContent className="pt-4">
-            <MatchActionBanner summary={matchAction} opponentName={displayName} lang={lang} />
+            <MatchActionBanner
+              summary={matchAction}
+              opponentName={displayName}
+              lang={lang}
+            />
           </CardContent>
 
-          {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
+          {(match.status === "PENDING_REPORT" ||
+            match.status === "REPORTED") && (
             <GameSection
               userId={userId}
               match={match}
@@ -881,12 +1184,18 @@ async function PairedView({
               return (
                 <CardContent key={g.id} className="border-t border-border pt-4">
                   <p className="text-sm text-muted-foreground">
-                    {lang === "es"
-                      ? `⚠️ El juego ${g.gameNumber} está en disputa y espera revisión de un mod. La partida puede continuar.`
-                      : `⚠️ Game ${g.gameNumber} is disputed and awaiting mod review. The set can continue.`}
+                    {tr(lang, {
+                      en: `⚠️ Game ${g.gameNumber} is disputed and awaiting mod review. The set can continue.`,
+                      es: `⚠️ El juego ${g.gameNumber} está en disputa y espera revisión de un mod. La partida puede continuar.`,
+                      ja: `⚠️ 第${g.gameNumber}試合は異議申立中で、モデレーターの確認待ちです。セットは続行できます。`,
+                    })}
                   </p>
                   <DisputeResolutionForm
-                    action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
+                    action={requestDisputeResolutionAction.bind(
+                      null,
+                      match.id,
+                      g.gameNumber,
+                    )}
                     myId={userId}
                     opponentId={opponent.id}
                     opponentUsername={displayName}
@@ -896,74 +1205,104 @@ async function PairedView({
               );
             }
 
-            const myConfirmed = g.reportedById === userId ? g.reporterConfirmedAt : g.secondReporterConfirmedAt;
-            const oppConfirmed = g.reportedById === userId ? g.secondReporterConfirmedAt : g.reporterConfirmedAt;
+            const myConfirmed =
+              g.reportedById === userId
+                ? g.reporterConfirmedAt
+                : g.secondReporterConfirmedAt;
+            const oppConfirmed =
+              g.reportedById === userId
+                ? g.secondReporterConfirmedAt
+                : g.reporterConfirmedAt;
             const body = (
               <>
                 <p className="text-sm text-muted-foreground">
-                  {lang === "es"
-                    ? `⚠️ Tú y ${displayName} reportaron resultados distintos en el juego ${g.gameNumber}. Vuelve a reportar para confirmar, o disputa para que un mod lo revise.`
-                    : `⚠️ You and ${displayName} reported different results for Game ${g.gameNumber}. Re-report to confirm, or dispute it for a mod to review.`}
+                  {tr(lang, {
+                    en: `⚠️ You and ${displayName} reported different results for Game ${g.gameNumber}. Re-report to confirm, or dispute it for a mod to review.`,
+                    es: `⚠️ Tú y ${displayName} reportaron resultados distintos en el juego ${g.gameNumber}. Vuelve a reportar para confirmar, o disputa para que un mod lo revise.`,
+                    ja: `⚠️ 第${g.gameNumber}試合について、あなたと${displayName}の報告が食い違っています。もう一度報告して確定するか、異議を出してモデレーターに確認してもらってください。`,
+                  })}
                 </p>
                 <div className="mt-2 flex gap-2">
                   <ConfirmSubmitButton
                     action={reportGame.bind(null, match.id, g.gameNumber, true)}
-                    confirmMessage={
-                      lang === "es"
-                        ? `¿Confirmar que ganaste el juego ${g.gameNumber}?`
-                        : `Confirm that you won game ${g.gameNumber}?`
-                    }
+                    confirmMessage={tr(lang, {
+                      en: `Confirm that you won game ${g.gameNumber}?`,
+                      es: `¿Confirmar que ganaste el juego ${g.gameNumber}?`,
+                      ja: `第${g.gameNumber}試合に勝ったとして確定しますか？`,
+                    })}
                     variant="success"
                   >
-                    {lang === "es" ? "Gané" : "I Won"}
+                    {tr(lang, { en: "I Won", es: "Gané", ja: "勝った" })}
                   </ConfirmSubmitButton>
                   <ConfirmSubmitButton
-                    action={reportGame.bind(null, match.id, g.gameNumber, false)}
-                    confirmMessage={
-                      lang === "es"
-                        ? `¿Confirmar que perdiste el juego ${g.gameNumber}?`
-                        : `Confirm that you lost game ${g.gameNumber}?`
-                    }
+                    action={reportGame.bind(
+                      null,
+                      match.id,
+                      g.gameNumber,
+                      false,
+                    )}
+                    confirmMessage={tr(lang, {
+                      en: `Confirm that you lost game ${g.gameNumber}?`,
+                      es: `¿Confirmar que perdiste el juego ${g.gameNumber}?`,
+                      ja: `第${g.gameNumber}試合に負けたとして確定しますか？`,
+                    })}
                     variant="destructive"
                   >
-                    {lang === "es" ? "Perdí" : "I Lost"}
+                    {tr(lang, { en: "I Lost", es: "Perdí", ja: "負けた" })}
                   </ConfirmSubmitButton>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {(() => {
-                    if (lang === "es") {
-                      if (myConfirmed && oppConfirmed) {
-                        return "Ambos confirmaron. Un mod revisará este juego.";
-                      }
-                      if (myConfirmed) {
-                        return `Confirmaste. Esperando a ${displayName}.`;
-                      }
-                      if (oppConfirmed) {
-                        return `${displayName} confirmó. Confirma el tuyo para terminar.`;
-                      }
-                      return "Reportar el resultado opuesto le da el juego a tu rival.";
-                    }
                     if (myConfirmed && oppConfirmed) {
-                      return "You both confirmed. A mod will review this game.";
+                      return tr(lang, {
+                        en: "You both confirmed. A mod will review this game.",
+                        es: "Ambos confirmaron. Un mod revisará este juego.",
+                        ja: "両者が確定しました。この試合はモデレーターが確認します。",
+                      });
                     }
                     if (myConfirmed) {
-                      return `You confirmed. Waiting for ${displayName}.`;
+                      return tr(lang, {
+                        en: `You confirmed. Waiting for ${displayName}.`,
+                        es: `Confirmaste. Esperando a ${displayName}.`,
+                        ja: `あなたは確定しました。${displayName}を待っています。`,
+                      });
                     }
                     if (oppConfirmed) {
-                      return `${displayName} confirmed. Confirm yours to finish.`;
+                      return tr(lang, {
+                        en: `${displayName} confirmed. Confirm yours to finish.`,
+                        es: `${displayName} confirmó. Confirma el tuyo para terminar.`,
+                        ja: `${displayName}が確定しました。あなたも確定すると終了します。`,
+                      });
                     }
-                    return "Reporting the opposite result gives your opponent the game.";
+                    return tr(lang, {
+                      en: "Reporting the opposite result gives your opponent the game.",
+                      es: "Reportar el resultado opuesto le da el juego a tu rival.",
+                      ja: "逆の結果を報告すると、この試合は相手の勝ちになります。",
+                    });
                   })()}
                 </p>
-                <form action={disputeGame.bind(null, match.id, g.gameNumber)} className="mt-2">
+                <form
+                  action={disputeGame.bind(null, match.id, g.gameNumber)}
+                  className="mt-2"
+                >
                   <Button type="submit" variant="outline" size="sm">
-                    {lang === "es" ? "Disputar este juego" : "Dispute this game"}
+                    {tr(lang, {
+                      en: "Dispute this game",
+                      es: "Disputar este juego",
+                      ja: "この試合に異議を出す",
+                    })}
                   </Button>
                 </form>
               </>
             );
             return (
-              <CardContent key={g.id} className={cn("border-t border-border pt-4", !myConfirmed && INPUT_FOCUS)}>
+              <CardContent
+                key={g.id}
+                className={cn(
+                  "border-t border-border pt-4",
+                  !myConfirmed && INPUT_FOCUS,
+                )}
+              >
                 {body}
               </CardContent>
             );
@@ -972,16 +1311,19 @@ async function PairedView({
           {match.status === "DISPUTED" && (
             <CardContent className="border-t border-border pt-4">
               <p className="text-sm text-muted-foreground">
-                {lang === "es"
-                  ? `Tú y ${displayName} reportaron resultados distintos. Un mod revisará esta partida.`
-                  : `You and ${displayName} reported different results. A mod will review this match.`}
+                {tr(lang, {
+                  en: `You and ${displayName} reported different results. A mod will review this match.`,
+                  es: `Tú y ${displayName} reportaron resultados distintos. Un mod revisará esta partida.`,
+                  ja: `あなたと${displayName}の報告が食い違っています。この試合はモデレーターが確認します。`,
+                })}
               </p>
             </CardContent>
           )}
 
           {/* Desktop: the surrender/cancel/report actions sit at the bottom of
               the set card (hidden below lg, where they get their own card). */}
-          {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
+          {(match.status === "PENDING_REPORT" ||
+            match.status === "REPORTED") && (
             <CardContent className="hidden flex-col gap-3 border-t border-border pt-4 lg:flex">
               <MatchFooterActions
                 match={match}
@@ -1005,7 +1347,9 @@ async function PairedView({
                 initialValue={match.roomCode ?? ""}
                 isHost={getRoomHostId(match) === userId}
                 opponentName={displayName}
-                myArenaPassword={effectiveArenaPassword(match.player1Id === userId ? match.player1 : match.player2)}
+                myArenaPassword={effectiveArenaPassword(
+                  match.player1Id === userId ? match.player1 : match.player2,
+                )}
                 opponentArenaPassword={effectiveArenaPassword(opponent)}
                 lang={lang}
               />
@@ -1060,57 +1404,92 @@ function MatchFooterActions({
     <>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
-          {lang === "es"
-            ? gameDecided
-              ? "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje y escenario del juego anterior."
-              : opponentEngaged
-                ? "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis."
-                : "Tu rival aún no se presenta. Cancelar ahora es gratis."
-            : gameDecided
-              ? "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character and stage from the previous game."
-              : opponentEngaged
-                ? "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel."
-                : "Your opponent hasn't shown up yet. Cancelling now is free."}
+          {gameDecided
+            ? tr(lang, {
+                en: "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character and stage from the previous game.",
+                es: "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje y escenario del juego anterior.",
+                ja: "すでに1試合の結果が出ているため、ここで退出すると降参（敗北）として扱われます。相手が応答しなくなった場合、降参する必要はありません。数分で相手が手番を失います。第1試合で選択が止まった場合は相手のセット負け、第2試合以降は前の試合のキャラとステージがそのまま使われます。",
+              })
+            : opponentEngaged
+              ? tr(lang, {
+                  en: "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel.",
+                  es: "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis.",
+                  ja: "相手はすでにこの試合を開始しています。ここで退出すると無償のキャンセルではなく、降参（敗北）になります。",
+                })
+              : tr(lang, {
+                  en: "Your opponent hasn't shown up yet. Cancelling now is free.",
+                  es: "Tu rival aún no se presenta. Cancelar ahora es gratis.",
+                  ja: "相手はまだ来ていません。今ならキャンセルしても不利になりません。",
+                })}
         </p>
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <CancelOrSurrenderButton
             mode={opponentEngaged ? "surrender" : "cancel"}
             action={
-              opponentEngaged ? surrenderMatchAction.bind(null, match.id) : cancelMatchInProgress.bind(null, match.id)
+              opponentEngaged
+                ? surrenderMatchAction.bind(null, match.id)
+                : cancelMatchInProgress.bind(null, match.id)
             }
-            cancelReadyAt={new Date(match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000).toISOString()}
+            cancelReadyAt={new Date(
+              match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000,
+            ).toISOString()}
             lang={lang}
           />
         )}
       </div>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {lang === "es"
-            ? "¿No pueden terminar? Ambos pueden acordar cancelar. Sin afectar la clasificación."
-            : "Can't finish? Both players can agree to cancel. No rating impact."}
+          {tr(lang, {
+            en: "Can't finish? Both players can agree to cancel. No rating impact.",
+            es: "¿No pueden terminar? Ambos pueden acordar cancelar. Sin afectar la clasificación.",
+            ja: "続けられませんか？両者が合意すれば中止できます。レートには影響しません。",
+          })}
         </p>
         <MutualCancelSection
           matchId={match.id}
-          myRequestedAt={isPlayer1 ? match.player1CancelRequestedAt : match.player2CancelRequestedAt}
-          opponentRequestedAt={isPlayer1 ? match.player2CancelRequestedAt : match.player1CancelRequestedAt}
+          myRequestedAt={
+            isPlayer1
+              ? match.player1CancelRequestedAt
+              : match.player2CancelRequestedAt
+          }
+          opponentRequestedAt={
+            isPlayer1
+              ? match.player2CancelRequestedAt
+              : match.player1CancelRequestedAt
+          }
           opponentName={opponentName}
           lang={lang}
         />
       </div>
-      <ReportConductForm action={reportConductAction.bind(null, match.id)} lang={lang} />
+      <ReportConductForm
+        action={reportConductAction.bind(null, match.id)}
+        lang={lang}
+      />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? "¿Lag o desconexiones?" : "Lag or disconnects?"}
+          {tr(lang, {
+            en: "Lag or disconnects?",
+            es: "¿Lag o desconexiones?",
+            ja: "ラグや切断がありましたか？",
+          })}
         </p>
         {alreadyReportedConnection ? (
           <Button size="sm" variant="outline" disabled className="gap-1.5">
             <Check className="h-3.5 w-3.5" />
-            {lang === "es" ? "Conexión reportada" : "Connection reported"}
+            {tr(lang, {
+              en: "Connection reported",
+              es: "Conexión reportada",
+              ja: "回線を報告しました",
+            })}
           </Button>
         ) : (
           <form action={reportConnection.bind(null, match.id)}>
             <Button type="submit" size="sm" variant="outline">
-              {lang === "es" ? "Reportar conexión" : "Report connection"}
+              {tr(lang, {
+                en: "Report connection",
+                es: "Reportar conexión",
+                ja: "回線を報告",
+              })}
             </Button>
           </form>
         )}
@@ -1124,7 +1503,11 @@ function isDisputedGame(game: {
   reportedWinnerId: string | null;
   secondReportWinnerId: string | null;
 }) {
-  return !game.winnerId && !!game.secondReportWinnerId && game.secondReportWinnerId !== game.reportedWinnerId;
+  return (
+    !game.winnerId &&
+    !!game.secondReportWinnerId &&
+    game.secondReportWinnerId !== game.reportedWinnerId
+  );
 }
 
 // Number of game pips in the scoreboard row — the set is always best-of-5.
@@ -1138,7 +1521,12 @@ type MatchGameRow = Awaited<ReturnType<typeof getMatchGames>>[number];
 // actually offer). Kept as data so the banner renderer owns all the copy.
 type MatchActionSummary =
   | { kind: "start-game"; gameNumber: number }
-  | { kind: "pick-character"; gameNumber: number; mine: boolean; deadlineIso: string | null }
+  | {
+      kind: "pick-character";
+      gameNumber: number;
+      mine: boolean;
+      deadlineIso: string | null;
+    }
   | {
       kind: "stage";
       gameNumber: number;
@@ -1147,12 +1535,21 @@ type MatchActionSummary =
       strikeCount: number;
       deadlineIso: string;
     }
-  | { kind: "report-game"; gameNumber: number; mine: boolean; deadlineIso: string | null }
+  | {
+      kind: "report-game";
+      gameNumber: number;
+      mine: boolean;
+      deadlineIso: string | null;
+    }
   | { kind: "contest"; gameNumber: number; escalated: boolean }
   | { kind: "match-disputed" }
   | { kind: "waiting" };
 
-function matchActionSummary(userId: string, match: Match, games: MatchGameRow[]): MatchActionSummary {
+function matchActionSummary(
+  userId: string,
+  match: Match,
+  games: MatchGameRow[],
+): MatchActionSummary {
   // A match-level dispute (an escalated game, or a legacy row) has no
   // playable next step — everyone is waiting on a mod.
   if (match.status === "DISPUTED") return { kind: "match-disputed" };
@@ -1164,7 +1561,11 @@ function matchActionSummary(userId: string, match: Match, games: MatchGameRow[])
   if (!current) {
     const lastGame = games[games.length - 1];
     if (games.length > 0 && lastGame && isDisputedGame(lastGame)) {
-      return { kind: "contest", gameNumber: lastGame.gameNumber, escalated: !!lastGame.disputeRequestedAt };
+      return {
+        kind: "contest",
+        gameNumber: lastGame.gameNumber,
+        escalated: !!lastGame.disputeRequestedAt,
+      };
     }
     return { kind: "start-game", gameNumber: games.length + 1 };
   }
@@ -1195,7 +1596,12 @@ function matchActionSummary(userId: string, match: Match, games: MatchGameRow[])
     // Games 2+: the previous game's winner (actor A) must lock in before you
     // can pick. This pre-lock window isn't a per-player clock — nothing
     // auto-resolves while neither side has locked in — so no countdown.
-    return { kind: "pick-character", gameNumber, mine: false, deadlineIso: null };
+    return {
+      kind: "pick-character",
+      gameNumber,
+      mine: false,
+      deadlineIso: null,
+    };
   }
 
   const turn = gameTurnState(current);
@@ -1223,7 +1629,9 @@ function matchActionSummary(userId: string, match: Match, games: MatchGameRow[])
           ? current.actorAStrikes - struckSoFar
           : current.actorAStrikes + current.actorBStrikes - struckSoFar
         : 1,
-    deadlineIso: new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS).toISOString(),
+    deadlineIso: new Date(
+      current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS,
+    ).toISOString(),
   };
 }
 
@@ -1289,8 +1697,6 @@ function MatchScoreboard({
   // Same "current playable game" rule the action section below uses, so the
   // pulsing pip always lines up with whatever GameSection is showing.
   const currentGame = games.find((g) => !g.winnerId && !isDisputedGame(g));
-  const es = lang === "es";
-
   // Practice sets are rated off practiceRating, not the main ladder rating —
   // showing the main number here is what made players think they were still
   // on the main ladder (see #115). A player's rating is hidden from
@@ -1298,33 +1704,54 @@ function MatchScoreboard({
   // isRatingVisible) — the ranked count for a ranked set, the practice count
   // for a practice one.
   const myRating = myIsPracticing ? me?.practiceRating : me?.rating;
-  const opponentRating = opponentIsPracticing ? opponent.practiceRating : opponent.rating;
-  const myGamesOnTrack = myIsPracticing ? (me?.practiceGamesPlayed ?? 0) : (me?.gamesPlayed ?? 0);
-  const opponentGamesOnTrack = opponentIsPracticing ? opponent.practiceGamesPlayed : opponent.gamesPlayed;
+  const opponentRating = opponentIsPracticing
+    ? opponent.practiceRating
+    : opponent.rating;
+  const myGamesOnTrack = myIsPracticing
+    ? (me?.practiceGamesPlayed ?? 0)
+    : (me?.gamesPlayed ?? 0);
+  const opponentGamesOnTrack = opponentIsPracticing
+    ? opponent.practiceGamesPlayed
+    : opponent.gamesPlayed;
   const myRatingVisible = isRatingVisible(myGamesOnTrack, viewerIsModerator);
-  const opponentRatingVisible = isRatingVisible(opponentGamesOnTrack, viewerIsModerator);
+  const opponentRatingVisible = isRatingVisible(
+    opponentGamesOnTrack,
+    viewerIsModerator,
+  );
 
   const labels: string[] = [];
   const pips = Array.from({ length: SET_GAME_COUNT }, (_, i) => {
     const gameNumber = i + 1;
     const game = games[i]; // rows are ordered ascending by gameNumber
-    const decided = game?.winnerId ? (game.winnerId === userId ? "won" : "lost") : null;
+    const decided = game?.winnerId
+      ? game.winnerId === userId
+        ? "won"
+        : "lost"
+      : null;
     const inProgress = currentGame?.gameNumber === gameNumber;
     const label = decided
       ? decided === "won"
-        ? es
-          ? `Juego ${gameNumber} — lo ganaste`
-          : `Game ${gameNumber} — you won`
-        : es
-          ? `Juego ${gameNumber} — lo perdiste`
-          : `Game ${gameNumber} — you lost`
+        ? tr(lang, {
+            en: `Game ${gameNumber} — you won`,
+            es: `Juego ${gameNumber} — lo ganaste`,
+            ja: `第${gameNumber}試合 — 勝利`,
+          })
+        : tr(lang, {
+            en: `Game ${gameNumber} — you lost`,
+            es: `Juego ${gameNumber} — lo perdiste`,
+            ja: `第${gameNumber}試合 — 敗北`,
+          })
       : inProgress
-        ? es
-          ? `Juego ${gameNumber} — en curso`
-          : `Game ${gameNumber} — in progress`
-        : es
-          ? `Juego ${gameNumber} — pendiente`
-          : `Game ${gameNumber} — upcoming`;
+        ? tr(lang, {
+            en: `Game ${gameNumber} — in progress`,
+            es: `Juego ${gameNumber} — en curso`,
+            ja: `第${gameNumber}試合 — 進行中`,
+          })
+        : tr(lang, {
+            en: `Game ${gameNumber} — upcoming`,
+            es: `Juego ${gameNumber} — pendiente`,
+            ja: `第${gameNumber}試合 — これから`,
+          });
     labels.push(label);
     return (
       <span
@@ -1347,12 +1774,28 @@ function MatchScoreboard({
         {/* You — left edge, same field layout as the opponent's side */}
         <div className="flex min-w-0 items-start gap-3 sm:flex-1">
           {me?.avatarUrl && (
-            <Image src={me.avatarUrl} alt={me.username} width={40} height={40} className="shrink-0 rounded-full" />
+            <Image
+              src={me.avatarUrl}
+              alt={me.username}
+              width={40}
+              height={40}
+              className="shrink-0 rounded-full"
+            />
           )}
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-1.5 font-medium">
-              <span className="truncate">{es ? "Tú" : "You"}</span>
-              {myIsPracticing && <Badge variant="outline">{es ? "🧪 Modo práctica" : "🧪 Practice Mode"}</Badge>}
+              <span className="truncate">
+                {tr(lang, { en: "You", es: "Tú", ja: "あなた" })}
+              </span>
+              {myIsPracticing && (
+                <Badge variant="outline">
+                  {tr(lang, {
+                    en: "🧪 Practice Mode",
+                    es: "🧪 Modo práctica",
+                    ja: "🧪 練習モード",
+                  })}
+                </Badge>
+              )}
             </p>
             {(!zenMode || me?.region) && (
               <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground tabular-nums">
@@ -1360,13 +1803,24 @@ function MatchScoreboard({
                   <span>
                     {myRatingVisible ? (
                       <>
-                        {es
-                          ? `${formatRating(myRating ?? 0)}`
-                          : `${formatRating(myRating ?? 0)}`}
-                        {myIsPracticing && (es ? " (práctica)" : " (practice)")}
+                        {tr(lang, {
+                          en: `${formatRating(myRating ?? 0)}`,
+                          es: `${formatRating(myRating ?? 0)}`,
+                          ja: `${formatRating(myRating ?? 0)}`,
+                        })}
+                        {myIsPracticing &&
+                          tr(lang, {
+                            en: " (practice)",
+                            es: " (práctica)",
+                            ja: "（練習）",
+                          })}
                       </>
                     ) : (
-                      <RatingHidden gamesPlayed={myGamesOnTrack} lang={lang} practice={myIsPracticing} />
+                      <RatingHidden
+                        gamesPlayed={myGamesOnTrack}
+                        lang={lang}
+                        practice={myIsPracticing}
+                      />
                     )}
                   </span>
                 )}
@@ -1381,7 +1835,11 @@ function MatchScoreboard({
             {!zenMode && myTopCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center gap-1.5">
                 <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                  {es ? "Personajes más usados" : "Most played characters"}
+                  {tr(lang, {
+                    en: "Most played characters",
+                    es: "Personajes más usados",
+                    ja: "よく使うキャラ",
+                  })}
                 </span>
                 {myTopCharacters.map((character) => (
                   <CharacterIcon key={character} name={character} size={20} />
@@ -1398,7 +1856,11 @@ function MatchScoreboard({
             <span className="text-base text-muted-foreground">–</span>
             <span className="text-2xl font-bold">{wins.opponent}</span>
           </p>
-          <div role="img" aria-label={labels.join(", ")} className="flex items-center gap-1.5">
+          <div
+            role="img"
+            aria-label={labels.join(", ")}
+            className="flex items-center gap-1.5"
+          >
             {pips}
           </div>
         </div>
@@ -1408,7 +1870,11 @@ function MatchScoreboard({
           <div className="min-w-0">
             <p className="flex flex-wrap items-center justify-end gap-1.5 font-medium">
               {!zenMode ? (
-                <Link href={`/players/${opponent.id}`} prefetch={false} className="truncate hover:underline">
+                <Link
+                  href={`/players/${opponent.id}`}
+                  prefetch={false}
+                  className="truncate hover:underline"
+                >
                   {opponentName}
                 </Link>
               ) : (
@@ -1416,11 +1882,31 @@ function MatchScoreboard({
               )}
               {!zenMode && opponentStreak > 0 && (
                 <Badge variant="success" className="tabular-nums">
-                  {es ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
+                  {tr(lang, {
+                    en: `${opponentStreak} win streak`,
+                    es: `${opponentStreak} victorias seguidas`,
+                    ja: `${opponentStreak}連勝中`,
+                  })}
                 </Badge>
               )}
-              {opponentInZenMode && <Badge variant="outline">{es ? "🧘 Modo Zen" : "🧘 Zen Mode"}</Badge>}
-              {opponentIsPracticing && <Badge variant="outline">{es ? "Practicando" : "Practicing"}</Badge>}
+              {opponentInZenMode && (
+                <Badge variant="outline">
+                  {tr(lang, {
+                    en: "🧘 Zen Mode",
+                    es: "🧘 Modo Zen",
+                    ja: "🧘 ゼンモード",
+                  })}
+                </Badge>
+              )}
+              {opponentIsPracticing && (
+                <Badge variant="outline">
+                  {tr(lang, {
+                    en: "Practicing",
+                    es: "Practicando",
+                    ja: "練習中",
+                  })}
+                </Badge>
+              )}
             </p>
             {(!zenMode || opponent.region) && (
               <p className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground tabular-nums">
@@ -1428,13 +1914,24 @@ function MatchScoreboard({
                   <span>
                     {opponentRatingVisible ? (
                       <>
-                        {es
-                          ? `${formatRating(opponentRating)}`
-                          : `${formatRating(opponentRating)}`}
-                        {opponentIsPracticing && (es ? " (práctica)" : " (practice)")}
+                        {tr(lang, {
+                          en: `${formatRating(opponentRating)}`,
+                          es: `${formatRating(opponentRating)}`,
+                          ja: `${formatRating(opponentRating)}`,
+                        })}
+                        {opponentIsPracticing &&
+                          tr(lang, {
+                            en: " (practice)",
+                            es: " (práctica)",
+                            ja: "（練習）",
+                          })}
                       </>
                     ) : (
-                      <RatingHidden gamesPlayed={opponentGamesOnTrack} lang={lang} practice={opponentIsPracticing} />
+                      <RatingHidden
+                        gamesPlayed={opponentGamesOnTrack}
+                        lang={lang}
+                        practice={opponentIsPracticing}
+                      />
                     )}
                   </span>
                 )}
@@ -1449,7 +1946,11 @@ function MatchScoreboard({
             {!zenMode && topCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center justify-end gap-1.5">
                 <span className="pointer-events-none absolute -top-6 right-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                  {es ? "Personajes más usados" : "Most played characters"}
+                  {tr(lang, {
+                    en: "Most played characters",
+                    es: "Personajes más usados",
+                    ja: "よく使うキャラ",
+                  })}
                 </span>
                 {topCharacters.map((character) => (
                   <CharacterIcon key={character} name={character} size={20} />
@@ -1475,13 +1976,21 @@ function MatchScoreboard({
           <p className="text-center text-xs tabular-nums text-muted-foreground">
             {headToHead ? (
               <>
-                {es ? "Tu récord: " : "Your record: "}
-                {headToHead.wins}W–{headToHead.losses}L
+                {tr(lang, {
+                  en: "Your record: ",
+                  es: "Tu récord: ",
+                  ja: "あなたの戦績：",
+                })}
+                {headToHead.wins}
+                {tr(lang, { en: "W", es: "V", ja: "勝" })}–{headToHead.losses}
+                {tr(lang, { en: "L", es: "D", ja: "敗" })}
               </>
-            ) : es ? (
-              "Primera vez que se enfrentan"
             ) : (
-              "First time opponent"
+              tr(lang, {
+                en: "First time opponent",
+                es: "Primera vez que se enfrentan",
+                ja: "初めて当たる相手です",
+              })
             )}
           </p>
         </CardContent>
@@ -1502,8 +2011,6 @@ function MatchActionBanner({
   opponentName: string;
   lang: Lang;
 }) {
-  const es = lang === "es";
-
   let tone: "action" | "waiting";
   let kicker: React.ReactNode = null;
   let title: React.ReactNode;
@@ -1514,31 +2021,53 @@ function MatchActionBanner({
   switch (summary.kind) {
     case "start-game": {
       tone = "action";
-      kicker = es ? "Tu turno" : "Your turn";
-      title = es ? `Empieza el juego ${summary.gameNumber}` : `Start Game ${summary.gameNumber}`;
-      detail = es ? "Presiona el botón de abajo para empezar." : "Press the button below to start.";
+      kicker = tr(lang, { en: "Your turn", es: "Tu turno", ja: "あなたの番" });
+      title = tr(lang, {
+        en: `Start Game ${summary.gameNumber}`,
+        es: `Empieza el juego ${summary.gameNumber}`,
+        ja: `第${summary.gameNumber}試合を始める`,
+      });
+      detail = tr(lang, {
+        en: "Press the button below to start.",
+        es: "Presiona el botón de abajo para empezar.",
+        ja: "下のボタンを押して始めてください。",
+      });
       break;
     }
     case "pick-character": {
       if (summary.mine) {
         tone = "action";
-        kicker = es ? "Tu turno" : "Your turn";
-        title = es
-          ? `Elige tu personaje para el juego ${summary.gameNumber}`
-          : `Pick your character for Game ${summary.gameNumber}`;
-        detail = es
-          ? "Ambos eligen personaje primero, luego el escenario."
-          : "Both players pick a character first, then the stage.";
+        kicker = tr(lang, {
+          en: "Your turn",
+          es: "Tu turno",
+          ja: "あなたの番",
+        });
+        title = tr(lang, {
+          en: `Pick your character for Game ${summary.gameNumber}`,
+          es: `Elige tu personaje para el juego ${summary.gameNumber}`,
+          ja: `第${summary.gameNumber}試合の使用キャラを選ぶ`,
+        });
+        detail = tr(lang, {
+          en: "Both players pick a character first, then the stage.",
+          es: "Ambos eligen personaje primero, luego el escenario.",
+          ja: "まず両者がキャラを選び、その後ステージを決めます。",
+        });
         deadlineIso = summary.deadlineIso;
         largeCountdown = true;
       } else {
         tone = "waiting";
-        title = es
-          ? `Esperando a que ${opponentName} elija personaje…`
-          : `Waiting for ${opponentName} to pick a character…`;
+        title = tr(lang, {
+          en: `Waiting for ${opponentName} to pick a character…`,
+          es: `Esperando a que ${opponentName} elija personaje…`,
+          ja: `${opponentName}のキャラ選択を待っています…`,
+        });
         deadlineIso = summary.deadlineIso;
         if (!deadlineIso) {
-          detail = es ? "Elegirás después de que elija." : "You'll pick after they lock in.";
+          detail = tr(lang, {
+            en: "You'll pick after they lock in.",
+            es: "Elegirás después de que elija.",
+            ja: "相手が確定したら、あなたが選びます。",
+          });
         }
       }
       break;
@@ -1546,28 +2075,44 @@ function MatchActionBanner({
     case "stage": {
       if (summary.mine) {
         tone = "action";
-        kicker = es ? "Tu turno" : "Your turn";
+        kicker = tr(lang, {
+          en: "Your turn",
+          es: "Tu turno",
+          ja: "あなたの番",
+        });
         title =
           summary.phase === "striking"
-            ? es
-              ? `Descarta ${summary.strikeCount} ${summary.strikeCount === 1 ? "escenario" : "escenarios"} para el juego ${summary.gameNumber}`
-              : `Strike ${summary.strikeCount} ${summary.strikeCount === 1 ? "stage" : "stages"} for Game ${summary.gameNumber}`
-            : es
-              ? `Elige el escenario del juego ${summary.gameNumber}`
-              : `Pick the stage for Game ${summary.gameNumber}`;
-        detail = es ? "Si el tiempo se agota, se elige solo." : "If time runs out, it picks for you.";
+            ? tr(lang, {
+                en: `Strike ${summary.strikeCount} ${summary.strikeCount === 1 ? "stage" : "stages"} for Game ${summary.gameNumber}`,
+                es: `Descarta ${summary.strikeCount} ${summary.strikeCount === 1 ? "escenario" : "escenarios"} para el juego ${summary.gameNumber}`,
+                ja: `第${summary.gameNumber}試合のステージを${summary.strikeCount}個BANする`,
+              })
+            : tr(lang, {
+                en: `Pick the stage for Game ${summary.gameNumber}`,
+                es: `Elige el escenario del juego ${summary.gameNumber}`,
+                ja: `第${summary.gameNumber}試合のステージを選ぶ`,
+              });
+        detail = tr(lang, {
+          en: "If time runs out, it picks for you.",
+          es: "Si el tiempo se agota, se elige solo.",
+          ja: "時間切れになると自動で選ばれます。",
+        });
         deadlineIso = summary.deadlineIso;
         largeCountdown = true;
       } else {
         tone = "waiting";
         title =
           summary.phase === "striking"
-            ? es
-              ? `Esperando a que ${opponentName} descarte para el juego ${summary.gameNumber}…`
-              : `Waiting for ${opponentName} to strike for Game ${summary.gameNumber}…`
-            : es
-              ? `Esperando a que ${opponentName} elija el escenario del juego ${summary.gameNumber}…`
-              : `Waiting for ${opponentName} to pick the stage for Game ${summary.gameNumber}…`;
+            ? tr(lang, {
+                en: `Waiting for ${opponentName} to strike for Game ${summary.gameNumber}…`,
+                es: `Esperando a que ${opponentName} descarte para el juego ${summary.gameNumber}…`,
+                ja: `${opponentName}が第${summary.gameNumber}試合のステージBANをするのを待っています…`,
+              })
+            : tr(lang, {
+                en: `Waiting for ${opponentName} to pick the stage for Game ${summary.gameNumber}…`,
+                es: `Esperando a que ${opponentName} elija el escenario del juego ${summary.gameNumber}…`,
+                ja: `${opponentName}が第${summary.gameNumber}試合のステージを選ぶのを待っています…`,
+              });
         deadlineIso = summary.deadlineIso;
       }
       break;
@@ -1575,24 +2120,38 @@ function MatchActionBanner({
     case "report-game": {
       if (summary.mine) {
         tone = "action";
-        kicker = es ? "Tu turno" : "Your turn";
+        kicker = tr(lang, {
+          en: "Your turn",
+          es: "Tu turno",
+          ja: "あなたの番",
+        });
         if (summary.deadlineIso) {
-          title = es
-            ? `${opponentName} reportó el juego ${summary.gameNumber} — confírmalo o dispútalo.`
-            : `${opponentName} reported Game ${summary.gameNumber} — confirm or dispute it.`;
+          title = tr(lang, {
+            en: `${opponentName} reported Game ${summary.gameNumber} — confirm or dispute it.`,
+            es: `${opponentName} reportó el juego ${summary.gameNumber} — confírmalo o dispútalo.`,
+            ja: `${opponentName}が第${summary.gameNumber}試合の結果を報告しました。確定するか、異議を出してください。`,
+          });
         } else {
-          title = es
-            ? `Reporta el resultado del juego ${summary.gameNumber}`
-            : `Report Game ${summary.gameNumber}'s result`;
-          detail = es ? "Cada quien reporta su propio resultado." : "Each player reports their own result.";
+          title = tr(lang, {
+            en: `Report Game ${summary.gameNumber}'s result`,
+            es: `Reporta el resultado del juego ${summary.gameNumber}`,
+            ja: `第${summary.gameNumber}試合の結果を報告する`,
+          });
+          detail = tr(lang, {
+            en: "Each player reports their own result.",
+            es: "Cada quien reporta su propio resultado.",
+            ja: "各自が自分の結果を報告します。",
+          });
         }
         deadlineIso = summary.deadlineIso;
         largeCountdown = !!summary.deadlineIso;
       } else {
         tone = "waiting";
-        title = es
-          ? `Esperando a que ${opponentName} confirme el resultado…`
-          : `Waiting for ${opponentName} to confirm the result…`;
+        title = tr(lang, {
+          en: `Waiting for ${opponentName} to confirm the result…`,
+          es: `Esperando a que ${opponentName} confirme el resultado…`,
+          ja: `${opponentName}の結果確定を待っています…`,
+        });
         deadlineIso = summary.deadlineIso;
       }
       break;
@@ -1600,25 +2159,39 @@ function MatchActionBanner({
     case "contest": {
       tone = "waiting";
       title = summary.escalated
-        ? es
-          ? `Un mod está revisando el juego ${summary.gameNumber}.`
-          : `A mod is reviewing Game ${summary.gameNumber}.`
-        : es
-          ? `El resultado del juego ${summary.gameNumber} está en disputa. Resuélvelo abajo.`
-          : `Game ${summary.gameNumber}'s result is disputed. Resolve it below.`;
+        ? tr(lang, {
+            en: `A mod is reviewing Game ${summary.gameNumber}.`,
+            es: `Un mod está revisando el juego ${summary.gameNumber}.`,
+            ja: `モデレーターが第${summary.gameNumber}試合を確認しています。`,
+          })
+        : tr(lang, {
+            en: `Game ${summary.gameNumber}'s result is disputed. Resolve it below.`,
+            es: `El resultado del juego ${summary.gameNumber} está en disputa. Resuélvelo abajo.`,
+            ja: `第${summary.gameNumber}試合の結果に異議が出ています。下で解決してください。`,
+          });
       break;
     }
     case "match-disputed": {
       tone = "waiting";
-      title = es ? "Un mod está revisando esta partida." : "A mod is reviewing this match.";
-      detail = es
-        ? "No hay nada que hacer por ahora. Te avisaremos cuando se resuelva."
-        : "Nothing to do for now. We'll notify you when it's resolved.";
+      title = tr(lang, {
+        en: "A mod is reviewing this match.",
+        es: "Un mod está revisando esta partida.",
+        ja: "モデレーターがこの試合を確認しています。",
+      });
+      detail = tr(lang, {
+        en: "Nothing to do for now. We'll notify you when it's resolved.",
+        es: "No hay nada que hacer por ahora. Te avisaremos cuando se resuelva.",
+        ja: "今はすることはありません。解決したらお知らせします。",
+      });
       break;
     }
     case "waiting": {
       tone = "waiting";
-      title = es ? "Esperando a tu rival…" : "Waiting on your opponent…";
+      title = tr(lang, {
+        en: "Waiting on your opponent…",
+        es: "Esperando a tu rival…",
+        ja: "相手を待っています…",
+      });
       break;
     }
   }
@@ -1627,30 +2200,48 @@ function MatchActionBanner({
     <div
       className={cn(
         "flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-lg px-4",
-        tone === "action" ? "border border-primary/40 bg-primary/10 py-3" : "bg-muted/40 py-2.5",
+        tone === "action"
+          ? "border border-primary/40 bg-primary/10 py-3"
+          : "bg-muted/40 py-2.5",
       )}
     >
       <div className="min-w-0">
-        {kicker && <p className="text-[11px] font-semibold tracking-widest text-primary uppercase">{kicker}</p>}
+        {kicker && (
+          <p className="text-[11px] font-semibold tracking-widest text-primary uppercase">
+            {kicker}
+          </p>
+        )}
         <p
           className={cn(
             "text-sm",
             kicker && "mt-1",
-            tone === "action" ? "font-medium text-foreground" : "text-muted-foreground",
+            tone === "action"
+              ? "font-medium text-foreground"
+              : "text-muted-foreground",
           )}
         >
           {title}
         </p>
-        {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
+        {detail && (
+          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+        )}
       </div>
       {deadlineIso &&
         (largeCountdown ? (
           <div className="shrink-0 text-right">
             <p className="flex items-baseline justify-end gap-1 text-2xl leading-none font-bold tabular-nums">
               <Countdown deadline={deadlineIso} />
-              <span className="text-base font-semibold text-muted-foreground">s</span>
+              <span className="text-base font-semibold text-muted-foreground">
+                s
+              </span>
             </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{es ? "tiempo restante" : "time left"}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {tr(lang, {
+                en: "time left",
+                es: "tiempo restante",
+                ja: "残り時間",
+              })}
+            </p>
           </div>
         ) : (
           <p className="shrink-0 text-sm text-muted-foreground tabular-nums">
@@ -1693,21 +2284,25 @@ function GameSection({
       return (
         <CardContent className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            {lang === "es" ? (
-              <>
-                {lastGame.disputeRequestedAt
-                  ? `El juego ${lastGame.gameNumber} está en disputa. Un mod lo resolverá.`
-                  : `Tú y tu rival reportaron resultados distintos en el juego ${lastGame.gameNumber}. Confírmalo o dispútalo abajo.`}
-                {lastGame.finalStage && ` Escenario: ${lastGame.finalStage}.`}
-              </>
-            ) : (
-              <>
-                {lastGame.disputeRequestedAt
-                  ? `Game ${lastGame.gameNumber} is disputed. A mod will resolve it.`
-                  : `You and your opponent reported different results for Game ${lastGame.gameNumber}. Confirm or dispute it below.`}
-                {lastGame.finalStage && ` Stage: ${lastGame.finalStage}.`}
-              </>
-            )}
+            <>
+              {lastGame.disputeRequestedAt
+                ? tr(lang, {
+                    en: `Game ${lastGame.gameNumber} is disputed. A mod will resolve it.`,
+                    es: `El juego ${lastGame.gameNumber} está en disputa. Un mod lo resolverá.`,
+                    ja: `第${lastGame.gameNumber}試合は異議申立中です。モデレーターが解決します。`,
+                  })
+                : tr(lang, {
+                    en: `You and your opponent reported different results for Game ${lastGame.gameNumber}. Confirm or dispute it below.`,
+                    es: `Tú y tu rival reportaron resultados distintos en el juego ${lastGame.gameNumber}. Confírmalo o dispútalo abajo.`,
+                    ja: `第${lastGame.gameNumber}試合について、あなたと相手の報告が食い違っています。下で確定するか、異議を出してください。`,
+                  })}
+              {lastGame.finalStage &&
+                tr(lang, {
+                  en: ` Stage: ${lastGame.finalStage}.`,
+                  es: ` Escenario: ${lastGame.finalStage}.`,
+                  ja: ` ステージ：${lastGame.finalStage}。`,
+                })}
+            </>
           </p>
         </CardContent>
       );
@@ -1717,22 +2312,32 @@ function GameSection({
     return (
       <CardContent className={cn("border-t border-border pt-4", INPUT_FOCUS)}>
         <p className="text-sm font-medium">
-          {lang === "es"
-            ? gameNumber === 1
-              ? "Listo para elegir escenario"
-              : `Juego ${gameNumber} — quien ganó el último juego descarta primero`
-            : gameNumber === 1
-              ? "Ready to pick a stage"
-              : `Game ${gameNumber} — the last game's winner strikes first`}
+          {gameNumber === 1
+            ? tr(lang, {
+                en: "Ready to pick a stage",
+                es: "Listo para elegir escenario",
+                ja: "ステージを選びます",
+              })
+            : tr(lang, {
+                en: `Game ${gameNumber} — the last game's winner strikes first`,
+                es: `Juego ${gameNumber} — quien ganó el último juego descarta primero`,
+                ja: `第${gameNumber}試合 — 前の試合に勝った側が先にBANします`,
+              })}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {lang === "es"
-            ? `Presiona el botón de abajo para empezar con ${opponentName}. El sitio te guía turno por turno.`
-            : `Press the button below to start with ${opponentName}. The site walks you through each turn.`}
+          {tr(lang, {
+            en: `Press the button below to start with ${opponentName}. The site walks you through each turn.`,
+            es: `Presiona el botón de abajo para empezar con ${opponentName}. El sitio te guía turno por turno.`,
+            ja: `下のボタンを押して${opponentName}との対戦を始めてください。進行は画面が案内します。`,
+          })}
         </p>
         <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
           <Button type="submit" size="sm">
-            {lang === "es" ? `Empezar el juego ${gameNumber} →` : `Start Game ${gameNumber} →`}
+            {tr(lang, {
+              en: `Start Game ${gameNumber} →`,
+              es: `Empezar el juego ${gameNumber} →`,
+              ja: `第${gameNumber}試合を始める →`,
+            })}
           </Button>
         </form>
       </CardContent>
@@ -1740,12 +2345,16 @@ function GameSection({
   }
 
   const turn = gameTurnState(current);
-  const isPracticing = userId === match.player1Id ? match.player1IsPracticing : match.player2IsPracticing;
+  const isPracticing =
+    userId === match.player1Id
+      ? match.player1IsPracticing
+      : match.player2IsPracticing;
   // Game 1 has no in-match history yet, so lastUsedCharacter falls through to
   // null and this defaults to the player's most-played character instead;
   // every later game already has a locked-in character from the prior game,
   // so this fallback is effectively game-1-only.
-  const defaultCharacter = lastUsedCharacter(games, userId) ?? myTopCharacters[0] ?? null;
+  const defaultCharacter =
+    lastUsedCharacter(games, userId) ?? myTopCharacters[0] ?? null;
   const defaultMoveset = lastUsedMoveset(games, userId) ?? "";
   const characterSection = (
     <CharacterPickSection
@@ -1766,7 +2375,9 @@ function GameSection({
       <>
         {characterSection}
         <CardContent className="border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground">{lang === "es" ? "Escenario" : "Stage"}</p>
+          <p className="text-sm text-muted-foreground">
+            {tr(lang, { en: "Stage", es: "Escenario", ja: "ステージ" })}
+          </p>
           {current.finalStage &&
             (() => {
               const imgPath = stageImagePath(current.finalStage!);
@@ -1788,7 +2399,13 @@ function GameSection({
               );
             })()}
         </CardContent>
-        <ReportGameSection userId={userId} match={match} game={current} opponentName={opponentName} lang={lang} />
+        <ReportGameSection
+          userId={userId}
+          match={match}
+          game={current}
+          opponentName={opponentName}
+          lang={lang}
+        />
       </>
     );
   }
@@ -1798,7 +2415,10 @@ function GameSection({
   const canAct = myTurn && bothLocked;
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
-  const verbEs = turn.phase === "striking" ? "descartar" : "elegir";
+  const verbLocalized =
+    turn.phase === "striking"
+      ? tr(lang, { en: "strike", es: "descartar", ja: "BANする" })
+      : tr(lang, { en: "pick", es: "elegir", ja: "選ぶ" });
 
   // Strikes happen actorA's-share-then-actorB's-share, in order, so the
   // count already struck tells us how many the current actor still owes
@@ -1812,71 +2432,117 @@ function GameSection({
         : current.actorAStrikes + current.actorBStrikes - struckSoFar
       : 1;
   const turnDescription =
-    lang === "es"
-      ? turn.phase === "striking"
-        ? `descartar ${remainingStrikes} escenario${remainingStrikes === 1 ? "" : "s"}`
-        : "elegir un escenario"
-      : turn.phase === "striking"
-        ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
-        : `${verb} a stage`;
+    turn.phase === "striking"
+      ? tr(lang, {
+          en: `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`,
+          es: `descartar ${remainingStrikes} escenario${remainingStrikes === 1 ? "" : "s"}`,
+          ja: `ステージを${remainingStrikes}個BANする`,
+        })
+      : tr(lang, {
+          en: `${verb} a stage`,
+          es: "elegir un escenario",
+          ja: "ステージを選ぶ",
+        });
 
   // Only shown once both characters are locked in (see the !bothLocked
   // branch below) — at that point turnStartedAt is when the current player's
   // turn began: one continuous clock spanning every strike they owe (it only
   // resets when the turn passes to the other side), so STRIKE_TIMEOUT_MS is
   // the only deadline that applies here.
-  const deadline = new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS).toISOString();
+  const deadline = new Date(
+    current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS,
+  ).toISOString();
 
   const lastStrikeIndex = current.struckStages.length - 1;
   const canUndoLastStrike =
     turn.phase === "striking" &&
     lastStrikeIndex >= 0 &&
-    (lastStrikeIndex < current.actorAStrikes ? current.actorAId : current.actorBId) === userId;
+    (lastStrikeIndex < current.actorAStrikes
+      ? current.actorAId
+      : current.actorBId) === userId;
 
   const sameBans =
-    turn.phase === "striking" && current.actorAId === userId && current.actorAStrikes === 3 && struckSoFar === 0
+    turn.phase === "striking" &&
+    current.actorAId === userId &&
+    current.actorAStrikes === 3 &&
+    struckSoFar === 0
       ? lastSameBans(games, userId)
       : null;
 
   // myTurn, not just phase — "picking" is a property of the game state, not
   // per-player, so without this the side who just finished striking (and
   // can never run it back themselves) saw the button too, just disabled.
-  const runItBackStage = turn.phase === "picking" && myTurn ? lastPlayedStage(games, current.gameNumber) : null;
-  const canRunItBack = runItBackStage !== null && current.stagesRemaining.includes(runItBackStage);
+  const runItBackStage =
+    turn.phase === "picking" && myTurn
+      ? lastPlayedStage(games, current.gameNumber)
+      : null;
+  const canRunItBack =
+    runItBackStage !== null && current.stagesRemaining.includes(runItBackStage);
 
   return (
     <>
       {characterSection}
-      <CardContent className={cn("border-t border-border pt-4", canAct && INPUT_FOCUS)}>
+      <CardContent
+        className={cn("border-t border-border pt-4", canAct && INPUT_FOCUS)}
+      >
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? `Juego ${current.gameNumber} — ` : `Game ${current.gameNumber} — `}
-          {!bothLocked ? (
-            lang === "es" ? (
-              "La selección de escenario empieza cuando ambos elijan personaje."
-            ) : (
-              "Stage selection starts once you both pick a character."
-            )
-          ) : !myTurn ? (
-            lang === "es" ? (
-              <>
-                Esperando a que {opponentName} {verbEs}… (
-                <Countdown deadline={deadline} />s restantes)
-              </>
-            ) : (
-              <>
-                Waiting for {opponentName} to {verb}… (
-                <Countdown deadline={deadline} />s left)
-              </>
-            )
-          ) : lang === "es" ? (
-            <>
-              Tu turno — {turnDescription} (<Countdown deadline={deadline} />s restantes, o se elige solo).
-            </>
-          ) : (
-            <>
-              Your turn — {turnDescription} (<Countdown deadline={deadline} />s left, or it picks automatically).
-            </>
-          )}
+          {tr(lang, {
+            en: `Game ${current.gameNumber} — `,
+            es: `Juego ${current.gameNumber} — `,
+            ja: `第${current.gameNumber}試合 — `,
+          })}
+          {!bothLocked
+            ? tr(lang, {
+                en: "Stage selection starts once you both pick a character.",
+                es: "La selección de escenario empieza cuando ambos elijan personaje.",
+                ja: "ステージ選択は、両者がキャラを選んでから始まります。",
+              })
+            : !myTurn
+              ? trNode(lang, {
+                  en: (
+                    <>
+                      Waiting for {opponentName} to {verbLocalized}… (
+                      <Countdown deadline={deadline} />s left)
+                    </>
+                  ),
+                  es: (
+                    <>
+                      Esperando a que {opponentName} {verbLocalized}… (
+                      <Countdown deadline={deadline} />s restantes)
+                    </>
+                  ),
+                  ja: (
+                    <>
+                      {opponentName}がステージを{verbLocalized}
+                      のを待っています…（残り
+                      <Countdown deadline={deadline} />
+                      秒）
+                    </>
+                  ),
+                })
+              : trNode(lang, {
+                  en: (
+                    <>
+                      Your turn — {turnDescription} (
+                      <Countdown deadline={deadline} />s left, or it picks
+                      automatically).
+                    </>
+                  ),
+                  es: (
+                    <>
+                      Tu turno — {turnDescription} (
+                      <Countdown deadline={deadline} />s restantes, o se elige
+                      solo).
+                    </>
+                  ),
+                  ja: (
+                    <>
+                      あなたの番 — {turnDescription}（残り
+                      <Countdown deadline={deadline} />
+                      秒。過ぎると自動で選ばれます）。
+                    </>
+                  ),
+                })}
         </p>
         <StageProposalSection
           matchId={match.id}
@@ -1899,22 +2565,37 @@ function GameSection({
         {canRunItBack && (
           <div className="mt-3">
             <form action={runItBack.bind(null, match.id, current.gameNumber)}>
-              <Button type="submit" size="sm" variant="default" disabled={!canAct}>
-                {lang === "es" ? `Repetir escenario (${runItBackStage})` : `Run it back (${runItBackStage})`}
+              <Button
+                type="submit"
+                size="sm"
+                variant="default"
+                disabled={!canAct}
+              >
+                {tr(lang, {
+                  en: `Run it back (${runItBackStage})`,
+                  es: `Repetir escenario (${runItBackStage})`,
+                  ja: `同じステージでもう一戦（${runItBackStage}）`,
+                })}
               </Button>
             </form>
           </div>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
           {(() => {
-            const pool: readonly string[] = current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
-            const allStages = [...new Set([...current.struckStages, ...current.stagesRemaining])];
+            const pool: readonly string[] =
+              current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
+            const allStages = [
+              ...new Set([...current.struckStages, ...current.stagesRemaining]),
+            ];
             return allStages.sort((a, b) => pool.indexOf(a) - pool.indexOf(b));
           })().map((stage) => {
             const isStruck = current.struckStages.includes(stage);
             const imgPath = stageImagePath(stage);
             return (
-              <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
+              <form
+                key={stage}
+                action={action.bind(null, match.id, current.gameNumber, stage)}
+              >
                 <Button
                   type="submit"
                   size="sm"
@@ -1923,7 +2604,13 @@ function GameSection({
                   className={`relative flex h-24 w-36 max-sm:h-20 max-sm:w-28 flex-col items-center justify-end gap-1 overflow-hidden p-2 ${isStruck ? "cursor-not-allowed opacity-60" : ""}`}
                 >
                   {imgPath && (
-                    <Image src={`/stages/${imgPath}`} alt={stage} fill className="object-cover" sizes="128px" />
+                    <Image
+                      src={`/stages/${imgPath}`}
+                      alt={stage}
+                      fill
+                      className="object-cover"
+                      sizes="128px"
+                    />
                   )}
                   <span className="relative z-10 rounded bg-background/80 px-1 text-xs max-sm:text-[10px] font-medium">
                     {stage}
@@ -1944,9 +2631,16 @@ function GameSection({
           })}
         </div>
         {canUndoLastStrike && (
-          <form action={unstrikeStage.bind(null, match.id, current.gameNumber)} className="mt-2">
+          <form
+            action={unstrikeStage.bind(null, match.id, current.gameNumber)}
+            className="mt-2"
+          >
             <Button type="submit" size="sm" variant="outline">
-              {lang === "es" ? "Deshacer mi último descarte" : "Undo my last strike"}
+              {tr(lang, {
+                en: "Undo my last strike",
+                es: "Deshacer mi último descarte",
+                ja: "直前のBANを取り消す",
+              })}
             </Button>
           </form>
         )}
@@ -1979,7 +2673,12 @@ function StageProposalSection({
   lang,
 }: {
   matchId: string;
-  game: { gameNumber: number; stagesRemaining: string[]; proposedStage: string | null; proposedById: string | null };
+  game: {
+    gameNumber: number;
+    stagesRemaining: string[];
+    proposedStage: string | null;
+    proposedById: string | null;
+  };
   userId: string;
   opponentName: string;
   lang: Lang;
@@ -1990,29 +2689,42 @@ function StageProposalSection({
       <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
         <p className="text-sm">
           {proposedByMe
-            ? lang === "es"
-              ? `Propusiste ${game.proposedStage} — esperando a ${opponentName}.`
-              : `You proposed ${game.proposedStage} — waiting on ${opponentName}.`
-            : lang === "es"
-              ? `${opponentName} propuso ${game.proposedStage}.`
-              : `${opponentName} proposed ${game.proposedStage}.`}
+            ? tr(lang, {
+                en: `You proposed ${game.proposedStage} — waiting on ${opponentName}.`,
+                es: `Propusiste ${game.proposedStage} — esperando a ${opponentName}.`,
+                ja: `${game.proposedStage}を提案しました。${opponentName}の返答を待っています。`,
+              })
+            : tr(lang, {
+                en: `${opponentName} proposed ${game.proposedStage}.`,
+                es: `${opponentName} propuso ${game.proposedStage}.`,
+                ja: `${opponentName}が${game.proposedStage}を提案しました。`,
+              })}
         </p>
         {proposedByMe ? (
-          <form action={withdrawStageProposal.bind(null, matchId, game.gameNumber)}>
+          <form
+            action={withdrawStageProposal.bind(null, matchId, game.gameNumber)}
+          >
             <Button type="submit" size="sm" variant="outline">
-              {lang === "es" ? "Retirar" : "Withdraw"}
+              {tr(lang, { en: "Withdraw", es: "Retirar", ja: "取り下げる" })}
             </Button>
           </form>
         ) : (
           <>
-            <form action={acceptStageProposal.bind(null, matchId, game.gameNumber)}>
-              <Button type="submit" className="h-10 px-5 text-base font-semibold">
-                {lang === "es" ? "Aceptar" : "Accept"}
+            <form
+              action={acceptStageProposal.bind(null, matchId, game.gameNumber)}
+            >
+              <Button
+                type="submit"
+                className="h-10 px-5 text-base font-semibold"
+              >
+                {tr(lang, { en: "Accept", es: "Aceptar", ja: "承諾" })}
               </Button>
             </form>
-            <form action={declineStageProposal.bind(null, matchId, game.gameNumber)}>
+            <form
+              action={declineStageProposal.bind(null, matchId, game.gameNumber)}
+            >
               <Button type="submit" size="sm" variant="outline">
-                {lang === "es" ? "Rechazar" : "Decline"}
+                {tr(lang, { en: "Decline", es: "Rechazar", ja: "拒否" })}
               </Button>
             </form>
           </>
@@ -2021,33 +2733,59 @@ function StageProposalSection({
     );
   }
 
-  const shortcuts = PROPOSAL_SHORTCUTS.filter((s) => game.stagesRemaining.includes(s.stage));
-  const rest = game.stagesRemaining.filter((stage) => !shortcuts.some((s) => s.stage === stage));
+  const shortcuts = PROPOSAL_SHORTCUTS.filter((s) =>
+    game.stagesRemaining.includes(s.stage),
+  );
+  const rest = game.stagesRemaining.filter(
+    (stage) => !shortcuts.some((s) => s.stage === stage),
+  );
 
   return (
     <div className="mt-3">
       {shortcuts.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {shortcuts.map(({ stage, short }) => (
-            <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
-              <Button type="submit" className="h-10 px-5 text-base font-semibold">
+            <form
+              key={stage}
+              action={proposeStage.bind(null, matchId, game.gameNumber, stage)}
+            >
+              <Button
+                type="submit"
+                className="h-10 px-5 text-base font-semibold"
+              >
                 {short}
               </Button>
             </form>
           ))}
           <span className="text-xs text-muted-foreground">
-            {lang === "es" ? "Propón y sáltate el descarte" : "Propose it and skip striking"}
+            {tr(lang, {
+              en: "Propose it and skip striking",
+              es: "Propón y sáltate el descarte",
+              ja: "これを提案してBANを省略する",
+            })}
           </span>
         </div>
       )}
       {rest.length > 0 && (
         <details className="mt-2 group">
           <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-            {lang === "es" ? "Proponer otro escenario" : "Propose a different stage"}
+            {tr(lang, {
+              en: "Propose a different stage",
+              es: "Proponer otro escenario",
+              ja: "別のステージを提案する",
+            })}
           </summary>
           <div className="mt-2 flex flex-wrap gap-2">
             {rest.map((stage) => (
-              <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
+              <form
+                key={stage}
+                action={proposeStage.bind(
+                  null,
+                  matchId,
+                  game.gameNumber,
+                  stage,
+                )}
+              >
                 <Button type="submit" size="sm" variant="outline">
                   {stage}
                 </Button>
@@ -2095,10 +2833,13 @@ async function CharacterPickSection({
   isPracticing: boolean;
   lang: Lang;
 }) {
-  const { yourCharacter, yourMoveset, opponentCharacter, opponentMoveset, canPickNow } = characterPickState(
-    game,
-    userId,
-  );
+  const {
+    yourCharacter,
+    yourMoveset,
+    opponentCharacter,
+    opponentMoveset,
+    canPickNow,
+  } = characterPickState(game, userId);
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
   // resolves the stalled pick once this window closes. Game 1 is a blind
   // simultaneous pick on ONE clock shared by both sides: it starts at the game's
@@ -2115,17 +2856,27 @@ async function CharacterPickSection({
   // games 2+ fall back to the character they played in the previous game — while
   // a pick their opponent already made stands.
   const isGameOne = game.gameNumber === 1;
-  const timeoutCost = isGameOne
-    ? { es: "pierdes este set por abandono", en: "you forfeit this set" }
-    : { es: "se usa tu personaje del último juego", en: "your character from the last game is used" };
-  const expiredNote = isGameOne
+  const timeoutCost: Record<Lang, string> = isGameOne
     ? {
-        es: "Pasó el plazo. Elige ahora o pierdes el set por abandono.",
-        en: "You're past the deadline. Pick now or you forfeit the set.",
+        en: "you forfeit this set",
+        es: "pierdes este set por abandono",
+        ja: "このセットは不戦敗になります",
       }
     : {
-        es: "Pasó el plazo. Elige ahora o se usa tu personaje del último juego.",
+        en: "your character from the last game is used",
+        es: "se usa tu personaje del último juego",
+        ja: "前の試合で使ったキャラが使われます",
+      };
+  const expiredNote: Record<Lang, string> = isGameOne
+    ? {
+        en: "You're past the deadline. Pick now or you forfeit the set.",
+        es: "Pasó el plazo. Elige ahora o pierdes el set por abandono.",
+        ja: "期限を過ぎています。今すぐ選ばないとセットが不戦敗になります。",
+      }
+    : {
         en: "You're past the deadline. Pick now or your character from the last game is used.",
+        es: "Pasó el plazo. Elige ahora o se usa tu personaje del último juego.",
+        ja: "期限を過ぎています。今すぐ選ばないと、前の試合で使ったキャラが使われます。",
       };
 
   if (yourCharacter && opponentCharacter) {
@@ -2137,40 +2888,43 @@ async function CharacterPickSection({
             <NotebookPen className="mt-0.5 size-4 shrink-0 text-primary" />
             <div className="min-w-0">
               <p className="text-xs font-medium text-primary">
-                {lang === "es" ? `Tu nota sobre ${opponentCharacter}` : `Your note on ${opponentCharacter}`}
+                {tr(lang, {
+                  en: `Your note on ${opponentCharacter}`,
+                  es: `Tu nota sobre ${opponentCharacter}`,
+                  ja: `${opponentCharacter}への対策メモ`,
+                })}
               </p>
-              <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">{matchupNote}</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
+                {matchupNote}
+              </p>
             </div>
           </div>
         )}
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Personajes — tú:{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(yourCharacter, yourMoveset)}
-              </span>
-              , {opponentName}:{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(opponentCharacter, opponentMoveset)}
-              </span>
-            </>
-          ) : (
-            <>
-              Characters — you:{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(yourCharacter, yourMoveset)}
-              </span>
-              , {opponentName}:{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(opponentCharacter, opponentMoveset)}
-              </span>
-            </>
-          )}
+          <>
+            {tr(lang, {
+              en: "Characters — you: ",
+              es: "Personajes — tú: ",
+              ja: "使用キャラ — あなた：",
+            })}
+            <span className="font-medium text-foreground">
+              <CharacterIcon
+                name={yourCharacter}
+                size={16}
+                className="mr-1 inline align-[-0.25em]"
+              />
+              {characterLabel(yourCharacter, yourMoveset)}
+            </span>
+            , {opponentName}:{" "}
+            <span className="font-medium text-foreground">
+              <CharacterIcon
+                name={opponentCharacter}
+                size={16}
+                className="mr-1 inline align-[-0.25em]"
+              />
+              {characterLabel(opponentCharacter, opponentMoveset)}
+            </span>
+          </>
         </p>
       </CardContent>
     );
@@ -2180,59 +2934,84 @@ async function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Elegiste{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(yourCharacter, yourMoveset)}
-              </span>
-              . Esperando a que {opponentName} elija…{" "}
-              {secondsLeft > 0 ? (
-                isGameOne ? (
-                  <>
-                    Ganas el set por abandono si no elige en <Countdown deadline={deadline} />
-                    s.
-                  </>
-                ) : (
-                  <>
-                    Si no elige en <Countdown deadline={deadline} />
-                    s, se usa su personaje del último juego.
-                  </>
-                )
-              ) : isGameOne ? (
-                "Pasó el plazo. Esto debería resolverse a tu favor pronto."
-              ) : (
-                "Pasó el plazo. Esto debería resolverse en breve."
-              )}
-            </>
-          ) : (
-            <>
-              You picked{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(yourCharacter, yourMoveset)}
-              </span>
-              . Waiting for {opponentName} to pick…{" "}
-              {secondsLeft > 0 ? (
-                isGameOne ? (
-                  <>
-                    You win the set by forfeit if they don&apos;t pick in <Countdown deadline={deadline} />
-                    s.
-                  </>
-                ) : (
-                  <>
-                    If they don&apos;t pick in <Countdown deadline={deadline} />
-                    s, their character from the last game is used.
-                  </>
-                )
-              ) : isGameOne ? (
-                "The deadline passed. This should resolve in your favor soon."
-              ) : (
-                "The deadline passed. This should resolve shortly."
-              )}
-            </>
-          )}
+          <>
+            {tr(lang, {
+              en: "You picked ",
+              es: "Elegiste ",
+              ja: "あなたの使用キャラ：",
+            })}
+            <span className="font-medium text-foreground">
+              <CharacterIcon
+                name={yourCharacter}
+                size={16}
+                className="mr-1 inline align-[-0.25em]"
+              />
+              {characterLabel(yourCharacter, yourMoveset)}
+            </span>
+            {tr(lang, {
+              en: `. Waiting for ${opponentName} to pick… `,
+              es: `. Esperando a que ${opponentName} elija… `,
+              ja: `。${opponentName}のキャラ選択を待っています… `,
+            })}
+            {secondsLeft > 0
+              ? isGameOne
+                ? trNode(lang, {
+                    en: (
+                      <>
+                        You win the set by forfeit if they don&apos;t pick in{" "}
+                        <Countdown deadline={deadline} />
+                        s.
+                      </>
+                    ),
+                    es: (
+                      <>
+                        Ganas el set por abandono si no elige en{" "}
+                        <Countdown deadline={deadline} />
+                        s.
+                      </>
+                    ),
+                    ja: (
+                      <>
+                        残り
+                        <Countdown deadline={deadline} />
+                        秒で相手が選ばなければ、あなたのセット勝ち（不戦勝）になります。
+                      </>
+                    ),
+                  })
+                : trNode(lang, {
+                    en: (
+                      <>
+                        If they don&apos;t pick in{" "}
+                        <Countdown deadline={deadline} />
+                        s, their character from the last game is used.
+                      </>
+                    ),
+                    es: (
+                      <>
+                        Si no elige en <Countdown deadline={deadline} />
+                        s, se usa su personaje del último juego.
+                      </>
+                    ),
+                    ja: (
+                      <>
+                        残り
+                        <Countdown deadline={deadline} />
+                        秒で相手が選ばなければ、相手が前の試合で使ったキャラが使われます。
+                      </>
+                    ),
+                  })
+              : isGameOne
+                ? tr(lang, {
+                    en: "The deadline passed. This should resolve in your favor soon.",
+                    es: "Pasó el plazo. Esto debería resolverse a tu favor pronto.",
+                    ja: "期限を過ぎました。まもなくあなたに有利な形で処理されます。",
+                  })
+                : tr(lang, {
+                    en: "The deadline passed. This should resolve shortly.",
+                    es: "Pasó el plazo. Esto debería resolverse en breve.",
+                    ja: "期限を過ぎました。まもなく処理されます。",
+                  })}
+          </>
         </p>
       </CardContent>
     );
@@ -2242,9 +3021,11 @@ async function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          {lang === "es"
-            ? `Esperando a que ${opponentName} elija personaje primero.`
-            : `Waiting for ${opponentName} to pick a character first.`}
+          {tr(lang, {
+            en: `Waiting for ${opponentName} to pick a character first.`,
+            es: `Esperando a que ${opponentName} elija personaje primero.`,
+            ja: `${opponentName}が先にキャラを選ぶのを待っています。`,
+          })}
         </p>
       </CardContent>
     );
@@ -2254,46 +3035,76 @@ async function CharacterPickSection({
     <CardContent className={cn("border-t border-border pt-4", INPUT_FOCUS)}>
       <p className="text-sm text-muted-foreground">
         {isGameOne ? (
-          lang === "es" ? (
-            "Elige tu personaje. Queda oculto hasta que ambos elijan."
-          ) : (
-            "Pick your character. It stays hidden until you both pick."
-          )
+          tr(lang, {
+            en: "Pick your character. It stays hidden until you both pick.",
+            es: "Elige tu personaje. Queda oculto hasta que ambos elijan.",
+            ja: "使用キャラを選んでください。両者が選ぶまで相手には見えません。",
+          })
         ) : opponentCharacter ? (
           <>
-            {lang === "es" ? `${opponentName} eligió ` : `${opponentName} picked `}
+            {tr(lang, {
+              en: `${opponentName} picked `,
+              es: `${opponentName} eligió `,
+              ja: `${opponentName}の使用キャラ：`,
+            })}
             <span className="font-medium text-foreground">
-              <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+              <CharacterIcon
+                name={opponentCharacter}
+                size={16}
+                className="mr-1 inline align-[-0.25em]"
+              />
               {characterLabel(opponentCharacter, opponentMoveset)}
             </span>
-            {lang === "es" ? ". Elige tu personaje." : ". Pick your character."}
+            {tr(lang, {
+              en: ". Pick your character.",
+              es: ". Elige tu personaje.",
+              ja: "。使用キャラを選んでください。",
+            })}
           </>
-        ) : lang === "es" ? (
-          "Elige tu personaje. Vas primero."
         ) : (
-          "Pick your character. You go first."
+          tr(lang, {
+            en: "Pick your character. You go first.",
+            es: "Elige tu personaje. Vas primero.",
+            ja: "使用キャラを選んでください。あなたが先です。",
+          })
         )}{" "}
         {secondsLeft > 0 ? (
           <span className="font-medium text-foreground">
-            {lang === "es" ? (
-              <>
-                Tienes <Countdown deadline={deadline} />s para elegir o {timeoutCost.es}.
-              </>
-            ) : (
-              <>
-                You have <Countdown deadline={deadline} />s to pick or {timeoutCost.en}.
-              </>
-            )}
+            {trNode(lang, {
+              en: (
+                <>
+                  You have <Countdown deadline={deadline} />s to pick or{" "}
+                  {timeoutCost.en}.
+                </>
+              ),
+              es: (
+                <>
+                  Tienes <Countdown deadline={deadline} />s para elegir o{" "}
+                  {timeoutCost.es}.
+                </>
+              ),
+              ja: (
+                <>
+                  残り
+                  <Countdown deadline={deadline} />
+                  秒以内に選んでください。過ぎると{timeoutCost.ja}。
+                </>
+              ),
+            })}
           </span>
         ) : (
-          <span className="font-medium text-destructive">{lang === "es" ? expiredNote.es : expiredNote.en}</span>
+          <span className="font-medium text-destructive">
+            {expiredNote[lang]}
+          </span>
         )}
       </p>
       {isPracticing && (
         <p className="mt-2 text-xs text-muted-foreground">
-          {lang === "es"
-            ? "Entraste en modo Práctica. Esta partida solo afecta tu clasificación de práctica."
-            : "You queued as Practicing. This set only affects your practice rating."}
+          {tr(lang, {
+            en: "You queued as Practicing. This set only affects your practice rating.",
+            es: "Entraste en modo Práctica. Esta partida solo afecta tu clasificación de práctica.",
+            ja: "練習として待機しました。このセットは練習レートにのみ影響します。",
+          })}
         </p>
       )}
       <CharacterPickForm
@@ -2326,7 +3137,9 @@ function ReportGameSection({
   // the game never eats into it. No deadline exists yet if neither side has
   // reported: that case falls through to the 3h match-level fallback instead
   // (see REPORT_TIMEOUT_MS's own comment in lib/match-games.ts).
-  const reportDeadline = game.reportedAt ? new Date(game.reportedAt.getTime() + REPORT_TIMEOUT_MS) : null;
+  const reportDeadline = game.reportedAt
+    ? new Date(game.reportedAt.getTime() + REPORT_TIMEOUT_MS)
+    : null;
   const secondsLeft = reportDeadline ? secondsUntil(reportDeadline) : null;
   const deadline = reportDeadline?.toISOString();
   // The report buttons only need the current player while they haven't
@@ -2338,97 +3151,132 @@ function ReportGameSection({
   // controls.
   let statusLine: React.ReactNode = null;
   if (game.reportedById === userId) {
-    statusLine =
-      lang === "es" ? (
-        <>
-          Esperando a que {opponentName} confirme…{" "}
-          {secondsLeft !== null && secondsLeft > 0 ? (
-            <>
-              Se confirma solo en <Countdown deadline={deadline!} />
-              s.
-            </>
-          ) : (
-            "Pasó el plazo. Esto debería resolverse a tu favor pronto."
-          )}
-        </>
-      ) : (
-        <>
-          Waiting for {opponentName} to confirm…{" "}
-          {secondsLeft !== null && secondsLeft > 0 ? (
-            <>
-              It auto-confirms in <Countdown deadline={deadline!} />
-              s.
-            </>
-          ) : (
-            "The deadline passed. This should resolve in your favor soon."
-          )}
-        </>
-      );
+    statusLine = (
+      <>
+        {tr(lang, {
+          en: `Waiting for ${opponentName} to confirm… `,
+          es: `Esperando a que ${opponentName} confirme… `,
+          ja: `${opponentName}の確定を待っています… `,
+        })}
+        {secondsLeft !== null && secondsLeft > 0
+          ? trNode(lang, {
+              en: (
+                <>
+                  It auto-confirms in <Countdown deadline={deadline!} />
+                  s.
+                </>
+              ),
+              es: (
+                <>
+                  Se confirma solo en <Countdown deadline={deadline!} />
+                  s.
+                </>
+              ),
+              ja: (
+                <>
+                  残り
+                  <Countdown deadline={deadline!} />
+                  秒で自動的に確定します。
+                </>
+              ),
+            })
+          : tr(lang, {
+              en: "The deadline passed. This should resolve in your favor soon.",
+              es: "Pasó el plazo. Esto debería resolverse a tu favor pronto.",
+              ja: "期限を過ぎました。まもなくあなたに有利な形で処理されます。",
+            })}
+      </>
+    );
   } else if (game.reportedById) {
-    statusLine =
-      lang === "es" ? (
-        <>
-          {game.reportedWinnerId === userId
-            ? `${opponentName} reportó que ganaste.`
-            : `${opponentName} reportó que ganó.`}{" "}
-          {secondsLeft !== null && secondsLeft > 0 && (
-            <>
-              Confirma o disputa antes de <Countdown deadline={deadline!} />
-              s.
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          {game.reportedWinnerId === userId
-            ? `${opponentName} reported that you won.`
-            : `${opponentName} reported that they won.`}{" "}
-          {secondsLeft !== null && secondsLeft > 0 && (
-            <>
-              Confirm or dispute within <Countdown deadline={deadline!} />
-              s.
-            </>
-          )}
-        </>
-      );
+    statusLine = (
+      <>
+        {game.reportedWinnerId === userId
+          ? tr(lang, {
+              en: `${opponentName} reported that you won. `,
+              es: `${opponentName} reportó que ganaste. `,
+              ja: `${opponentName}が「あなたの勝ち」と報告しました。 `,
+            })
+          : tr(lang, {
+              en: `${opponentName} reported that they won. `,
+              es: `${opponentName} reportó que ganó. `,
+              ja: `${opponentName}が「自分の勝ち」と報告しました。 `,
+            })}
+        {secondsLeft !== null &&
+          secondsLeft > 0 &&
+          trNode(lang, {
+            en: (
+              <>
+                Confirm or dispute within <Countdown deadline={deadline!} />
+                s.
+              </>
+            ),
+            es: (
+              <>
+                Confirma o disputa antes de <Countdown deadline={deadline!} />
+                s.
+              </>
+            ),
+            ja: (
+              <>
+                残り
+                <Countdown deadline={deadline!} />
+                秒以内に確定するか、異議を出してください。
+              </>
+            ),
+          })}
+      </>
+    );
   }
 
   const body = (
     <>
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? `Reporta el resultado del juego ${game.gameNumber} después de jugar. Si solo uno reporta, el otro tiene ${REPORT_TIMEOUT_MS / 60_000} minutos para confirmar o disputar. Pasado ese plazo, el reporte queda firme y el otro recibe un no-show.`
-          : `Report Game ${game.gameNumber}'s result after you play. If only one player reports, the other has ${REPORT_TIMEOUT_MS / 60_000} minutes to confirm or dispute. After that, the report stands and the other player gets a no-show.`}
+        {tr(lang, {
+          en: `Report Game ${game.gameNumber}'s result after you play. If only one player reports, the other has ${REPORT_TIMEOUT_MS / 60_000} minutes to confirm or dispute. After that, the report stands and the other player gets a no-show.`,
+          es: `Reporta el resultado del juego ${game.gameNumber} después de jugar. Si solo uno reporta, el otro tiene ${REPORT_TIMEOUT_MS / 60_000} minutos para confirmar o disputar. Pasado ese plazo, el reporte queda firme y el otro recibe un no-show.`,
+          ja: `対戦後に第${game.gameNumber}試合の結果を報告してください。片方だけが報告した場合、もう一方には確定または異議申立のために${REPORT_TIMEOUT_MS / 60_000}分あります。それを過ぎると報告がそのまま確定し、もう一方は不参加として扱われます。`,
+        })}
       </p>
       <div className="mt-4 flex gap-2">
         <ConfirmSubmitButton
           action={reportGame.bind(null, match.id, game.gameNumber, true)}
-          confirmMessage={
-            lang === "es"
-              ? `¿Reportar que ganaste el juego ${game.gameNumber}?`
-              : `Report that you won game ${game.gameNumber}?`
-          }
+          confirmMessage={tr(lang, {
+            en: `Report that you won game ${game.gameNumber}?`,
+            es: `¿Reportar que ganaste el juego ${game.gameNumber}?`,
+            ja: `第${game.gameNumber}試合に勝ったと報告しますか？`,
+          })}
           variant="success"
         >
-          {lang === "es" ? "Gané" : "I Won"}
+          {tr(lang, { en: "I Won", es: "Gané", ja: "勝った" })}
         </ConfirmSubmitButton>
         <ConfirmSubmitButton
           action={reportGame.bind(null, match.id, game.gameNumber, false)}
-          confirmMessage={
-            lang === "es"
-              ? `¿Reportar que perdiste el juego ${game.gameNumber}?`
-              : `Report that you lost game ${game.gameNumber}?`
-          }
+          confirmMessage={tr(lang, {
+            en: `Report that you lost game ${game.gameNumber}?`,
+            es: `¿Reportar que perdiste el juego ${game.gameNumber}?`,
+            ja: `第${game.gameNumber}試合に負けたと報告しますか？`,
+          })}
           variant="destructive"
         >
-          {lang === "es" ? "Perdí" : "I Lost"}
+          {tr(lang, { en: "I Lost", es: "Perdí", ja: "負けた" })}
         </ConfirmSubmitButton>
       </div>
-      {statusLine && <p className="mt-4 text-sm text-muted-foreground">{statusLine}</p>}
+      {statusLine && (
+        <p className="mt-4 text-sm text-muted-foreground">{statusLine}</p>
+      )}
     </>
   );
 
-  return <CardContent className={cn("border-t border-border pt-4", needsMyReport && INPUT_FOCUS)}>{body}</CardContent>;
+  return (
+    <CardContent
+      className={cn(
+        "border-t border-border pt-4",
+        needsMyReport && INPUT_FOCUS,
+      )}
+    >
+      {body}
+    </CardContent>
+  );
 }
 
 async function ConfirmedSection({
@@ -2443,12 +3291,22 @@ async function ConfirmedSection({
   lang: Lang;
 }) {
   const won = match.reportedWinnerId === userId;
-  const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
-  const ratingAfter = match.player1Id === userId ? match.player1RatingAfter : match.player2RatingAfter;
+  const ratingBefore =
+    match.player1Id === userId
+      ? match.player1RatingBefore
+      : match.player2RatingBefore;
+  const ratingAfter =
+    match.player1Id === userId
+      ? match.player1RatingAfter
+      : match.player2RatingAfter;
   // Derived from the rounded before/after rather than the raw floats, so the
   // trail below always adds up — see formatRating.
-  const delta = formatRating(ratingAfter ?? 0) - formatRating(ratingBefore ?? 0);
-  const practicing = match.player1Id === userId ? match.player1IsPracticing : match.player2IsPracticing;
+  const delta =
+    formatRating(ratingAfter ?? 0) - formatRating(ratingBefore ?? 0);
+  const practicing =
+    match.player1Id === userId
+      ? match.player1IsPracticing
+      : match.player2IsPracticing;
 
   const me = await prisma.user.findUnique({
     where: { id: userId },
@@ -2460,7 +3318,9 @@ async function ConfirmedSection({
   // the player is past provisional; before that a win shows a plain
   // confirmation rather than a celebration built around a hidden rating.
   // Moderators see it throughout.
-  const gamesOnTrack = practicing ? (me?.practiceGamesPlayed ?? 0) : (me?.gamesPlayed ?? 0);
+  const gamesOnTrack = practicing
+    ? (me?.practiceGamesPlayed ?? 0)
+    : (me?.gamesPlayed ?? 0);
   const ratingVisible = isRatingVisible(gamesOnTrack, viewerIsModerator);
 
   let body: React.ReactNode;
@@ -2468,7 +3328,8 @@ async function ConfirmedSection({
     // Practice sets never touch the tier ladder, so a practice win is a plain
     // victory celebration with no tier-up attached (see the practice-rating
     // note in applyEloAndConfirm).
-    const tierUp = !practicing && didTierUp(ratingBefore, ratingAfter, gamesOnTrack);
+    const tierUp =
+      !practicing && didTierUp(ratingBefore, ratingAfter, gamesOnTrack);
     const tier = practicing ? null : getRankTier(ratingAfter, gamesOnTrack);
     body = (
       <VictoryCelebration
@@ -2484,21 +3345,30 @@ async function ConfirmedSection({
       <>
         <p className="text-sm font-medium">
           {won
-            ? lang === "es"
-              ? "Partida confirmada — ganaste"
-              : "Set confirmed — you won"
-            : lang === "es"
-              ? "Partida confirmada — perdiste"
-              : "Set confirmed — you lost"}
+            ? tr(lang, {
+                en: "Set confirmed — you won",
+                es: "Partida confirmada — ganaste",
+                ja: "セット確定 — あなたの勝ち",
+              })
+            : tr(lang, {
+                en: "Set confirmed — you lost",
+                es: "Partida confirmada — perdiste",
+                ja: "セット確定 — あなたの負け",
+              })}
         </p>
         {ratingVisible && ratingBefore !== null && ratingAfter !== null ? (
           <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-            {formatRating(ratingBefore)} → {formatRating(ratingAfter)} ({delta >= 0 ? "+" : ""}
+            {formatRating(ratingBefore)} → {formatRating(ratingAfter)} (
+            {delta >= 0 ? "+" : ""}
             {delta})
           </p>
         ) : (
           <p className="mt-1 text-sm text-muted-foreground">
-            <RatingHidden gamesPlayed={gamesOnTrack} lang={lang} practice={practicing} />
+            <RatingHidden
+              gamesPlayed={gamesOnTrack}
+              lang={lang}
+              practice={practicing}
+            />
           </p>
         )}
       </>
@@ -2532,9 +3402,11 @@ function RematchSection({
   if (opponentLeftAt) {
     return (
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? `${opponentName} se fue — revancha no disponible.`
-          : `${opponentName} has left — rematch unavailable.`}
+        {tr(lang, {
+          en: `${opponentName} has left — rematch unavailable.`,
+          es: `${opponentName} se fue — revancha no disponible.`,
+          ja: `${opponentName}が退出したため、再戦できません。`,
+        })}
       </p>
     );
   }
@@ -2543,17 +3415,21 @@ function RematchSection({
     if (opponentUnavailable) {
       return (
         <p className="text-xs text-muted-foreground">
-          {lang === "es"
-            ? `${opponentName} ya no está disponible — pasó a otra partida.`
-            : `${opponentName} is no longer available — they've moved on to another match.`}
+          {tr(lang, {
+            en: `${opponentName} is no longer available — they've moved on to another match.`,
+            es: `${opponentName} ya no está disponible — pasó a otra partida.`,
+            ja: `${opponentName}は別の対戦に移ったため、再戦できません。`,
+          })}
         </p>
       );
     }
     return (
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? `Esperando a que ${opponentName} acepte la revancha…`
-          : `Waiting for ${opponentName} to accept the rematch…`}
+        {tr(lang, {
+          en: `Waiting for ${opponentName} to accept the rematch…`,
+          es: `Esperando a que ${opponentName} acepte la revancha…`,
+          ja: `${opponentName}が再戦に応じるのを待っています…`,
+        })}
       </p>
     );
   }
@@ -2561,9 +3437,11 @@ function RematchSection({
   if (opponentUnavailable) {
     return (
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? `${opponentName} ya no está disponible — pasó a otra partida.`
-          : `${opponentName} is no longer available — they've moved on to another match.`}
+        {tr(lang, {
+          en: `${opponentName} is no longer available — they've moved on to another match.`,
+          es: `${opponentName} ya no está disponible — pasó a otra partida.`,
+          ja: `${opponentName}は別の対戦に移ったため、再戦できません。`,
+        })}
       </p>
     );
   }
@@ -2572,18 +3450,26 @@ function RematchSection({
     <div className="flex items-center gap-2">
       {opponentRequestedAt && (
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? `¡${opponentName} quiere revancha!` : `${opponentName} wants a rematch!`}
+          {tr(lang, {
+            en: `${opponentName} wants a rematch!`,
+            es: `¡${opponentName} quiere revancha!`,
+            ja: `${opponentName}が再戦を希望しています！`,
+          })}
         </p>
       )}
       <form action={requestRematchAction.bind(null, matchId)}>
         <Button type="submit" variant="outline" size="sm">
-          {lang === "es"
-            ? opponentRequestedAt
-              ? "Aceptar revancha"
-              : "Pedir revancha"
-            : opponentRequestedAt
-              ? "Accept Rematch"
-              : "Request Rematch"}
+          {opponentRequestedAt
+            ? tr(lang, {
+                en: "Accept Rematch",
+                es: "Aceptar revancha",
+                ja: "再戦を受ける",
+              })
+            : tr(lang, {
+                en: "Request Rematch",
+                es: "Pedir revancha",
+                ja: "再戦を申し込む",
+              })}
         </Button>
       </form>
     </div>
@@ -2606,7 +3492,11 @@ function MutualCancelSection({
   if (myRequestedAt) {
     return (
       <p className="text-xs text-muted-foreground">
-        {lang === "es" ? `Esperando a que ${opponentName} esté de acuerdo…` : `Waiting for ${opponentName} to agree…`}
+        {tr(lang, {
+          en: `Waiting for ${opponentName} to agree…`,
+          es: `Esperando a que ${opponentName} esté de acuerdo…`,
+          ja: `${opponentName}の同意を待っています…`,
+        })}
       </p>
     );
   }
@@ -2615,35 +3505,53 @@ function MutualCancelSection({
     <div className="flex items-center gap-2">
       {opponentRequestedAt && (
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? `¡${opponentName} quiere cancelar!` : `${opponentName} wants to cancel!`}
+          {tr(lang, {
+            en: `${opponentName} wants to cancel!`,
+            es: `¡${opponentName} quiere cancelar!`,
+            ja: `${opponentName}が中止を希望しています！`,
+          })}
         </p>
       )}
       <form action={requestMutualCancelAction.bind(null, matchId)}>
         <Button type="submit" variant="outline" size="sm">
-          {lang === "es"
-            ? opponentRequestedAt
-              ? "Aceptar cancelación"
-              : "Pedir cancelación"
-            : opponentRequestedAt
-              ? "Agree to Cancel"
-              : "Request Cancel"}
+          {opponentRequestedAt
+            ? tr(lang, {
+                en: "Agree to Cancel",
+                es: "Aceptar cancelación",
+                ja: "中止に同意する",
+              })
+            : tr(lang, {
+                en: "Request Cancel",
+                es: "Pedir cancelación",
+                ja: "中止を申し込む",
+              })}
         </Button>
       </form>
     </div>
   );
 }
 
-function TerminatedSection({ status, lang }: { status: "CANCELLED" | "EXPIRED"; lang: Lang }) {
+function TerminatedSection({
+  status,
+  lang,
+}: {
+  status: "CANCELLED" | "EXPIRED";
+  lang: Lang;
+}) {
   return (
     <CardContent className="pt-4">
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? status === "CANCELLED"
-            ? "Esta partida fue cancelada — sin afectar la clasificación."
-            : "Nadie reportó un resultado a tiempo, así que esta partida expiró sin afectar la clasificación."
-          : status === "CANCELLED"
-            ? "This match was cancelled — no rating impact."
-            : "Nobody reported a result in time, so this match expired with no rating impact."}
+        {status === "CANCELLED"
+          ? tr(lang, {
+              en: "This match was cancelled — no rating impact.",
+              es: "Esta partida fue cancelada — sin afectar la clasificación.",
+              ja: "この試合は中止されました。レートには影響しません。",
+            })
+          : tr(lang, {
+              en: "Nobody reported a result in time, so this match expired with no rating impact.",
+              es: "Nadie reportó un resultado a tiempo, así que esta partida expiró sin afectar la clasificación.",
+              ja: "誰も期限内に結果を報告しなかったため、この試合は無効になりました。レートには影響しません。",
+            })}
       </p>
     </CardContent>
   );
@@ -2670,16 +3578,22 @@ async function CommentsSection({
     where: { id: userId },
     select: { quickMessages: true },
   });
-  const myQuickMessages = resolveQuickMessages(myQuickMessagesRaw?.quickMessages ?? []);
+  const myQuickMessages = resolveQuickMessages(
+    myQuickMessagesRaw?.quickMessages ?? [],
+  );
 
   // Determine opponent's user id for zen mode — replace their name in chat
-  const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+  const opponentId =
+    match.player1Id === userId ? match.player2Id : match.player1Id;
 
   // Serialize dates to strings for the client component
   const comments = rawComments.map((c) => ({
     id: c.id,
     author: {
-      username: zenMode && c.author.id === opponentId ? (lang === "es" ? "Rival" : "Opponent") : c.author.username,
+      username:
+        zenMode && c.author.id === opponentId
+          ? tr(lang, { en: "Opponent", es: "Rival", ja: "相手" })
+          : c.author.username,
       role: c.author.role,
     },
     body: c.body,
@@ -2695,18 +3609,28 @@ async function CommentsSection({
       <CardContent className="flex min-h-0 flex-1 flex-col gap-0 pt-0">
         {opponentHasLeft && (
           <p className="mb-2 text-xs text-muted-foreground">
-            {lang === "es" ? `${opponentName} dejó el chat.` : `${opponentName} has left the chat.`}
+            {tr(lang, {
+              en: `${opponentName} has left the chat.`,
+              es: `${opponentName} dejó el chat.`,
+              ja: `${opponentName}がチャットから退出しました。`,
+            })}
           </p>
         )}
         <ChatMessages
           comments={comments}
           empty={
             <p className="mt-2 text-sm text-muted-foreground">
-              {lang === "es" ? "Aún no hay mensajes." : "No messages yet."}
+              {tr(lang, {
+                en: "No messages yet.",
+                es: "Aún no hay mensajes.",
+                ja: "まだメッセージはありません。",
+              })}
             </p>
           }
         />
-        {opponentTyping && !opponentHasLeft && <TypingIndicator opponentName={opponentName} lang={lang} />}
+        {opponentTyping && !opponentHasLeft && (
+          <TypingIndicator opponentName={opponentName} lang={lang} />
+        )}
         <CommentForm
           action={sendMatchCommentAction.bind(null, match.id)}
           onTyping={signalTypingAction.bind(null, match.id)}
@@ -2746,24 +3670,34 @@ function RoomCodeSection({
         <p className="font-medium tabular-nums">
           <FlashOnChange value={initialValue}>
             {initialValue ||
-              (lang === "es" ? `${opponentName} está creando la sala…` : `${opponentName} is creating the room…`)}
+              tr(lang, {
+                en: `${opponentName} is creating the room…`,
+                es: `${opponentName} está creando la sala…`,
+                ja: `${opponentName}が部屋を作成しています…`,
+              })}
           </FlashOnChange>
         </p>
         {initialValue && (
           <p className="text-xs text-muted-foreground">
-            {lang === "es" ? "Definido por tu rival — únete con este." : "Set by your opponent — join with this."}
+            {tr(lang, {
+              en: "Set by your opponent — join with this.",
+              es: "Definido por tu rival — únete con este.",
+              ja: "相手が設定しました。これで参加してください。",
+            })}
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Contraseña: <span className="font-medium text-foreground">{hostArenaPassword}</span>.
-            </>
-          ) : (
-            <>
-              Password: <span className="font-medium text-foreground">{hostArenaPassword}</span>.
-            </>
-          )}
+          <>
+            {tr(lang, {
+              en: "Password: ",
+              es: "Contraseña: ",
+              ja: "パスワード：",
+            })}
+            <span className="font-medium text-foreground">
+              {hostArenaPassword}
+            </span>
+            .
+          </>
         </p>
       </div>
     );
@@ -2772,29 +3706,71 @@ function RoomCodeSection({
   return (
     <div className="flex flex-col gap-1">
       <p className="text-xs font-medium text-foreground">
-        {lang === "es" ? "Te toca crear la sala." : "You're creating the room."}
+        {tr(lang, {
+          en: "You're creating the room.",
+          es: "Te toca crear la sala.",
+          ja: "あなたが部屋を作成します。",
+        })}
       </p>
-      <RoomCodeForm initialValue={initialValue} action={submitRoomCode.bind(null, matchId)} lang={lang} />
+      <RoomCodeForm
+        initialValue={initialValue}
+        action={submitRoomCode.bind(null, matchId)}
+        lang={lang}
+      />
       <p className="text-xs text-muted-foreground">
-        {lang === "es" ? (
-          <>
-            Contraseña: <span className="font-medium text-foreground">{hostArenaPassword}</span> — este es tu valor por
-            defecto, puedes{" "}
-            <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
-              cambiarlo en Ajustes
-            </Link>
-            .
-          </>
-        ) : (
-          <>
-            Password: <span className="font-medium text-foreground">{hostArenaPassword}</span> — this is your default,
-            you can{" "}
-            <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
-              change it in Settings
-            </Link>
-            .
-          </>
-        )}
+        {trNode(lang, {
+          en: (
+            <>
+              Password:{" "}
+              <span className="font-medium text-foreground">
+                {hostArenaPassword}
+              </span>{" "}
+              — this is your default, you can{" "}
+              <Link
+                href="/settings?tab=lobby"
+                prefetch={false}
+                className="underline hover:text-foreground"
+              >
+                change it in Settings
+              </Link>
+              .
+            </>
+          ),
+          es: (
+            <>
+              Contraseña:{" "}
+              <span className="font-medium text-foreground">
+                {hostArenaPassword}
+              </span>{" "}
+              — este es tu valor por defecto, puedes{" "}
+              <Link
+                href="/settings?tab=lobby"
+                prefetch={false}
+                className="underline hover:text-foreground"
+              >
+                cambiarlo en Ajustes
+              </Link>
+              .
+            </>
+          ),
+          ja: (
+            <>
+              パスワード：
+              <span className="font-medium text-foreground">
+                {hostArenaPassword}
+              </span>{" "}
+              — これは既定値です。
+              <Link
+                href="/settings?tab=lobby"
+                prefetch={false}
+                className="underline hover:text-foreground"
+              >
+                設定から変更できます
+              </Link>
+              。
+            </>
+          ),
+        })}
       </p>
     </div>
   );

@@ -2,17 +2,12 @@ import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { setPreferredLanguage } from "@/lib/account";
 
-// "ja" added 2026-10-23: スマメイト is shutting down and the team is building a
-// Japanese version on this same codebase. Keep this union as the single source
-// of truth — Record<Lang, string> in lib/messages.ts turns a missing
-// translation into a type error.
-export type Lang = "en" | "es" | "ja";
+// Lang and the string lookup live in lib/lang.ts, which stays free of the
+// server-only imports above so client components can use them. Re-exported
+// here because 65 files already import the type from this path.
+import { asLang, type Lang } from "@/lib/lang";
 
-const LANGS: readonly Lang[] = ["en", "es", "ja"] as const;
-
-function asLang(value: string | null | undefined): Lang | null {
-  return LANGS.includes(value as Lang) ? (value as Lang) : null;
-}
+export type { Lang };
 
 const LANG_COOKIE = "lang";
 
@@ -55,5 +50,6 @@ export async function setLangAction(lang: Lang) {
   const session = await auth();
   // null means "English", the default, so the column stays empty for the
   // majority rather than storing "en" on every row.
-  if (session?.user?.id) await setPreferredLanguage(session.user.id, lang === "en" ? null : lang);
+  if (session?.user?.id)
+    await setPreferredLanguage(session.user.id, lang === "en" ? null : lang);
 }
