@@ -1,10 +1,15 @@
+import { LocalizedError } from "@/lib/localized-error";
 const STARTGG_API = "https://api.start.gg/gql/alpha";
 
 export function normalizeStartggUrl(url: string) {
   const trimmed = url.trim();
   if (!trimmed) return null;
   if (!/^https:\/\/(www\.)?start\.gg\//.test(trimmed)) {
-    throw new Error("That doesn't look like a start.gg link");
+    throw new LocalizedError({
+      en: "That doesn't look like a start.gg link",
+      es: "Eso no parece un enlace de start.gg",
+      ja: "start.gg のリンクではないようです",
+    });
   }
   return trimmed;
 }

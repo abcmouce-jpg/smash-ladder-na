@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import { LocalizedError } from "@/lib/localized-error";
 
 // https://dev.twitch.tv/docs/authentication/getting-started-with-oauth/
 const AUTHORIZE_URL = "https://id.twitch.tv/oauth2/authorize";
@@ -18,7 +19,11 @@ function requireClientCredentials() {
   const clientId = process.env.TWITCH_OAUTH_CLIENT_ID;
   const clientSecret = process.env.TWITCH_OAUTH_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    throw new Error("Twitch OAuth isn't configured on this deployment");
+    throw new LocalizedError({
+      en: "Twitch OAuth isn't configured on this deployment",
+      es: "Twitch OAuth no está configurado en este despliegue",
+      ja: "この環境では Twitch 連携が設定されていません",
+    });
   }
   return { clientId, clientSecret };
 }
@@ -48,10 +53,20 @@ async function exchangeCodeForToken(code: string, redirectUri: string): Promise<
       redirect_uri: redirectUri,
     }),
   });
-  if (!res.ok) throw new Error("Twitch rejected the authorization code");
+  if (!res.ok)
+    throw new LocalizedError({
+      en: "Twitch rejected the authorization code",
+      es: "Twitch rechazó el código de autorización",
+      ja: "Twitch が認可コードを受け付けませんでした",
+    });
 
   const json = (await res.json()) as { access_token?: string };
-  if (!json.access_token) throw new Error("Twitch didn't return an access token");
+  if (!json.access_token)
+    throw new LocalizedError({
+      en: "Twitch didn't return an access token",
+      es: "Twitch no devolvió un token de acceso",
+      ja: "Twitch からアクセストークンが返ってきませんでした",
+    });
   return json.access_token;
 }
 
@@ -70,7 +85,12 @@ async function fetchCurrentTwitchUser(accessToken: string): Promise<TwitchIdenti
       "Client-Id": clientId,
     },
   });
-  if (!res.ok) throw new Error("Couldn't reach Twitch's API");
+  if (!res.ok)
+    throw new LocalizedError({
+      en: "Couldn't reach Twitch's API",
+      es: "No se pudo contactar la API de Twitch",
+      ja: "Twitch の API に接続できませんでした",
+    });
 
   const json = (await res.json()) as {
     data?: Array<{
@@ -81,7 +101,12 @@ async function fetchCurrentTwitchUser(accessToken: string): Promise<TwitchIdenti
     }>;
   };
   const user = json.data?.[0];
-  if (!user) throw new Error("Twitch didn't return a user");
+  if (!user)
+    throw new LocalizedError({
+      en: "Twitch didn't return a user",
+      es: "Twitch no devolvió un usuario",
+      ja: "Twitch からユーザー情報が返ってきませんでした",
+    });
 
   return {
     id: user.id,
@@ -98,7 +123,11 @@ export async function connectTwitchAccount(userId: string, code: string, redirec
 
   const claimedByOther = await prisma.user.findUnique({ where: { twitchUserId: identity.id } });
   if (claimedByOther && claimedByOther.id !== userId) {
-    throw new Error("That Twitch account is already linked to a different ladder account");
+    throw new LocalizedError({
+      en: "That Twitch account is already linked to a different ladder account",
+      es: "Esa cuenta de Twitch ya está vinculada a otra cuenta",
+      ja: "その Twitch アカウントは別のアカウントに連携済みです",
+    });
   }
 
   try {
@@ -114,7 +143,11 @@ export async function connectTwitchAccount(userId: string, code: string, redirec
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      throw new Error("That Twitch account is already linked to a different ladder account");
+      throw new LocalizedError({
+        en: "That Twitch account is already linked to a different ladder account",
+        es: "Esa cuenta de Twitch ya está vinculada a otra cuenta",
+        ja: "その Twitch アカウントは別のアカウントに連携済みです",
+      });
     }
     throw err;
   }

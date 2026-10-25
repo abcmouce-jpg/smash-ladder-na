@@ -23,6 +23,7 @@ import { isNotificationEnabled } from "@/lib/notifications";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 import { isEffectiveGoldSupporter } from "@/lib/supporters";
 import { NEXT_SEASON_ALGORITHM } from "@/lib/seasons";
+import { LocalizedError } from "@/lib/localized-error";
 
 // Free cancel is blocked for this long after a match is created, giving the
 // opponent a moment to actually show up before the other side can bail —
@@ -173,23 +174,36 @@ export async function hasOpponentEngaged(matchId: string, opponentId: string): P
 // for a match they'd clearly lost.)
 export async function cancelMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match)
+    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+      ja: "このセットの参加者ではありません",
+    });
   }
   // REPORTED is legacy (pre-BO3) status that nothing in the current app
   // writes anymore, but old rows can still carry it — treated the same as
   // PENDING_REPORT here so a match can never get permanently stuck just
   // because of its status value.
   if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
-    throw new Error("This match can no longer be cancelled");
+    throw new LocalizedError({
+      en: "This match can no longer be cancelled",
+      es: "Esta partida ya no se puede cancelar",
+      ja: "このセットはもう中止できません",
+    });
   }
 
   const gameInProgress = await prisma.matchGame.findFirst({
     where: { matchId, OR: [{ winnerId: { not: null } }, { reportedById: { not: null } }] },
   });
   if (gameInProgress) {
-    throw new Error("Can't cancel once a game has been decided or reported — report the result or dispute it instead.");
+    throw new LocalizedError({
+      en: "Can't cancel once a game has been decided or reported — report the result or dispute it instead.",
+      es: "No se puede cancelar una vez que un juego se decidió o se reportó — reporta el resultado o abre una disputa.",
+      ja: "すでに結果が出た試合や報告済みの試合があるため中止できません。結果を報告するか、異議を出してください。",
+    });
   }
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
@@ -201,7 +215,11 @@ export async function cancelMatch(userId: string, matchId: string) {
 
   const cancelReadyAt = match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000;
   if (Date.now() < cancelReadyAt) {
-    throw new Error("Give your opponent a moment to show up — you can cancel in a few seconds.");
+    throw new LocalizedError({
+      en: "Give your opponent a moment to show up — you can cancel in a few seconds.",
+      es: "Dale un momento a tu rival para aparecer — podrás cancelar en unos segundos.",
+      ja: "相手が来るのを少し待ってください。数秒後に中止できます。",
+    });
   }
 
   const [, updatedUser] = await prisma.$transaction([
@@ -265,12 +283,21 @@ export async function cancelMatch(userId: string, matchId: string) {
 // score even though the set stops short of a full report.
 export async function surrenderMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match)
+    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+      ja: "このセットの参加者ではありません",
+    });
   }
   if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
-    throw new Error("This match can no longer be surrendered");
+    throw new LocalizedError({
+      en: "This match can no longer be surrendered",
+      es: "Esta partida ya no se puede abandonar",
+      ja: "このセットはもう降参できません",
+    });
   }
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
@@ -300,13 +327,22 @@ export async function surrenderMatch(userId: string, matchId: string) {
 // backing out unilaterally — both agreed.
 export async function requestMutualCancel(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match)
+    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+      ja: "このセットの参加者ではありません",
+    });
   }
   // Same legacy-status handling as cancelMatch above.
   if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
-    throw new Error("This match can no longer be cancelled");
+    throw new LocalizedError({
+      en: "This match can no longer be cancelled",
+      es: "Esta partida ya no se puede cancelar",
+      ja: "このセットはもう中止できません",
+    });
   }
 
   const isPlayer1 = match.player1Id === userId;
@@ -337,9 +373,14 @@ export async function requestMutualCancel(userId: string, matchId: string) {
 // ever rendered for terminal matches, so this never gets called early.
 export async function leaveMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match)
+    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+      ja: "このセットの参加者ではありません",
+    });
   }
 
   const isPlayer1 = match.player1Id === userId;
@@ -362,21 +403,34 @@ export async function leaveMatch(userId: string, matchId: string) {
 // the next match immediately.
 export async function requestRematch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match)
+    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+      ja: "このセットの参加者ではありません",
+    });
   }
   if (
     match.status !== MatchStatus.CONFIRMED &&
     match.status !== MatchStatus.CANCELLED &&
     match.status !== MatchStatus.EXPIRED
   ) {
-    throw new Error("This match hasn't finished yet");
+    throw new LocalizedError({
+      en: "This match hasn't finished yet",
+      es: "Esta partida aún no termina",
+      ja: "このセットはまだ終わっていません",
+    });
   }
 
   const isPlayer1 = match.player1Id === userId;
   if (isPlayer1 ? match.player1LeftAt : match.player2LeftAt) {
-    throw new Error("You've left this match");
+    throw new LocalizedError({
+      en: "You've left this match",
+      es: "Dejaste esta partida",
+      ja: "あなたはこのセットから退出しています",
+    });
   }
   if (isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt) return;
 
@@ -936,15 +990,28 @@ export async function isMostRecentConfirmedMatch(
 export async function requestResultCorrection(userId: string, matchId: string, winnerId: string) {
   return prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
+    if (!match)
+      throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
     if (match.player1Id !== userId && match.player2Id !== userId) {
-      throw new Error("Not a participant in this match");
+      throw new LocalizedError({
+        en: "Not a participant in this match",
+        es: "No participas en esta partida",
+        ja: "このセットの参加者ではありません",
+      });
     }
     if (match.status !== MatchStatus.CONFIRMED) {
-      throw new Error("Only a confirmed match's result can be corrected");
+      throw new LocalizedError({
+        en: "Only a confirmed match's result can be corrected",
+        es: "Solo se puede corregir el resultado de una partida confirmada",
+        ja: "結果を訂正できるのは確定済みのセットだけです",
+      });
     }
     if (match.correctionDisputed) {
-      throw new Error("This match's correction is already disputed and awaiting a mod");
+      throw new LocalizedError({
+        en: "This match's correction is already disputed and awaiting a mod",
+        es: "La corrección de esta partida ya está en disputa y espera a un moderador",
+        ja: "このセットの訂正はすでに異議が出ており、モデレーターの対応を待っています",
+      });
     }
     await assertCorrectable(tx, match, winnerId);
 
@@ -981,7 +1048,11 @@ async function assertCorrectable(
   winnerId: string,
 ) {
   if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-    throw new Error("Winner must be one of the two players");
+    throw new LocalizedError({
+      en: "Winner must be one of the two players",
+      es: "El ganador debe ser uno de los dos jugadores",
+      ja: "勝者は対戦した2人のどちらかである必要があります",
+    });
   }
   if (!(await isMostRecentConfirmedMatch(tx, match))) {
     throw new Error(
@@ -996,8 +1067,14 @@ async function assertCorrectable(
 export async function resolveMatchCorrection(matchId: string, winnerId: string) {
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
-    if (!match.correctionDisputed) throw new Error("This match has no disputed correction");
+    if (!match)
+      throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+    if (!match.correctionDisputed)
+      throw new LocalizedError({
+        en: "This match has no disputed correction",
+        es: "Esta partida no tiene una corrección en disputa",
+        ja: "このセットに異議の出ている訂正はありません",
+      });
     await assertCorrectable(tx, match, winnerId);
     await applyCorrection(tx, match, winnerId);
   });
@@ -1011,9 +1088,14 @@ export async function resolveMatchCorrection(matchId: string, winnerId: string) 
 export async function adminOverrideMatchResult(matchId: string, winnerId: string) {
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
+    if (!match)
+      throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
     if (match.status !== MatchStatus.CONFIRMED) {
-      throw new Error("Only a confirmed match's result can be changed this way");
+      throw new LocalizedError({
+        en: "Only a confirmed match's result can be changed this way",
+        es: "Solo se puede cambiar así el resultado de una partida confirmada",
+        ja: "この方法で結果を変更できるのは確定済みのセットだけです",
+      });
     }
     await assertCorrectable(tx, match, winnerId);
     await applyCorrection(tx, match, winnerId);
@@ -1037,15 +1119,28 @@ export async function adminOverrideMatchResult(matchId: string, winnerId: string
 export async function adminCorrectOldMatchResult(matchId: string, winnerId: string) {
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
+    if (!match)
+      throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
     if (match.status !== MatchStatus.CONFIRMED) {
-      throw new Error("Only a confirmed match's result can be corrected");
+      throw new LocalizedError({
+        en: "Only a confirmed match's result can be corrected",
+        es: "Solo se puede corregir el resultado de una partida confirmada",
+        ja: "結果を訂正できるのは確定済みのセットだけです",
+      });
     }
     if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-      throw new Error("Winner must be one of the two players");
+      throw new LocalizedError({
+        en: "Winner must be one of the two players",
+        es: "El ganador debe ser uno de los dos jugadores",
+        ja: "勝者は対戦した2人のどちらかである必要があります",
+      });
     }
     if (winnerId === match.reportedWinnerId) {
-      throw new Error("This match already has that winner recorded");
+      throw new LocalizedError({
+        en: "This match already has that winner recorded",
+        es: "Esta partida ya tiene ese ganador registrado",
+        ja: "このセットの勝者はすでにその人で記録されています",
+      });
     }
     if (
       match.player1RatingBefore === null ||
@@ -1053,7 +1148,11 @@ export async function adminCorrectOldMatchResult(matchId: string, winnerId: stri
       match.player2RatingBefore === null ||
       match.player2RatingAfter === null
     ) {
-      throw new Error("This match has no recorded rating change to reverse");
+      throw new LocalizedError({
+        en: "This match has no recorded rating change to reverse",
+        es: "Esta partida no tiene un cambio de clasificación registrado que revertir",
+        ja: "このセットには取り消せるレート変動の記録がありません",
+      });
     }
 
     const p1OriginalDelta = match.player1RatingAfter - match.player1RatingBefore;
@@ -1138,12 +1237,21 @@ export async function adminCorrectOldMatchResult(matchId: string, winnerId: stri
 export async function adminForceConfirmMatch(matchId: string, winnerId: string) {
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
+    if (!match)
+      throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
     if (match.status === MatchStatus.CONFIRMED || match.status === MatchStatus.CANCELLED) {
-      throw new Error("This match is already closed out");
+      throw new LocalizedError({
+        en: "This match is already closed out",
+        es: "Esta partida ya está cerrada",
+        ja: "このセットはすでに処理が終わっています",
+      });
     }
     if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-      throw new Error("Winner must be one of the two players");
+      throw new LocalizedError({
+        en: "Winner must be one of the two players",
+        es: "El ganador debe ser uno de los dos jugadores",
+        ja: "勝者は対戦した2人のどちらかである必要があります",
+      });
     }
     // reportedWinnerId is what getPlayerMatchHistory's win/loss badge and
     // rivals record key off — applyEloAndConfirm itself doesn't set it

@@ -7,6 +7,7 @@ import {
   SMASH_CHARACTERS,
   type SmashCharacter,
 } from "@/lib/characters";
+import { LocalizedError } from "@/lib/localized-error";
 
 export const MAX_MATCHUP_NOTE_LENGTH = 10000;
 
@@ -71,12 +72,21 @@ export async function getMatchupNote(userId: string, character: string) {
 // getMatchupNote's "does this character have a note" check (used to decide
 // whether to pop the note up during a match) stays accurate.
 export async function upsertMatchupNote(userId: string, character: string, note: string) {
-  if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) throw new Error("Not a valid character");
+  if (!(SMASH_CHARACTERS as readonly string[]).includes(character))
+    throw new LocalizedError({
+      en: "Not a valid character",
+      es: "Personaje no válido",
+      ja: "そのキャラクターは選べません",
+    });
   const members = groupMembers(character);
   const canonical = members[0];
   const trimmed = note.trim();
   if (trimmed.length > MAX_MATCHUP_NOTE_LENGTH) {
-    throw new Error(`Note is too long (max ${MAX_MATCHUP_NOTE_LENGTH} characters)`);
+    throw new LocalizedError({
+      en: `Note is too long (max ${MAX_MATCHUP_NOTE_LENGTH} characters)`,
+      es: `La nota es demasiado larga (máx. ${MAX_MATCHUP_NOTE_LENGTH} caracteres)`,
+      ja: `メモが長すぎます（${MAX_MATCHUP_NOTE_LENGTH}文字以内）`,
+    });
   }
 
   if (!trimmed) {

@@ -46,7 +46,7 @@ export function PushNudgeBanner({ lang }: { lang: Lang }) {
     setBusy(true);
     setError(null);
     try {
-      const result = await subscribeToPush();
+      const result = await subscribeToPush(lang);
       if ("error" in result) {
         setError(result.error);
         return;

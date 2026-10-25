@@ -774,7 +774,7 @@ describe("notifyMatchFoundViaDiscord", () => {
 
   it("uses Spanish copy for a player whose preferredLanguage is es", async () => {
     const spanish = await createTestUser({ preferredLanguage: "es" });
-    const english = await createTestUser();
+    const english = await createTestUser({ preferredLanguage: "en" });
     const dm = vi.mocked(discordBot.sendDiscordDM);
 
     await notifyMatchFoundViaDiscord(spanish.id, english.id);

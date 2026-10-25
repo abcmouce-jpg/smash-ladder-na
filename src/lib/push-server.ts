@@ -5,6 +5,8 @@
 // configured — same "silently skip when unset" pattern as the Discord bot
 // token, so this is safe to ship ahead of key setup.
 import webpush from "web-push";
+import { asLang, type Lang, tr } from "@/lib/lang";
+import { DEFAULT_LANG } from "@/lib/site";
 import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, UserStatus } from "@/generated/prisma/enums";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
@@ -39,15 +41,22 @@ if (pushConfigured) {
 // message to remain relevant.
 const PUSH_TTL_SECONDS = 5 * 60;
 
-const MATCH_FOUND_MESSAGES = {
+// Typed Record<Lang, …> rather than an `as const` object read with
+// `=== "es" ? es : en`: that idiom silently sent English to every Japanese
+// player on this instance, which is exactly what lib/lang.ts was written to
+// make impossible. A missing language is now a compile error.
+type PushCopy = { title: string; body: string };
+
+const MATCH_FOUND_MESSAGES: Record<Lang, PushCopy> = {
   en: {
     title: "Match found!",
     body: "You've been paired — head to the Lobby.",
   },
   es: { title: "¡Partida encontrada!", body: "Te emparejaron — ve a la Sala." },
-} as const;
+  ja: { title: "対戦相手が見つかりました！", body: "マッチングしました。ロビーへ移動してください。" },
+};
 
-const QUEUE_OPPORTUNITY_MESSAGES = {
+const QUEUE_OPPORTUNITY_MESSAGES: Record<Lang, PushCopy> = {
   en: {
     title: "Opponent in your range just queued",
     body: "Jump in now while they're still waiting.",
@@ -56,14 +65,19 @@ const QUEUE_OPPORTUNITY_MESSAGES = {
     title: "Un rival en tu rango acaba de entrar a la cola",
     body: "Entra ahora mientras sigue esperando.",
   },
-} as const;
+  ja: {
+    title: "レートの近い相手が待機列に入りました",
+    body: "相手が待っているうちに入りましょう。",
+  },
+};
 
-const QUEUE_OPPORTUNITY_DM = {
+const QUEUE_OPPORTUNITY_DM: Record<Lang, (link: string) => string> = {
   en: (link: string) => `👀 Someone in your range just queued — jump in while they're still waiting: ${link}`,
   es: (link: string) => `👀 Alguien en tu rango acaba de entrar a la cola — entra mientras sigue esperando: ${link}`,
-} as const;
+  ja: (link: string) => `👀 レートの近い相手が待機列に入りました。待っているうちに入りましょう: ${link}`,
+};
 
-const TEST_MESSAGES = {
+const TEST_MESSAGES: Record<Lang, PushCopy> = {
   en: {
     title: "Test notification",
     body: "Push notifications are working — you'll get an alert here when you're matched.",
@@ -72,7 +86,11 @@ const TEST_MESSAGES = {
     title: "Notificación de prueba",
     body: "Las notificaciones push funcionan — te avisaremos aquí cuando te emparejen.",
   },
-} as const;
+  ja: {
+    title: "テスト通知",
+    body: "プッシュ通知は正常に動いています。マッチングしたらここに通知が届きます。",
+  },
+};
 
 type StoredSubscription = {
   id: string;
@@ -135,7 +153,7 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
   for (const player of players) {
     if (player.pushSubscriptions.length === 0) continue;
     if (!isNotificationEnabled(player, "PUSH_MATCH_FOUND")) continue;
-    const copy = player.preferredLanguage === "es" ? MATCH_FOUND_MESSAGES.es : MATCH_FOUND_MESSAGES.en;
+    const copy = MATCH_FOUND_MESSAGES[asLang(player.preferredLanguage) ?? DEFAULT_LANG];
     sent += await sendPushPayload(
       player.pushSubscriptions,
       JSON.stringify({
@@ -247,7 +265,7 @@ export async function notifyQueueOpportunitySubscribers(
   const link = `${siteOrigin()}/lobby`;
   let sent = 0;
   for (const candidate of eligible) {
-    const copy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_MESSAGES.es : QUEUE_OPPORTUNITY_MESSAGES.en;
+    const copy = QUEUE_OPPORTUNITY_MESSAGES[asLang(candidate.preferredLanguage) ?? DEFAULT_LANG];
     if (pushConfigured && candidate.notifyQueueOpportunities && candidate.pushSubscriptions.length > 0) {
       sent += await sendPushPayload(
         candidate.pushSubscriptions,
@@ -260,7 +278,7 @@ export async function notifyQueueOpportunitySubscribers(
       );
     }
     if (isNotificationEnabled(candidate, "DM_QUEUE_OPPORTUNITY")) {
-      const dmCopy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_DM.es : QUEUE_OPPORTUNITY_DM.en;
+      const dmCopy = QUEUE_OPPORTUNITY_DM[asLang(candidate.preferredLanguage) ?? DEFAULT_LANG];
       await sendDiscordDM(candidate.discordId, dmCopy(link));
     }
   }
@@ -278,11 +296,15 @@ export async function notifyQueueOpportunitySubscribers(
 // every subscription on the account so a player with several devices can
 // verify all of them at once. Returns { error } instead of throwing so the
 // settings UI can show the reason inline.
-export async function sendTestPushToUser(userId: string): Promise<{ sent: number; error?: string }> {
+export async function sendTestPushToUser(userId: string, lang: Lang = "en"): Promise<{ sent: number; error?: string }> {
   if (!pushConfigured) {
     return {
       sent: 0,
-      error: "Push notifications aren't set up on this site yet.",
+      error: tr(lang, {
+        en: "Push notifications aren't set up on this site yet.",
+        es: "Las notificaciones push aún no están configuradas en este sitio.",
+        ja: "このサイトではプッシュ通知がまだ設定されていません。",
+      }),
     };
   }
   const user = await prisma.user.findUniqueOrThrow({
@@ -297,10 +319,14 @@ export async function sendTestPushToUser(userId: string): Promise<{ sent: number
   if (user.pushSubscriptions.length === 0) {
     return {
       sent: 0,
-      error: "No push subscriptions on this account — toggle notifications off and on again.",
+      error: tr(lang, {
+        en: "No push subscriptions on this account — toggle notifications off and on again.",
+        es: "Esta cuenta no tiene suscripciones push — apaga y vuelve a encender las notificaciones.",
+        ja: "このアカウントに通知の登録がありません。通知をいったんオフにして、もう一度オンにしてください。",
+      }),
     };
   }
-  const copy = user.preferredLanguage === "es" ? TEST_MESSAGES.es : TEST_MESSAGES.en;
+  const copy = TEST_MESSAGES[asLang(user.preferredLanguage) ?? DEFAULT_LANG];
   const sent = await sendPushPayload(
     user.pushSubscriptions,
     JSON.stringify({
@@ -313,7 +339,11 @@ export async function sendTestPushToUser(userId: string): Promise<{ sent: number
   if (sent === 0) {
     return {
       sent: 0,
-      error: "Couldn't deliver a test notification — toggle notifications off and on again.",
+      error: tr(lang, {
+        en: "Couldn't deliver a test notification — toggle notifications off and on again.",
+        es: "No se pudo entregar una notificación de prueba — apaga y vuelve a encender las notificaciones.",
+        ja: "テスト通知を配信できませんでした。通知をいったんオフにして、もう一度オンにしてください。",
+      }),
     };
   }
   return { sent };

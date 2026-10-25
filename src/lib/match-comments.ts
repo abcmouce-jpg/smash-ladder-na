@@ -1,16 +1,24 @@
 import { prisma } from "@/lib/db";
+import { asLang } from "@/lib/lang";
+import { DEFAULT_LANG } from "@/lib/site";
 import type { UserRole } from "@/generated/prisma/enums";
 import { translateText } from "@/lib/translate";
 import type { Lang } from "@/lib/i18n";
+import { LocalizedError } from "@/lib/localized-error";
 
 export async function listMatchComments(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({
     where: { id: matchId },
     select: { player1Id: true, player2Id: true },
   });
-  if (!match) throw new Error("Match not found");
+  if (!match)
+    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+      ja: "このセットの参加者ではありません",
+    });
   }
 
   const [comments, viewer] = await Promise.all([
@@ -25,9 +33,11 @@ export async function listMatchComments(userId: string, matchId: string) {
     prisma.user.findUnique({ where: { id: userId }, select: { preferredLanguage: true } }),
   ]);
 
-  // preferredLanguage is nullable — null means "never explicitly set", which
-  // getLang() treats as English everywhere else, so match that default here.
-  const viewerLang: Lang = viewer?.preferredLanguage === "es" ? "es" : "en";
+  // preferredLanguage is nullable — null means "never explicitly set", so it
+  // falls back to whatever this instance publishes, the way getLang() does.
+  // The old `=== "es" ? "es" : "en"` form filed every Japanese viewer under
+  // English, which is what picked the translation they were shown.
+  const viewerLang: Lang = asLang(viewer?.preferredLanguage) ?? DEFAULT_LANG;
 
   return Promise.all(comments.map((c) => attachTranslation(c, userId, viewerLang)));
 }
@@ -69,15 +79,25 @@ async function attachTranslation(comment: CommentWithAuthor, viewerId: string, v
 
 export async function postMatchComment(userId: string, matchId: string, body: string) {
   const trimmed = body.trim().slice(0, 500);
-  if (!trimmed) throw new Error("Comment can't be empty");
+  if (!trimmed)
+    throw new LocalizedError({
+      en: "Comment can't be empty",
+      es: "El comentario no puede estar vacío",
+      ja: "コメントが空のままです",
+    });
 
   const match = await prisma.ratingMatch.findUnique({
     where: { id: matchId },
     select: { player1Id: true, player2Id: true },
   });
-  if (!match) throw new Error("Match not found");
+  if (!match)
+    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+      ja: "このセットの参加者ではありません",
+    });
   }
 
   await prisma.matchComment.create({ data: { matchId, authorId: userId, body: trimmed } });
@@ -116,9 +136,15 @@ export async function listMatchCommentsAsMod(matchId: string) {
 
 export async function postMatchCommentAsMod(modUserId: string, matchId: string, body: string) {
   const trimmed = body.trim().slice(0, 500);
-  if (!trimmed) throw new Error("Comment can't be empty");
+  if (!trimmed)
+    throw new LocalizedError({
+      en: "Comment can't be empty",
+      es: "El comentario no puede estar vacío",
+      ja: "コメントが空のままです",
+    });
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId }, select: { id: true } });
-  if (!match) throw new Error("Match not found");
+  if (!match)
+    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
   await prisma.matchComment.create({
     data: { matchId, authorId: modUserId, body: `[Mod] ${trimmed}` },
   });

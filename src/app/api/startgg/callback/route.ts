@@ -1,4 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { errorMessage } from "@/lib/localized-error";
+import { getLang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 import { auth } from "@/auth";
 import { connectStartggAccount, STARTGG_STATE_COOKIE } from "@/lib/startgg-oauth";
 
@@ -19,7 +22,14 @@ export async function GET(request: NextRequest) {
   const cookieState = request.cookies.get(STARTGG_STATE_COOKIE)?.value;
 
   if (!code || !state || !cookieState || state !== cookieState) {
-    return redirectWithError(request, "That connection request expired or was invalid — try again.");
+    return redirectWithError(
+      request,
+      tr(await getLang(), {
+        en: "That connection request expired or was invalid — try again.",
+        es: "Esa solicitud de conexión expiró o no era válida — inténtalo de nuevo.",
+        ja: "連携のリクエストが期限切れか無効でした。もう一度お試しください。",
+      }),
+    );
   }
 
   const redirectUri = new URL("/api/startgg/callback", request.url).toString();
@@ -27,10 +37,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectStartggAccount(session.user.id, code, redirectUri);
   } catch (err) {
-    return redirectWithError(
-      request,
-      err instanceof Error ? err.message : "Something went wrong connecting your start.gg account.",
-    );
+    return redirectWithError(request, errorMessage(err, await getLang()));
   }
 
   const response = NextResponse.redirect(new URL("/settings?startggConnected=1", request.url));

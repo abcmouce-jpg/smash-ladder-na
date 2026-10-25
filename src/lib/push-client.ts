@@ -1,4 +1,5 @@
 "use client";
+import { type Lang, tr } from "@/lib/lang";
 
 // Client side of web push — subscribing/unsubscribing this browser and the
 // VAPID key conversion the PushManager API needs. The subscription's actual
@@ -49,22 +50,41 @@ export async function getPushSubscription(): Promise<PushSubscription | null> {
 
 // Ask for permission and subscribe this browser. Returns either the fresh
 // subscription or a human-readable error string for the settings UI.
-export async function subscribeToPush(): Promise<{ subscription: PushSubscription } | { error: string }> {
+export async function subscribeToPush(
+  lang: Lang = "en",
+): Promise<{ subscription: PushSubscription } | { error: string }> {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (!publicKey) {
-    return { error: "Push notifications aren't set up on this site yet." };
+    return {
+      error: tr(lang, {
+        en: "Push notifications aren't set up on this site yet.",
+        es: "Las notificaciones push aún no están configuradas en este sitio.",
+        ja: "このサイトではプッシュ通知がまだ設定されていません。",
+      }),
+    };
   }
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
     return {
       error:
         permission === "denied"
-          ? "Notification permission is blocked — allow it in your browser's site settings, then try again."
-          : "Notification permission wasn't granted.",
+          ? tr(lang, PERMISSION_BLOCKED)
+          : tr(lang, {
+              en: "Notification permission wasn't granted.",
+              es: "No se concedió el permiso de notificaciones.",
+              ja: "通知の許可が得られませんでした。",
+            }),
     };
   }
   const registration = await registerPushServiceWorker();
-  if (!registration) return { error: "Push notifications aren't supported in this browser." };
+  if (!registration)
+    return {
+      error: tr(lang, {
+        en: "Push notifications aren't supported in this browser.",
+        es: "Este navegador no admite notificaciones push.",
+        ja: "このブラウザはプッシュ通知に対応していません。",
+      }),
+    };
   try {
     return { subscription: await subscribeWithVapidKey(registration, publicKey) };
   } catch (err) {
@@ -78,10 +98,10 @@ export async function subscribeToPush(): Promise<{ subscription: PushSubscriptio
         await stale?.unsubscribe();
         return { subscription: await subscribeWithVapidKey(registration, publicKey) };
       } catch (retryErr) {
-        return { error: subscriptionError(retryErr) };
+        return { error: subscriptionError(retryErr, lang) };
       }
     }
-    return { error: subscriptionError(err) };
+    return { error: subscriptionError(err, lang) };
   }
 }
 
@@ -105,21 +125,36 @@ function isInvalidStateError(err: unknown): boolean {
 // Chromium forks with a built-in VPN/ad-blocker (Helium Browser is one)
 // commonly filter the push service request and reject with AbortError or
 // NotSupportedError.
-function subscriptionError(err: unknown): string {
+function subscriptionError(err: unknown, lang: Lang): string {
   if (err instanceof Error) {
     switch (err.name) {
       case "NotAllowedError":
-        return "Notification permission is blocked — allow it in your browser's site settings, then try again.";
+        return tr(lang, PERMISSION_BLOCKED);
       case "AbortError":
       case "NotSupportedError":
-        return "This browser couldn't reach its push service. VPNs, ad-blockers, and privacy settings can block it — try turning those off for this site, or use Chrome, Firefox, or Safari.";
+        return tr(lang, {
+          en: "This browser couldn't reach its push service. VPNs, ad-blockers, and privacy settings can block it — try turning those off for this site, or use Chrome, Firefox, or Safari.",
+          es: "Este navegador no pudo contactar su servicio de push. Las VPN, los bloqueadores de anuncios y los ajustes de privacidad pueden bloquearlo — prueba desactivarlos para este sitio, o usa Chrome, Firefox o Safari.",
+          ja: "このブラウザからプッシュ配信サーバーに接続できませんでした。VPN・広告ブロッカー・プライバシー設定が原因になることがあります。このサイトではそれらを切るか、Chrome・Firefox・Safari をお試しください。",
+        });
     }
     // Unknown failure: log the details so the next report has a console line
     // to point at, and keep the user-facing message generic.
     console.error("push subscribe failed:", err.name, err.message);
   }
-  return "Couldn't subscribe this browser — try again in a moment.";
+  return tr(lang, {
+    en: "Couldn't subscribe this browser — try again in a moment.",
+    es: "No se pudo suscribir este navegador — inténtalo de nuevo en un momento.",
+    ja: "このブラウザを登録できませんでした。少し待ってからもう一度お試しください。",
+  });
 }
+
+// Said by both the permission check and a NotAllowedError from subscribe().
+const PERMISSION_BLOCKED: Record<Lang, string> = {
+  en: "Notification permission is blocked — allow it in your browser's site settings, then try again.",
+  es: "El permiso de notificaciones está bloqueado — permítelo en los ajustes del sitio de tu navegador y vuelve a intentarlo.",
+  ja: "通知がブロックされています。ブラウザのサイト設定で許可してから、もう一度お試しください。",
+};
 
 export async function unsubscribeFromPush(): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null;

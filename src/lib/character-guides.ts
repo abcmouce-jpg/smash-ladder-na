@@ -1,4 +1,6 @@
 import { after } from "next/server";
+import { asLang, type Lang, LANGS } from "@/lib/lang";
+import { DEFAULT_LANG } from "@/lib/site";
 import { prisma } from "@/lib/db";
 import {
   echoGroupCanonical,
@@ -11,6 +13,7 @@ import {
 import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { siteOrigin } from "@/lib/site-url";
+import { LocalizedError } from "@/lib/localized-error";
 
 export const MAX_GUIDE_LENGTH = 10000;
 
@@ -22,7 +25,12 @@ export const MAX_GUIDE_LENGTH = 10000;
 export const FLAG_HIDE_THRESHOLD = 3;
 
 function assertValidCharacter(character: string) {
-  if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) throw new Error("Not a valid character");
+  if (!(SMASH_CHARACTERS as readonly string[]).includes(character))
+    throw new LocalizedError({
+      en: "Not a valid character",
+      es: "Personaje no válido",
+      ja: "そのキャラクターは選べません",
+    });
 }
 
 // The echo group a guide belongs to, or null for a character the notes page
@@ -113,10 +121,11 @@ export async function getAllGuides(viewerId: string | null): Promise<GuideView[]
   return guides.filter((guide) => guideGroup(guide.character) !== null).map(toGuideView);
 }
 
-const GUIDE_DM = {
+const GUIDE_DM: Record<Lang, (label: string, link: string) => string> = {
   en: (label: string, link: string) => `📖 New community guide for ${label} — check it out: ${link}`,
   es: (label: string, link: string) => `📖 Nueva guía de la comunidad para ${label} — mírala: ${link}`,
-} as const;
+  ja: (label: string, link: string) => `📖 ${label}の新しいコミュニティ攻略が投稿されました: ${link}`,
+};
 
 // DMs everyone subscribed to a character's bell (the follow button on /notes),
 // except the author. This used to be a browser push; it's Discord-only now (see
@@ -136,14 +145,15 @@ export async function notifyCharacterGuideSubscribers(character: string, authorI
   });
 
   const link = `${siteOrigin()}/notes`;
-  const en: { discordId: string }[] = [];
-  const es: { discordId: string }[] = [];
+  const buckets: Record<Lang, { discordId: string }[]> = { en: [], es: [], ja: [] };
   for (const subscriber of subscribers) {
     if (!isNotificationEnabled(subscriber, "DM_CHARACTER_GUIDE")) continue;
-    (subscriber.preferredLanguage === "es" ? es : en).push({ discordId: subscriber.discordId });
+    buckets[asLang(subscriber.preferredLanguage) ?? DEFAULT_LANG].push({ discordId: subscriber.discordId });
   }
-  if (en.length > 0) await sendDiscordDMsSequentially(en, GUIDE_DM.en(label, link));
-  if (es.length > 0) await sendDiscordDMsSequentially(es, GUIDE_DM.es(label, link));
+  for (const lang of LANGS) {
+    const bucket = buckets[lang];
+    if (bucket.length > 0) await sendDiscordDMsSequentially(bucket, GUIDE_DM[lang](label, link));
+  }
 }
 
 // Defers notifyCharacterGuideSubscribers to run once the creating request
@@ -163,8 +173,18 @@ function deferGuideNotification(character: string, authorId: string) {
 export async function createCharacterGuide(authorId: string, character: string, content: string) {
   assertValidCharacter(character);
   const trimmed = content.trim();
-  if (!trimmed) throw new Error("Guide can't be empty");
-  if (trimmed.length > MAX_GUIDE_LENGTH) throw new Error(`Guide is too long (max ${MAX_GUIDE_LENGTH} characters)`);
+  if (!trimmed)
+    throw new LocalizedError({
+      en: "Guide can't be empty",
+      es: "El aporte no puede estar vacío",
+      ja: "攻略が空のままです",
+    });
+  if (trimmed.length > MAX_GUIDE_LENGTH)
+    throw new LocalizedError({
+      en: `Guide is too long (max ${MAX_GUIDE_LENGTH} characters)`,
+      es: `El aporte es demasiado largo (máx. ${MAX_GUIDE_LENGTH} caracteres)`,
+      ja: `攻略が長すぎます（${MAX_GUIDE_LENGTH}文字以内）`,
+    });
 
   // Filed under the echo group's canonical character so Samus/Dark Samus (and
   // the other pairs) share one tag — the read path groups by the same key.
@@ -176,12 +196,28 @@ export async function createCharacterGuide(authorId: string, character: string, 
 
 export async function updateCharacterGuide(authorId: string, guideId: string, content: string) {
   const trimmed = content.trim();
-  if (!trimmed) throw new Error("Guide can't be empty");
-  if (trimmed.length > MAX_GUIDE_LENGTH) throw new Error(`Guide is too long (max ${MAX_GUIDE_LENGTH} characters)`);
+  if (!trimmed)
+    throw new LocalizedError({
+      en: "Guide can't be empty",
+      es: "El aporte no puede estar vacío",
+      ja: "攻略が空のままです",
+    });
+  if (trimmed.length > MAX_GUIDE_LENGTH)
+    throw new LocalizedError({
+      en: `Guide is too long (max ${MAX_GUIDE_LENGTH} characters)`,
+      es: `El aporte es demasiado largo (máx. ${MAX_GUIDE_LENGTH} caracteres)`,
+      ja: `攻略が長すぎます（${MAX_GUIDE_LENGTH}文字以内）`,
+    });
 
   const guide = await prisma.characterGuide.findUnique({ where: { id: guideId } });
-  if (!guide) throw new Error("Guide not found");
-  if (guide.authorId !== authorId) throw new Error("Only the author can edit this guide");
+  if (!guide)
+    throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado", ja: "攻略が見つかりません" });
+  if (guide.authorId !== authorId)
+    throw new LocalizedError({
+      en: "Only the author can edit this guide",
+      es: "Solo el autor puede editar este aporte",
+      ja: "この攻略を編集できるのは投稿者だけです",
+    });
 
   await prisma.characterGuide.update({ where: { id: guideId }, data: { content: trimmed } });
 }
@@ -189,7 +225,12 @@ export async function updateCharacterGuide(authorId: string, guideId: string, co
 export async function deleteCharacterGuide(authorId: string, guideId: string) {
   const guide = await prisma.characterGuide.findUnique({ where: { id: guideId } });
   if (!guide) return; // already gone — no-op
-  if (guide.authorId !== authorId) throw new Error("Only the author can delete this guide");
+  if (guide.authorId !== authorId)
+    throw new LocalizedError({
+      en: "Only the author can delete this guide",
+      es: "Solo el autor puede borrar este aporte",
+      ja: "この攻略を削除できるのは投稿者だけです",
+    });
 
   await prisma.characterGuide.delete({ where: { id: guideId } });
 }
@@ -201,8 +242,14 @@ export async function deleteCharacterGuide(authorId: string, guideId: string) {
 export async function voteOnGuide(userId: string, guideId: string, value: 1 | -1) {
   await prisma.$transaction(async (tx) => {
     const guide = await tx.characterGuide.findUnique({ where: { id: guideId }, select: { authorId: true } });
-    if (!guide) throw new Error("Guide not found");
-    if (guide.authorId === userId) throw new Error("You can't vote on your own guide");
+    if (!guide)
+      throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado", ja: "攻略が見つかりません" });
+    if (guide.authorId === userId)
+      throw new LocalizedError({
+        en: "You can't vote on your own guide",
+        es: "No puedes votar tu propio aporte",
+        ja: "自分の攻略には投票できません",
+      });
 
     const existing = await tx.characterGuideVote.findUnique({
       where: { guideId_userId: { guideId, userId } },
@@ -229,8 +276,14 @@ export async function voteOnGuide(userId: string, guideId: string, value: 1 | -1
 export async function flagGuide(userId: string, guideId: string) {
   await prisma.$transaction(async (tx) => {
     const guide = await tx.characterGuide.findUnique({ where: { id: guideId }, select: { authorId: true } });
-    if (!guide) throw new Error("Guide not found");
-    if (guide.authorId === userId) throw new Error("You can't flag your own guide");
+    if (!guide)
+      throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado", ja: "攻略が見つかりません" });
+    if (guide.authorId === userId)
+      throw new LocalizedError({
+        en: "You can't flag your own guide",
+        es: "No puedes reportar tu propio aporte",
+        ja: "自分の攻略は通報できません",
+      });
 
     const existing = await tx.characterGuideFlag.findUnique({
       where: { guideId_userId: { guideId, userId } },

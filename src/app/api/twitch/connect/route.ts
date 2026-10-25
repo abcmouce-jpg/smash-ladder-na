@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { errorMessage } from "@/lib/localized-error";
+import { getLang } from "@/lib/i18n";
 import { auth } from "@/auth";
 import { buildTwitchAuthorizeUrl, TWITCH_STATE_COOKIE } from "@/lib/twitch-oauth";
 
@@ -19,10 +21,7 @@ export async function GET(request: Request) {
     authorizeUrl = buildTwitchAuthorizeUrl(redirectUri, state);
   } catch (err) {
     const url = new URL("/settings", request.url);
-    url.searchParams.set(
-      "twitchError",
-      err instanceof Error ? err.message : "Twitch connections aren't available right now.",
-    );
+    url.searchParams.set("twitchError", errorMessage(err, await getLang()));
     return NextResponse.redirect(url);
   }
 

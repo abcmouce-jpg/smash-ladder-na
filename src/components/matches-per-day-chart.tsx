@@ -16,8 +16,14 @@ const DAY_MS = 86_400_000;
 // The timezone only shifts which matches land in which local day; the bucket
 // counts are unchanged. See useBrowserTimeZone for the SSR/UTC-first approach.
 
-const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+// Japanese writes the month as a number (see dateLabel), so its row is never
+// read — it's here because a Record<Lang, …> is what makes the next language
+// a compile error instead of a silent fall back to English.
+const MONTHS: Record<Lang, readonly string[]> = {
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  es: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+  ja: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+};
 
 export function MatchesPerDayChart({
   timestamps,
@@ -61,7 +67,7 @@ export function MatchesPerDayChart({
   const dayEntries = keys.map((key) => ({ key, count: counts.get(key)! }));
   const total = dayEntries.reduce((sum, d) => sum + d.count, 0);
 
-  const months = lang === "es" ? MONTHS_ES : MONTHS_EN;
+  const months = MONTHS[lang];
   const dateLabel = (key: string) => {
     const [year, month, day] = key.split("-").map(Number);
     // Each language orders a date its own way, so the whole string branches.

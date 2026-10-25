@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getLang } from "@/lib/i18n";
 import { auth } from "@/auth";
 import { upsertMatchupNote } from "@/lib/matchup-notes";
 import {
@@ -12,10 +13,12 @@ import {
 } from "@/lib/character-guides";
 import { toggleCharacterGuideSubscription } from "@/lib/character-guide-subscriptions";
 import { prisma } from "@/lib/db";
+import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   return session.user.id;
 }
 
@@ -30,7 +33,7 @@ export async function updateMatchupNoteAction(
   try {
     await upsertMatchupNote(userId, character, String(formData.get("note") ?? ""));
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/notes");
   revalidatePath("/lobby");
@@ -47,7 +50,7 @@ export async function createGuideAction(_prevState: GuideFormState, formData: Fo
   try {
     await createCharacterGuide(userId, String(formData.get("character") ?? ""), String(formData.get("content") ?? ""));
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/notes");
   return { error: null };
@@ -62,7 +65,7 @@ export async function editGuideAction(
   try {
     await updateCharacterGuide(userId, guideId, String(formData.get("content") ?? ""));
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/notes");
   return { error: null };
@@ -81,7 +84,7 @@ export async function deleteGuideAction(guideId: string): Promise<GuideActionSta
     const userId = await requireUserId();
     await deleteCharacterGuide(userId, guideId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/notes");
   return { error: null };
@@ -92,7 +95,7 @@ export async function voteOnGuideAction(guideId: string, value: 1 | -1): Promise
     const userId = await requireUserId();
     await voteOnGuide(userId, guideId, value);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/notes");
   return { error: null };
@@ -103,7 +106,7 @@ export async function flagGuideAction(guideId: string): Promise<GuideActionState
     const userId = await requireUserId();
     await flagGuide(userId, guideId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/notes");
   return { error: null };
@@ -118,7 +121,7 @@ export async function toggleCharacterGuideSubscriptionAction(character: string):
     revalidatePath("/notes");
     return { subscribed, error: null };
   } catch (err) {
-    return { subscribed: false, error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { subscribed: false, error: errorMessage(err, await getLang()) };
   }
 }
 
@@ -129,10 +132,11 @@ export async function importGuideAction(guideId: string): Promise<GuideActionSta
   try {
     const userId = await requireUserId();
     const guide = await prisma.characterGuide.findUnique({ where: { id: guideId } });
-    if (!guide || guide.hiddenAt) throw new Error("Guide not found");
+    if (!guide || guide.hiddenAt)
+      throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado", ja: "攻略が見つかりません" });
     await upsertMatchupNote(userId, guide.character, guide.content);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/notes");
   revalidatePath("/lobby");

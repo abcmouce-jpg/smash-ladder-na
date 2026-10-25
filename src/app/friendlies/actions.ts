@@ -7,10 +7,12 @@ import { requireActiveUser } from "@/lib/account";
 import { prisma } from "@/lib/db";
 import { enforceRateLimit, minutesAgo } from "@/lib/rate-limit";
 import type { FreeBattleTier } from "@/lib/rank-tier";
+import { LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   return session.user.id;
 }
 

@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { tr } from "@/lib/lang";
+import { getLang } from "@/lib/i18n";
 import { auth } from "@/auth";
 import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode, updateLobbyRoomCode } from "@/lib/lobby";
 import {
@@ -36,10 +38,12 @@ import { requestDisputeResolution } from "@/lib/disputes";
 import { fileConnectionReport, fileMatchReport } from "@/lib/reports";
 import { prisma } from "@/lib/db";
 import { enforceRateLimit, minutesAgo } from "@/lib/rate-limit";
+import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   return session.user.id;
 }
 
@@ -101,7 +105,7 @@ export async function joinLobby(_prevState: JoinLobbyState, formData: FormData):
     });
     await joinLobbyAndTryPair(userId, isPracticing, existingRoomCode);
   } catch (err) {
-    error = err instanceof Error ? err.message : "Something went wrong — try again.";
+    error = errorMessage(err, await getLang());
   }
   // Revalidated on the failure path too, not just the success one.
   // joinLobbyAndTryPair can throw *after* it has already created this player's
@@ -134,7 +138,7 @@ export async function submitRoomCode(
     await requireNotBanned(userId); // still a ranked-lobby action, mid-match
     await setMatchRoomCode(userId, matchId, roomCode);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", savedValue: null };
+    return { error: errorMessage(err, await getLang()), savedValue: null };
   }
   revalidatePath("/lobby");
   return { error: null, savedValue: roomCode };
@@ -149,7 +153,7 @@ export async function updateLobbyRoomCodeAction(_prevState: RoomCodeState, formD
   try {
     await updateLobbyRoomCode(userId, roomCode);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", savedValue: null };
+    return { error: errorMessage(err, await getLang()), savedValue: null };
   }
   revalidatePath("/lobby");
   return { error: null, savedValue: roomCode ?? "" };
@@ -271,17 +275,35 @@ export async function requestDisputeResolutionAction(
     const result = await requestDisputeResolution(userId, matchId, gameNumber, winnerId);
     revalidatePath("/lobby");
     if (result.resolved) {
-      return { error: null, message: "You both agreed — the game is resolved." };
+      return {
+        error: null,
+        message: tr(await getLang(), {
+          en: "You both agreed — the game is resolved.",
+          es: "Ambos coincidieron — el juego quedó resuelto.",
+          ja: "お互いの報告が一致しました。この試合は確定です。",
+        }),
+      };
     }
     if (result.stillDisputed) {
       return {
         error: null,
-        message: "That doesn't match what your opponent picked — still waiting on a mod.",
+        message: tr(await getLang(), {
+          en: "That doesn't match what your opponent picked — still waiting on a mod.",
+          es: "No coincide con lo que eligió tu rival — sigue esperando a un moderador.",
+          ja: "相手が選んだ内容と食い違っています。モデレーターの対応を待っています。",
+        }),
       };
     }
-    return { error: null, message: "Submitted — waiting for your opponent to agree." };
+    return {
+      error: null,
+      message: tr(await getLang(), {
+        en: "Submitted — waiting for your opponent to agree.",
+        es: "Enviado — esperando que tu rival esté de acuerdo.",
+        ja: "送信しました。相手の同意を待っています。",
+      }),
+    };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
+    return { error: errorMessage(err, await getLang()), message: null };
   }
 }
 
@@ -308,7 +330,7 @@ export async function sendMatchCommentAction(
     });
     await postMatchComment(userId, matchId, body);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/lobby");
   return { error: null };
@@ -331,7 +353,7 @@ export async function cancelMatchInProgress(
   try {
     await cancelMatch(userId, matchId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/lobby");
   return { error: null };
@@ -352,7 +374,7 @@ export async function surrenderMatchAction(
   try {
     await surrenderMatch(userId, matchId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath("/lobby");
   return { error: null };
@@ -399,12 +421,19 @@ export async function reportConductAction(
     await fileMatchReport(userId, matchId, reason);
   } catch (err) {
     return {
-      error: err instanceof Error ? err.message : "Something went wrong — try again.",
+      error: errorMessage(err, await getLang()),
       message: null,
     };
   }
   revalidatePath("/lobby");
-  return { error: null, message: "Reported — a mod will review it." };
+  return {
+    error: null,
+    message: tr(await getLang(), {
+      en: "Reported — a mod will review it.",
+      es: "Reportado — un moderador lo revisará.",
+      ja: "通報しました。モデレーターが確認します。",
+    }),
+  };
 }
 
 export async function signalTypingAction(matchId: string) {

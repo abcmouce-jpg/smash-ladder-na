@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { DELETED_USERNAME } from "@/lib/account";
+import { LocalizedError } from "@/lib/localized-error";
 
 // Raised from 5 on 2026-10-21 after a player pointed out that the cap and the
 // permanence compound: blocks are never cleared — not by a season rollover,
@@ -11,7 +12,12 @@ import { DELETED_USERNAME } from "@/lib/account";
 export const MAX_BLOCKS_PER_USER = 10;
 
 export async function blockUser(blockerId: string, blockedId: string) {
-  if (blockerId === blockedId) throw new Error("You can't block yourself");
+  if (blockerId === blockedId)
+    throw new LocalizedError({
+      en: "You can't block yourself",
+      es: "No puedes bloquearte a ti mismo",
+      ja: "自分をブロックすることはできません",
+    });
 
   const existing = await prisma.block.findUnique({
     where: { blockerId_blockedId: { blockerId, blockedId } },
@@ -30,7 +36,11 @@ export async function blockUser(blockerId: string, blockedId: string) {
     where: { blockerId, blocked: { NOT: { username: DELETED_USERNAME } } },
   });
   if (count >= MAX_BLOCKS_PER_USER) {
-    throw new Error(`You can only block up to ${MAX_BLOCKS_PER_USER} players.`);
+    throw new LocalizedError({
+      en: `You can only block up to ${MAX_BLOCKS_PER_USER} players.`,
+      es: `Solo puedes bloquear hasta ${MAX_BLOCKS_PER_USER} jugadores.`,
+      ja: `ブロックできるのは${MAX_BLOCKS_PER_USER}人までです。`,
+    });
   }
 
   await prisma.block.create({ data: { blockerId, blockedId } });

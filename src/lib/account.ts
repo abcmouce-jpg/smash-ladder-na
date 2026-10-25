@@ -8,6 +8,7 @@ import { CONFIGURABLE_NOTIFICATION_KEYS } from "@/lib/notifications";
 import type { Lang } from "@/lib/i18n";
 import { SITE_NAME } from "@/lib/site";
 import { parseStreamUrl } from "@/lib/stream-links";
+import { LocalizedError } from "@/lib/localized-error";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -58,7 +59,11 @@ export async function requireNotBanned(userId: string) {
     select: { status: true, region: true, suspendedUntil: true },
   });
   if (user.status === UserStatus.BANNED) {
-    throw new Error("Your account has been banned.");
+    throw new LocalizedError({
+      en: "Your account has been banned.",
+      es: "Tu cuenta ha sido baneada.",
+      ja: "このアカウントは利用禁止になっています。",
+    });
   }
   requireRegionUnlocked(user.region);
 }
@@ -69,7 +74,11 @@ export async function requireActiveUser(userId: string) {
     select: { status: true, region: true, suspendedUntil: true },
   });
   if (user.status === UserStatus.BANNED) {
-    throw new Error("Your account has been banned.");
+    throw new LocalizedError({
+      en: "Your account has been banned.",
+      es: "Tu cuenta ha sido baneada.",
+      ja: "このアカウントは利用禁止になっています。",
+    });
   }
   const status = await liftExpiredSuspension(userId, user);
   if (status === UserStatus.SUSPENDED) {
@@ -87,9 +96,18 @@ const USERNAME_MAX_LENGTH = 32;
 // players' Discord name doesn't match the tag they actually go by.
 export async function setUsername(userId: string, username: string) {
   const trimmed = username.trim();
-  if (!trimmed) throw new Error("Username is required");
+  if (!trimmed)
+    throw new LocalizedError({
+      en: "Username is required",
+      es: "El nombre de usuario es obligatorio",
+      ja: "ユーザー名を入力してください",
+    });
   if (trimmed.length > USERNAME_MAX_LENGTH) {
-    throw new Error(`Username must be ${USERNAME_MAX_LENGTH} characters or fewer`);
+    throw new LocalizedError({
+      en: `Username must be ${USERNAME_MAX_LENGTH} characters or fewer`,
+      es: `El nombre de usuario debe tener ${USERNAME_MAX_LENGTH} caracteres o menos`,
+      ja: `ユーザー名は${USERNAME_MAX_LENGTH}文字以内で入力してください`,
+    });
   }
 
   await prisma.user.update({ where: { id: userId }, data: { username: trimmed } });
@@ -97,7 +115,11 @@ export async function setUsername(userId: string, username: string) {
 
 export async function setUserRegion(userId: string, region: string | null) {
   if (region !== null && !(MATCH_REGIONS as readonly string[]).includes(region)) {
-    throw new Error("Not a recognized region");
+    throw new LocalizedError({
+      en: "Not a recognized region",
+      es: "Región no reconocida",
+      ja: "その地域は登録されていません",
+    });
   }
   await prisma.user.update({ where: { id: userId }, data: { region } });
 }
@@ -108,7 +130,11 @@ export async function setUserRegion(userId: string, region: string | null) {
 export async function setMaxMatchDistance(userId: string, maxMatchDistanceKm: number | null) {
   const isValidPreset = MATCH_DISTANCE_PRESETS.some((preset) => preset.km === maxMatchDistanceKm);
   if (!isValidPreset) {
-    throw new Error("Not a recognized match distance");
+    throw new LocalizedError({
+      en: "Not a recognized match distance",
+      es: "Formato de partida no reconocido",
+      ja: "その試合形式は登録されていません",
+    });
   }
   await prisma.user.update({ where: { id: userId }, data: { maxMatchDistanceKm } });
 }
@@ -118,7 +144,11 @@ export async function setMaxMatchDistance(userId: string, maxMatchDistanceKm: nu
 export async function setMaxRatingGap(userId: string, maxRatingGap: number | null) {
   const isValidPreset = MATCH_RATING_GAP_PRESETS.some((preset) => preset.gap === maxRatingGap);
   if (!isValidPreset) {
-    throw new Error("Not a recognized rating gap");
+    throw new LocalizedError({
+      en: "Not a recognized rating gap",
+      es: "Diferencia de clasificación no reconocida",
+      ja: "そのレート差の設定は登録されていません",
+    });
   }
   await prisma.user.update({ where: { id: userId }, data: { maxRatingGap } });
 }
@@ -128,7 +158,11 @@ export async function setMaxRatingGap(userId: string, maxRatingGap: number | nul
 export async function setRematchCooldown(userId: string, rematchCooldownHours: number | null) {
   const isValidPreset = REMATCH_COOLDOWN_PRESETS.some((preset) => preset.hours === rematchCooldownHours);
   if (!isValidPreset) {
-    throw new Error("Not a recognized rematch cooldown");
+    throw new LocalizedError({
+      en: "Not a recognized rematch cooldown",
+      es: "Espera de revancha no reconocida",
+      ja: "その再戦制限の設定は登録されていません",
+    });
   }
   await prisma.user.update({ where: { id: userId }, data: { rematchCooldownHours } });
 }
@@ -216,7 +250,11 @@ export async function setMatchFoundSound(userId: string, matchFoundSound: "CHIME
 export async function setQuickMessages(userId: string, messages: string[]) {
   const trimmed = messages.slice(0, DEFAULT_QUICK_MESSAGES.length).map((m) => m.trim());
   if (trimmed.some((m) => m.length > MAX_QUICK_MESSAGE_LENGTH)) {
-    throw new Error(`Each quick message can't be longer than ${MAX_QUICK_MESSAGE_LENGTH} characters`);
+    throw new LocalizedError({
+      en: `Each quick message can't be longer than ${MAX_QUICK_MESSAGE_LENGTH} characters`,
+      es: `Cada mensaje rápido no puede pasar de ${MAX_QUICK_MESSAGE_LENGTH} caracteres`,
+      ja: `定型文は1つあたり${MAX_QUICK_MESSAGE_LENGTH}文字以内です`,
+    });
   }
   const allBlank = trimmed.every((m) => m.length === 0);
   await prisma.user.update({ where: { id: userId }, data: { quickMessages: allBlank ? [] : trimmed } });

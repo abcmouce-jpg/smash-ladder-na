@@ -178,7 +178,7 @@ function MatchupNoteRow({
     setSubError(null);
     try {
       if (!subscribed && !(await getPushSubscription())) {
-        const result = await subscribeToPush();
+        const result = await subscribeToPush(lang);
         if ("error" in result) {
           setSubError(result.error);
           return;

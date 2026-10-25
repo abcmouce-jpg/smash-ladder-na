@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getLang } from "@/lib/i18n";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -13,10 +14,12 @@ import {
   setStartggUrl,
 } from "@/lib/tournaments";
 import { requireActiveUser } from "@/lib/account";
+import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireSession() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   return { userId: session.user.id, role: session.user.role };
 }
 
@@ -41,7 +44,7 @@ export async function createTournamentAction(
     const tournament = await createTournament(userId, name, description, startggUrl);
     tournamentId = tournament.id;
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
 
   revalidatePath("/tournaments");
@@ -72,7 +75,7 @@ export async function setStartggUrlAction(
   try {
     await setStartggUrl(userId, tournamentId, String(formData.get("startggUrl") ?? ""), role);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath(`/tournaments/${tournamentId}`);
   return { error: null };

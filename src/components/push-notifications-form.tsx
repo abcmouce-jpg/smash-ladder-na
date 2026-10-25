@@ -39,7 +39,7 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
     setBusy(true);
     setStatus(null);
     try {
-      const result = await subscribeToPush();
+      const result = await subscribeToPush(lang);
       if ("error" in result) {
         setStatus({ kind: "error", text: result.error });
         return;

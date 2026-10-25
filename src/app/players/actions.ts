@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { tr } from "@/lib/lang";
+import { getLang } from "@/lib/i18n";
 import { auth, signOut } from "@/auth";
 import { deleteMyAccount } from "@/lib/account";
 import { blockUser } from "@/lib/blocks";
@@ -9,12 +11,14 @@ import { adminCancelMatch, adminUndoOldMatch } from "@/lib/disputes";
 import { moderateUserDirectly } from "@/lib/reports";
 import { banIp } from "@/lib/ip-bans";
 import { listMatchComments, listMatchCommentsAsMod } from "@/lib/match-comments";
+import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireModerator() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   if (session.user.role !== "MOD" && session.user.role !== "ADMIN") {
-    throw new Error("Not authorized");
+    throw new LocalizedError({ en: "Not authorized", es: "No autorizado", ja: "権限がありません" });
   }
   return session.user.id;
 }
@@ -30,7 +34,8 @@ function parseSuspensionHours(customRaw: FormDataEntryValue | null, presetRaw: F
 
 export async function deleteAccountAction() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   await deleteMyAccount(session.user.id);
   await signOut({ redirectTo: "/" });
 }
@@ -48,11 +53,12 @@ export async function blockUserAction(
   _formData: FormData,
 ): Promise<BlockState> {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   try {
     await blockUser(session.user.id, blockedId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath(`/players/${blockedId}`);
   revalidatePath("/settings");
@@ -67,23 +73,42 @@ export async function requestCorrectionAction(
   formData: FormData,
 ): Promise<CorrectionState> {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   const winnerId = String(formData.get("winnerId") ?? "");
   try {
     const result = await requestResultCorrection(session.user.id, matchId, winnerId);
     revalidatePath(`/players/${session.user.id}`);
     if (result.applied) {
-      return { error: null, message: "Correction applied — ratings updated." };
+      return {
+        error: null,
+        message: tr(await getLang(), {
+          en: "Correction applied — ratings updated.",
+          es: "Corrección aplicada — clasificaciones actualizadas.",
+          ja: "訂正を反映しました。レートを更新しました。",
+        }),
+      };
     }
     if (result.disputed) {
       return {
         error: null,
-        message: "Your correction doesn't match what your opponent submitted — a mod will review it.",
+        message: tr(await getLang(), {
+          en: "Your correction doesn't match what your opponent submitted — a mod will review it.",
+          es: "Tu corrección no coincide con la de tu rival — un moderador lo revisará.",
+          ja: "あなたの訂正内容が相手の申告と食い違っています。モデレーターが確認します。",
+        }),
       };
     }
-    return { error: null, message: "Submitted — waiting for your opponent to agree." };
+    return {
+      error: null,
+      message: tr(await getLang(), {
+        en: "Submitted — waiting for your opponent to agree.",
+        es: "Enviado — esperando que tu rival esté de acuerdo.",
+        ja: "送信しました。相手の同意を待っています。",
+      }),
+    };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
+    return { error: errorMessage(err, await getLang()), message: null };
   }
 }
 
@@ -102,7 +127,7 @@ export async function moderateUserAction(
   try {
     await moderateUserDirectly(modId, targetUserId, action, { suspensionHours, reason });
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath(`/players/${targetUserId}`);
   return { error: null };
@@ -125,7 +150,7 @@ export async function banPlayerIpAction(
   try {
     await banIp(ip, `Last known IP of player ${targetUserId}`);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
+    return { error: errorMessage(err, await getLang()), message: null };
   }
   return { error: null, message: `Banned ${ip}.` };
 }
@@ -146,7 +171,7 @@ export async function adminOverrideResultAction(
   try {
     await adminOverrideMatchResult(matchId, winnerId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath(`/players/${viewedPlayerId}`);
   return { error: null };
@@ -167,7 +192,7 @@ export async function adminUndoMatchAction(
   try {
     await adminCancelMatch(matchId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath(`/players/${viewedPlayerId}`);
   return { error: null };
@@ -188,7 +213,7 @@ export async function adminCorrectOldResultAction(
   try {
     await adminCorrectOldMatchResult(matchId, winnerId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath(`/players/${viewedPlayerId}`);
   return { error: null };
@@ -204,7 +229,7 @@ export async function adminUndoOldMatchAction(
   try {
     await adminUndoOldMatch(matchId);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+    return { error: errorMessage(err, await getLang()) };
   }
   revalidatePath(`/players/${viewedPlayerId}`);
   return { error: null };
@@ -235,7 +260,8 @@ function serializeComments(
 // needed here beyond being signed in.
 export async function getMatchChatLogAction(matchId: string) {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id)
+    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
   const comments = await listMatchComments(session.user.id, matchId);
   return serializeComments(comments);
 }

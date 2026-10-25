@@ -14,6 +14,7 @@ import { getPeakRating } from "@/lib/players";
 import { regionReachAllows } from "@/lib/regions";
 import { siteOrigin } from "@/lib/site-url";
 import { isNotificationEnabled } from "@/lib/notifications";
+import { LocalizedError } from "@/lib/localized-error";
 
 // One #<tier>-grind channel per restricted tier, each with its own webhook
 // (Channel Settings → Integrations → Webhooks) so a restricted post only
@@ -27,7 +28,11 @@ function webhookUrlForTier(minTier: FreeBattleTier | null): string | undefined {
 async function requireReachedTier(userId: string, minTier: FreeBattleTier) {
   const peak = await getPeakRating(userId);
   if (!hasReachedTier(peak, minTier)) {
-    throw new Error(`You need to have reached ${minTier} at least once to post this`);
+    throw new LocalizedError({
+      en: `You need to have reached ${minTier} at least once to post this`,
+      es: `Necesitas haber alcanzado ${minTier} al menos una vez para publicar esto`,
+      ja: `この条件で募集を出すには、${minTier}に一度でも到達している必要があります`,
+    });
   }
 }
 
@@ -160,12 +165,27 @@ function deferMatchmakingNotification(
 
 export async function createPost(userId: string, comment: string, minTier: FreeBattleTier | null = null) {
   const existing = await getOwnActivePost(userId);
-  if (existing) throw new Error("You already have an active post");
+  if (existing)
+    throw new LocalizedError({
+      en: "You already have an active post",
+      es: "Ya tienes una publicación activa",
+      ja: "すでに募集を出しています",
+    });
 
   const trimmed = comment.trim();
-  if (!trimmed) throw new Error("Comment is required");
+  if (!trimmed)
+    throw new LocalizedError({
+      en: "Comment is required",
+      es: "El comentario es obligatorio",
+      ja: "ひとことを入力してください",
+    });
 
-  if (minTier && !FREE_BATTLE_TIERS.includes(minTier)) throw new Error("Invalid rank restriction");
+  if (minTier && !FREE_BATTLE_TIERS.includes(minTier))
+    throw new LocalizedError({
+      en: "Invalid rank restriction",
+      es: "Restricción de rango inválida",
+      ja: "ランク条件の指定が正しくありません",
+    });
   if (minTier) await requireReachedTier(userId, minTier);
 
   // Region comes from the player's own profile (set on the Lobby page) so
@@ -256,8 +276,14 @@ export async function claimPost(userId: string, postId: string) {
   const post = await prisma.freeBattlePost.findUnique({
     where: { id: postId },
   });
-  if (!post) throw new Error("Post not found");
-  if (post.authorId === userId) throw new Error("You can't claim your own post");
+  if (!post)
+    throw new LocalizedError({ en: "Post not found", es: "Publicación no encontrada", ja: "募集が見つかりません" });
+  if (post.authorId === userId)
+    throw new LocalizedError({
+      en: "You can't claim your own post",
+      es: "No puedes tomar tu propia publicación",
+      ja: "自分の募集には応募できません",
+    });
   // Belt-and-suspenders alongside the disabled "I'm in" button in the UI —
   // that's just a display hint, this is the actual gate.
   if (post.minTier) await requireReachedTier(userId, post.minTier as FreeBattleTier);
@@ -271,7 +297,12 @@ export async function claimPost(userId: string, postId: string) {
       matchedAt: new Date(),
     },
   });
-  if (claim.count === 0) throw new Error("This post was just claimed by someone else");
+  if (claim.count === 0)
+    throw new LocalizedError({
+      en: "This post was just claimed by someone else",
+      es: "Alguien más acaba de tomar esta publicación",
+      ja: "この募集はちょうど他の人が受けました",
+    });
 
   await deletePostAnnouncement(post.discordMessageId, post.minTier as FreeBattleTier | null);
 

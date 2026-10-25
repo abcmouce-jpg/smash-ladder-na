@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { errorMessage } from "@/lib/localized-error";
+import { getLang } from "@/lib/i18n";
 import { auth } from "@/auth";
 import { buildStartggAuthorizeUrl, STARTGG_STATE_COOKIE } from "@/lib/startgg-oauth";
 
@@ -24,10 +26,7 @@ export async function GET(request: Request) {
     authorizeUrl = buildStartggAuthorizeUrl(redirectUri, state);
   } catch (err) {
     const url = new URL("/settings", request.url);
-    url.searchParams.set(
-      "startggError",
-      err instanceof Error ? err.message : "start.gg connections aren't available right now.",
-    );
+    url.searchParams.set("startggError", errorMessage(err, await getLang()));
     return NextResponse.redirect(url);
   }
 

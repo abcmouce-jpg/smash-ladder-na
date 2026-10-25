@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { errorMessage } from "@/lib/localized-error";
 import Link from "next/link";
 import {
   Check,
@@ -577,7 +578,7 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
       await updateWiredConnection(formData.get("wired") === "on");
     } catch (err) {
       return {
-        error: err instanceof Error ? err.message : "Something went wrong — try again.",
+        error: errorMessage(err, await getLang()),
         saved: false,
       };
     }
