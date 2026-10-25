@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   ECHO_FIGHTER_GROUPS,
   echoGroupCanonical,
+  characterLabel,
   echoGroupLabel,
   echoGroupMembers,
   isMatchupCharacter,
@@ -138,5 +139,50 @@ describe("MOVESET_PATTERN", () => {
   it("rejects non-digit characters", () => {
     expect(MOVESET_PATTERN.test("12a1")).toBe(false);
     expect(MOVESET_PATTERN.test("12 1")).toBe(false);
+  });
+});
+
+// Fighter names aren't translations — they're what each release shipped, so
+// these are the ones a Japanese player would be thrown by if we got them
+// wrong: the names that share nothing with the English.
+describe("characterLabel", () => {
+  it("uses the name the Japanese release actually ships", () => {
+    expect(characterLabel("Bowser", "ja")).toBe("クッパ");
+    expect(characterLabel("Jigglypuff", "ja")).toBe("プリン");
+    expect(characterLabel("Hero", "ja")).toBe("勇者");
+    expect(characterLabel("Isabelle", "ja")).toBe("しずえ");
+    expect(characterLabel("Villager", "ja")).toBe("むらびと");
+    expect(characterLabel("R.O.B.", "ja")).toBe("ロボット");
+    expect(characterLabel("Mega Man", "ja")).toBe("ロックマン");
+    expect(characterLabel("Robin", "ja")).toBe("ルフレ");
+  });
+
+  it("calls Random おまかせ, the same word the rules page uses for it", () => {
+    expect(characterLabel("Random", "ja")).toBe("おまかせ");
+  });
+
+  it("leaves English and Spanish on the English roster", () => {
+    expect(characterLabel("Bowser", "en")).toBe("Bowser");
+    expect(characterLabel("Bowser", "es")).toBe("Bowser");
+    expect(characterLabel("Bowser")).toBe("Bowser");
+  });
+
+  it("has a Japanese name for every fighter, so none can show in English", () => {
+    for (const c of SMASH_CHARACTERS) {
+      const ja = characterLabel(c, "ja");
+      expect(ja, `${c} has no Japanese name`).not.toBe(c);
+      expect(ja.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("echoGroupLabel in Japanese", () => {
+  it("joins an echo pair with both Japanese names", () => {
+    expect(echoGroupLabel("Peach", "ja")).toBe("ピーチ / デイジー");
+    expect(echoGroupLabel("Daisy", "ja")).toBe("ピーチ / デイジー");
+  });
+
+  it("is just the name for a fighter with no echo", () => {
+    expect(echoGroupLabel("Kirby", "ja")).toBe("カービィ");
   });
 });

@@ -123,7 +123,7 @@ export default async function LeaderboardPage({
         description={
           <span>
             {(() => {
-              const characterClause = isValidCharacter ? echoGroupLabel(character as SmashCharacter) : null;
+              const characterClause = isValidCharacter ? echoGroupLabel(character as SmashCharacter, lang) : null;
               const placeClause = isValidRegion ? region : isValidCountry ? country : null;
               return tr(lang, {
                 en:

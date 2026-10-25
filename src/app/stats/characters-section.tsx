@@ -228,7 +228,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
     const players = playersByGroup.get(c) ?? 0;
     return {
       character: c,
-      label: echoGroupLabel(c),
+      label: echoGroupLabel(c, lang),
       players,
       mains: mainsByGroup.get(c) ?? 0,
       games: games.games,

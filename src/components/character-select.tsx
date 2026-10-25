@@ -3,7 +3,8 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Search, Check, ChevronDown } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
-import { SMASH_CHARACTERS } from "@/lib/characters";
+import { SMASH_CHARACTERS, characterLabel, type SmashCharacter } from "@/lib/characters";
+import { type Lang, tr } from "@/lib/lang";
 
 /**
  * A searchable character picker that displays each fighter's stock icon next
@@ -24,6 +25,7 @@ export function CharacterSelect({
   name,
   clearLabel,
   characters,
+  lang = "en",
 }: {
   value?: string;
   onChange?: (value: string) => void;
@@ -43,6 +45,9 @@ export function CharacterSelect({
    *  passes MATCHUP_CHARACTERS to leave out "Random" and fold echo fighters
    *  into their base character. */
   characters?: readonly string[];
+  /** Fighter names are per-release, not translations (クッパ, プリン, 勇者),
+   *  so the list reads in the viewer's language — and searches in it too. */
+  lang?: Lang;
 }) {
   // Internal state for form-integrated mode
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
@@ -56,7 +61,16 @@ export function CharacterSelect({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const roster = characters ?? SMASH_CHARACTERS;
-  const filtered = query ? roster.filter((c) => c.toLowerCase().includes(query.toLowerCase())) : roster;
+  const label = useCallback((c: string) => characterLabel(c as SmashCharacter, lang), [lang]);
+  // Matched against both spellings: a Japanese player may well type "kirby"
+  // on a keyboard that is already in romaji, and a listed name they can see
+  // should always be a name they can type.
+  const filtered = query
+    ? roster.filter((c) => {
+        const needle = query.toLowerCase();
+        return c.toLowerCase().includes(needle) || label(c).toLowerCase().includes(needle);
+      })
+    : roster;
 
   const selected = effectiveValue || null;
 
@@ -122,7 +136,7 @@ export function CharacterSelect({
         {selected ? (
           <>
             <CharacterIcon name={selected} size={18} />
-            <span className="flex-1 truncate text-left">{selected}</span>
+            <span className="flex-1 truncate text-left">{label(selected)}</span>
           </>
         ) : (
           <span className="flex-1 truncate text-left">{placeholder}</span>
@@ -165,7 +179,11 @@ export function CharacterSelect({
             )}
             {filtered.length === 0 ? (
               <li className="px-3 py-3 text-center text-xs text-muted-foreground">
-                No characters match &ldquo;{query}&rdquo;
+                {tr(lang, {
+                  en: `No characters match "${query}"`,
+                  es: `Ningún personaje coincide con "${query}"`,
+                  ja: `「${query}」に一致するキャラクターがいません`,
+                })}
               </li>
             ) : (
               filtered.map((char) => (
@@ -178,7 +196,7 @@ export function CharacterSelect({
                     }`}
                   >
                     <CharacterIcon name={char} size={18} />
-                    <span className="flex-1">{char}</span>
+                    <span className="flex-1">{label(char)}</span>
                     {char === selected && <Check className="size-3.5 shrink-0 text-primary" />}
                   </button>
                 </li>

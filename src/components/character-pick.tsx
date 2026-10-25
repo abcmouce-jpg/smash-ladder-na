@@ -94,6 +94,7 @@ export function CharacterPickForm({
           onChange={attemptSelect}
           name="character"
           placeholder={tr(lang, { en: "Select character", es: "Elegir personaje", ja: "キャラクターを選択" })}
+          lang={lang}
         />
         <Button type="submit" size="sm" variant="outline" disabled={!canSubmit}>
           {tr(lang, { en: "Lock in", es: "Elegir", ja: "確定する" })}

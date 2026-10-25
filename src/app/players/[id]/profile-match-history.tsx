@@ -107,6 +107,7 @@ export async function ProfileMatchHistorySection({
             placeholder={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
             clearLabel={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
             className="w-full md:w-44"
+            lang={lang}
           />
         </label>
         <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
@@ -118,6 +119,7 @@ export async function ProfileMatchHistorySection({
             placeholder={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
             clearLabel={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
             className="w-full md:w-44"
+            lang={lang}
           />
         </label>
         <Button type="submit" size="sm" variant="outline" className="h-8 w-full md:w-auto">

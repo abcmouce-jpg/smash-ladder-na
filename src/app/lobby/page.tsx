@@ -57,7 +57,7 @@ import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier, isRatingVisible } fro
 import { formatRating } from "@/lib/rating-format";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
-import { SMASH_CHARACTERS } from "@/lib/characters";
+import { SMASH_CHARACTERS, characterLabel, type SmashCharacter } from "@/lib/characters";
 import { cn } from "@/lib/utils";
 import { PageHeading } from "@/components/page-heading";
 import { Button } from "@/components/ui/button";
@@ -2473,8 +2473,11 @@ function StageProposalSection({
   );
 }
 
-function characterLabel(character: string, moveset: string | null) {
-  return moveset ? `${character} (${moveset})` : character;
+// A pick as it reads back to the player: the fighter's name in their own
+// language, plus the Mii moveset digits when there are any.
+function pickedCharacterLabel(character: string, moveset: string | null, lang: Lang) {
+  const name = characterLabel(character as SmashCharacter, lang);
+  return moveset ? `${name} (${moveset})` : name;
 }
 
 async function CharacterPickSection({
@@ -2579,12 +2582,12 @@ async function CharacterPickSection({
             })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-              {characterLabel(yourCharacter, yourMoveset)}
+              {pickedCharacterLabel(yourCharacter, yourMoveset, lang)}
             </span>
             , {opponentName}:{" "}
             <span className="font-medium text-foreground">
               <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-              {characterLabel(opponentCharacter, opponentMoveset)}
+              {pickedCharacterLabel(opponentCharacter, opponentMoveset, lang)}
             </span>
           </>
         </p>
@@ -2604,7 +2607,7 @@ async function CharacterPickSection({
             })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-              {characterLabel(yourCharacter, yourMoveset)}
+              {pickedCharacterLabel(yourCharacter, yourMoveset, lang)}
             </span>
             {tr(lang, {
               en: `. Waiting for ${opponentName} to pick… `,
@@ -2704,7 +2707,7 @@ async function CharacterPickSection({
             })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-              {characterLabel(opponentCharacter, opponentMoveset)}
+              {pickedCharacterLabel(opponentCharacter, opponentMoveset, lang)}
             </span>
             {tr(lang, {
               en: ". Pick your character.",

@@ -136,6 +136,7 @@ export function GuidesExplorer({
                 placeholder={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
                 clearLabel={tr(lang, { en: "All Characters", es: "Todos los personajes", ja: "すべてのキャラクター" })}
                 className="w-full"
+                lang={lang}
               />
             </label>
           )}
@@ -189,7 +190,7 @@ export function GuidesExplorer({
                 voteOnGuide={voteOnGuideAction}
                 flagGuideAction={flagGuideAction}
                 importGuide={importGuideAction}
-                tagLabel={echoGroupLabel(guide.character as SmashCharacter)}
+                tagLabel={echoGroupLabel(guide.character as SmashCharacter, lang)}
                 tagIconName={echoGroupCanonical(guide.character as SmashCharacter)}
                 lang={lang}
               />
@@ -244,6 +245,7 @@ export function GuidesExplorer({
               characters={MATCHUP_CHARACTERS}
               placeholder={tr(lang, { en: "Select a character", es: "Elige un personaje", ja: "キャラクターを選択" })}
               className="w-full sm:w-56"
+              lang={lang}
             />
             <ExpandableTextarea
               name="content"

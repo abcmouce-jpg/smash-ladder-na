@@ -138,7 +138,7 @@ export async function notifyCharacterGuideSubscribers(character: string, authorI
   // message, so the bell on the Samus/Dark Samus row fires for a guide either
   // half of the pair gets.
   const groupMembers = echoGroupMembers(character as SmashCharacter);
-  const label = echoGroupLabel(character as SmashCharacter);
+  const canonical = character as SmashCharacter;
   const subscribers = await prisma.user.findMany({
     where: { id: { not: authorId }, characterGuideSubscriptions: { some: { character: { in: [...groupMembers] } } } },
     select: { discordId: true, preferredLanguage: true, notificationsDisabled: true },
@@ -152,7 +152,9 @@ export async function notifyCharacterGuideSubscribers(character: string, authorI
   }
   for (const lang of LANGS) {
     const bucket = buckets[lang];
-    if (bucket.length > 0) await sendDiscordDMsSequentially(bucket, GUIDE_DM[lang](label, link));
+    if (bucket.length > 0) {
+      await sendDiscordDMsSequentially(bucket, GUIDE_DM[lang](echoGroupLabel(canonical, lang), link));
+    }
   }
 }
 

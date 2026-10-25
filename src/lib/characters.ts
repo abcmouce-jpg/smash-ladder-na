@@ -4,6 +4,8 @@
 // report/main just like any other entry. The site has no way to know which
 // actual fighter the game's RNG landed on, so "Random" gets tracked as its
 // own bucket rather than resolved to a real character.
+import type { Lang } from "@/lib/lang";
+
 export const SMASH_CHARACTERS = [
   "Mario",
   "Donkey Kong",
@@ -131,10 +133,114 @@ export function echoGroupCanonical(character: SmashCharacter): SmashCharacter {
   return echoGroupMembers(character)[0];
 }
 
+// The roster as Japan knows it. Fighter names aren't translations — they are
+// the names the Japanese release ships, which often aren't transliterations
+// of the English at all (Bowser is クッパ, Jigglypuff is プリン, Hero is 勇者).
+// So this is a lookup, not a transform, and it is keyed off SMASH_CHARACTERS
+// so a roster addition is a compile error here rather than an English name
+// sitting in a Japanese list.
+const NAME_JA: Record<SmashCharacter, string> = {
+  Mario: "マリオ",
+  "Donkey Kong": "ドンキーコング",
+  Link: "リンク",
+  Samus: "サムス",
+  "Dark Samus": "ダークサムス",
+  Yoshi: "ヨッシー",
+  Kirby: "カービィ",
+  Fox: "フォックス",
+  Pikachu: "ピカチュウ",
+  Luigi: "ルイージ",
+  Ness: "ネス",
+  "Captain Falcon": "キャプテン・ファルコン",
+  Jigglypuff: "プリン",
+  Peach: "ピーチ",
+  Daisy: "デイジー",
+  Bowser: "クッパ",
+  "Ice Climbers": "アイスクライマー",
+  Sheik: "シーク",
+  Zelda: "ゼルダ",
+  "Dr. Mario": "ドクターマリオ",
+  Pichu: "ピチュー",
+  Falco: "ファルコ",
+  Marth: "マルス",
+  Lucina: "ルキナ",
+  "Young Link": "こどもリンク",
+  Ganondorf: "ガノンドロフ",
+  Mewtwo: "ミュウツー",
+  Roy: "ロイ",
+  Chrom: "クロム",
+  "Mr. Game & Watch": "Mr.ゲーム＆ウォッチ",
+  "Meta Knight": "メタナイト",
+  Pit: "ピット",
+  "Dark Pit": "ブラックピット",
+  "Zero Suit Samus": "ゼロスーツサムス",
+  Wario: "ワリオ",
+  Snake: "スネーク",
+  Ike: "アイク",
+  "Pokémon Trainer": "ポケモントレーナー",
+  "Diddy Kong": "ディディーコング",
+  Lucas: "リュカ",
+  Sonic: "ソニック",
+  "King Dedede": "デデデ",
+  Olimar: "オリマー",
+  Lucario: "ルカリオ",
+  "R.O.B.": "ロボット",
+  "Toon Link": "トゥーンリンク",
+  Wolf: "ウルフ",
+  Villager: "むらびと",
+  "Mega Man": "ロックマン",
+  "Wii Fit Trainer": "Wii Fit トレーナー",
+  "Rosalina & Luma": "ロゼッタ＆チコ",
+  "Little Mac": "リトル・マック",
+  Greninja: "ゲッコウガ",
+  "Mii Brawler": "Miiファイター（格闘）",
+  "Mii Swordfighter": "Miiファイター（剣術）",
+  "Mii Gunner": "Miiファイター（射撃）",
+  Palutena: "パルテナ",
+  "Pac-Man": "パックマン",
+  Robin: "ルフレ",
+  Shulk: "シュルク",
+  "Bowser Jr.": "クッパJr.",
+  "Duck Hunt": "ダックハント",
+  Ryu: "リュウ",
+  Ken: "ケン",
+  Cloud: "クラウド",
+  Corrin: "カムイ",
+  Bayonetta: "ベヨネッタ",
+  Inkling: "インクリング",
+  Ridley: "リドリー",
+  Simon: "シモン",
+  Richter: "リヒター",
+  "King K. Rool": "キングクルール",
+  Isabelle: "しずえ",
+  Incineroar: "ガオガエン",
+  "Piranha Plant": "パックンフラワー",
+  Joker: "ジョーカー",
+  Hero: "勇者",
+  "Banjo & Kazooie": "バンジョー＆カズーイ",
+  Terry: "テリー",
+  Byleth: "ベレト／ベレス",
+  "Min Min": "ミェンミェン",
+  Steve: "スティーブ",
+  Sephiroth: "セフィロス",
+  "Pyra/Mythra": "ホムラ／ヒカリ",
+  Kazuya: "カズヤ",
+  Sora: "ソラ",
+  Random: "おまかせ",
+};
+
+/** A fighter's name in the reader's language. */
+export function characterLabel(character: SmashCharacter, lang: Lang = "en"): string {
+  return lang === "ja" ? (NAME_JA[character] ?? character) : character;
+}
+
 // Human-readable label for a character's whole echo group, e.g. "Marth /
-// Lucina" — falls back to just the name for anyone without an echo.
-export function echoGroupLabel(character: SmashCharacter): string {
-  return echoGroupMembers(character).join(" / ");
+// Lucina" (「マルス / ルキナ」) — falls back to just the name for anyone
+// without an echo.
+export function echoGroupLabel(character: SmashCharacter, lang: Lang = "en"): string {
+  return echoGroupMembers(character)
+    .map((member) => characterLabel(member, lang))
+    .join(" / ");
 }
 
 // The roster as the notes page presents it: one entry per echo group (its

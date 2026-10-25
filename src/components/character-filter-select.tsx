@@ -30,6 +30,7 @@ export function CharacterFilterSelect({
         placeholder={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
         clearLabel={tr(lang, { en: "All Characters", es: "Todos los personajes", ja: "すべてのキャラクター" })}
         className={className}
+        lang={lang}
       />
     </label>
   );

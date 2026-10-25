@@ -69,13 +69,16 @@ export function MatchupNotesList({
     const q = search.trim().toLowerCase();
     if (!q) return notes;
     // Matches the group label rather than the raw character so a search for
-    // "Daisy" still finds the Peach/Daisy row it's folded into.
-    return notes.filter((n) =>
-      echoGroupLabel(n.character as SmashCharacter)
-        .toLowerCase()
-        .includes(q),
-    );
-  }, [notes, search]);
+    // "Daisy" still finds the Peach/Daisy row it's folded into — and both
+    // spellings of it, since a Japanese player may type either カービィ or
+    // "kirby" depending on what their keyboard is in.
+    return notes.filter((n) => {
+      const character = n.character as SmashCharacter;
+      return (
+        echoGroupLabel(character, lang).toLowerCase().includes(q) || echoGroupLabel(character).toLowerCase().includes(q)
+      );
+    });
+  }, [notes, search, lang]);
 
   // Characters with an existing note surface first, so the page opens on
   // "what have I already written" rather than an alphabetical wall of
@@ -218,7 +221,7 @@ function MatchupNoteRow({
           <button type="button" onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-3 text-left">
             <CharacterIcon name={character} size={28} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{echoGroupLabel(character as SmashCharacter)}</p>
+              <p className="text-sm font-medium">{echoGroupLabel(character as SmashCharacter, lang)}</p>
               {!expanded && note && <p className="truncate text-xs text-muted-foreground">{note}</p>}
             </div>
           </button>
