@@ -11,7 +11,7 @@ import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 import { StagePickHighlight } from "@/components/stage-pick-highlight";
 import { getLang } from "@/lib/i18n";
 import { bothCharactersLocked } from "@/lib/match-games";
-import { GAME_ONE_STAGES, COUNTERPICK_STAGES, stageImagePath } from "@/lib/stages";
+import { GAME_ONE_STAGES, COUNTERPICK_STAGES, stageImagePath, stageLabel } from "@/lib/stages";
 import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
 import { RatingHidden } from "@/components/rating-hidden";
@@ -430,7 +430,13 @@ export default async function StreamOverlayPage({
                       }`}
                     >
                       {imgPath && (
-                        <Image src={`/stages/${imgPath}`} alt={stage} fill className="object-cover" sizes="144px" />
+                        <Image
+                          src={`/stages/${imgPath}`}
+                          alt={stageLabel(stage, lang)}
+                          fill
+                          className="object-cover"
+                          sizes="144px"
+                        />
                       )}
                       {picked && (
                         <span className="absolute inset-x-0 top-0 z-30 bg-emerald-500/90 px-1 py-0.5 text-center text-[10px] font-bold tracking-wider text-white uppercase">
@@ -450,7 +456,7 @@ export default async function StreamOverlayPage({
                         </div>
                       )}
                       <span className="absolute inset-x-0 bottom-0 z-20 truncate bg-black/70 px-1 py-0.5 text-center text-xs font-medium text-white">
-                        {stage}
+                        {stageLabel(stage, lang)}
                       </span>
                     </div>
                   );

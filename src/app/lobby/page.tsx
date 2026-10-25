@@ -48,7 +48,7 @@ import {
   lastUsedMoveset,
   secondsUntil,
 } from "@/lib/match-games";
-import { STRIKING_STAGES, stageImagePath, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { STRIKING_STAGES, stageImagePath, stageLabel, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
@@ -125,7 +125,7 @@ import {
   updateZenMode,
 } from "./actions";
 import { tr, trNode } from "@/lib/lang";
-import { USES_REGIONS, DISTANCE_MATCHMAKING } from "@/lib/site";
+import { USES_REGIONS, DISTANCE_MATCHMAKING, HAS_QUICK_MESSAGES } from "@/lib/site";
 
 type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
 
@@ -1253,7 +1253,7 @@ function MatchFooterActions({
           {tr(lang, {
             en: "Can't finish? Both players can agree to cancel. No rating impact.",
             es: "¿No pueden terminar? Ambos pueden acordar cancelar. Sin afectar la clasificación.",
-            ja: "続けられませんか？両者が合意すれば中止できます。レートには影響しません。",
+            ja: "続けられませんか？両者が合意すればセットを中止できます。レートには影響しません。",
           })}
         </p>
         <MutualCancelSection
@@ -1968,7 +1968,9 @@ function MatchActionBanner({
           <div className="shrink-0 text-right">
             <p className="flex items-baseline justify-end gap-1 text-2xl leading-none font-bold tabular-nums">
               <Countdown deadline={deadlineIso} />
-              <span className="text-base font-semibold text-muted-foreground">s</span>
+              <span className="text-base font-semibold text-muted-foreground">
+                {tr(lang, { en: "s", es: "s", ja: "秒" })}
+              </span>
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
               {tr(lang, {
@@ -2033,9 +2035,9 @@ function GameSection({
                   })}
               {lastGame.finalStage &&
                 tr(lang, {
-                  en: ` Stage: ${lastGame.finalStage}.`,
-                  es: ` Escenario: ${lastGame.finalStage}.`,
-                  ja: ` ステージ：${lastGame.finalStage}。`,
+                  en: ` Stage: ${stageLabel(lastGame.finalStage, "en")}.`,
+                  es: ` Escenario: ${stageLabel(lastGame.finalStage, "es")}.`,
+                  ja: ` ステージ：${stageLabel(lastGame.finalStage, "ja")}。`,
                 })}
             </>
           </p>
@@ -2115,14 +2117,14 @@ function GameSection({
                   {imgPath && (
                     <Image
                       src={`/stages/${imgPath}`}
-                      alt={current.finalStage!}
+                      alt={stageLabel(current.finalStage!, lang)}
                       fill
                       className="object-cover"
                       sizes="192px"
                     />
                   )}
                   <span className="relative z-10 rounded bg-background/80 px-2 py-1 text-sm font-medium">
-                    {current.finalStage!}
+                    {stageLabel(current.finalStage!, lang)}
                   </span>
                 </div>
               );
@@ -2315,10 +2317,16 @@ function GameSection({
                   className={`relative flex h-24 w-36 max-sm:h-20 max-sm:w-28 flex-col items-center justify-end gap-1 overflow-hidden p-2 ${isStruck ? "cursor-not-allowed opacity-60" : ""}`}
                 >
                   {imgPath && (
-                    <Image src={`/stages/${imgPath}`} alt={stage} fill className="object-cover" sizes="128px" />
+                    <Image
+                      src={`/stages/${imgPath}`}
+                      alt={stageLabel(stage, lang)}
+                      fill
+                      className="object-cover"
+                      sizes="128px"
+                    />
                   )}
                   <span className="relative z-10 rounded bg-background/80 px-1 text-xs max-sm:text-[10px] font-medium">
-                    {stage}
+                    {stageLabel(stage, lang)}
                   </span>
                   {isStruck && (
                     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
@@ -2357,8 +2365,8 @@ function GameSection({
 // collapsed, so these two can be one click instead of two. The labels are the
 // shorthand players already type at each other in chat.
 const PROPOSAL_SHORTCUTS = [
-  { stage: "Small Battlefield", short: "Small?" },
-  { stage: "Pokémon Stadium 2", short: "PS2?" },
+  { stage: "Small Battlefield", short: { en: "Small?", es: "Small?", ja: "小戦場？" } },
+  { stage: "Pokémon Stadium 2", short: { en: "PS2?", es: "PS2?", ja: "PS2？" } },
 ] as const;
 
 // "Small?" — the mutual-agreement shortcut: either player can propose any
@@ -2431,12 +2439,15 @@ function StageProposalSection({
 
   return (
     <div className="mt-3">
-      {shortcuts.length > 0 && (
+      {/* Only where striking happens. The shortcut exists to skip it, so on an
+          instance that never strikes it is a button offering to skip nothing —
+          the stage list below is the whole interaction there. */}
+      {STRIKING_STAGES && shortcuts.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {shortcuts.map(({ stage, short }) => (
             <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
               <Button type="submit" className="h-10 px-5 text-base font-semibold">
-                {short}
+                {tr(lang, short)}
               </Button>
             </form>
           ))}
@@ -2452,17 +2463,23 @@ function StageProposalSection({
       {rest.length > 0 && (
         <details className="mt-2 group">
           <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-            {tr(lang, {
-              en: "Propose a different stage",
-              es: "Proponer otro escenario",
-              ja: "別のステージを提案する",
-            })}
+            {STRIKING_STAGES
+              ? tr(lang, {
+                  en: "Propose a different stage",
+                  es: "Proponer otro escenario",
+                  ja: "別のステージを提案する",
+                })
+              : tr(lang, {
+                  en: "Propose a stage",
+                  es: "Proponer un escenario",
+                  ja: "ステージを提案する",
+                })}
           </summary>
           <div className="mt-2 flex flex-wrap gap-2">
             {rest.map((stage) => (
               <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
                 <Button type="submit" size="sm" variant="outline">
-                  {stage}
+                  {stageLabel(stage, lang)}
                 </Button>
               </form>
             ))}
@@ -3160,12 +3177,12 @@ function TerminatedSection({ status, lang }: { status: "CANCELLED" | "EXPIRED"; 
           ? tr(lang, {
               en: "This match was cancelled — no rating impact.",
               es: "Esta partida fue cancelada — sin afectar la clasificación.",
-              ja: "この試合は中止されました。レートには影響しません。",
+              ja: "このセットは中止されました。レートには影響しません。",
             })
           : tr(lang, {
               en: "Nobody reported a result in time, so this match expired with no rating impact.",
               es: "Nadie reportó un resultado a tiempo, así que esta partida expiró sin afectar la clasificación.",
-              ja: "誰も期限内に結果を報告しなかったため、この試合は無効になりました。レートには影響しません。",
+              ja: "誰も期限内に結果を報告しなかったため、このセットは無効になりました。レートには影響しません。",
             })}
       </p>
     </CardContent>
@@ -3191,7 +3208,7 @@ async function CommentsSection({
     where: { id: userId },
     select: { quickMessages: true },
   });
-  const myQuickMessages = resolveQuickMessages(myQuickMessagesRaw?.quickMessages ?? []);
+  const myQuickMessages = HAS_QUICK_MESSAGES ? resolveQuickMessages(myQuickMessagesRaw?.quickMessages ?? []) : [];
 
   // Serialize dates to strings for the client component
   const comments = rawComments.map((c) => ({
@@ -3208,7 +3225,7 @@ async function CommentsSection({
   return (
     <Card className="flex h-full max-lg:max-h-[60vh] lg:max-h-[min(60vh,600px)] flex-col">
       <CardHeader className="pb-3">
-        <p className="text-sm font-medium text-foreground">💬 Chat</p>
+        <p className="text-sm font-medium text-foreground">💬 {tr(lang, { en: "Chat", es: "Chat", ja: "チャット" })}</p>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-0 pt-0">
         {opponentHasLeft && (
@@ -3275,7 +3292,7 @@ function RoomCodeSection({
               tr(lang, {
                 en: `${opponentName} is creating the room…`,
                 es: `${opponentName} está creando la sala…`,
-                ja: `${opponentName}が部屋を作成しています…`,
+                ja: `${opponentName}が部屋を立てています…`,
               })}
           </FlashOnChange>
         </p>
@@ -3295,7 +3312,8 @@ function RoomCodeSection({
               es: "Contraseña: ",
               ja: "パスワード：",
             })}
-            <span className="font-medium text-foreground">{hostArenaPassword}</span>.
+            <span className="font-medium text-foreground">{hostArenaPassword}</span>
+            {tr(lang, { en: ".", es: ".", ja: "" })}
           </>
         </p>
       </div>

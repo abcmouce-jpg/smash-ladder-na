@@ -58,6 +58,8 @@ export function CommentForm({
   return (
     <div className="mt-3 flex flex-col gap-1">
       <div className="flex flex-wrap gap-1">
+        {/* An instance with no preset messages renders no row — see
+            HAS_QUICK_MESSAGES. */}
         {quickMessages.map((message) => (
           <Button
             key={message}

@@ -64,12 +64,12 @@ export function CancelOrSurrenderButton({
       ? tr(lang, {
           en: "Surrender this match? It counts as a loss and affects your rating. This can't be undone.",
           es: "¿Rendirte? Cuenta como derrota y afecta tu clasificación. No se puede deshacer.",
-          ja: "この試合を降参しますか？敗北として扱われ、レートに影響します。取り消せません。",
+          ja: "このセットを降参しますか？敗北として扱われ、レートに影響します。取り消せません。",
         })
       : tr(lang, {
           en: "Cancel this match? This can't be undone.",
           es: "¿Cancelar esta partida? No se puede deshacer.",
-          ja: "この試合を中止しますか？取り消せません。",
+          ja: "このセットを中止しますか？取り消せません。",
         });
 
   return (
@@ -110,7 +110,7 @@ export function CancelOrSurrenderButton({
               ja: "降参する（敗北扱い）",
             })
           ) : (
-            tr(lang, { en: "Cancel match", es: "Cancelar partida", ja: "試合を中止する" })
+            tr(lang, { en: "Cancel match", es: "Cancelar partida", ja: "セットを中止する" })
           )}
         </Button>
       </form>

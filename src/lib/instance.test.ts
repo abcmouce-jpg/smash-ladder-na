@@ -49,6 +49,13 @@ describe("the Japanese instance's launch rules", () => {
     expect(site.HAS_COMMUNITY_GUIDES).toBe(false);
   });
 
+  it("offers no canned chat messages", async () => {
+    // The four defaults are English Smash shorthand (glhf, ggs), and a
+    // preset-phrase row isn't how that scene opens a set.
+    const { site } = await load("jp");
+    expect(site.HAS_QUICK_MESSAGES).toBe(false);
+  });
+
   it("declares itself Japanese to browsers and crawlers", async () => {
     const { site } = await load("jp");
     // <html lang> and og:locale were hardcoded to English, so the Japanese
@@ -73,6 +80,7 @@ describe("North America keeps every one of them", () => {
     expect(site.RATING_SYSTEM).toBe("glicko2");
     expect(site.DISPLAY_TIME_ZONE).toBe("America/New_York");
     expect(site.HAS_COMMUNITY_GUIDES).toBe(true);
+    expect(site.HAS_QUICK_MESSAGES).toBe(true);
     expect(site.DEFAULT_LANG).toBe("en");
     expect(site.OG_LOCALE).toBe("en_US");
   });

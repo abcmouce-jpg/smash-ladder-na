@@ -41,7 +41,7 @@ import {
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
-import { HAS_COMMUNITY_GUIDES, HAS_KOFI, SITE_LANGS } from "@/lib/site";
+import { HAS_COMMUNITY_GUIDES, HAS_KOFI, HAS_QUICK_MESSAGES, SITE_LANGS } from "@/lib/site";
 import { LIVE_DECLARATION_TTL_MS } from "@/lib/stream-links";
 
 const LIVE_DECLARATION_HOURS = LIVE_DECLARATION_TTL_MS / (60 * 60 * 1000);
@@ -530,35 +530,39 @@ function LobbyTab({
               />
             </label>
 
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium">
-                {tr(lang, {
-                  en: "Chat quick messages",
-                  es: "Mensajes rápidos del chat",
-                  ja: "チャットの定型文",
-                })}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {tr(lang, {
-                  en: "The buttons shown above the match chat. Leave one blank to use the site default for that slot.",
-                  es: "Los botones que aparecen sobre el chat de la partida. Deja uno en blanco para usar el valor por defecto.",
-                  ja: "試合チャットの上に表示されるボタンです。空欄にすると、その枠は既定の文言になります。",
-                })}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {quickMessageSlots.map((value, i) => (
-                  <input
-                    key={i}
-                    name="quickMessage"
-                    type="text"
-                    maxLength={MAX_QUICK_MESSAGE_LENGTH}
-                    defaultValue={value}
-                    placeholder={DEFAULT_QUICK_MESSAGES[i]}
-                    className="h-8 w-28 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-                  />
-                ))}
+            {/* Not rendered at all where the chat shows no preset row —
+                hiding it would still post four empty slots on save. */}
+            {HAS_QUICK_MESSAGES && (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">
+                  {tr(lang, {
+                    en: "Chat quick messages",
+                    es: "Mensajes rápidos del chat",
+                    ja: "チャットの定型文",
+                  })}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {tr(lang, {
+                    en: "The buttons shown above the match chat. Leave one blank to use the site default for that slot.",
+                    es: "Los botones que aparecen sobre el chat de la partida. Deja uno en blanco para usar el valor por defecto.",
+                    ja: "試合チャットの上に表示されるボタンです。空欄にすると、その枠は既定の文言になります。",
+                  })}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {quickMessageSlots.map((value, i) => (
+                    <input
+                      key={i}
+                      name="quickMessage"
+                      type="text"
+                      maxLength={MAX_QUICK_MESSAGE_LENGTH}
+                      defaultValue={value}
+                      placeholder={DEFAULT_QUICK_MESSAGES[i]}
+                      className="h-8 w-28 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </SettingsSaveForm>
         </CardContent>
       </Card>

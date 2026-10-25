@@ -208,6 +208,15 @@ export function instanceText(strings: Record<Lang, string>): string {
 export const OG_LOCALE = instanceText({ en: "en_US", es: "es_MX", ja: "ja_JP" });
 
 /**
+ * Whether the chat offers preset one-tap messages.
+ *
+ * Japan doesn't want them: the four defaults are English Smash shorthand
+ * (glhf, ggs) and a canned-phrase row isn't how that scene opens a set.
+ * The column and the settings slots stay for the instances that use them.
+ */
+export const HAS_QUICK_MESSAGES = REGION_SET !== "jp";
+
+/**
  * Whether players can write guides for each other.
  *
  * Japan doesn't: the private matchup notes stay — they are the half a player
