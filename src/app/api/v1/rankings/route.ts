@@ -16,7 +16,9 @@ import { RATING_SYSTEM, SITE_NAME } from "@/lib/site";
 // hold the account.
 //
 // Cached at the edge because a seeder polls on its own schedule and a bracket
-// does not change between two requests a minute apart.
+// does not change between two requests a minute apart. `revalidate` is the
+// whole control: Vercel rewrites Cache-Control to its own scheme from it, so
+// setting that header here as well only looks like it does something.
 export const revalidate = 60;
 
 const DEFAULT_LIMIT = 500;
@@ -35,23 +37,16 @@ export async function GET(request: Request) {
 
   const [season, { players, totalCount }] = await Promise.all([getActiveSeason(), getRankingsForExport(limit, offset)]);
 
-  return NextResponse.json(
-    {
-      site: SITE_NAME,
-      season: season ? { name: season.name, startsAt: season.startsAt, scheduledEndAt: season.scheduledEndAt } : null,
-      ratingSystem: RATING_SYSTEM,
-      // Stated so a consumer doesn't have to infer why a player it expected is
-      // absent, and doesn't treat an unranked player as rating 0.
-      minimumSetsToRank: LEADERBOARD_MIN_GAMES,
-      totalCount,
-      limit,
-      offset,
-      players,
-    },
-    {
-      headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-      },
-    },
-  );
+  return NextResponse.json({
+    site: SITE_NAME,
+    season: season ? { name: season.name, startsAt: season.startsAt, scheduledEndAt: season.scheduledEndAt } : null,
+    ratingSystem: RATING_SYSTEM,
+    // Stated so a consumer doesn't have to infer why a player it expected is
+    // absent, and doesn't treat an unranked player as rating 0.
+    minimumSetsToRank: LEADERBOARD_MIN_GAMES,
+    totalCount,
+    limit,
+    offset,
+    players,
+  });
 }
