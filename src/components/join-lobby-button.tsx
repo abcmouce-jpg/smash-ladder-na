@@ -69,14 +69,14 @@ export function JoinLobbyForm({
             {tr(lang, {
               en: "Practicing this session",
               es: "Practicando esta sesión",
-              ja: "今回は練習として参加する",
+              ja: "練習モードで待機する",
             })}
           </span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
             {tr(lang, {
               en: "Results count toward a separate practice rating — your regular ladder rating and sets played don't move at all.",
               es: "Los resultados cuentan para una clasificación de práctica aparte — tu clasificación normal del ladder y tus partidas jugadas no se mueven en absoluto.",
-              ja: "結果は練習レートにのみ反映されます。通常のレートとセット数は一切動きません。",
+              ja: "勝敗は練習用のレートだけに記録されます。通常のレートとセット数は変わりません。",
             })}
           </span>
         </span>

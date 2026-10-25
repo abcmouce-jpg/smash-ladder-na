@@ -354,12 +354,12 @@ export default async function LobbyPage() {
                         ? tr(lang, {
                             en: "Ready for another match?",
                             es: "¿Listo para otra partida?",
-                            ja: "もう一戦やりますか？",
+                            ja: "続けて対戦する",
                           })
                         : tr(lang, {
                             en: "Ready to play?",
                             es: "¿Listo para jugar?",
-                            ja: "対戦しますか？",
+                            ja: "対戦を始める",
                           })}
                     </CardTitle>
                     <CardDescription className="mt-0.5">
@@ -371,8 +371,8 @@ export default async function LobbyPage() {
                           ? "Entra en la cola y te emparejaremos con un rival cercano."
                           : "Entra en la cola y te emparejaremos con un rival.",
                         ja: DISTANCE_MATCHMAKING
-                          ? "待機すると、近くの相手とマッチングします。"
-                          : "待機すると、対戦相手とマッチングします。",
+                          ? "待機すると、近くの相手が見つかり次第そのまま対戦に入ります。"
+                          : "待機すると、相手が見つかり次第そのまま対戦に入ります。",
                       })}
                     </CardDescription>
                   </div>
@@ -450,7 +450,7 @@ export default async function LobbyPage() {
                     {tr(lang, {
                       en: "Who you match with, and how.",
                       es: "Con quién te emparejamos y cómo.",
-                      ja: "誰と、どのようにマッチするか。",
+                      ja: "マッチする相手の条件を決めます。",
                     })}
                   </CardDescription>
                 </div>
