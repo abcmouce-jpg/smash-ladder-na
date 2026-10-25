@@ -1,5 +1,6 @@
 import { getLang } from "@/lib/i18n";
 import { SITE_NAME } from "@/lib/site";
+import { X_ACCOUNT_URL } from "@/lib/links";
 
 export const metadata = { title: `Terms of Service — ${SITE_NAME}` };
 
@@ -46,7 +47,11 @@ export default async function TermsPage() {
               <a href="/rules" className="underline">
                 ルールページ
               </a>
-              をご覧ください。異議は Discord サーバーでモデレーターまたは管理者に申し立てられます。
+              をご覧ください。異議は
+              <a href={X_ACCOUNT_URL} target="_blank" rel="noreferrer" className="underline">
+                公式 X アカウント
+              </a>
+              から申し立てられます。
             </p>
           </section>
 
@@ -91,7 +96,11 @@ export default async function TermsPage() {
           <section>
             <h2 className="text-sm font-medium text-foreground">お問い合わせ</h2>
             <p className="mt-2">
-              ご質問は、コミュニティの Discord サーバーでモデレーターまたは管理者までお願いします。
+              ご質問は
+              <a href={X_ACCOUNT_URL} target="_blank" rel="noreferrer" className="underline">
+                公式 X アカウント
+              </a>
+              までお願いします。
             </p>
           </section>
         </div>

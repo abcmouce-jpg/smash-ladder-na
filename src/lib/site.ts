@@ -18,7 +18,6 @@ export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Smash Lad
 export const SITE_DESCRIPTION =
   process.env.NEXT_PUBLIC_SITE_DESCRIPTION?.trim() || "North American ranked ladder and matchmaking for Smash.";
 
-
 /**
  * Which set of match regions this instance offers. Matchmaking is distance
  * based, so a Japanese player must never be offered a North American region
@@ -132,7 +131,6 @@ export const ALLOWS_LATENCY_MODS = REGION_SET !== "jp";
  */
 export const RATING_SYSTEM: "elo" | "glicko2" = REGION_SET === "jp" ? "elo" : "glicko2";
 
-
 /**
  * Whether the leaderboard offers country and region filters.
  *
@@ -142,3 +140,12 @@ export const RATING_SYSTEM: "elo" | "glicko2" = REGION_SET === "jp" ? "elo" : "g
  * shares, so they are off.
  */
 export const REGION_FILTERS = REGION_SET !== "jp";
+
+/**
+ * Whether this instance runs a community Discord server.
+ *
+ * Discord stays the sign-in provider either way — this is only about whether
+ * there is a server to send people to. Japan does not run one, so its pages
+ * point at the X account instead of advertising a server it has no part in.
+ */
+export const HAS_DISCORD_SERVER = REGION_SET !== "jp";

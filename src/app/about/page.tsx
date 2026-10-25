@@ -1,7 +1,7 @@
-import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
+import { X_ACCOUNT_URL, DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
-import { RATING_SYSTEM, SCENE_LABEL, SITE_NAME } from "@/lib/site";
+import { HAS_DISCORD_SERVER, RATING_SYSTEM, SCENE_LABEL, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata = { title: `About — ${SITE_NAME}` };
@@ -166,10 +166,10 @@ const copy = {
         ソースコードは{githubLink}で公開しています。不具合の報告や機能の提案は issue
         で歓迎していますし、プルリクエストも確認しています — このサイトの機能のいくつかは、コミュニティからの PR
         で実装されたものです。コードを書かない方でも{discordLink}
-        は同じくらい役に立ちます。不具合の報告、改善の提案、モデレーターとしての協力、どれも助かります。
+        でも同じくらい役に立ちます。不具合の報告、改善の提案、モデレーターとしての協力、どれも助かります。
       </>
     ),
-    discordServer: "Discord サーバー",
+    discordServer: "X",
     supportTitle: "支援する",
     support: (kofiLink: React.ReactNode) => (
       <>
@@ -185,12 +185,12 @@ const copy = {
     contactTitle: "連絡先",
     contact: (discordLink: React.ReactNode, rulesLink: React.ReactNode, faqLink: React.ReactNode) => (
       <>
-        {discordLink}
-        が運営の集まっている場所です。不具合の報告、機能の提案、利用停止への異議、一般的な質問はすべてそちらで受け付けています。ラダー自体の仕組みについては
+        連絡は{discordLink}
+        までお願いします。不具合の報告、機能の提案、利用停止への異議、一般的な質問はすべてこちらです。ラダー自体の仕組みについては
         {rulesLink}と{faqLink}をご覧ください。
       </>
     ),
-    communityDiscord: "コミュニティの Discord サーバー",
+    communityDiscord: "公式 X アカウント",
     rules: "ルール",
   },
 };
@@ -199,6 +199,10 @@ export default async function AboutPage() {
   const [lang, goldSupporters] = await Promise.all([getLang(), getCurrentGoldSupporters()]);
   const t = copy[lang];
 
+  // The label comes from the copy table, the destination from the instance:
+  // where there is no Discord server, "contact us" has to mean somewhere that
+  // exists.
+  const contactUrl = HAS_DISCORD_SERVER ? DISCORD_SERVER_URL : X_ACCOUNT_URL;
   const faqLink = (
     <a href="/faq" className="underline">
       {t.qaPage}
@@ -215,12 +219,12 @@ export default async function AboutPage() {
     </a>
   );
   const discordServerLink = (
-    <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
+    <a href={contactUrl} className="underline" target="_blank" rel="noreferrer">
       {t.discordServer}
     </a>
   );
   const communityDiscordLink = (
-    <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
+    <a href={contactUrl} className="underline" target="_blank" rel="noreferrer">
       {t.communityDiscord}
     </a>
   );

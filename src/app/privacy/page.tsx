@@ -1,5 +1,6 @@
 import { getLang } from "@/lib/i18n";
 import { SITE_NAME } from "@/lib/site";
+import { X_ACCOUNT_URL } from "@/lib/links";
 
 export const metadata = { title: `Privacy Policy — ${SITE_NAME}` };
 
@@ -83,8 +84,10 @@ export default async function PrivacyPage() {
           <section>
             <h2 className="text-sm font-medium text-foreground">お問い合わせ</h2>
             <p className="mt-2">
-              コミュニティの Discord
-              サーバーでモデレーターまたは管理者まで、もしくはサイトに記載の連絡先までご連絡ください。
+              <a href={X_ACCOUNT_URL} target="_blank" rel="noreferrer" className="underline">
+                公式 X アカウント
+              </a>
+              までご連絡ください。
             </p>
           </section>
         </div>
