@@ -2,7 +2,7 @@ import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
-import { SITE_NAME } from "@/lib/site";
+import { RATING_SYSTEM, SCENE_LABEL, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata = { title: `About — ${SITE_NAME}` };
@@ -134,11 +134,71 @@ const copy = {
     communityDiscord: "servidor de Discord de la comunidad",
     rules: "Reglas",
   },
-} satisfies Partial<Record<Lang, unknown>>;
+  ja: {
+    heading: "このサイトについて",
+    subtitle: `${SITE_NAME}を誰が、何のために運営しているか。`,
+    whatTitle: "これは何か",
+    what: (
+      <>
+        {SITE_NAME}は、{SCENE_LABEL.ja}スマブラSPコミュニティ向けの、レート対戦とマッチングのサイトです。Discord
+        でログインし、地域と対戦設定を決めると、近い実力の相手と自動でマッチングします。ブラケットも参加受付の締切もなく、待機して対戦するだけです。
+      </>
+    ),
+    whyTitle: "なぜ作ったか",
+    why: (
+      <>
+        競技としてのスマブラには大会のための仕組み（start.gg など）が揃っている一方で、日常の部分 —
+        大会の外で、本気の相手を見つけること — を支えるものは多くありません。ここはその隙間を埋めるためのものです。
+        {RATING_SYSTEM === "elo" ? "Elo" : "Glicko-2"}
+        レート、シーズンごとのランキング、気軽な対戦のためのフリー対戦を用意しています。
+      </>
+    ),
+    whoTitle: "誰が運営しているか",
+    who: (faqLink: React.ReactNode) => (
+      <>
+        有志による独立した企画で、任天堂、start.gg、既存のラダーやマッチングサービスとは一切関係ありません。運営はコミュニティから集まった少人数のモデレーターと管理者が担っています。体制については
+        {faqLink}をご覧ください。
+      </>
+    ),
+    qaPage: "Q&Aページ",
+    contributeTitle: "手伝うには",
+    contribute: (githubLink: React.ReactNode, discordLink: React.ReactNode) => (
+      <>
+        ソースコードは{githubLink}で公開しています。不具合の報告や機能の提案は issue
+        で歓迎していますし、プルリクエストも確認しています — このサイトの機能のいくつかは、コミュニティからの PR
+        で実装されたものです。コードを書かない方でも{discordLink}
+        は同じくらい役に立ちます。不具合の報告、改善の提案、モデレーターとしての協力、どれも助かります。
+      </>
+    ),
+    discordServer: "Discord サーバー",
+    supportTitle: "支援する",
+    support: (kofiLink: React.ReactNode) => (
+      <>
+        サーバー代とドメイン代は自腹で出しています。負担を分けてもいいという方のために{kofiLink}
+        を用意しています（任意です）。$3 以上で広告が消え、サポーターのバッジが付きます。$15 以上でゴールドバッジと、
+        <a href="/supporters" className="underline">
+          サポーターページ
+        </a>
+        での上位掲載が付きます。
+      </>
+    ),
+    kofiPage: "Ko-fi のページ",
+    contactTitle: "連絡先",
+    contact: (discordLink: React.ReactNode, rulesLink: React.ReactNode, faqLink: React.ReactNode) => (
+      <>
+        {discordLink}
+        が運営の集まっている場所です。不具合の報告、機能の提案、利用停止への異議、一般的な質問はすべてそちらで受け付けています。ラダー自体の仕組みについては
+        {rulesLink}と{faqLink}をご覧ください。
+      </>
+    ),
+    communityDiscord: "コミュニティの Discord サーバー",
+    rules: "ルール",
+  },
+};
 
 export default async function AboutPage() {
   const [lang, goldSupporters] = await Promise.all([getLang(), getCurrentGoldSupporters()]);
-  const t = lang in copy ? copy[lang as keyof typeof copy] : copy.en;
+  const t = copy[lang];
 
   const faqLink = (
     <a href="/faq" className="underline">

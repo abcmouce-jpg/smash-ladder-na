@@ -6,6 +6,97 @@ export const metadata = { title: `Terms of Service — ${SITE_NAME}` };
 export default async function TermsPage() {
   const lang = await getLang();
 
+  if (lang === "ja") {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
+        <h1 className="text-2xl font-semibold tracking-tight">利用規約</h1>
+        <p className="mt-1 text-sm text-muted-foreground">最終更新 2026-07-19</p>
+
+        <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
+          <section>
+            <h2 className="text-sm font-medium text-foreground">これは何か</h2>
+            <p className="mt-2">
+              {SITE_NAME}は、Discord
+              でのログインを通じて運営されている、有志によるスマブラのレート対戦サービスです。利用は無料です。ログインした時点で、本規約に同意したものとみなします。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">アカウント</h2>
+            <p className="mt-2">
+              ログインは Discord
+              で行うため、このサイト専用のパスワードはありません。対戦、通報、投稿を含め、ご自身のアカウントから行われたことについては、ご自身に責任があります。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">フェアプレー</h2>
+            <p className="mt-2">
+              自分の試合結果は正直に報告してください。無断欠席、意図的な引き延ばし、相手への嫌がらせ、悪意ある通報はいずれも禁止です。レート対戦とフリー対戦はプレイヤー同士のものであり、私たちは試合そのものを裁定しません。報告とマッチングの層だけを扱います。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">通報とアカウントの状態</h2>
+            <p className="mt-2">
+              ほかのプレイヤーは違反行為を通報できます。通報はモデレーターが確認してから措置に進みます。通報した事実だけでは何も起きません。モデレーターが認定した通報が一定数に達したアカウントは、段階的に利用停止（レート対戦は可能、フリー対戦への投稿と新しい通報は不可）または永久停止（すべて不可）になります。詳細は
+              <a href="/rules" className="underline">
+                ルールページ
+              </a>
+              をご覧ください。措置への異議は、コミュニティの Discord
+              サーバーでモデレーターまたは管理者を通じて申し立てられます。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">大会</h2>
+            <p className="mt-2">
+              コミュニティ大会は start.gg
+              上で開催されます。私たちが扱うのは参加受付とリンクのみです。個々の大会のブラケット規則、揉め事の扱い、賞品の有無は、その大会の主催者が定めるものであり、私たちが定めるものではありません。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">レートは保証ではありません</h2>
+            <p className="mt-2">
+              レート、順位、対戦履歴は、自己申告と異議申立の結果をもとに、私たちが判断できる範囲で反映したものです。意図的な操作に対する正確性は保証しません。不正と判断した結果は訂正または削除することがあります。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">無保証</h2>
+            <p className="mt-2">
+              本サイトは現状のまま提供されます。稼働の継続、マッチングが必ず成立すること、不具合がないことは保証しません。任天堂は本サイトと一切関係ありません。
+              {SITE_NAME}
+              は有志による独立したコミュニティ企画です。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">利用の終了</h2>
+            <p className="mt-2">
+              アカウントはプロフィールページからいつでも削除できます。本規約に違反したアカウントは、上記の手続きに従って利用停止または永久停止とすることがあります。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">規約の変更</h2>
+            <p className="mt-2">
+              サイトの変化に応じて本規約を更新することがあります。重要な変更は、更新日とともにこのページに反映します。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">お問い合わせ</h2>
+            <p className="mt-2">
+              ご質問は、コミュニティの Discord サーバーでモデレーターまたは管理者までお願いします。
+            </p>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   if (lang === "es") {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">

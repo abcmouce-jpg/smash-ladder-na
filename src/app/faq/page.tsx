@@ -2,6 +2,9 @@ import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
 import { SITE_NAME } from "@/lib/site";
+import { MATCH_TTL_MS } from "@/lib/match-games";
+
+const MATCH_TTL_HOURS = MATCH_TTL_MS / (60 * 60 * 1000);
 
 export const metadata = { title: `Q&A — ${SITE_NAME}` };
 
@@ -25,6 +28,7 @@ function Category({ title, children }: { title: string; children: React.ReactNod
 
 export default async function FaqPage() {
   const lang = await getLang();
+  if (lang === "ja") return <FaqPageJa />;
   if (lang === "es") return <FaqPageEs />;
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -44,9 +48,9 @@ export default async function FaqPage() {
             same player, report them.
           </QA>
           <QA q="I only reported and my opponent never did. Does the match still count?">
-            Yes. If your opponent never reports, your report is accepted automatically 24 hours after the match started,
-            and they&apos;re charged a no-show. If neither of you reports within 24 hours, the match closes with no
-            rating change for either player.
+            Yes. If your opponent never reports, your report is accepted automatically {MATCH_TTL_HOURS} hours after the
+            match started, and they&apos;re charged a no-show. If neither of you reports within {MATCH_TTL_HOURS} hours,
+            the match closes with no rating change for either player.
           </QA>
           <QA q="I reported the wrong winner by mistake.">
             Report again with the correct result before your opponent reports — the two of you just need to agree. If
@@ -207,9 +211,9 @@ function FaqPageEs() {
             mismo jugador, repórtalo.
           </QA>
           <QA q="Solo yo reporté y mi rival nunca lo hizo. ¿La partida sigue contando?">
-            Sí. Si tu rival nunca reporta, tu reporte se acepta automáticamente 24 horas después de que empezó la
-            partida, y se le marca un no-show. Si ninguno de los dos reporta dentro de 24 horas, la partida se cierra
-            sin cambio de clasificación para ninguno.
+            Sí. Si tu rival nunca reporta, tu reporte se acepta automáticamente {MATCH_TTL_HOURS} horas después de que
+            empezó la partida, y se le marca un no-show. Si ninguno de los dos reporta dentro de {MATCH_TTL_HOURS}{" "}
+            horas, la partida se cierra sin cambio de clasificación para ninguno.
           </QA>
           <QA q="Reporté al ganador equivocado por error.">
             Reporta de nuevo con el resultado correcto antes de que tu rival reporte — solo necesitan ponerse de
@@ -345,6 +349,137 @@ function FaqPageEs() {
             Sí. Gran parte del código, corrección de bugs, y mantenimiento del día a día (despliegues, herramientas de
             moderación, esta misma entrada del FAQ incluida) se hace con ayuda de IA. No lo ocultamos — si tienes
             curiosidad de cómo se construyó algo en específico, pregunta en el servidor de Discord de arriba.
+          </QA>
+        </Category>
+      </div>
+    </main>
+  );
+}
+
+function FaqPageJa() {
+  const lang = "ja" as const;
+  return (
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
+      <h1 className="text-2xl font-semibold tracking-tight">Q&amp;A</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        ここで触れている実際の対戦ルールは{" "}
+        <a href="/rules" className="underline">
+          ルールページ
+        </a>{" "}
+        にあります。
+      </p>
+
+      <div className="mt-8 flex flex-col gap-8">
+        <Category title="レート対戦">
+          <QA q="マッチングしたのに相手が反応しません。">
+            試合を中止して次に行ってください。中止ボタンはまさにこのためにあります。同じ相手で繰り返すようなら通報してください。
+          </QA>
+          <QA q="自分だけ報告して、相手が報告しません。この試合は成立しますか？">
+            成立します。相手が報告しないまま試合開始から{MATCH_TTL_HOURS}
+            時間が経つと、あなたの報告が自動的に確定し、相手は不参加として記録されます。
+            {MATCH_TTL_HOURS}時間以内にどちらも報告しなかった場合、その試合は両者ともレート変動なしで終了します。
+          </QA>
+          <QA q="勝者を間違えて報告しました。">
+            相手が報告する前に、正しい結果でもう一度報告してください。二人の報告が一致すれば大丈夫です。すでに食い違っている場合は、異議申立としてモデレーターが確認します。
+          </QA>
+          <QA q="相手が実際とは違う勝者を報告しました。">
+            そのまま再送信して様子を見るのではなく、報告してください。両者の報告が食い違った状態になり、モデレーターが双方の報告をもとに解決します。意図的だと思われる場合は、マナー違反の通報も併せて出してください。
+          </QA>
+          <QA q="試合が確定したのにレートが動きませんでした。">
+            レート差が極端に大きい場合、端数処理の結果として変動が0になることがあります。不具合ではなく想定内の挙動です。両者の報告が明らかに一致していて、プロフィール上の勝者がおかしい場合は、異議申立として報告してください。
+          </QA>
+          <QA q="「有線接続」のバッジを付けるには何が必要ですか？">
+            携帯モードで遊ぶなら USB-C の有線LANアダプタ、ドックを使うならドックに LAN
+            ケーブルを挿すだけです。推奨機材の一覧はルールページにあります：{" "}
+            {GEAR_RECOMMENDATIONS.map((item, i) => (
+              <span key={item.url}>
+                {i > 0 && " · "}
+                <a href={item.url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+                  {item.label[lang]}
+                </a>
+              </span>
+            ))}
+            。Amazon アソシエイトとして、適格販売により収入を得ています。
+          </QA>
+        </Category>
+
+        <Category title="練習モード">
+          <QA q="練習モードの試合は通常のレートに影響しますか？">
+            しません。練習モードの結果は完全に別の練習レートにのみ反映され、勝っても負けても通常のレートとセット数は動きません。
+          </QA>
+          <QA q="練習にするつもりがありませんでした。試合中に解除できますか？">
+            できません。マッチングした時点でその試合については固定されます。まだ早い段階なら試合を中止するか（ルールページの「試合の中止」を参照）、試合画面から相手に中止への同意を求めてください。そのうえでチェックを外して待機し直してください。
+          </QA>
+          <QA q="練習中にメインキャラを使ってもいいですか？">
+            いけません。ルールページにあるとおりです。練習モードは自分のレートを危険にさらさない仕組みなので、練習でない相手にメインキャラを使うと、リスクが相手だけに偏ります。自動では止めていないので、見かけたらマナー違反として通報してください。
+          </QA>
+        </Category>
+
+        <Category title="使用キャラの報告">
+          <QA q="プロフィールに自分のキャラが表示されません。">
+            表示されるのは、試合後に相手が報告した場合だけです。自己申告の仕組みはありません。試合が終わったばかりなら少し待ってください。時間が経っているなら、相手が報告していない可能性があります。
+          </QA>
+          <QA q="間違ったキャラを報告されました。">
+            1件の誤報告で全体が大きく歪むことはありません。キャラクター別ランキングは報告の総体を見ています。意図的に繰り返されていると思われる場合は、そのプレイヤーをマナー違反として通報してください。
+          </QA>
+        </Category>
+
+        <Category title="マナー・通報・アカウントの状態">
+          <QA q="試合の外で嫌がらせを受けました（Discord の DM、配信のコメントなど）。">
+            通報の仕組みが対象にしているのは、このサイトのレート対戦に関係するマナーです。サイト外のことについては相手をブロックし、深刻な場合は
+            Discord に直接通報してください。
+          </QA>
+          <QA q="通報しました。その後どうなったか教えてもらえますか？">
+            お伝えしていません。個別の通報に対する処分は公開しない方針です。通報者が特定されて報復されることを防ぐためです。目に見える結果がなくても通報には意味があります。1件だけで措置に至ることは稀ですが、繰り返されていれば判断材料になります。
+          </QA>
+          <QA q="アカウントが利用停止・永久停止になりました。理由を知りたい、異議を申し立てたい。">
+            状態の変更の根拠となった個別の通報は、上と同じ報復防止の理由から公開していません。誤りだと思われる場合は、コミュニティの
+            Discord
+            サーバーでモデレーターまたは管理者に連絡してください。異議はそちらで受け付けており、通報の仕組みとは別です。
+          </QA>
+          <QA q="利用停止と永久停止は何が違いますか？">
+            利用停止（レベル1）ではレート対戦は続けられます。レート対戦は中心的な活動であり、不当な結果には異議申立という別の救済手段がすでにあるためです。一方でフリー対戦への投稿と新しい通報はできなくなります。通報した相手に報復できないようにするためです。永久停止（レベル2）ではすべてが利用できなくなります。
+          </QA>
+        </Category>
+
+        <Category title="アカウント">
+          <QA q="アカウントを削除するには？">
+            プロフィールページの「アカウントの削除」から行えます。ユーザー名・アイコン・メールアドレスは即座に消去されます。何が残り、なぜ残るのかはプライバシーポリシーに記載しています。
+          </QA>
+          <QA q="削除を取り消したり、別のアカウントに統合したりできますか？">
+            同じ Discord
+            アカウントでログインし直すと、新規作成ではなく元のアカウントが復帰します（レートと対戦履歴はそのままです）。ただしユーザー名・アイコン・メールアドレスは、自分で設定し直すまで消去されたままです。削除したアカウントを別の独立したアカウントに統合する方法はありません。
+          </QA>
+          <QA q="マッチングは地域で絞られますか？">
+            絞られません。全国どこからでも同じプールでマッチングします。都道府県はプロフィールとランキングのための情報で、マッチングの条件にはなりません。レート差と再戦の間隔は、ロビーの対戦設定から自分で決められます。
+          </QA>
+        </Category>
+
+        <Category title="シーズン">
+          <QA q="シーズンが終わるとレートはどうなりますか？">
+            順位が記録として保存されたあと、次のシーズンの開始時に全員のレートとセット数がリセットされます。一部だけ戻す方式ではなく完全な初期化なので、どのシーズンも同じ条件から始まります。
+          </QA>
+        </Category>
+
+        <Category title="コミュニティと運営">
+          <QA q="Discord サーバーはありますか？">
+            あります。{" "}
+            <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="underline">
+              こちらから参加
+            </a>
+            できます。雑談、サイトの不具合報告、モデレーターや管理者への連絡（利用停止への異議など）はこちらです。
+          </QA>
+          <QA q="運営は何人体制ですか？">
+            現在はモデレーターと管理者を合わせて数名で、全員が有志です。手伝ってもいいという方は、上の Discord
+            サーバーで声をかけてください。
+          </QA>
+          <QA q="スマメイトの公式な後継サービスですか？">
+            違います。有志が独立して運営しているサービスで、スマメイト運営からソースコードの譲渡を受けたわけでもありません。長年オンライン対戦の場を支えてきたスマメイトへの敬意はありますが、両者に資本や運営上のつながりはありません。
+          </QA>
+          <QA q="このサイトの開発や運営に AI を使っていますか？">
+            使っています。コード、不具合修正、日々の保守（デプロイ、運営用のツール、この項目自体も含めて）の多くを AI
+            の助けを借りて行っています。隠すつもりはないので、何がどう作られているか気になることがあれば、上の Discord
+            サーバーで聞いてください。
           </QA>
         </Category>
       </div>

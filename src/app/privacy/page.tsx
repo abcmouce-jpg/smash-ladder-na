@@ -6,6 +6,84 @@ export const metadata = { title: `Privacy Policy — ${SITE_NAME}` };
 export default async function PrivacyPage() {
   const lang = await getLang();
 
+  if (lang === "ja") {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
+        <h1 className="text-2xl font-semibold tracking-tight">プライバシーポリシー</h1>
+        <p className="mt-1 text-sm text-muted-foreground">最終更新 2026-07-19</p>
+
+        <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
+          <section>
+            <h2 className="text-sm font-medium text-foreground">取得する情報</h2>
+            <p className="mt-2">
+              Discord でログインすると、Discord
+              のユーザーID、ユーザー名、アイコン、および（公開設定にしている場合は）メールアドレスを受け取ります。Discord
+              のパスワードや、Discord の同意画面に表示されていないものは一切取得しません。
+            </p>
+            <p className="mt-2">
+              そのほかに、サイトの利用によって生じたものを保存します。レート対戦とその結果、フリー対戦の募集、試合のコメント、大会への参加登録、ご自身が提出または受け取った通報、そして設定で保存した内容です。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">利用目的</h2>
+            <p className="mt-2">
+              ラダーの運営のためです。マッチング、レートの計算、ランキング、対戦履歴、そして運営上の対応（通報、異議申立、アカウントの状態）に使います。Discord
+              の bot トークンが設定されている場合は、対戦や大会に関する連絡を DM でお送りします。これは Discord
+              自身の制限により、bot と同じサーバーに参加している場合にのみ機能します。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">第三者への提供</h2>
+            <p className="mt-2">
+              Discord（ログインと、任意で DM 通知のため）と
+              Neon（データベースの提供元）が、私たちに代わってデータを処理します。データを販売することはありません。
+            </p>
+            <p className="mt-2">
+              閲覧のみのページ（ランキング、統計、大会、フリー対戦）では、Google AdSense
+              による広告が表示されることがあります。AdSense は独自の Cookie
+              を設定し、本サイトおよび他サイトへの訪問に関するデータを、広告の配信と効果測定のために利用することがあります。これは私たち自身が取得または管理しているデータではありません。パーソナライズ広告は
+              Google の広告設定から無効にできます。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Cookie</h2>
+            <p className="mt-2">
+              ログイン状態を保つためのセッション Cookie が1つと、表示言語の選択を記憶するための Cookie
+              が1つだけです。広告が表示されるページでは、前項のとおり Google AdSense が独自の Cookie
+              を設定することがあります。それ以外に、追跡や広告のための Cookie は設定していません。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">アカウントの削除</h2>
+            <p className="mt-2">
+              プロフィールページからいつでもアカウントを削除できます。ユーザー名、アイコン、メールアドレスは即座に削除されます。対戦結果は匿名化したうえでラダーに残ります。これはほかのプレイヤーの正当な戦績にも関わるため消去しませんが、そこからご自身を特定できる情報は残りません。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">年齢について</h2>
+            <p className="mt-2">
+              本サイトの利用には Discord アカウントが必要なため、利用者は Discord
+              自身の年齢要件（13歳以上）をすでに満たしていることになります。それより下の年齢の方から、意図してデータを取得することはありません。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">お問い合わせ</h2>
+            <p className="mt-2">
+              コミュニティの Discord
+              サーバーでモデレーターまたは管理者まで、もしくはサイトに記載の連絡先までご連絡ください。
+            </p>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   if (lang === "es") {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -149,9 +227,8 @@ export default async function PrivacyPage() {
           <h2 className="text-sm font-medium text-foreground">Cookies</h2>
           <p className="mt-2">
             One session cookie, used only to keep you signed in, and one language-preference cookie, used only to
-            remember whether you prefer to view the site in English or Spanish. On pages where an ad is shown, Google
-            AdSense may also set its own cookies, per the section above — otherwise no tracking or advertising cookies
-            are set.
+            remember which language you prefer to view the site in. On pages where an ad is shown, Google AdSense may
+            also set its own cookies, per the section above — otherwise no tracking or advertising cookies are set.
           </p>
         </section>
 
