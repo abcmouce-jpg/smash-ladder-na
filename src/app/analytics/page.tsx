@@ -136,11 +136,17 @@ function PageTitle({ lang }: { lang: Lang }) {
         {tr(lang, { en: "🏆 Analytics", es: "🏆 Análisis", ja: "🏆 統計" })}
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {tr(lang, {
-          en: "Gold supporter exclusive.",
-          es: "Exclusivo para colaboradores Gold.",
-          ja: "ゴールドサポーター限定",
-        })}
+        {HAS_KOFI
+          ? tr(lang, {
+              en: "Gold supporter exclusive.",
+              es: "Exclusivo para colaboradores Gold.",
+              ja: "ゴールドサポーター限定",
+            })
+          : tr(lang, {
+              en: "Your rating trend, and your win rate by character and stage.",
+              es: "Tu clasificación en el tiempo, y tu porcentaje de victorias por personaje y escenario.",
+              ja: "レートの推移と、キャラ別・ステージ別の勝率。",
+            })}
       </p>
     </>
   );
