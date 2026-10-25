@@ -25,6 +25,24 @@ for (const file of [".env.development.local", ".env.local", ".env.development", 
   if (existsSync(file)) config({ path: file });
 }
 
+// Migrations want a direct connection, not the pooler: DDL through PgBouncer is
+// a documented footgun, and the pooled endpoint is the one DATABASE_URL points
+// at on a Neon-provisioned project. DIRECT_URL is what this repo has always
+// used; DATABASE_URL_UNPOOLED is what Vercel's Neon integration sets.
+//
+// The timeout is for the distance. A Vercel build runs in the project's build
+// region and the database may be on the other side of the world (the Japanese
+// instance builds in Cleveland against Singapore), and a Neon compute that has
+// scaled to zero has to cold-start before it answers. Prisma's default was
+// short enough that `prisma migrate deploy` failed the build with P1002 even
+// though the database was perfectly reachable a moment later.
+function migrationUrl(): string | undefined {
+  const raw = process.env["DIRECT_URL"] ?? process.env["DATABASE_URL_UNPOOLED"] ?? process.env["DATABASE_URL"];
+  if (!raw) return undefined;
+  if (raw.includes("connect_timeout=")) return raw;
+  return raw + (raw.includes("?") ? "&" : "?") + "connect_timeout=30";
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -32,6 +50,6 @@ export default defineConfig({
     seed: "npx tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: migrationUrl(),
   },
 });
