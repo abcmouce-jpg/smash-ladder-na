@@ -51,11 +51,14 @@ export default async function SupportersPage() {
       </p>
       {supporterCount > 0 && (
         <p className="mt-1 text-sm font-medium text-foreground">
-          {lang === "es"
-            ? supporterCount === 1
-              ? "1 persona ha colaborado hasta ahora."
-              : `${supporterCount} personas han colaborado hasta ahora.`
-            : `${supporterCount} ${supporterCount === 1 ? "person has" : "people have"} chipped in so far.`}
+          {tr(lang, {
+            en: `${supporterCount} ${supporterCount === 1 ? "person has" : "people have"} chipped in so far.`,
+            es:
+              supporterCount === 1
+                ? "1 persona ha colaborado hasta ahora."
+                : `${supporterCount} personas han colaborado hasta ahora.`,
+            ja: `これまでに${supporterCount}人が支援してくれました。`,
+          })}
         </p>
       )}
 

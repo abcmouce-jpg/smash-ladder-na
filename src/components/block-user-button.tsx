@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 type BlockState = { error: string | null };
 
@@ -36,9 +37,11 @@ export function BlockUserButton({
           // dispatch finishes, and confirm() resolves asynchronously.
           const form = e.currentTarget;
           confirm(
-            lang === "es"
-              ? `¿Bloquear a ${username}? Esto es permanente y no se puede deshacer — nunca volverás a emparejarte con esta persona en la cola rankeada.`
-              : `Block ${username}? This is permanent and can't be undone — you'll never be matched with them again in ranked queueing.`,
+            tr(lang, {
+              en: `Block ${username}? This is permanent and can't be undone — you'll never be matched with them again in ranked queueing.`,
+              es: `¿Bloquear a ${username}? Esto es permanente y no se puede deshacer — nunca volverás a emparejarte con esta persona en la cola rankeada.`,
+              ja: `${username}さんをブロックしますか？ブロックは永続で、解除できません。レート対戦で二度とマッチングしなくなります。`,
+            }),
           ).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
@@ -48,7 +51,7 @@ export function BlockUserButton({
         }}
       >
         <Button type="submit" variant="outline" size="sm" disabled={isPending}>
-          {lang === "es" ? "Bloquear" : "Block"}
+          {tr(lang, { en: "Block", es: "Bloquear", ja: "ブロック" })}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

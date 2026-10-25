@@ -12,11 +12,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
-const THEME_OPTIONS: { value: Theme; label: { en: string; es: string }; icon: typeof Sun }[] = [
-  { value: "light", label: { en: "Light", es: "Claro" }, icon: Sun },
-  { value: "dark", label: { en: "Dark", es: "Oscuro" }, icon: Moon },
-  { value: "auto", label: { en: "Auto", es: "Automático" }, icon: Monitor },
+const THEME_OPTIONS: { value: Theme; label: Record<Lang, string>; icon: typeof Sun }[] = [
+  { value: "light", label: { en: "Light", es: "Claro", ja: "ライト" }, icon: Sun },
+  { value: "dark", label: { en: "Dark", es: "Oscuro", ja: "ダーク" }, icon: Moon },
+  { value: "auto", label: { en: "Auto", es: "Automático", ja: "自動" }, icon: Monitor },
 ];
 
 // Compact theme picker for the header. A single cycling toggle is the most
@@ -53,8 +54,8 @@ export function ThemeMenu({ lang = "en" }: { lang?: Lang }) {
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label={lang === "es" ? "Cambiar tema" : "Change theme"}
-          title={lang === "es" ? "Tema" : "Theme"}
+          aria-label={tr(lang, { en: "Change theme", es: "Cambiar tema", ja: "テーマを変更" })}
+          title={tr(lang, { en: "Theme", es: "Tema", ja: "テーマ" })}
           className="text-muted-foreground hover:text-foreground"
         >
           <ActiveIcon className="size-3.5" suppressHydrationWarning />
@@ -67,7 +68,7 @@ export function ThemeMenu({ lang = "en" }: { lang?: Lang }) {
           return (
             <DropdownMenuItem key={option.value} onSelect={() => choose(option.value)}>
               <Icon className="size-3.5" />
-              <span className="flex-1">{lang === "es" ? option.label.es : option.label.en}</span>
+              <span className="flex-1">{option.label[lang]}</span>
               <Check className={cn("size-3.5", active ? "opacity-100" : "opacity-0")} aria-hidden />
             </DropdownMenuItem>
           );

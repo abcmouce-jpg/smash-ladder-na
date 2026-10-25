@@ -7,6 +7,7 @@ import { MovesetDialog } from "@/components/moveset-dialog";
 import { Button } from "@/components/ui/button";
 import { isMiiCharacter } from "@/lib/characters";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 /**
  * Character picker with one-click shortcuts for the player's most-played
@@ -39,11 +40,8 @@ export function CharacterPickForm({
   // value doesn't change anything from the player's point of view. Start
   // unselected instead, so picking the Mii is a real state change that
   // triggers the dialog.
-  const miiWithoutMoveset =
-    !!defaultCharacter && isMiiCharacter(defaultCharacter) && !defaultMoveset;
-  const [character, setCharacter] = useState(
-    miiWithoutMoveset ? "" : (defaultCharacter ?? ""),
-  );
+  const miiWithoutMoveset = !!defaultCharacter && isMiiCharacter(defaultCharacter) && !defaultMoveset;
+  const [character, setCharacter] = useState(miiWithoutMoveset ? "" : (defaultCharacter ?? ""));
   const [moveset, setMoveset] = useState(miiWithoutMoveset ? "" : defaultMoveset);
   const [pendingCharacter, setPendingCharacter] = useState<string | null>(null);
 
@@ -95,10 +93,10 @@ export function CharacterPickForm({
           value={character}
           onChange={attemptSelect}
           name="character"
-          placeholder={lang === "es" ? "Elegir personaje" : "Select character"}
+          placeholder={tr(lang, { en: "Select character", es: "Elegir personaje", ja: "キャラクターを選択" })}
         />
         <Button type="submit" size="sm" variant="outline" disabled={!canSubmit}>
-          {lang === "es" ? "Elegir" : "Lock in"}
+          {tr(lang, { en: "Lock in", es: "Elegir", ja: "確定する" })}
         </Button>
       </form>
       {pendingCharacter !== null && (

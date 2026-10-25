@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 export type SettingsSaveState = { error: string | null; saved: boolean };
 
@@ -33,12 +34,12 @@ export function SettingsSaveForm({
         ) : state.saved ? (
           <p className="mr-auto flex items-center gap-1.5 text-xs text-muted-foreground">
             <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-            {lang === "es" ? "Guardado" : "Saved"}
+            {tr(lang, { en: "Saved", es: "Guardado", ja: "保存しました" })}
           </p>
         ) : null}
         <Button type="submit" size="sm" disabled={isPending}>
           {isPending && <Loader2 className="size-4 animate-spin" />}
-          {lang === "es" ? "Guardar" : "Save"}
+          {tr(lang, { en: "Save", es: "Guardar", ja: "保存" })}
         </Button>
       </div>
     </form>

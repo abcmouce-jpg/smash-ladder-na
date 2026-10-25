@@ -160,13 +160,17 @@ export async function ProfileMatchHistorySection({
 
       {history.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          {lang === "es"
-            ? isFiltered
-              ? "Ninguna partida coincide con estos filtros."
-              : "Aún no hay partidas confirmadas."
-            : isFiltered
-              ? "No matches match these filters."
-              : "No confirmed matches yet."}
+          {isFiltered
+            ? tr(lang, {
+                en: "No matches match these filters.",
+                es: "Ninguna partida coincide con estos filtros.",
+                ja: "条件に合う試合がありません。",
+              })
+            : tr(lang, {
+                en: "No confirmed matches yet.",
+                es: "Aún no hay partidas confirmadas.",
+                ja: "確定した試合がまだありません。",
+              })}
         </p>
       ) : (
         <MatchHistoryList

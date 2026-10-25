@@ -11,8 +11,12 @@ import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 
 function gamesLabel(count: number, lang: Lang) {
-  if (lang === "es") return count === 1 ? "partida" : "partidas";
-  return count === 1 ? "game" : "games";
+  // Japanese has no plural, so the count alone carries it.
+  return tr(lang, {
+    en: count === 1 ? "game" : "games",
+    es: count === 1 ? "partida" : "partidas",
+    ja: "試合",
+  });
 }
 
 // Per-character matchup breakdowns. The character list on the left is the

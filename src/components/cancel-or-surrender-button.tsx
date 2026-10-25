@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 type ActionState = { error: string | null };
 
@@ -59,13 +60,17 @@ export function CancelOrSurrenderButton({
   const waitingForGracePeriod = !!cancelReadyAtMs && secondsLeft > 0;
 
   const confirmMessage =
-    lang === "es"
-      ? mode === "surrender"
-        ? "¿Rendirte? Cuenta como derrota y afecta tu clasificación. No se puede deshacer."
-        : "¿Cancelar esta partida? No se puede deshacer."
-      : mode === "surrender"
-        ? "Surrender this match? It counts as a loss and affects your rating. This can't be undone."
-        : "Cancel this match? This can't be undone.";
+    mode === "surrender"
+      ? tr(lang, {
+          en: "Surrender this match? It counts as a loss and affects your rating. This can't be undone.",
+          es: "¿Rendirte? Cuenta como derrota y afecta tu clasificación. No se puede deshacer.",
+          ja: "この試合を降参しますか？敗北として扱われ、レートに影響します。取り消せません。",
+        })
+      : tr(lang, {
+          en: "Cancel this match? This can't be undone.",
+          es: "¿Cancelar esta partida? No se puede deshacer.",
+          ja: "この試合を中止しますか？取り消せません。",
+        });
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -81,7 +86,7 @@ export function CancelOrSurrenderButton({
           // out a SyntheticEvent's currentTarget once the synchronous handler
           // dispatch finishes, and confirm() resolves asynchronously.
           const form = e.currentTarget;
-          confirm(confirmMessage, { cancelLabel: lang === "es" ? "Volver" : "Go back" }).then((ok) => {
+          confirm(confirmMessage, { cancelLabel: tr(lang, { en: "Go back", es: "Volver", ja: "戻る" }) }).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
               form.requestSubmit();
@@ -92,18 +97,20 @@ export function CancelOrSurrenderButton({
         <Button type="submit" variant="destructive" size="sm" disabled={isPending || waitingForGracePeriod}>
           {waitingForGracePeriod ? (
             <span suppressHydrationWarning>
-              {lang === "es" ? `Cancelar en ${secondsLeft}s` : `Cancel in ${secondsLeft}s`}
+              {tr(lang, {
+                en: `Cancel in ${secondsLeft}s`,
+                es: `Cancelar en ${secondsLeft}s`,
+                ja: `${secondsLeft}秒後に中止`,
+              })}
             </span>
-          ) : lang === "es" ? (
-            mode === "surrender" ? (
-              "Rendirse (cuenta como derrota)"
-            ) : (
-              "Cancelar partida"
-            )
           ) : mode === "surrender" ? (
-            "Surrender (counts as a loss)"
+            tr(lang, {
+              en: "Surrender (counts as a loss)",
+              es: "Rendirse (cuenta como derrota)",
+              ja: "降参する（敗北扱い）",
+            })
           ) : (
-            "Cancel match"
+            tr(lang, { en: "Cancel match", es: "Cancelar partida", ja: "試合を中止する" })
           )}
         </Button>
       </form>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const WIDTH = 640;
 const HEIGHT = 220;
@@ -18,21 +19,17 @@ function niceStep(range: number): number {
   return steps.find((s) => range / s <= 4) ?? 1000;
 }
 
-export function RatingTrendChart({
-  data,
-  lang,
-}: {
-  data: { date: Date; rating: number }[];
-  lang: Lang;
-}) {
+export function RatingTrendChart({ data, lang }: { data: { date: Date; rating: number }[]; lang: Lang }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   if (data.length < 2) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Todavía no hay suficientes partidas confirmadas para una gráfica."
-          : "Not enough confirmed matches yet for a trend line."}
+        {tr(lang, {
+          en: "Not enough confirmed matches yet for a trend line.",
+          es: "Todavía no hay suficientes partidas confirmadas para una gráfica.",
+          ja: "推移を描くには確定した試合が足りません。",
+        })}
       </p>
     );
   }
@@ -69,19 +66,22 @@ export function RatingTrendChart({
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full overflow-visible"
         role="img"
-        aria-label={lang === "es" ? "Gráfica de clasificación a lo largo del tiempo" : "Rating over time chart"}
+        aria-label={tr(lang, {
+          en: "Rating over time chart",
+          es: "Gráfica de clasificación a lo largo del tiempo",
+          ja: "レート推移のグラフ",
+        })}
       >
         {ticks.map((t) => (
           <g key={t}>
-            <line
-              x1={PAD_LEFT}
-              x2={WIDTH - PAD_RIGHT}
-              y1={y(t)}
-              y2={y(t)}
-              stroke="var(--border)"
-              strokeWidth={1}
-            />
-            <text x={PAD_LEFT - 8} y={y(t)} textAnchor="end" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">
+            <line x1={PAD_LEFT} x2={WIDTH - PAD_RIGHT} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeWidth={1} />
+            <text
+              x={PAD_LEFT - 8}
+              y={y(t)}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="fill-muted-foreground text-[10px]"
+            >
               {Math.round(t)}
             </text>
           </g>
@@ -98,14 +98,40 @@ export function RatingTrendChart({
           />
         )}
 
-        <path d={linePath} fill="none" className="stroke-primary" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d={linePath}
+          fill="none"
+          className="stroke-primary"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
 
         {hovered && (
-          <circle cx={x(hoverIndex!)} cy={y(hovered.rating)} r={5} className="fill-primary" stroke="var(--background)" strokeWidth={2} />
+          <circle
+            cx={x(hoverIndex!)}
+            cy={y(hovered.rating)}
+            r={5}
+            className="fill-primary"
+            stroke="var(--background)"
+            strokeWidth={2}
+          />
         )}
 
-        <circle cx={x(data.length - 1)} cy={y(last.rating)} r={5} className="fill-primary" stroke="var(--background)" strokeWidth={2} />
-        <text x={x(data.length - 1)} y={y(last.rating) - 10} textAnchor="end" className="fill-foreground text-xs font-medium">
+        <circle
+          cx={x(data.length - 1)}
+          cy={y(last.rating)}
+          r={5}
+          className="fill-primary"
+          stroke="var(--background)"
+          strokeWidth={2}
+        />
+        <text
+          x={x(data.length - 1)}
+          y={y(last.rating) - 10}
+          textAnchor="end"
+          className="fill-foreground text-xs font-medium"
+        >
           {Math.round(last.rating)}
         </text>
 
@@ -130,7 +156,9 @@ export function RatingTrendChart({
         >
           <div className="font-medium tabular-nums">{Math.round(hovered.rating)}</div>
           <div className="text-muted-foreground">
-            {hovered.date.toLocaleDateString(lang === "es" ? "es-MX" : "en-US", { dateStyle: "medium" })}
+            {hovered.date.toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" }), {
+              dateStyle: "medium",
+            })}
           </div>
         </div>
       )}

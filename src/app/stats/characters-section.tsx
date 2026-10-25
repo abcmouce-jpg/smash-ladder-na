@@ -245,22 +245,11 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Haz clic en un encabezado para ordenar. Los mains y secundarios se calculan automáticamente a partir de tu
-              historial real de partidas — un secundario necesita 10%+ de tus partidas para contar. La mayoría de los
-              personajes echo (Dark Pit, Daisy, Dark Samus, Richter) se cuentan junto con su personaje base —
-              Marth/Lucina, Roy/Chrom y Ryu/Ken se mantienen aparte. Juegos y tasa de victorias cubren juegos rankeados
-              de la temporada seleccionada.
-            </>
-          ) : (
-            <>
-              Click a column header to sort. Mains and secondaries are computed automatically from your actual match
-              history — a secondary needs 10%+ of your games to count. Most echo fighters (Dark Pit, Daisy, Dark Samus,
-              Richter) are counted together with their base fighter — Marth/Lucina, Roy/Chrom, and Ryu/Ken are kept
-              separate. Games and win rate cover ranked games from the selected season.
-            </>
-          )}
+          {tr(lang, {
+            en: "Click a column header to sort. Mains and secondaries are computed automatically from your actual match history — a secondary needs 10%+ of your games to count. Most echo fighters (Dark Pit, Daisy, Dark Samus, Richter) are counted together with their base fighter — Marth/Lucina, Roy/Chrom, and Ryu/Ken are kept separate. Games and win rate cover ranked games from the selected season.",
+            es: "Haz clic en un encabezado para ordenar. Los mains y secundarios se calculan automáticamente a partir de tu historial real de partidas — un secundario necesita 10%+ de tus partidas para contar. La mayoría de los personajes echo (Dark Pit, Daisy, Dark Samus, Richter) se cuentan junto con su personaje base — Marth/Lucina, Roy/Chrom y Ryu/Ken se mantienen aparte. Juegos y tasa de victorias cubren juegos rankeados de la temporada seleccionada.",
+            ja: "見出しをクリックすると並び替えできます。メインとサブは実際の対戦履歴から自動で判定され、サブとして数えるには全試合の10%以上が必要です。ダッシュファイター（ブラックピット、デイジー、ダークサムス、リヒター）は元のファイターとまとめて数えます。マルス/ルキナ、ロイ/クロム、リュウ/ケンは別扱いです。試合数と勝率は、選択中のシーズンのレート対戦が対象です。",
+          })}
         </p>
         {season && (
           <Badge variant="outline" className="shrink-0">

@@ -3,6 +3,7 @@ import { TierBadge } from "@/components/rank-badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // One row of the rank list: the real badge, the window it covers, and the
 // blurb. The range is passed in rather than derived here because the
@@ -24,6 +25,15 @@ function RankRow({ tier, range, children }: { tier: RankTier | null; range: stri
 // Spanish blurbs, keyed off the same tier.name used in RANK_TIERS — kept
 // here rather than on the data model so lib/rank-tier.ts (used by matching/
 // admin logic too) stays a single canonical English source of truth.
+const TIER_DESCRIPTIONS_JA: Record<string, string> = {
+  Legend: "ラダーの頂点。最上位で環境を定義するプレイヤーのための帯です。",
+  Grandmaster: "ラダー上位。Master帯に安定して勝てるのは一握りです。",
+  Master: "Elite帯に安定して勝てる実力。シーズン終了時に上位5人に入る可能性があります。",
+  Elite: "初期レートを大きく上回り、ほかのプレイヤー相手に実績のある帯です。",
+  Fighter: "初期レート1500が属する帯で、落ち着いたときに最も多くの人が収まります。",
+  Trainee: "初期レートより下の帯。ここから上の帯はすべて到達可能で、レートはシーズン終了時にリセットされます。",
+};
+
 const TIER_DESCRIPTIONS_ES: Record<string, string> = {
   Legend: "La cima absoluta de la liga. Reservado para quienes definen el meta en lo más alto.",
   Grandmaster: "La cima de la liga. Solo un puñado de jugadores vence consistentemente al nivel Master.",
@@ -45,16 +55,26 @@ export function RankTierList({ className, lang = "en" }: { className?: string; l
     <Card className={cn("divide-y divide-border overflow-hidden py-0", className)}>
       {RANK_TIERS.map((tier) => (
         <RankRow key={tier.name} tier={tier} range={rankTierRatingRange(tier)}>
-          {lang === "es" ? TIER_DESCRIPTIONS_ES[tier.name] : tier.description}
+          {lang === "ja"
+            ? (TIER_DESCRIPTIONS_JA[tier.name] ?? tier.description)
+            : lang === "es"
+              ? TIER_DESCRIPTIONS_ES[tier.name]
+              : tier.description}
         </RankRow>
       ))}
       <RankRow
         tier={null}
-        range={lang === "es" ? `Primeras ${PROVISIONAL_MIN_GAMES} partidas` : `First ${PROVISIONAL_MIN_GAMES} sets`}
+        range={tr(lang, {
+          en: `First ${PROVISIONAL_MIN_GAMES} sets`,
+          es: `Primeras ${PROVISIONAL_MIN_GAMES} partidas`,
+          ja: `最初の${PROVISIONAL_MIN_GAMES}セット`,
+        })}
       >
-        {lang === "es"
-          ? "Aún sin rango. La clasificación varía más en tus primeras partidas, así que la insignia se mantiene neutral hasta que se estabilice."
-          : "No rank yet. Ratings swing hardest over your first few sets, so the badge stays neutral until yours has had a chance to settle."}
+        {tr(lang, {
+          en: "No rank yet. Ratings swing hardest over your first few sets, so the badge stays neutral until yours has had a chance to settle.",
+          es: "Aún sin rango. La clasificación varía más en tus primeras partidas, así que la insignia se mantiene neutral hasta que se estabilice.",
+          ja: "まだランクはありません。レートは最初の数セットで大きく動くため、落ち着くまでバッジは中立のままになります。",
+        })}
       </RankRow>
     </Card>
   );

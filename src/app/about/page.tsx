@@ -3,6 +3,7 @@ import { getLang } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
 import { SITE_NAME } from "@/lib/site";
+import { tr } from "@/lib/lang";
 
 export const metadata = { title: `About — ${SITE_NAME}` };
 
@@ -204,7 +205,7 @@ export default async function AboutPage() {
         {goldSupporters.length > 0 && (
           <section>
             <h2 className="text-sm font-medium text-foreground">
-              🏆 {lang === "es" ? "Colaboradores Gold" : "Gold Supporters"}
+              🏆 {tr(lang, { en: "Gold Supporters", es: "Colaboradores Gold", ja: "ゴールドサポーター" })}
             </h2>
             <p className="mt-2 flex flex-wrap gap-x-1.5 gap-y-1">
               {goldSupporters.map((s, i) => (

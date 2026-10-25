@@ -18,13 +18,7 @@ import {
 } from "../actions";
 import { getLang, type Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
-
-const STATUS_LABEL_ES: Record<string, string> = {
-  SIGNUPS: "inscripciones",
-  IN_PROGRESS: "en curso",
-  COMPLETED: "completado",
-  CANCELLED: "cancelado",
-};
+import { tournamentStatusLabel } from "@/app/tournaments/page";
 
 export default async function TournamentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,17 +35,15 @@ export default async function TournamentDetailPage({ params }: { params: Promise
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">{tournament.name}</h1>
-        <Badge variant="outline">
-          {lang === "es" ? STATUS_LABEL_ES[tournament.status] : tournament.status.toLowerCase()}
-        </Badge>
+        <Badge variant="outline">{tournamentStatusLabel(tournament.status, lang)}</Badge>
       </div>
       {tournament.description && <p className="mt-2 text-sm text-muted-foreground">{tournament.description}</p>}
       <p className="mt-1 text-xs text-muted-foreground">
-        {lang === "es" ? (
-          <>Organizado por {tournament.host.username} · Doble eliminación en start.gg</>
-        ) : (
-          <>Hosted by {tournament.host.username} · Double elimination on start.gg</>
-        )}
+        {tr(lang, {
+          en: `Hosted by ${tournament.host.username} · Double elimination on start.gg`,
+          es: `Organizado por ${tournament.host.username} · Doble eliminación en start.gg`,
+          ja: `主催：${tournament.host.username} · start.gg のダブルイリミネーション`,
+        })}
       </p>
 
       {tournament.startggUrl ? (

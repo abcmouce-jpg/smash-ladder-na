@@ -7,6 +7,7 @@ import { CharacterIcon } from "@/components/character-icon";
 import { cn } from "@/lib/utils";
 import type { FeedPlayer, SerializedSetEntry } from "@/lib/set-entry";
 import { resolveLiveStream, useLiveStreamSelection } from "./selection";
+import { tr } from "@/lib/lang";
 
 // How many live stream thumbnails the home page shows before pointing at the
 // full Sets feed for the rest.
@@ -49,7 +50,7 @@ export function LiveStreamThumbnails({ entries, lang }: { entries: SerializedSet
           href="/live"
           className="flex w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border px-2 py-3 text-center text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
         >
-          {lang === "es" ? "Ver más" : "Show more"}
+          {tr(lang, { en: "Show more", es: "Ver más", ja: "もっと見る" })}
           <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       )}

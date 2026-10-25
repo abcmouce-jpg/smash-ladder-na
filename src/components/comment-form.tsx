@@ -4,6 +4,7 @@ import { useActionState, useRef, useCallback, startTransition, type FormEvent } 
 import { Button } from "@/components/ui/button";
 import { DEFAULT_QUICK_MESSAGES } from "@/lib/quick-messages";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 type SendCommentState = { error: string | null };
 
@@ -74,14 +75,14 @@ export function CommentForm({
         <input
           ref={inputRef}
           name="body"
-          placeholder={lang === "es" ? "Escribe algo…" : "Say something…"}
+          placeholder={tr(lang, { en: "Say something…", es: "Escribe algo…", ja: "メッセージを入力…" })}
           maxLength={500}
           autoComplete="off"
           onInput={handleInput}
           className="h-8 flex-1 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
         <Button type="submit" size="sm" disabled={isPending}>
-          {lang === "es" ? "Enviar" : "Send"}
+          {tr(lang, { en: "Send", es: "Enviar", ja: "送信" })}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

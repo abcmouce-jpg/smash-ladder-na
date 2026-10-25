@@ -68,7 +68,7 @@ export default async function PlayerProfilePage({
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
 
-  const tabLabel = (label: string, es: string) => (lang === "es" ? es : label);
+  const tabLabel = (en: string, es: string, ja: string) => tr(lang, { en, es, ja });
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
@@ -90,15 +90,23 @@ export default async function PlayerProfilePage({
       <SectionTabs
         className="mt-8"
         items={[
-          { href: "?tab=overview", label: tabLabel("Overview", "Resumen"), active: tab === "overview" },
+          { href: "?tab=overview", label: tabLabel("Overview", "Resumen", "概要"), active: tab === "overview" },
           {
             href: "?tab=matches",
-            label: tabLabel("Match History", "Historial de partidas"),
+            label: tabLabel("Match History", "Historial de partidas", "対戦履歴"),
             active: tab === "matches",
           },
-          { href: "?tab=characters", label: tabLabel("Characters", "Personajes"), active: tab === "characters" },
-          { href: "?tab=headtohead", label: tabLabel("Head 2 Heads", "Cara a Cara"), active: tab === "headtohead" },
-          { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas"), active: tab === "seasons" },
+          {
+            href: "?tab=characters",
+            label: tabLabel("Characters", "Personajes", "キャラクター"),
+            active: tab === "characters",
+          },
+          {
+            href: "?tab=headtohead",
+            label: tabLabel("Head 2 Heads", "Cara a Cara", "対戦相手別"),
+            active: tab === "headtohead",
+          },
+          { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas", "シーズン"), active: tab === "seasons" },
         ]}
       />
 

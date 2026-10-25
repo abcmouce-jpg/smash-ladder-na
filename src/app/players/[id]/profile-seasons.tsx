@@ -87,27 +87,23 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
                   <>
                     <span aria-hidden>{PLACEMENT_MEDALS[standing.rank - 1]}</span>
                     <span>
-                      {lang === "es"
-                        ? standing.rank === 1
-                          ? "Campeón"
-                          : standing.rank === 2
-                            ? "Subcampeón"
-                            : "3er lugar"
-                        : standing.rank === 1
-                          ? "Champion"
-                          : standing.rank === 2
-                            ? "Runner-up"
-                            : "3rd Place"}
+                      {standing.rank === 1
+                        ? tr(lang, { en: "Champion", es: "Campeón", ja: "優勝" })
+                        : standing.rank === 2
+                          ? tr(lang, { en: "Runner-up", es: "Subcampeón", ja: "準優勝" })
+                          : tr(lang, { en: "3rd Place", es: "3er lugar", ja: "3位" })}
                     </span>
                     <span className="font-normal text-muted-foreground tabular-nums">
                       — {formatRating(standing.finalRating)}{" "}
                       {tr(lang, { en: "rating", es: "de clasificación", ja: "レート" })}
                     </span>
                   </>
-                ) : lang === "es" ? (
-                  `Finalizó en el #${standing.rank} con ${formatRating(standing.finalRating)} de clasificación`
                 ) : (
-                  `Finished #${standing.rank} with ${formatRating(standing.finalRating)} rating`
+                  tr(lang, {
+                    en: `Finished #${standing.rank} with ${formatRating(standing.finalRating)} rating`,
+                    es: `Finalizó en el #${standing.rank} con ${formatRating(standing.finalRating)} de clasificación`,
+                    ja: `最終${standing.rank}位、レート${formatRating(standing.finalRating)}`,
+                  })
                 )}
               </p>
             )}

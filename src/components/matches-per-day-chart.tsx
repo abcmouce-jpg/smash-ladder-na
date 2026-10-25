@@ -64,8 +64,12 @@ export function MatchesPerDayChart({
   const months = lang === "es" ? MONTHS_ES : MONTHS_EN;
   const dateLabel = (key: string) => {
     const [year, month, day] = key.split("-").map(Number);
-    if (lang === "es") return `${day} ${months[month - 1]} ${year}`;
-    return `${months[month - 1]} ${day}, ${year}`;
+    // Each language orders a date its own way, so the whole string branches.
+    return tr(lang, {
+      en: `${months[month - 1]} ${day}, ${year}`,
+      es: `${day} ${months[month - 1]} ${year}`,
+      ja: `${year}年${month}月${day}日`,
+    });
   };
   const countLabel = (count: number) =>
     tr(lang, {

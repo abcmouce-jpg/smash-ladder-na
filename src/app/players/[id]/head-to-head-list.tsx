@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { winRateVariant } from "@/components/character-usage-card";
 import type { HeadToHeadOpponent } from "@/lib/profile-stats";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 function OpponentAvatar({ avatarUrl, username }: { avatarUrl: string | null; username: string }) {
   if (avatarUrl) {
@@ -47,9 +48,11 @@ export function HeadToHeadRow({
           {o.username}
         </Link>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {lang === "es"
-            ? `${o.games} ${o.games === 1 ? "partida" : "partidas"}`
-            : `${o.games} set${o.games === 1 ? "" : "s"}`}
+          {tr(lang, {
+            en: `${o.games} set${o.games === 1 ? "" : "s"}`,
+            es: `${o.games} ${o.games === 1 ? "partida" : "partidas"}`,
+            ja: `${o.games}セット`,
+          })}
         </span>
         <span className="shrink-0 text-sm font-semibold tabular-nums">
           {o.wins}W–{o.losses}L

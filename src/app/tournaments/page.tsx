@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateTournamentForm } from "@/components/create-tournament-form";
 import { getLang } from "@/lib/i18n";
-import { tr } from "@/lib/lang";
+import { tr, type Lang } from "@/lib/lang";
 
 const STATUS_VARIANT = {
   SIGNUPS: "outline",
@@ -15,12 +15,17 @@ const STATUS_VARIANT = {
   CANCELLED: "destructive",
 } as const;
 
-const STATUS_LABEL_ES: Record<string, string> = {
-  SIGNUPS: "inscripciones",
-  IN_PROGRESS: "en curso",
-  COMPLETED: "completado",
-  CANCELLED: "cancelado",
+// English reads the enum straight off the row, lowercased; the other
+// languages need a table, so they get one each.
+const STATUS_LABELS: Record<Lang, Record<string, string> | null> = {
+  en: null,
+  es: { SIGNUPS: "inscripciones", IN_PROGRESS: "en curso", COMPLETED: "completado", CANCELLED: "cancelado" },
+  ja: { SIGNUPS: "受付中", IN_PROGRESS: "進行中", COMPLETED: "終了", CANCELLED: "中止" },
 };
+
+export function tournamentStatusLabel(status: string, lang: Lang): string {
+  return STATUS_LABELS[lang]?.[status] ?? status.toLowerCase();
+}
 
 export default async function TournamentsPage() {
   const session = await auth();
@@ -60,18 +65,14 @@ export default async function TournamentsPage() {
                   <p className="text-xs text-muted-foreground">
                     {tr(lang, { en: "Hosted by", es: "Organizado por", ja: "主催" })} {t.host.username} ·{" "}
                     {t._count.entries}{" "}
-                    {lang === "es"
-                      ? t._count.entries === 1
-                        ? "participante"
-                        : "participantes"
-                      : t._count.entries === 1
-                        ? "entrant"
-                        : "entrants"}
+                    {tr(lang, {
+                      en: t._count.entries === 1 ? "entrant" : "entrants",
+                      es: t._count.entries === 1 ? "participante" : "participantes",
+                      ja: "人参加",
+                    })}
                   </p>
                 </div>
-                <Badge variant={STATUS_VARIANT[t.status]}>
-                  {lang === "es" ? STATUS_LABEL_ES[t.status] : t.status.toLowerCase()}
-                </Badge>
+                <Badge variant={STATUS_VARIANT[t.status]}>{tournamentStatusLabel(t.status, lang)}</Badge>
               </CardContent>
             </Card>
           </Link>

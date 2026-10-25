@@ -111,7 +111,7 @@ export function SetRow({
         <div className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground sm:px-4">
           <span className="flex min-w-0 items-center gap-1.5">
             <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"} className="shrink-0 px-1.5 py-0 text-[10px]">
-              {lang === "es" ? label?.es : label?.en}
+              {label?.[lang]}
             </Badge>
             {entry.hasLiveStreamer && (
               <span className="flex shrink-0 items-center gap-1 font-medium text-red-500">

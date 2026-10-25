@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Coffee, X } from "lucide-react";
 import { KOFI_URL } from "@/lib/links";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const DISMISSED_AT_KEY = "supporterBannerDismissedAt";
 // Unlike PushNudgeBanner's permanent dismiss, this is asking for money, not
@@ -35,20 +36,25 @@ export function SupporterBanner({ supporterCount, lang }: { supporterCount: numb
     <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3 text-sm">
       <Coffee className="size-4 shrink-0 text-primary" />
       <a href={KOFI_URL} target="_blank" rel="noreferrer" className="min-w-0 flex-1 hover:underline">
-        {lang === "es"
-          ? supporterCount > 0
-            ? supporterCount === 1
-              ? "El hosting lo financia 1 colaborador — ayuda a mantenerlo en pie."
-              : `El hosting lo financian ${supporterCount} colaboradores — ayuda a mantenerlo en pie.`
-            : "El hosting sale de nuestro bolsillo — ayuda a mantenerlo en pie."
-          : supporterCount > 0
-            ? `Hosting is funded by ${supporterCount} supporter${supporterCount === 1 ? "" : "s"} — help keep it running.`
-            : "Hosting costs come out of pocket — help keep it running."}
+        {supporterCount > 0
+          ? tr(lang, {
+              en: `Hosting is funded by ${supporterCount} supporter${supporterCount === 1 ? "" : "s"} — help keep it running.`,
+              es:
+                supporterCount === 1
+                  ? "El hosting lo financia 1 colaborador — ayuda a mantenerlo en pie."
+                  : `El hosting lo financian ${supporterCount} colaboradores — ayuda a mantenerlo en pie.`,
+              ja: `サーバー代は${supporterCount}人の支援で賄われています。継続のための支援をお願いします。`,
+            })
+          : tr(lang, {
+              en: "Hosting costs come out of pocket — help keep it running.",
+              es: "El hosting sale de nuestro bolsillo — ayuda a mantenerlo en pie.",
+              ja: "サーバー代は自腹で出しています。継続のための支援をお願いします。",
+            })}
       </a>
       <button
         type="button"
         onClick={dismiss}
-        aria-label={lang === "es" ? "Cerrar" : "Dismiss"}
+        aria-label={tr(lang, { en: "Dismiss", es: "Cerrar", ja: "閉じる" })}
         className="shrink-0 text-muted-foreground hover:text-foreground"
       >
         <X className="size-4" />

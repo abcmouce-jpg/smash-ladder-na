@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 export type MatchSettingsState = { error: string | null; saved: boolean };
 
@@ -38,15 +39,21 @@ export function MatchSettingsForm({
           {isPending ? (
             <>
               <Loader2 className="size-3.5 animate-spin" />
-              {lang === "es" ? "Guardando…" : "Saving…"}
+              {tr(lang, { en: "Saving…", es: "Guardando…", ja: "保存中…" })}
             </>
           ) : state.saved && !state.error ? (
             <>
               <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-              {lang === "es" ? "Todo guardado" : "All changes saved"}
+              {tr(lang, { en: "All changes saved", es: "Todo guardado", ja: "すべて保存しました" })}
             </>
           ) : (
-            <>{lang === "es" ? "Los cambios se guardan solos" : "Changes save automatically"}</>
+            <>
+              {tr(lang, {
+                en: "Changes save automatically",
+                es: "Los cambios se guardan solos",
+                ja: "変更は自動で保存されます",
+              })}
+            </>
           )}
         </p>
       </div>
