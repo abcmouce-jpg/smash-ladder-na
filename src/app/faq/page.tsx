@@ -71,7 +71,7 @@ export default async function FaqPage() {
               <span key={item.url}>
                 {i > 0 && " · "}
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
-                  {item.label}
+                  {item.label[lang]}
                 </a>
               </span>
             ))}
@@ -235,7 +235,7 @@ function FaqPageEs() {
               <span key={item.url}>
                 {i > 0 && " · "}
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
-                  {item.label}
+                  {item.label.es}
                 </a>
               </span>
             ))}

@@ -6,6 +6,7 @@ import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
 import { ALLOWS_LATENCY_MODS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL, SITE_NAME } from "@/lib/site";
 import { STRIKING_STAGES } from "@/lib/stages";
 import { GAMES_TO_WIN } from "@/lib/match-games";
+import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 
 export const metadata = { title: `Rules — ${SITE_NAME}` };
 
@@ -20,6 +21,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default async function RulesPage() {
   const lang = await getLang();
+  if (lang === "ja") return <RulesPageJa />;
   if (lang === "es") return <RulesPageEs />;
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -290,7 +292,7 @@ export default async function RulesPage() {
             {GEAR_RECOMMENDATIONS.map((item) => (
               <li key={item.url}>
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
-                  {item.label}
+                  {item.label[lang]}
                 </a>
               </li>
             ))}
@@ -574,7 +576,7 @@ function RulesPageEs() {
             {GEAR_RECOMMENDATIONS.map((item) => (
               <li key={item.url}>
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
-                  {item.label}
+                  {item.label.es}
                 </a>
               </li>
             ))}
@@ -583,6 +585,198 @@ function RulesPageEs() {
             Como Afiliado de Amazon, ganamos por compras que califican — son enlaces normales de búsqueda en Amazon, no
             recomendaciones de un producto específico.
           </p>
+        </Section>
+      </div>
+    </main>
+  );
+}
+
+function RulesPageJa() {
+  const lang = "ja" as const;
+  const endDate = PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("ja-JP", {
+    timeZone: DISPLAY_TIME_ZONE,
+    dateStyle: "long",
+  });
+
+  return (
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
+      <h1 className="text-2xl font-semibold tracking-tight">ルール</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        レート対戦についてのルールです。フリー対戦と start.gg の大会は別で、ページ下部に補足があります。
+      </p>
+
+      <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
+        <Section title="形式">
+          <p>
+            レート対戦はすべて{GAMES_TO_WIN === 2 ? "2本先取（3戦制）" : "3本先取（5戦制）"}
+            です。ステージギミックはオフ、ストック数と時間は標準設定です。
+          </p>
+        </Section>
+
+        {HAS_PRIZE_POOL ? (
+          <Section title="シーズン賞金">
+            <p>
+              シーズン終了時点のランキング上位3名で、${SEASON_PRIZE_POOL_USD} USD の賞金を分配します。1位が$
+              {PRIZE_AMOUNTS_USD[0]}、2位が${PRIZE_AMOUNTS_USD[1]}、3位が${PRIZE_AMOUNTS_USD[2]}
+              です。ランキングに載るには
+              {LEADERBOARD_MIN_GAMES}セット以上プレイしている必要があります。
+            </p>
+            <p>
+              現在のプレシーズンは{PRE_SEASON_DURATION_MONTHS}ヶ月の固定期間で、{endDate}
+              頃の終了を見込んでいます。シーズンが終わると全員のレートがリセットされます。
+            </p>
+          </Section>
+        ) : (
+          <Section title="シーズン">
+            <p>
+              シーズンは順位をつけるための期間であって、賞金を懸けたイベントではありません。このラダーに賞金はありません。ランキングに載るには
+              {LEADERBOARD_MIN_GAMES}
+              セット以上プレイしている必要があり、シーズンが終わると全員のレートがリセットされます。
+            </p>
+          </Section>
+        )}
+
+        {!ALLOWS_LATENCY_MODS && (
+          <Section title="改造・Mod">
+            <p>低遅延Mod（ディレイMod）の使用は禁止します。改造していない本体でプレイしてください。</p>
+            <p>
+              回線を良くしたい場合は有線LANアダプタを使ってください。対戦設定で「有線接続の相手のみとマッチする」を選べば、有線の相手だけと当たるようにもできます。
+            </p>
+          </Section>
+        )}
+
+        {STRIKING_STAGES ? (
+          <>
+            <Section title="ステージ選択 — 1戦目">
+              <p>
+                1戦目は5ステージから選びます。戦場、小戦場、ポケモンスタジアム2、すま村、村と町。ランダムに選ばれた側が1つBANし、相手が2つBANして、最初にBANした側が残り2つから選びます。
+              </p>
+            </Section>
+            <Section title="ステージ選択 — 2戦目以降">
+              <p>
+                カウンターピックとして終点、ホロウバスティオン、カロスポケモンリーグが加わり、計8ステージになります。前の試合の勝者が3つBANし、敗者が残りから選びます。
+              </p>
+            </Section>
+          </>
+        ) : (
+          <>
+            <Section title="ステージ — 1戦目">
+              <p>
+                BANはありません。お互いがゲーム内で戦いたいステージを選び、抽選の結果に従います。
+                <strong className="text-foreground">「おまかせ」は選ばないでください。</strong>
+              </p>
+              <p>1戦目は6つから選べます。終点、戦場、ポケモンスタジアム2、小戦場、ホロウバスティオン、村と町。</p>
+            </Section>
+            <Section title="ステージ — 2・3戦目">
+              <p>
+                直前の敗者がステージを選び、勝者はゲーム内で「おまかせ」を選択します。2戦目からは
+                <strong className="text-foreground">すま村</strong>が加わって7つになります。
+              </p>
+              <p>「終点」「戦場」は、終点化・戦場化したステージとしても選べます。</p>
+            </Section>
+          </>
+        )}
+
+        <Section title="部屋番号">
+          <p>
+            部屋番号は片方だけが設定します。一度設定するとその人に固定されるため、準備中に黙って差し替えられることはありません。
+          </p>
+          <p>
+            ゲーム内のパスワードは全員 <span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>{" "}
+            が既定です。共通にしておけば、部屋番号とは別にパスワードを伝える手間がなくなります。配信する場合は、設定から自分用のパスワードに変えられます（既定値は公開されている前提のものなので）。相手のロビーには、その時点で実際に有効なパスワードが表示されます。
+          </p>
+        </Section>
+
+        <Section title="結果の報告">
+          <p>
+            セット終了後、両者が勝者を報告します。報告が一致すればその場で確定します。ある試合の報告が食い違った場合、その試合だけが異議申立として扱われ、セットの残りは止まりません。どちらかがロビーから「相手の報告に同意する」を選べば、モデレーターを介さずその場で解決します。それでも合意できない場合は、モデレーターの確認待ちになります。
+          </p>
+          <p>
+            片方だけが報告し、もう一方が応答しないまま3時間が経つと、報告がそのまま自動で確定し、応答しなかった側は不参加として記録されます。相手が報告した時点で
+            Discord
+            に通知が届くので、時間が動き出したことは分かります。自分が1-0または2-0でリードしていて、相手が完全に沈黙した場合（次の試合のキャラ選択もしない場合）は、セット全体が不戦勝になります。
+          </p>
+          <p>
+            勝者を間違えて報告した場合は、自分のプロフィールページにある直近の試合の「結果が違いますか？」から訂正を申請できます。両者の訂正が一致すればその場で反映され、レートが計算し直されます。食い違った場合はモデレーターが確認します。利用できるのは、その試合が両者にとって最新の確定試合であり、かつその後シーズンが終わっていない間だけです。
+          </p>
+        </Section>
+
+        <Section title="試合の中止">
+          <p>
+            中止ボタンはレートに影響しませんが、使えるのは相手がまだ本当に来ていない間だけです（チャットなし、キャラ未選択、ステージ未選択、部屋番号の入力なし）。相手がそのいずれかを行った時点で、同じボタンは「降参」に変わります。そこから抜けるのは実際の敗北として扱われ、セットを落としたのとまったく同じだけレートが動きます。これは意図的な設計です。
+          </p>
+          <p>
+            相手が来ていない場合の無償の中止でも、中止した側のアカウントには記録が残ります。中止の割合が一定を超えると
+            Discord
+            で自動的に警告が届き、さらに重ねると24時間の利用制限がかかります。制限中もレート対戦はできますが、フリー対戦への投稿と新しい通報はできません。降参はこの集計に含まれません（すでにレートで代償を払っているためです）。
+          </p>
+          <p>
+            中止が多いと、自己申告の有線バッジにも影響します。こちらは警告・制限よりも低い基準で、中止回数が「中止＋試合数」の4分の1を超え、かつ3回以上中止している場合、バッジは自動的に外れ、その比率が下がるまで再申告できません。中止が多すぎること自体が、回線の自己申告の信頼性を損なうためです。
+          </p>
+          <p>
+            どれか1試合の勝者が決まったか、どちらかが結果を報告した時点で、無償の中止は使えなくなります。それ以降は、どちら側から抜けても降参になります。セットの途中で相手が沈黙した場合、基本的に何もする必要はありません。相手がステージ選択で止まれば数分後にその手番は自動で処理され、キャラ選択で止まった場合は1戦目なら相手のセット負け、2戦目以降は前の試合のキャラがそのまま使われます。
+          </p>
+        </Section>
+
+        <Section title="練習モード">
+          <p>
+            待機するときに「練習」を選ぶと、そのセットは通常のレートにまったく影響しません。勝敗は別の練習レートに記録され、通常のレートとセット数は動きません。練習レートも1500から始まり、計算方法は同じですが、完全に独立した別の記録です。
+          </p>
+          <p>
+            練習かどうかはプレイヤー単位で、試合単位ではありません。練習でない相手に練習として挑むこともできますし、その逆もあります。練習中の相手と当たりたくない場合は、設定で「練習中の相手とはマッチしない」をオンにしてください。
+          </p>
+          <p>
+            練習中にメインキャラを使うことは禁止します。練習モードは自分のレートを守る仕組みなので、練習でない相手にこれを行うと、リスクが相手だけに偏ります。これは正当な使い方ではありません。自動で検出はしていないので、ほかの違反と同じように通報してください。モデレーターが確認し、必要なら利用停止にします。
+          </p>
+        </Section>
+
+        <Section title="使用キャラの報告">
+          <p>
+            試合後、相手はあなたが使ったキャラクターを任意で報告できます。これがキャラクター別ランキングの元になります。自己申告ではなく、直前に対戦した相手からの報告にしているのは、そのほうが操作しにくいためです。
+          </p>
+        </Section>
+
+        <Section title="マナーと通報">
+          <p>
+            相手が来なかった、わざと時間を使った、意図的に切断した、暴言があったといった場合は通報してください。通報はモデレーターが確認します。通報そのものには何の効力もなく、悪意ある通報は逆に通報の対象になります。通報は1時間あたり5件までです。
+          </p>
+          <p>
+            アカウントに措置が及ぶのは、通報を受けてモデレーターが判断した場合だけです。通報した事実だけでは何も起きません。内容次第では1件の通報だけで利用停止や永久停止になることもありますし、通報がなくてもモデレーターが直接措置することもあります。利用停止中はフリー対戦への投稿と新しい通報ができなくなりますが（報復を防ぐためです）、レート対戦は続けられます。期限付き（自動解除）と無期限のどちらもあります。
+          </p>
+        </Section>
+
+        <Section title="マッチング">
+          <p>
+            マッチングは全国一律です。距離で相手を絞ることはしません。都道府県はプロフィールとランキング用の情報で、マッチングの条件にはなりません。レート差や再戦の間隔は、対戦設定から自分で決められます。
+          </p>
+          <p>
+            レート対戦の待機に入ると、マッチするか自分で抜けるまで待機が続きます。サイトを開いたままにしている限り待機は維持され、10分間まったく動きがないと解除されます。待機への参加は1分あたり5回までです。
+          </p>
+        </Section>
+
+        <Section title="フリー対戦と大会">
+          <p>
+            フリー対戦の募集はレートに影響せず、先着で成立し、24時間で期限切れになります。レートを動かさずに練習や気軽な対戦をしたいときに向いています。コミュニティ大会は
+            start.gg
+            で行います。参加受付はこのサイトで行いますが、個々の大会のブラケット規則や揉め事の扱いは、その大会の主催者が決めます。
+          </p>
+        </Section>
+
+        <Section title="有線でプレイするための機材">
+          <p>
+            実際に有線接続にするには（上記のバッジのためにも）、携帯モードなら USB-C
+            の有線LANアダプタ、ドックを使うならドックに LAN
+            ケーブルを挿すのが一般的です。ゲームキューブコントローラーも、競技勢がよく行うもう一つの改善です。
+          </p>
+          <ul className="list-inside list-disc">
+            {GEAR_RECOMMENDATIONS.map((item) => (
+              <li key={item.url}>
+                <a href={item.url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+                  {item.label[lang]}
+                </a>
+              </li>
+            ))}
+          </ul>
         </Section>
       </div>
     </main>
