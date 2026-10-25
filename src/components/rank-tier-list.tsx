@@ -10,11 +10,21 @@ import { tr } from "@/lib/lang";
 // provisional row is gated on sets played, not rating — it is the absence
 // of a tier, which is why it is not a member of RANK_TIERS and why `tier`
 // is nullable.
-function RankRow({ tier, range, children }: { tier: RankTier | null; range: string; children: React.ReactNode }) {
+function RankRow({
+  tier,
+  range,
+  children,
+  lang,
+}: {
+  tier: RankTier | null;
+  range: string;
+  children: React.ReactNode;
+  lang: Lang;
+}) {
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between gap-3">
-        <TierBadge tier={tier} />
+        <TierBadge tier={tier} lang={lang} />
         <span className="text-xs tabular-nums text-muted-foreground">{range}</span>
       </div>
       <p className="mt-1.5 text-sm text-muted-foreground">{children}</p>
@@ -54,7 +64,7 @@ export function RankTierList({ className, lang = "en" }: { className?: string; l
   return (
     <Card className={cn("divide-y divide-border overflow-hidden py-0", className)}>
       {RANK_TIERS.map((tier) => (
-        <RankRow key={tier.name} tier={tier} range={rankTierRatingRange(tier)}>
+        <RankRow key={tier.name} tier={tier} range={rankTierRatingRange(tier)} lang={lang}>
           {lang === "ja"
             ? (TIER_DESCRIPTIONS_JA[tier.name] ?? tier.description)
             : lang === "es"
@@ -64,6 +74,7 @@ export function RankTierList({ className, lang = "en" }: { className?: string; l
       ))}
       <RankRow
         tier={null}
+        lang={lang}
         range={tr(lang, {
           en: `First ${PROVISIONAL_MIN_GAMES} sets`,
           es: `Primeras ${PROVISIONAL_MIN_GAMES} partidas`,

@@ -13,6 +13,7 @@ import type { MatchHistoryEntryData } from "@/lib/players";
 import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
+import { PROVISIONAL_LABEL } from "@/components/rank-badge";
 
 // The page hands this component the same entry getPlayerMatchHistory
 // returns, except confirmedAt must be serialized to an ISO string first
@@ -114,7 +115,8 @@ export function MatchHistoryEntry({
   // their numbers. Moderators see everything. The arrow needs both ends; a
   // match with no post-rating recorded falls back to the bare delta rather than
   // drawing "1500 → null". A hidden set — a provisional one — reads
-  // "Provisional" in the slot, so the row doesn't look like it's missing data.
+  // PROVISIONAL_LABEL in the slot, so the row doesn't look like it's missing
+  // data.
   const trailVisible = canSeeHiddenRatings || (match.ratingRevealed ?? true);
   const hasRatingTrail = trailVisible && match.ratingBefore != null && match.ratingAfter != null;
   const deltaClass = cn(
@@ -200,7 +202,7 @@ export function MatchHistoryEntry({
                 </span>
               )
             ) : (
-              <span className="text-xs text-muted-foreground">Provisional</span>
+              <span className="text-xs text-muted-foreground">{tr(lang, PROVISIONAL_LABEL)}</span>
             )}
             {match.confirmedAt && (
               <span className="text-xs tabular-nums text-muted-foreground">

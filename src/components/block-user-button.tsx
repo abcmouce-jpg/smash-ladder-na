@@ -19,7 +19,7 @@ export function BlockUserButton({
   lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
-  const [confirm, confirmDialog] = useConfirm();
+  const [confirm, confirmDialog] = useConfirm(lang);
   const confirmReadyRef = useRef(false);
 
   return (

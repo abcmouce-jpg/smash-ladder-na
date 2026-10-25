@@ -32,7 +32,7 @@ export function CancelOrSurrenderButton({
   lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
-  const [confirm, confirmDialog, closeConfirm] = useConfirm();
+  const [confirm, confirmDialog, closeConfirm] = useConfirm(lang);
   const confirmReadyRef = useRef(false);
   const prevModeRef = useRef(mode);
 

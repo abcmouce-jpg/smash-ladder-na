@@ -2,6 +2,7 @@ import { getRankTier, PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import type { RatingBucket } from "@/lib/public-stats";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
+import { PROVISIONAL_LABEL } from "@/components/rank-badge";
 
 // Histogram of every ranked player's current rating, as a bar per rating bin
 // (see getRatingDistribution). Presentational and server-safe — hover detail
@@ -47,7 +48,8 @@ export function RatingDistributionChart({
   const rangeLabel = (b: RatingBucket) => `${b.min}–${b.max}`;
   // A bucket's whole range sits inside one tier — bin edges and tier floors are
   // both multiples of 25 — so the tier of its lower bound describes it fully.
-  const tierName = (b: RatingBucket) => getRankTier(b.min, PROVISIONAL_GAMES_THRESHOLD)?.name ?? "Provisional";
+  const tierName = (b: RatingBucket) =>
+    getRankTier(b.min, PROVISIONAL_GAMES_THRESHOLD)?.name ?? tr(lang, PROVISIONAL_LABEL);
 
   return (
     <div>

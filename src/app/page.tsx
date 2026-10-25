@@ -262,7 +262,7 @@ export default async function Home() {
                             ja: "レート",
                           })}
                         </p>
-                        <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
+                        <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} lang={lang} />
                       </div>
                     </div>
                   </CardContent>

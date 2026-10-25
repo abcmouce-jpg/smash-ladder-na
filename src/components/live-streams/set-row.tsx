@@ -81,6 +81,7 @@ export function SetRow({
             align="left"
             viewerIsModerator={viewerIsModerator}
             className="col-start-1 row-start-1"
+            lang={lang}
           />
 
           <div className="col-start-2 row-span-2 row-start-1 flex shrink-0 flex-col items-center gap-1">
@@ -98,6 +99,7 @@ export function SetRow({
             align="right"
             viewerIsModerator={viewerIsModerator}
             className="col-start-1 row-start-2"
+            lang={lang}
           />
         </div>
 
@@ -229,18 +231,20 @@ function Side({
   align,
   viewerIsModerator = false,
   className,
+  lang,
 }: {
   player: FeedPlayer;
   align: "left" | "right";
   viewerIsModerator?: boolean;
   className?: string;
+  lang: Lang;
 }) {
   const isRight = align === "right";
   // A provisional player's rating isn't public (see isRatingVisible) — the
   // feed would otherwise be the easiest place to read a brand-new player's
   // number off. Moderators keep seeing it. The tier badge beside the name
-  // already reads "Provisional" for them, so the number line drops the word
-  // rather than repeating it.
+  // already carries PROVISIONAL_LABEL for them, so the number line drops the
+  // word rather than repeating it.
   const ratingVisible = isRatingVisible(player.gamesPlayed, viewerIsModerator);
   return (
     <div className={cn("flex min-w-0 flex-1 items-center gap-2", isRight && "sm:flex-row-reverse", className)}>
@@ -265,6 +269,7 @@ function Side({
             rating={player.rating}
             gamesPlayed={player.gamesPlayed}
             className={cn("px-1.5 py-0 text-[10px]", isRight && "sm:order-first")}
+            lang={lang}
           />
         </span>
         <span

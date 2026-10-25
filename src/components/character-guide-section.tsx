@@ -204,7 +204,7 @@ export function GuideCard({
 }) {
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [confirm, confirmDialog] = useConfirm();
+  const [confirm, confirmDialog] = useConfirm(lang);
   const boundEdit = editAction.bind(null, guide.id);
   const [editState, editFormAction, editPending] = useActionState(boundEdit, { error: null });
   const editSubmittedRef = useRef(false);

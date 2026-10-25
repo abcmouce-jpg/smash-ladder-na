@@ -69,7 +69,7 @@ export default async function StreamLeaderboardPage({
                 </div>
               </td>
               <td className="py-1 pr-2">
-                <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+                <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} lang={lang} />
               </td>
               <td className="py-1 text-right font-medium tabular-nums">{formatRating(player.rating)}</td>
             </tr>

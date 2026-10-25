@@ -1060,6 +1060,7 @@ async function PairedView({
                       ja: `第${g.gameNumber}試合に勝ったとして確定しますか？`,
                     })}
                     variant="success"
+                    lang={lang}
                   >
                     {tr(lang, { en: "I Won", es: "Gané", ja: "勝った" })}
                   </ConfirmSubmitButton>
@@ -1071,6 +1072,7 @@ async function PairedView({
                       ja: `第${g.gameNumber}試合に負けたとして確定しますか？`,
                     })}
                     variant="destructive"
+                    lang={lang}
                   >
                     {tr(lang, { en: "I Lost", es: "Perdí", ja: "負けた" })}
                   </ConfirmSubmitButton>
@@ -2888,6 +2890,7 @@ function ReportGameSection({
             ja: `第${game.gameNumber}試合に勝ったと報告しますか？`,
           })}
           variant="success"
+          lang={lang}
         >
           {tr(lang, { en: "I Won", es: "Gané", ja: "勝った" })}
         </ConfirmSubmitButton>
@@ -2899,6 +2902,7 @@ function ReportGameSection({
             ja: `第${game.gameNumber}試合に負けたと報告しますか？`,
           })}
           variant="destructive"
+          lang={lang}
         >
           {tr(lang, { en: "I Lost", es: "Perdí", ja: "負けた" })}
         </ConfirmSubmitButton>

@@ -7,7 +7,7 @@ import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 
 export function DeleteAccountButton({ action, lang = "en" }: { action: () => Promise<void>; lang?: Lang }) {
-  const [confirm, confirmDialog] = useConfirm();
+  const [confirm, confirmDialog] = useConfirm(lang);
   const confirmReadyRef = useRef(false);
 
   return (

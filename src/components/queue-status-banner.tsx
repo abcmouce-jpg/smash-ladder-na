@@ -7,6 +7,8 @@ import { LobbyEntryStatus, MatchStatus } from "@/generated/prisma/enums";
 import { QueueTimer } from "@/components/queue-timer";
 import { QueueStatusPoller } from "@/components/queue-status-poller";
 import { touchWaitingLobbyEntry } from "@/lib/lobby";
+import { getLang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // The Lobby page shows both of these states in full — a queue wait with a live
 // timer, and the whole match panel — but only to someone looking at that page.
@@ -69,27 +71,36 @@ export async function QueueStatusBanner() {
   // waiting, so the common case still costs nothing.
   if (waiting) await touchWaitingLobbyEntry(userId);
 
+  // Read last, after both early returns: a page that shows no strip shouldn't
+  // pay for the language lookup.
+  const lang = await getLang();
+  const lobbyLink = tr(lang, { en: "go to Lobby", es: "ir a la Sala", ja: "ロビーへ" });
+
   return (
     <div className="border-b border-border bg-primary/5">
       <div className="mx-auto flex max-w-3xl items-center gap-2 px-6 py-2 text-sm">
         {inMatch ? (
           <>
             <Swords className="size-3.5 shrink-0 text-primary" />
-            <span className="text-muted-foreground">You&apos;re in a match —</span>
+            <span className="text-muted-foreground">
+              {tr(lang, { en: "You're in a match —", es: "Estás en una partida —", ja: "対戦中です —" })}
+            </span>
             <Link href="/lobby" className="font-medium text-primary hover:underline">
-              go to Lobby
+              {lobbyLink}
             </Link>
           </>
         ) : waiting ? (
           <>
             <Clock className="size-3.5 shrink-0 text-primary" />
-            <span className="text-muted-foreground">In queue</span>
+            <span className="text-muted-foreground">
+              {tr(lang, { en: "In queue", es: "En la cola", ja: "待機中" })}
+            </span>
             <span className="font-medium tabular-nums text-foreground">
               <QueueTimer joinedAt={waiting.joinedAt.toISOString()} />
             </span>
             <span className="text-muted-foreground">—</span>
             <Link href="/lobby" className="font-medium text-primary hover:underline">
-              go to Lobby
+              {lobbyLink}
             </Link>
           </>
         ) : null}

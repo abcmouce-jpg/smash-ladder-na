@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { type Lang, tr } from "@/lib/lang";
 
 interface ConfirmOptions {
   title?: string;
@@ -36,8 +37,15 @@ interface ConfirmState {
  *     ...
  *     {confirmDialog}
  *   </form>
+ *
+ * Pass the viewer's language so the two buttons and the fallback title read in
+ * it. They were hard-coded English, which a caller had no way to override
+ * short of repeating the labels at every confirm() — and most callers didn't,
+ * so a Japanese player cancelling a match got a dialog whose confirm button
+ * said "Confirm". `message` stays the caller's job: only they know what the
+ * action is.
  */
-export function useConfirm() {
+export function useConfirm(lang: Lang = "en") {
   const [state, setState] = useState<ConfirmState | null>(null);
   // Keep a ref of the latest resolve so the stable callbacks always close
   // the correct promise even if state updates race.
@@ -49,14 +57,14 @@ export function useConfirm() {
         resolveRef.current = resolve;
         setState({
           message,
-          title: opts?.title ?? "Confirm",
-          confirmLabel: opts?.confirmLabel ?? "Confirm",
-          cancelLabel: opts?.cancelLabel ?? "Cancel",
+          title: opts?.title ?? tr(lang, { en: "Confirm", es: "Confirmar", ja: "確認" }),
+          confirmLabel: opts?.confirmLabel ?? tr(lang, { en: "Confirm", es: "Confirmar", ja: "実行する" }),
+          cancelLabel: opts?.cancelLabel ?? tr(lang, { en: "Cancel", es: "Cancelar", ja: "やめる" }),
           variant: opts?.variant ?? "default",
           resolve,
         });
       }),
-    [],
+    [lang],
   );
 
   const handleConfirm = useCallback(() => {

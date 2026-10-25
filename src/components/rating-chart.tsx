@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useBrowserTimeZone } from "@/hooks/use-browser-time-zone";
 import { formatRating } from "@/lib/rating-format";
+import { type Lang, tr } from "@/lib/lang";
 
 type Point = { date: string; rating: number };
 
@@ -31,7 +32,7 @@ const CHART_DAYS = 90;
 // switch to the browser's real timezone once mounted, without a hydration
 // mismatch.
 
-export function RatingChart({ points }: { points: Point[] }) {
+export function RatingChart({ points, lang = "en" }: { points: Point[]; lang?: Lang }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const tz = useBrowserTimeZone() ?? "UTC";
@@ -61,7 +62,15 @@ export function RatingChart({ points }: { points: Point[] }) {
   }
 
   if (condensed.length < 2) {
-    return <p className="text-sm text-muted-foreground">Not enough confirmed matches yet.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        {tr(lang, {
+          en: "Not enough confirmed matches yet.",
+          es: "Aún no hay suficientes partidas confirmadas.",
+          ja: "まだ確定した対戦が足りません。",
+        })}
+      </p>
+    );
   }
 
   // Build the full daily series the x axis spans: one point per calendar day
@@ -167,7 +176,11 @@ export function RatingChart({ points }: { points: Point[] }) {
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverIndex(null)}
         role="img"
-        aria-label="Rating over recent matches"
+        aria-label={tr(lang, {
+          en: "Rating over recent matches",
+          es: "Clasificación en las partidas recientes",
+          ja: "直近の対戦でのレート推移",
+        })}
       >
         {gridLines.map((gy) => (
           <g key={gy}>
@@ -239,18 +252,30 @@ export function RatingChart({ points }: { points: Point[] }) {
 
       <div className="flex h-5 items-center justify-center text-xs text-muted-foreground">
         {hovered
-          ? `${formatDate(hovered.date, tz)} — ${formatRating(hovered.rating)} rating`
-          : `${formatRating(condensed[0].rating)} → ${formatRating(condensed[condensed.length - 1].rating)} over last ${condensed.length} matches`}
+          ? tr(lang, {
+              en: `${formatDate(hovered.date, tz)} — ${formatRating(hovered.rating)} rating`,
+              es: `${formatDate(hovered.date, tz)} — ${formatRating(hovered.rating)} de clasificación`,
+              ja: `${formatDate(hovered.date, tz)} — レート${formatRating(hovered.rating)}`,
+            })
+          : tr(lang, {
+              en: `${formatRating(condensed[0].rating)} → ${formatRating(condensed[condensed.length - 1].rating)} over last ${condensed.length} matches`,
+              es: `${formatRating(condensed[0].rating)} → ${formatRating(condensed[condensed.length - 1].rating)} en las últimas ${condensed.length} partidas`,
+              ja: `直近${condensed.length}戦で ${formatRating(condensed[0].rating)} → ${formatRating(condensed[condensed.length - 1].rating)}`,
+            })}
       </div>
 
       <details className="mt-2 text-xs">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">View as table</summary>
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+          {tr(lang, { en: "View as table", es: "Ver como tabla", ja: "表で見る" })}
+        </summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="text-muted-foreground">
-                <th className="py-1 font-medium">Date</th>
-                <th className="py-1 text-right font-medium tabular-nums">Rating</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Date", es: "Fecha", ja: "日付" })}</th>
+                <th className="py-1 text-right font-medium tabular-nums">
+                  {tr(lang, { en: "Rating", es: "Clasificación", ja: "レート" })}
+                </th>
               </tr>
             </thead>
             <tbody>

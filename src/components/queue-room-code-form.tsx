@@ -76,7 +76,7 @@ export function QueueRoomCodeForm({
                   .slice(0, 5),
               )
             }
-            placeholder="e.g. AB123"
+            placeholder={tr(lang, { en: "e.g. AB123", es: "ej. AB123", ja: "例: AB123" })}
             maxLength={5}
             pattern="[A-Z0-9]{5}"
             autoComplete="off"

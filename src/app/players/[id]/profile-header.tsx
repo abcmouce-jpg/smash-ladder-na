@@ -217,7 +217,7 @@ export function PlayerProfileHeader({
                 </Badge>
               </a>
             )}
-            <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+            <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} lang={lang} />
             {USES_REGIONS && player.region && (
               <Badge variant="outline">
                 <MapPin className="size-3" />

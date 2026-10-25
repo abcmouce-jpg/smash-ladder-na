@@ -427,7 +427,7 @@ export default async function LeaderboardPage({
                       </Link>
                     </td>
                     <td className="py-2">
-                      <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+                      <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} lang={lang} />
                     </td>
                     <td className="py-2 text-right font-medium tabular-nums">{formatRating(player.rating)}</td>
                     <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{player.gamesPlayed}</td>

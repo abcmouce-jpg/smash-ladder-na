@@ -1,10 +1,11 @@
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
+import { PROVISIONAL_LABEL } from "@/components/rank-badge";
 
 // Stands in wherever a player's rating would be shown while they're still
-// provisional (see isRatingVisible). Reads "Provisional" to echo the tier badge
-// shown alongside it (see TierBadge) — at this stage a player has no tier and no
+// provisional (see isRatingVisible). Reads PROVISIONAL_LABEL to echo the tier
+// badge shown alongside it (see TierBadge) — at this stage a player has no tier and no
 // public rating — followed by the sets remaining until the rating appears, so
 // the placeholder reads as intentional rather than broken and the player knows
 // how much further they have to go. Rendered in the same slot the rating occupies
@@ -34,7 +35,7 @@ export function RatingHidden({
   });
   return (
     <span className={className} title={rule}>
-      Provisional ({progress})
+      {tr(lang, PROVISIONAL_LABEL)} ({progress})
     </span>
   );
 }

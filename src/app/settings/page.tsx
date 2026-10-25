@@ -963,7 +963,7 @@ function StreamOverlayCard({
         })}
       </p>
       <div className="mt-3">
-        <OverlayUrlToggle baseUrl={overlayUrl} />
+        <OverlayUrlToggle baseUrl={overlayUrl} lang={lang} />
       </div>
     </div>
   );

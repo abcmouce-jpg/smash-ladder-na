@@ -411,6 +411,7 @@ export async function ProfileOverviewSection({
                 date: p.date.toISOString(),
                 rating: p.rating,
               }))}
+              lang={lang}
             />
           </CardContent>
         </Card>

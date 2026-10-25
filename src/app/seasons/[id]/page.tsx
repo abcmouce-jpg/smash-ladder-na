@@ -94,6 +94,7 @@ export default async function SeasonStandingsPage({
                     rating={s.finalRating}
                     gamesPlayed={s.gamesPlayed}
                     tiers={rankTiersFor(season.algorithm)}
+                    lang={lang}
                   />
                 </td>
                 <td className="py-2 text-right font-medium tabular-nums">{formatRating(s.finalRating)}</td>
