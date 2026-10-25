@@ -10,7 +10,8 @@ import {
   type MatchCountry,
 } from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import { getLeaderboardPlayers } from "@/lib/leaderboard";
+import { CharacterIcon } from "@/components/character-icon";
+import { getLeaderboardPlayers, getUnrankedPlayers } from "@/lib/leaderboard";
 import { getCharacterUsage } from "@/lib/players";
 import {
   ensureActiveSeason,
@@ -29,13 +30,16 @@ import { SeasonCountdown } from "@/components/season-countdown";
 import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getLang, type Lang } from "@/lib/i18n";
 import { formatRating } from "@/lib/rating-format";
 import { tr, trNode } from "@/lib/lang";
 import { USES_REGIONS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL } from "@/lib/site";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
+// Enough to show a new instance it has people, not so many that an
+// established one lists everyone who ever signed up and never played.
+const UNRANKED_SHOWN = 12;
 const PAGE_SIZE = 50;
 
 const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group) =>
@@ -83,7 +87,7 @@ export default async function LeaderboardPage({
   // dropdown can't offer a region that'd just get silently ignored.
   const regionOptions = countryRegions ? REGION_OPTIONS.filter((opt) => countryRegions.has(opt.value)) : REGION_OPTIONS;
 
-  const [session, season, { players, totalCount }, lang] = await Promise.all([
+  const [session, season, { players, totalCount }, unranked, lang] = await Promise.all([
     auth(),
     ensureActiveSeason(),
     getLeaderboardPlayers(
@@ -95,6 +99,9 @@ export default async function LeaderboardPage({
       },
       { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
     ),
+    // Only on the unfiltered first page: this is "who else is here", not a
+    // second set of results for whatever was searched for.
+    page === 1 && !query && !isValidCharacter ? getUnrankedPlayers(UNRANKED_SHOWN) : Promise.resolve([]),
     getLang(),
   ]);
 
@@ -448,6 +455,40 @@ export default async function LeaderboardPage({
           </p>
         )}
       </Card>
+
+      {unranked.length > 0 && (
+        <Card className="mt-6">
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium">
+              {tr(lang, {
+                en: "Getting there",
+                es: "En camino",
+                ja: "ランク入り前のプレイヤー",
+              })}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {tr(lang, {
+                en: `Signed up, not yet ranked — the board starts at ${LEADERBOARD_MIN_GAMES} sets.`,
+                es: `Registrados, aún sin rango — la tabla empieza a las ${LEADERBOARD_MIN_GAMES} partidas.`,
+                ja: `参加済みで、まだランク入りしていない人です。ランキングは${LEADERBOARD_MIN_GAMES}セットから載ります。`,
+              })}
+            </p>
+            <ul className="mt-3 flex flex-col divide-y divide-border">
+              {unranked.map((player) => (
+                <li key={player.id} className="flex items-center gap-2 py-2">
+                  {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
+                  <Link href={`/players/${player.id}`} className="min-w-0 truncate text-sm hover:underline">
+                    {player.username}
+                  </Link>
+                  <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {player.gamesPlayed}/{LEADERBOARD_MIN_GAMES}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEADERBOARD} />
     </main>

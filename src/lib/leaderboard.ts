@@ -34,6 +34,32 @@ function leaderboardEligibility(query?: string | null) {
   };
 }
 
+/**
+ * The people who have signed up but aren't on the board yet.
+ *
+ * The leaderboard only lists players past LEADERBOARD_MIN_GAMES, which is
+ * right for a ranking and wrong for a new instance: Japan launched with
+ * players registered and a page that said nobody was here, so there was no
+ * way for anyone — including whoever runs it — to see that a community had
+ * started. This is who has arrived, newest first.
+ *
+ * No ratings. A provisional rating isn't public (see isRatingVisible) and
+ * this doesn't make it so; what it shows is how far along someone is toward
+ * being ranked at all.
+ */
+export async function getUnrankedPlayers(take: number) {
+  return prisma.user.findMany({
+    where: {
+      gamesPlayed: { lt: LEADERBOARD_MIN_GAMES },
+      status: { not: UserStatus.BANNED },
+      username: { not: DELETED_USERNAME },
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true, username: true, mainCharacter: true, gamesPlayed: true, createdAt: true },
+  });
+}
+
 // Shared by the interactive /leaderboard page and the /stream broadcast
 // overlay so both agree on what counts as "ranked" and rank the same way.
 export async function getLeaderboardPlayers(
