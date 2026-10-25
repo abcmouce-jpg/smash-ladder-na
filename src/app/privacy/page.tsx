@@ -28,9 +28,11 @@ export default async function PrivacyPage() {
           <section>
             <h2 className="text-sm font-medium text-foreground">利用目的</h2>
             <p className="mt-2">
-              ラダーの運営のためです。マッチング、レートの計算、ランキング、対戦履歴、そして運営上の対応（通報、異議申立、アカウントの状態）に使います。Discord
-              の bot トークンが設定されている場合は、対戦や大会に関する連絡を DM でお送りします。これは Discord
-              自身の制限により、bot と同じサーバーに参加している場合にのみ機能します。
+              ラダーの運営のためです。マッチング、レートの計算、ランキング、対戦履歴、そして運営上の対応（通報、異議申立、アカウントの状態）に使います。
+            </p>
+            <p className="mt-2">
+              Discord の bot トークンが設定されている場合は、対戦や大会の連絡を DM でお送りします。これは bot
+              と同じサーバーに参加している場合にのみ機能します（Discord 側の制限です）。
             </p>
           </section>
 
@@ -42,8 +44,11 @@ export default async function PrivacyPage() {
             </p>
             <p className="mt-2">
               閲覧のみのページ（ランキング、統計、大会、フリー対戦）では、Google AdSense
-              による広告が表示されることがあります。AdSense は独自の Cookie
-              を設定し、本サイトおよび他サイトへの訪問に関するデータを、広告の配信と効果測定のために利用することがあります。これは私たち自身が取得または管理しているデータではありません。パーソナライズ広告は
+              による広告が表示されることがあります。
+            </p>
+            <p className="mt-2">
+              AdSense は独自の Cookie
+              を設定し、本サイトや他サイトへの訪問データを広告の配信と効果測定に利用することがあります。私たちが取得・管理しているデータではありません。パーソナライズ広告は
               Google の広告設定から無効にできます。
             </p>
           </section>
@@ -51,8 +56,11 @@ export default async function PrivacyPage() {
           <section>
             <h2 className="text-sm font-medium text-foreground">Cookie</h2>
             <p className="mt-2">
-              ログイン状態を保つためのセッション Cookie が1つと、表示言語の選択を記憶するための Cookie
-              が1つだけです。広告が表示されるページでは、前項のとおり Google AdSense が独自の Cookie
+              使っているのは2つだけです。ログイン状態を保つためのセッション Cookie と、表示言語の選択を記憶するための
+              Cookie です。
+            </p>
+            <p className="mt-2">
+              広告が表示されるページでは、前項のとおり Google AdSense が独自の Cookie
               を設定することがあります。それ以外に、追跡や広告のための Cookie は設定していません。
             </p>
           </section>

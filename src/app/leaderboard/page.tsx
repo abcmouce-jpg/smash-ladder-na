@@ -33,7 +33,7 @@ import { Card } from "@/components/ui/card";
 import { getLang, type Lang } from "@/lib/i18n";
 import { formatRating } from "@/lib/rating-format";
 import { tr, trNode } from "@/lib/lang";
-import { DISPLAY_TIME_ZONE, HAS_PRIZE_POOL } from "@/lib/site";
+import { REGION_FILTERS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL } from "@/lib/site";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 const PAGE_SIZE = 50;
@@ -60,7 +60,7 @@ export default async function LeaderboardPage({
 }) {
   const { character, page: pageParam, q, region, country } = await searchParams;
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
-  const isValidCountry = country && (MATCH_COUNTRIES as readonly string[]).includes(country);
+  const isValidCountry = REGION_FILTERS && country && (MATCH_COUNTRIES as readonly string[]).includes(country);
   const effectiveCountry = isValidCountry ? (country as MatchCountry) : null;
   // A region only stays selected if it actually belongs to the chosen
   // country — otherwise a stale region from before the country was changed
@@ -69,7 +69,10 @@ export default async function LeaderboardPage({
   // leftover selection" trap the match-distance presets bug hit on 2026-08-05.
   const countryRegions = effectiveCountry ? new Set(expandCountryForSearch(effectiveCountry)) : null;
   const isValidRegion =
-    region && (MATCH_REGIONS as readonly string[]).includes(region) && (!countryRegions || countryRegions.has(region));
+    REGION_FILTERS &&
+    region &&
+    (MATCH_REGIONS as readonly string[]).includes(region) &&
+    (!countryRegions || countryRegions.has(region));
   const query = (q ?? "").trim().slice(0, 32);
   const isFiltered = Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion) || Boolean(isValidCountry);
 
@@ -294,57 +297,61 @@ export default async function LeaderboardPage({
           lang={lang}
           className="w-full md:w-40"
         />
-        <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-          {tr(lang, { en: "Country", es: "País", ja: "国" })}
-          <OptionSelect
-            key={isValidCountry ? country : ""}
-            name="country"
-            defaultValue={isValidCountry ? country : ""}
-            placeholder={tr(lang, {
-              en: "All countries",
-              es: "Todos los países",
-              ja: "すべての国",
-            })}
-            clearLabel={tr(lang, {
-              en: "All countries",
-              es: "Todos los países",
-              ja: "すべての国",
-            })}
-            className="w-full md:w-32"
-            options={COUNTRY_OPTIONS}
-            autoSubmit
-          />
-        </label>
-        <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-          {tr(lang, { en: "Region", es: "Región", ja: "地域" })}
-          {/* Narrowed to the chosen country's regions once one is picked
-              (see regionOptions above) — pick a country, and the list here
-              only offers regions that actually belong to it. */}
-          <OptionSelect
-            key={isValidRegion ? region : (effectiveCountry ?? "")}
-            name="region"
-            defaultValue={isValidRegion ? region : ""}
-            placeholder={tr(lang, {
-              en: "All regions",
-              es: "Todas las regiones",
-              ja: "すべての地域",
-            })}
-            clearLabel={tr(lang, {
-              en: "All regions",
-              es: "Todas las regiones",
-              ja: "すべての地域",
-            })}
-            className="w-full md:w-40"
-            searchable
-            searchPlaceholder={tr(lang, {
-              en: "Search regions…",
-              es: "Buscar regiones…",
-              ja: "地域を検索…",
-            })}
-            options={regionOptions}
-            autoSubmit
-          />
-        </label>
+        {REGION_FILTERS && (
+          <>
+            <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
+              {tr(lang, { en: "Country", es: "País", ja: "国" })}
+              <OptionSelect
+                key={isValidCountry ? country : ""}
+                name="country"
+                defaultValue={isValidCountry ? country : ""}
+                placeholder={tr(lang, {
+                  en: "All countries",
+                  es: "Todos los países",
+                  ja: "すべての国",
+                })}
+                clearLabel={tr(lang, {
+                  en: "All countries",
+                  es: "Todos los países",
+                  ja: "すべての国",
+                })}
+                className="w-full md:w-32"
+                options={COUNTRY_OPTIONS}
+                autoSubmit
+              />
+            </label>
+            <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
+              {tr(lang, { en: "Region", es: "Región", ja: "地域" })}
+              {/* Narrowed to the chosen country's regions once one is picked
+                (see regionOptions above) — pick a country, and the list here
+                only offers regions that actually belong to it. */}
+              <OptionSelect
+                key={isValidRegion ? region : (effectiveCountry ?? "")}
+                name="region"
+                defaultValue={isValidRegion ? region : ""}
+                placeholder={tr(lang, {
+                  en: "All regions",
+                  es: "Todas las regiones",
+                  ja: "すべての地域",
+                })}
+                clearLabel={tr(lang, {
+                  en: "All regions",
+                  es: "Todas las regiones",
+                  ja: "すべての地域",
+                })}
+                className="w-full md:w-40"
+                searchable
+                searchPlaceholder={tr(lang, {
+                  en: "Search regions…",
+                  es: "Buscar regiones…",
+                  ja: "地域を検索…",
+                })}
+                options={regionOptions}
+                autoSubmit
+              />
+            </label>
+          </>
+        )}
         <Button type="submit" size="sm" variant="outline" className="h-8 w-full md:w-auto">
           {tr(lang, { en: "Filter", es: "Filtrar", ja: "絞り込む" })}
         </Button>

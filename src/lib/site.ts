@@ -18,14 +18,6 @@ export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Smash Lad
 export const SITE_DESCRIPTION =
   process.env.NEXT_PUBLIC_SITE_DESCRIPTION?.trim() || "North American ranked ladder and matchmaking for Smash.";
 
-/**
- * Language a visitor gets before they pick one. getLang() still prefers an
- * explicit cookie and then the signed-in preference; this is only the floor.
- */
-export const DEFAULT_LANG: Lang = (() => {
-  const v = process.env.NEXT_PUBLIC_DEFAULT_LANG?.trim();
-  return v === "ja" || v === "es" ? v : "en";
-})();
 
 /**
  * Which set of match regions this instance offers. Matchmaking is distance
@@ -35,6 +27,32 @@ export const DEFAULT_LANG: Lang = (() => {
  */
 export type RegionSet = "na" | "jp";
 export const REGION_SET: RegionSet = process.env.NEXT_PUBLIC_REGION_SET?.trim() === "jp" ? "jp" : "na";
+
+/**
+ * Languages this instance offers. North America serves an English and a
+ * Spanish-speaking audience and lets a visitor pick; Japan serves one, so it
+ * does not ask — a picker with a single entry is just a control that does
+ * nothing. getLang() short-circuits to DEFAULT_LANG when there is only one,
+ * so a cookie or a stored preference carried over from elsewhere cannot put
+ * the site into a language it does not publish.
+ */
+export const SITE_LANGS: readonly Lang[] = REGION_SET === "jp" ? ["ja"] : ["en", "es"];
+
+/**
+ * Language a visitor gets before they pick one. getLang() still prefers an
+ * explicit cookie and then the signed-in preference; this is only the floor.
+ *
+ * Derived from SITE_LANGS rather than read straight from the environment, so
+ * the two cannot contradict each other: setting REGION_SET=jp and forgetting
+ * NEXT_PUBLIC_DEFAULT_LANG used to leave an instance that publishes only
+ * Japanese serving English to everyone. The variable can still choose among
+ * the languages this instance publishes; anything else falls back to the
+ * first.
+ */
+export const DEFAULT_LANG: Lang = (() => {
+  const v = process.env.NEXT_PUBLIC_DEFAULT_LANG?.trim();
+  return SITE_LANGS.includes(v as Lang) ? (v as Lang) : SITE_LANGS[0];
+})();
 
 // The custom domain, for links meant to be shared off-site (an X intent,
 // a Discord message) where the nicer branded URL matters. layout.tsx,
@@ -113,3 +131,14 @@ export const ALLOWS_LATENCY_MODS = REGION_SET !== "jp";
  * Both are implemented and chosen per season — see NEXT_SEASON_ALGORITHM.
  */
 export const RATING_SYSTEM: "elo" | "glicko2" = REGION_SET === "jp" ? "elo" : "glicko2";
+
+
+/**
+ * Whether the leaderboard offers country and region filters.
+ *
+ * They narrow a board by where players are, which is worth having when
+ * matchmaking is regional and the scene spans a continent. On an instance
+ * that matches nationwide, the filters slice the one pool everybody already
+ * shares, so they are off.
+ */
+export const REGION_FILTERS = REGION_SET !== "jp";

@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SITE_NAME_PARTS } from "@/lib/site";
+import { SITE_LANGS, SITE_NAME_PARTS } from "@/lib/site";
 
 export async function SiteHeader() {
   const session = await auth();
@@ -89,7 +89,7 @@ export async function SiteHeader() {
             <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
 
             <ThemeMenu lang={lang} />
-            <LanguageToggle lang={lang} actions={langActions} />
+            {SITE_LANGS.length > 1 && <LanguageToggle lang={lang} actions={langActions} />}
 
             <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
 

@@ -6,7 +6,7 @@ import { setPreferredLanguage } from "@/lib/account";
 // server-only imports above so client components can use them. Re-exported
 // here because 65 files already import the type from this path.
 import { asLang, type Lang } from "@/lib/lang";
-import { DEFAULT_LANG } from "@/lib/site";
+import { SITE_LANGS, DEFAULT_LANG } from "@/lib/site";
 
 export type { Lang };
 
@@ -18,6 +18,11 @@ const LANG_COOKIE = "lang";
 // account, while still staying in sync with Settings for signed-in users
 // (see setLangAction below).
 export async function getLang(): Promise<Lang> {
+  // One language published means nothing to resolve: a cookie or a stored
+  // preference brought over from another instance must not put this one into
+  // a language it does not serve.
+  if (SITE_LANGS.length === 1) return DEFAULT_LANG;
+
   const cookieLang = asLang((await cookies()).get(LANG_COOKIE)?.value);
   if (cookieLang) return cookieLang;
 

@@ -143,3 +143,22 @@ describe("Japan's stage rules, which are Smashmate's", () => {
     expect(stages.COUNTERPICK_STAGES).toContain("Kalos Pokémon League");
   });
 });
+
+describe("what the Japanese instance does not offer", () => {
+  it("publishes one language and does not ask which", async () => {
+    const { site } = await load("jp");
+    expect([...site.SITE_LANGS]).toEqual(["ja"]);
+    expect(site.DEFAULT_LANG).toBe("ja");
+  });
+
+  it("has no country or region filters", async () => {
+    const { site } = await load("jp");
+    expect(site.REGION_FILTERS).toBe(false);
+  });
+
+  it("leaves both in place on North America", async () => {
+    const { site } = await load();
+    expect([...site.SITE_LANGS]).toEqual(["en", "es"]);
+    expect(site.REGION_FILTERS).toBe(true);
+  });
+});

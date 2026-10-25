@@ -40,6 +40,7 @@ import {
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
+import { SITE_LANGS } from "@/lib/site";
 
 // ?tab= picks which group of settings renders, so each stays deep-linkable and
 // server-rendered — same pattern as the Stats, Notes, and profile pages.
@@ -327,11 +328,13 @@ function UserTab({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-4">
-          <PreferredLanguageForm currentLang={lang} />
-        </CardContent>
-      </Card>
+      {SITE_LANGS.length > 1 && (
+        <Card>
+          <CardContent className="pt-4">
+            <PreferredLanguageForm currentLang={lang} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="pt-4">
