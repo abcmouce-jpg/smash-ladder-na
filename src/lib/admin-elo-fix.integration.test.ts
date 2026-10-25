@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { applyEloChainFix, findAffectedChain } from "@/lib/admin-elo-fix";
-import { ConfirmationMethod, MatchStatus } from "@/generated/prisma/enums";
+import { ConfirmationMethod, MatchStatus, RatingAlgorithm } from "@/generated/prisma/enums";
+import { kFactor, SMASHMATE_K_FACTOR } from "@/lib/matches";
 import { createTestUser } from "@/test/factories";
 
 // Mirrors matches.integration.test.ts's own helper — creates a real
@@ -143,5 +144,47 @@ describe("applyEloChainFix", () => {
     const stillOriginal = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
     expect(stillOriginal.reportedWinnerId).toBe(a.id);
     expect(stillOriginal.player1RatingAfter).toBe(match.player1RatingAfter);
+  });
+
+  // Which algorithm the season ran decides which K the replay uses. The cases
+  // above only assert directions, so they pass either way; these pin the
+  // number. applyEloAndConfirm reads the active season (endsAt null, latest
+  // startsAt), so opening one is how a test chooses the algorithm.
+  describe("per-season algorithm", () => {
+    let startsAt = new Date("2026-01-01T00:00:00Z");
+
+    // Both sides sit at 1500 and neither has a prior confirmed match, so the
+    // replayed swing is exactly K/2: kFactor's opening tier of 40 on an ELO
+    // season, and the flat 32 on a Smashmate one.
+    async function replayEqualMatch(algorithm: RatingAlgorithm) {
+      startsAt = new Date(startsAt.getTime() + 1000);
+      await prisma.season.create({ data: { name: `Season ${algorithm}`, algorithm, startsAt } });
+      const a = await createTestUser();
+      const b = await createTestUser();
+      const match = await createConfirmedMatch(a.id, b.id);
+      await prisma.$transaction((tx) => applyEloChainFix(tx, match.id, b.id));
+      const fixed = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+      return fixed.player2RatingAfter! - fixed.player2RatingBefore!;
+    }
+
+    it("replays a SMASHMATE season on its flat K, not kFactor's opening tier", async () => {
+      expect(await replayEqualMatch(RatingAlgorithm.ELO)).toBe(kFactor(0) / 2);
+      expect(await replayEqualMatch(RatingAlgorithm.SMASHMATE)).toBe(SMASHMATE_K_FACTOR / 2);
+    });
+
+    it("refuses a GLICKO2 season rather than replaying it with Elo math", async () => {
+      startsAt = new Date(startsAt.getTime() + 1000);
+      await prisma.season.create({
+        data: { name: "Season glicko", algorithm: RatingAlgorithm.GLICKO2, startsAt },
+      });
+      const a = await createTestUser();
+      const b = await createTestUser();
+      const match = await createConfirmedMatch(a.id, b.id);
+
+      await expect(prisma.$transaction((tx) => applyEloChainFix(tx, match.id, b.id))).rejects.toThrow(/GLICKO2/);
+
+      const untouched = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+      expect(untouched.reportedWinnerId).toBe(a.id);
+    });
   });
 });
