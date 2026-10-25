@@ -42,7 +42,9 @@ async function main() {
   const season = await getActiveSeason();
   const seasonStart = season?.startsAt ?? new Date(0);
 
-  const [matches] = await prisma.$queryRawUnsafe<{ total: number; rematch: number; auto: number; manual: number; season_rematch: number }[]>(
+  const [matches] = await prisma.$queryRawUnsafe<
+    { total: number; rematch: number; auto: number; manual: number; season_rematch: number }[]
+  >(
     `SELECT COUNT(*)::int AS total,
             COUNT(*) FILTER (WHERE "pairingMethod" = 'REMATCH')::int AS rematch,
             COUNT(*) FILTER (WHERE "pairingMethod" = 'AUTO')::int AS auto,
@@ -110,21 +112,31 @@ async function main() {
   console.log(`  matches created by it : ${matches.rematch}  (${pct(matches.rematch, matches.total)} of all matches)`);
   console.log(`  this season           : ${matches.season_rematch}`);
   console.log(`  distinct players      : ${rematchUsers.players}`);
-  console.log(`  distinct pairs        : ${rematchUsers.pairs}   longest chain between one pair: ${rematchUsers.max_chain}`);
+  console.log(
+    `  distinct pairs        : ${rematchUsers.pairs}   longest chain between one pair: ${rematchUsers.max_chain}`,
+  );
   console.log(`  pairing mix           : AUTO ${matches.auto}, MANUAL ${matches.manual}, REMATCH ${matches.rematch}`);
   console.log(`  asked (floor, stamp is cleared on leave): ${asked.matches} matches, ${asked.players} players\n`);
 
   console.log('Stage proposal button ("PS2?") — reconstructed, game 1 only, floor');
   console.log(`  game 1s decided before striking finished : ${proposal.games}`);
-  console.log(`  share of all decided game 1s             : ${pct(proposal.games, proposal.game_ones)}  (of ${proposal.game_ones})`);
+  console.log(
+    `  share of all decided game 1s             : ${pct(proposal.games, proposal.game_ones)}  (of ${proposal.game_ones})`,
+  );
   console.log(`  distinct matches                         : ${proposal.matches}`);
-  console.log(`  players in those matches                 : ${proposal.players}  (one of each pair proposed, so the real user count is between ${proposal.matches ? 1 : 0} and this)`);
+  console.log(
+    `  players in those matches                 : ${proposal.players}  (one of each pair proposed, so the real user count is between ${proposal.matches ? 1 : 0} and this)`,
+  );
   console.log(`  stages agreed on                         : ${proposal.stages ?? "-"}`);
   console.log(`  (game 1 pool: ${GAME_ONE_STAGES.join(", ")})\n`);
 
   console.log("Quick message buttons (floor — matches the default four exactly)");
-  console.log(`  comments matching a default : ${quick.comments}  (${pct(quick.comments, quick.total)} of ${quick.total} chat messages)`);
-  console.log(`  players who sent one        : ${quick.authors}  (of ${quick.commenters} who ever sent any chat message)`);
+  console.log(
+    `  comments matching a default : ${quick.comments}  (${pct(quick.comments, quick.total)} of ${quick.total} chat messages)`,
+  );
+  console.log(
+    `  players who sent one        : ${quick.authors}  (of ${quick.commenters} who ever sent any chat message)`,
+  );
   console.log(`  players who customised them : ${quick.customised}`);
 }
 

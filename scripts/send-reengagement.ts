@@ -116,8 +116,12 @@ async function main() {
   console.log(`season        : ${season.name} (started ${season.startsAt.toISOString()})`);
   console.log(`site origin   : ${siteOrigin()}`);
   console.log(`database      : ${databaseHost()}`);
-  console.log(`still to reach : ${audience?.remaining ?? 0}` +
-    (allowDiscordIds ? ` reachable  (of ${unfiltered?.remaining ?? 0} dormant; the rest share no server with the bot)` : ""));
+  console.log(
+    `still to reach : ${audience?.remaining ?? 0}` +
+      (allowDiscordIds
+        ? ` reachable  (of ${unfiltered?.remaining ?? 0} dormant; the rest share no server with the bot)`
+        : ""),
+  );
   console.log(`throttle      : ${delayMs} ms between DMs`);
   console.log(`limit         : ${Number.isFinite(limit) ? limit : "none (whole audience)"}`);
   console.log("");

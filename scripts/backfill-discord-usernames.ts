@@ -53,7 +53,9 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
   }
 
-  console.log(`Done. ${updated} updated, ${unchanged} already correct, ${missed} missed (deleted Discord accounts, etc.).`);
+  console.log(
+    `Done. ${updated} updated, ${unchanged} already correct, ${missed} missed (deleted Discord accounts, etc.).`,
+  );
 }
 
 main()

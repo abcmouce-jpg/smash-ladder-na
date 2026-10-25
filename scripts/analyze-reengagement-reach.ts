@@ -84,7 +84,10 @@ async function main() {
     where: { reengagedAt: { gte: season.startsAt } },
     select: { discordId: true },
   });
-  let tp = 0, fp = 0, tn = 0, fn = 0;
+  let tp = 0,
+    fp = 0,
+    tn = 0,
+    fn = 0;
   for (const { discordId } of attempted) {
     const member = members.has(discordId);
     const wasBlocked = blocked.has(discordId);
@@ -100,4 +103,9 @@ async function main() {
   console.log(`  not in svr & delivered : ${fn}`);
 }
 
-main().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => prisma.$disconnect());
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());
