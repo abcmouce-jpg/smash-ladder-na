@@ -95,11 +95,27 @@ export function isWithinSeasonEndingWindow(endsAt: Date, windowMs: number, now =
   return endsAt.getTime() - now.getTime() <= windowMs;
 }
 
-// Temporary: ending a season resets EVERYONE's rating, and enough people
-// hold ADMIN now (mostly for community/promotion reasons, not moderation)
-// that this narrows who can trigger it, independent of the ADMIN/MOD role
-// check. Revisit once ADMIN grants are reviewed.
-export const SEASON_MANAGER_USER_ID = process.env.SEASON_MANAGER_USER_ID?.trim() || null;
+// Ending a season resets EVERYONE's rating, and enough people hold ADMIN
+// (mostly for community/promotion reasons, not moderation) that this narrows
+// who can trigger it, independent of the ADMIN/MOD role check.
+//
+// A list rather than the single SEASON_MANAGER_USER_ID it started as, for the
+// same reason ROLE_MANAGER_USER_IDS is one: season timing has to be workable
+// by more than one person, who are rarely online together. The old singular
+// variable is still read so an instance that sets it keeps working.
+//
+// Unset — neither variable — means any MOD/ADMIN can, which is what a new
+// instance wants before it has staff to narrow down to.
+export const SEASON_MANAGER_USER_IDS = [
+  ...(process.env.SEASON_MANAGER_USER_IDS ?? "").split(","),
+  process.env.SEASON_MANAGER_USER_ID ?? "",
+]
+  .map((id) => id.trim())
+  .filter(Boolean);
+
+export function canManageSeasons(userId: string) {
+  return SEASON_MANAGER_USER_IDS.length === 0 || SEASON_MANAGER_USER_IDS.includes(userId);
+}
 
 // Which rating system a newly-started season runs on. Every season created from
 // here on starts fresh on Glicko-2 (see endActiveSeasonAndStartNext); a season

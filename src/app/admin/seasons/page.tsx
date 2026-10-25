@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarClock } from "lucide-react";
 import { auth } from "@/auth";
-import { SEASON_MANAGER_USER_ID, ensureActiveSeason, listPastSeasons } from "@/lib/seasons";
+import { canManageSeasons, ensureActiveSeason, listPastSeasons } from "@/lib/seasons";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,13 +57,13 @@ export default async function SeasonsAdminPage() {
               : "No scheduled end — manual only"}
           </p>
           <div className="mt-3">
-            {!SEASON_MANAGER_USER_ID || session.user.id === SEASON_MANAGER_USER_ID ? (
+            {canManageSeasons(session.user.id) ? (
               <EndSeasonButton action={endSeason} seasonName={active.name} />
             ) : (
-              <p className="text-xs text-muted-foreground">Ending a season is restricted to one admin for now.</p>
+              <p className="text-xs text-muted-foreground">Ending a season is restricted to the season managers.</p>
             )}
           </div>
-          {ratedCount === 0 && (!SEASON_MANAGER_USER_ID || session.user.id === SEASON_MANAGER_USER_ID) && (
+          {ratedCount === 0 && canManageSeasons(session.user.id) && (
             <div className="mt-3">
               <SeasonAlgorithmForm
                 action={setActiveSeasonAlgorithmAction}

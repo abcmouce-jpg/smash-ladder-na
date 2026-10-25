@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { RatingAlgorithm } from "@/generated/prisma/enums";
 import {
   NEXT_SEASON_ALGORITHM,
-  SEASON_MANAGER_USER_ID,
+  canManageSeasons,
   endActiveSeasonAndStartNext,
   setActiveSeasonAlgorithm,
 } from "@/lib/seasons";
@@ -21,11 +21,11 @@ async function requireModerator() {
 
 export async function endSeason(formData: FormData) {
   const userId = await requireModerator();
-  // Narrower than the MOD/ADMIN check above — see SEASON_MANAGER_USER_ID's
+  // Narrower than the MOD/ADMIN check above — see SEASON_MANAGER_USER_IDS'
   // definition for why. Enforced server-side; the UI hiding the button for
   // everyone else is just a courtesy, not the actual gate.
-  if (SEASON_MANAGER_USER_ID && userId !== SEASON_MANAGER_USER_ID) {
-    throw new Error("Ending a season is restricted to one admin for now");
+  if (!canManageSeasons(userId)) {
+    throw new Error("Ending a season is restricted to the season managers");
   }
 
   const nextName = (formData.get("nextName") as string | null)?.trim() || undefined;
@@ -57,8 +57,8 @@ export async function endSeason(formData: FormData) {
 // though (unlike endSeason) it touches no ratings.
 export async function rescheduleActiveSeasonEnd(formData: FormData) {
   const userId = await requireModerator();
-  if (SEASON_MANAGER_USER_ID && userId !== SEASON_MANAGER_USER_ID) {
-    throw new Error("Rescheduling a season's end is restricted to one admin for now");
+  if (!canManageSeasons(userId)) {
+    throw new Error("Rescheduling a season's end is restricted to the season managers");
   }
 
   const raw = (formData.get("scheduledEndAtUtc") as string | null)?.trim();
@@ -80,8 +80,8 @@ export async function rescheduleActiveSeasonEnd(formData: FormData) {
 // once the season has rated anything.
 export async function setActiveSeasonAlgorithmAction(formData: FormData) {
   const userId = await requireModerator();
-  if (SEASON_MANAGER_USER_ID && userId !== SEASON_MANAGER_USER_ID) {
-    throw new Error("Changing a season's rating system is restricted to one admin for now");
+  if (!canManageSeasons(userId)) {
+    throw new Error("Changing a season's rating system is restricted to the season managers");
   }
 
   const raw = formData.get("algorithm") as string | null;
