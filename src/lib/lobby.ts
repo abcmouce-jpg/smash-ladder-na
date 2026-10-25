@@ -1,17 +1,41 @@
 import { after } from "next/server";
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { LobbyEntryStatus, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
-import { getLatestMatchForUser, getRoomHostId, getUnresolvedMatchForUser } from "@/lib/matches";
-import { getRegionsWithinDistance } from "@/lib/regions";
-import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
-import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
+import {
+  LobbyEntryStatus,
+  MatchStatus,
+  PairingMethod,
+  UserStatus,
+} from "@/generated/prisma/enums";
+import {
+  getLatestMatchForUser,
+  getRoomHostId,
+  getUnresolvedMatchForUser,
+} from "@/lib/matches";
+import { regionReachAllows, regionReachFilter } from "@/lib/regions";
+import {
+  blockPairKey,
+  getAllBlockedPairKeys,
+  getBlockedEitherWayIds,
+} from "@/lib/blocks";
+import {
+  MAX_REMATCH_COOLDOWN_HOURS,
+  rematchCooldownAllows,
+} from "@/lib/rematch-cooldown";
 import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
-import { notifyMatchFoundToUsers, notifyQueueOpportunitySubscribers } from "@/lib/push-server";
-import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
+import {
+  notifyMatchFoundToUsers,
+  notifyQueueOpportunitySubscribers,
+} from "@/lib/push-server";
+import {
+  ratingGapAllows,
+  effectiveMaxRatingGap,
+  wiredRequirementAllows,
+} from "@/lib/match-compat";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { siteOrigin } from "@/lib/site-url";
 import { isNotificationEnabled } from "@/lib/notifications";
+import { DISTANCE_MATCHMAKING } from "@/lib/site";
 
 // isPracticing lives on the join (RatingLobbyEntry), not the user, since
 // it's a per-session choice — avoidPracticeOpponents is the user-level
@@ -21,7 +45,10 @@ function practiceMatchAllowed(
   a: { isPracticing: boolean; avoidPracticeOpponents: boolean },
   b: { isPracticing: boolean; avoidPracticeOpponents: boolean },
 ) {
-  return (!a.isPracticing || !b.avoidPracticeOpponents) && (!b.isPracticing || !a.avoidPracticeOpponents);
+  return (
+    (!a.isPracticing || !b.avoidPracticeOpponents) &&
+    (!b.isPracticing || !a.avoidPracticeOpponents)
+  );
 }
 
 // One query covers every candidate's cooldown check for this join attempt:
@@ -29,9 +56,14 @@ function practiceMatchAllowed(
 // collapsed to each opponent's most recent one (results are already newest
 // first, so the first hit per opponent wins).
 async function getRecentOpponentTimestamps(userId: string) {
-  const since = new Date(Date.now() - MAX_REMATCH_COOLDOWN_HOURS * 60 * 60 * 1000);
+  const since = new Date(
+    Date.now() - MAX_REMATCH_COOLDOWN_HOURS * 60 * 60 * 1000,
+  );
   const matches = await prisma.ratingMatch.findMany({
-    where: { OR: [{ player1Id: userId }, { player2Id: userId }], createdAt: { gte: since } },
+    where: {
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+      createdAt: { gte: since },
+    },
     select: { player1Id: true, player2Id: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
@@ -46,7 +78,9 @@ async function getRecentOpponentTimestamps(userId: string) {
 // Same idea as getRecentOpponentTimestamps, but for the whole waiting queue
 // at once (sweepLobbyPairing checks many pairs, not just one user's).
 async function getRecentMatchPairTimestamps() {
-  const since = new Date(Date.now() - MAX_REMATCH_COOLDOWN_HOURS * 60 * 60 * 1000);
+  const since = new Date(
+    Date.now() - MAX_REMATCH_COOLDOWN_HOURS * 60 * 60 * 1000,
+  );
   const matches = await prisma.ratingMatch.findMany({
     where: { createdAt: { gte: since } },
     select: { player1Id: true, player2Id: true, createdAt: true },
@@ -109,10 +143,15 @@ export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
 export async function getLobbyActivityStats() {
   const [waiting, inMatch] = await Promise.all([
     prisma.ratingLobbyEntry.count({
-      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() } },
+      where: {
+        status: LobbyEntryStatus.WAITING,
+        expiresAt: { gt: new Date() },
+      },
     }),
     prisma.ratingMatch.count({
-      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] } },
+      where: {
+        status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
+      },
     }),
   ]);
   return { waiting, inMatch: inMatch * 2 };
@@ -129,12 +168,16 @@ export async function getActiveLobbyEntry(userId: string) {
       // never succeed — while also blocking them from requeueing (see
       // joinLobbyAndTryPair). PAIRED entries aren't subject to the WAITING TTL;
       // they're bounded by the match itself (MATCH_TTL_MS).
-      OR: [{ status: LobbyEntryStatus.PAIRED }, { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() } }],
+      OR: [
+        { status: LobbyEntryStatus.PAIRED },
+        { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() } },
+      ],
     },
     orderBy: { joinedAt: "desc" },
   });
   if (!entry) return null;
-  if (entry.status !== LobbyEntryStatus.PAIRED) return { ...entry, match: null };
+  if (entry.status !== LobbyEntryStatus.PAIRED)
+    return { ...entry, match: null };
 
   // matchId lives on only one side of the pair (it's unique per RatingLobbyEntry),
   // so the paired-but-not-owning side looks its match up by player instead.
@@ -143,7 +186,9 @@ export async function getActiveLobbyEntry(userId: string) {
   // recently created (already CANCELLED/EXPIRED) one; showing the newer but
   // irrelevant one hid the real match still blocking them from requeuing,
   // since joinLobbyAndTryPair's own block check looks for exactly this.
-  const match = (await getUnresolvedMatchForUser(userId)) ?? (await getLatestMatchForUser(userId));
+  const match =
+    (await getUnresolvedMatchForUser(userId)) ??
+    (await getLatestMatchForUser(userId));
 
   // A PAIRED entry with no resolvable match at all is orphaned data (e.g.
   // the match record got removed some other way) rather than a real
@@ -166,7 +211,9 @@ export async function getActiveLobbyEntry(userId: string) {
     match.status !== MatchStatus.EXPIRED
   ) {
     await getMatchGames(match.id);
-    const resolved = (await getUnresolvedMatchForUser(userId)) ?? (await getLatestMatchForUser(userId));
+    const resolved =
+      (await getUnresolvedMatchForUser(userId)) ??
+      (await getLatestMatchForUser(userId));
     if (!resolved) return null; // orphaned between the two reads — same as above
     return { ...entry, match: resolved };
   }
@@ -179,8 +226,14 @@ export async function getActiveLobbyEntry(userId: string) {
 // differing only in whether the entry was just created or already existed.
 async function attemptPairing(params: {
   userId: string;
-  myEntry: { id: string; userId: string; isPracticing: boolean; existingRoomCode: string | null; joinedAt: Date };
-  myRegion: string;
+  myEntry: {
+    id: string;
+    userId: string;
+    isPracticing: boolean;
+    existingRoomCode: string | null;
+    joinedAt: Date;
+  };
+  myRegion: string | null;
   me: {
     rating: number;
     rematchCooldownHours: number | null;
@@ -188,12 +241,21 @@ async function attemptPairing(params: {
     requireWiredOpponent: boolean;
     avoidPracticeOpponents: boolean;
   };
-  myReach: string[];
+  myReach: string[] | null;
   myEffectiveGap: number | null;
   blockedIds: string[];
   recentOpponents: Map<string, Date>;
 }) {
-  const { userId, myEntry, myRegion, me, myReach, myEffectiveGap, blockedIds, recentOpponents } = params;
+  const {
+    userId,
+    myEntry,
+    myRegion,
+    me,
+    myReach,
+    myEffectiveGap,
+    blockedIds,
+    recentOpponents,
+  } = params;
   return withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
       // Claim myEntry alone first, atomically, before even looking for a
@@ -208,7 +270,10 @@ async function attemptPairing(params: {
       // already claimed this entry, so bail before touching anything else.
       const selfClaim = await tx.ratingLobbyEntry.updateMany({
         where: { id: myEntry.id, status: LobbyEntryStatus.WAITING },
-        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+        data: {
+          status: LobbyEntryStatus.PAIRED,
+          pairingMethod: PairingMethod.AUTO,
+        },
       });
       if (selfClaim.count === 0) return null;
 
@@ -226,9 +291,14 @@ async function attemptPairing(params: {
             // See sweepLobbyPairing: a ban has to remove someone from the
             // candidate pool too, not just stop them re-queueing.
             status: { not: UserStatus.BANNED },
-            region: { in: myReach },
+            ...(myReach ? { region: { in: myReach } } : {}),
             ...(myEffectiveGap !== null
-              ? { rating: { gte: me.rating - myEffectiveGap, lte: me.rating + myEffectiveGap } }
+              ? {
+                  rating: {
+                    gte: me.rating - myEffectiveGap,
+                    lte: me.rating + myEffectiveGap,
+                  },
+                }
               : {}),
           },
         },
@@ -252,13 +322,31 @@ async function attemptPairing(params: {
       });
       const candidate = candidates.find(
         (c) =>
-          getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
-          ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user, Date.now() - c.joinedAt.getTime())) &&
-          rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
+          regionReachAllows(
+            c.user.region,
+            c.user.maxMatchDistanceKm,
+            myRegion,
+          ) &&
+          ratingGapAllows(
+            me.rating,
+            c.user.rating,
+            effectiveMaxRatingGap(c.user, Date.now() - c.joinedAt.getTime()),
+          ) &&
+          rematchCooldownAllows(
+            recentOpponents.get(c.userId),
+            me.rematchCooldownHours,
+            c.user.rematchCooldownHours,
+          ) &&
           wiredRequirementAllows(me, c.user) &&
           practiceMatchAllowed(
-            { isPracticing: myEntry.isPracticing, avoidPracticeOpponents: me.avoidPracticeOpponents },
-            { isPracticing: c.isPracticing, avoidPracticeOpponents: c.user.avoidPracticeOpponents },
+            {
+              isPracticing: myEntry.isPracticing,
+              avoidPracticeOpponents: me.avoidPracticeOpponents,
+            },
+            {
+              isPracticing: c.isPracticing,
+              avoidPracticeOpponents: c.user.avoidPracticeOpponents,
+            },
           ),
       );
       // No one to pair with this tick — release the self-claim above so
@@ -267,7 +355,10 @@ async function attemptPairing(params: {
       if (!candidate) {
         await tx.ratingLobbyEntry.update({
           where: { id: myEntry.id },
-          data: { status: LobbyEntryStatus.WAITING, pairingMethod: PairingMethod.MANUAL },
+          data: {
+            status: LobbyEntryStatus.WAITING,
+            pairingMethod: PairingMethod.MANUAL,
+          },
         });
         return null;
       }
@@ -278,12 +369,18 @@ async function attemptPairing(params: {
       // myEntry stuck PAIRED with nothing to show for it.
       const claim = await tx.ratingLobbyEntry.updateMany({
         where: { id: candidate.id, status: LobbyEntryStatus.WAITING },
-        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+        data: {
+          status: LobbyEntryStatus.PAIRED,
+          pairingMethod: PairingMethod.AUTO,
+        },
       });
       if (claim.count === 0) {
         await tx.ratingLobbyEntry.update({
           where: { id: myEntry.id },
-          data: { status: LobbyEntryStatus.WAITING, pairingMethod: PairingMethod.MANUAL },
+          data: {
+            status: LobbyEntryStatus.WAITING,
+            pairingMethod: PairingMethod.MANUAL,
+          },
         });
         return null;
       }
@@ -337,8 +434,10 @@ function deferNotification(notify: () => Promise<unknown>) {
 // The "match found" DM copy, mirroring MATCH_FOUND_MESSAGES in push-server.ts
 // — same event, same en/es split by the player's preferredLanguage.
 const MATCH_FOUND_DM = {
-  en: (link: string) => `🎮 Match found! You've been paired — head to the Lobby to play: ${link}`,
-  es: (link: string) => `🎮 ¡Partida encontrada! Te emparejaron — ve a la Sala para jugar: ${link}`,
+  en: (link: string) =>
+    `🎮 Match found! You've been paired — head to the Lobby to play: ${link}`,
+  es: (link: string) =>
+    `🎮 ¡Partida encontrada! Te emparejaron — ve a la Sala para jugar: ${link}`,
 };
 
 // DMs both players through the Discord bot once a match exists, alongside the
@@ -351,15 +450,23 @@ const MATCH_FOUND_DM = {
 // deferred so a slow Discord round-trip can't delay the join response.
 // Exported so integration tests can call it directly, same reasoning as
 // notifyMatchmakingSubscribers in free-battle.ts.
-export async function notifyMatchFoundViaDiscord(player1Id: string, player2Id: string) {
+export async function notifyMatchFoundViaDiscord(
+  player1Id: string,
+  player2Id: string,
+) {
   const players = await prisma.user.findMany({
     where: { id: { in: [player1Id, player2Id] } },
-    select: { discordId: true, preferredLanguage: true, notificationsDisabled: true },
+    select: {
+      discordId: true,
+      preferredLanguage: true,
+      notificationsDisabled: true,
+    },
   });
   const link = `${siteOrigin()}/lobby`;
   for (const player of players) {
     if (!isNotificationEnabled(player, "DM_MATCH_FOUND")) continue;
-    const copy = player.preferredLanguage === "es" ? MATCH_FOUND_DM.es : MATCH_FOUND_DM.en;
+    const copy =
+      player.preferredLanguage === "es" ? MATCH_FOUND_DM.es : MATCH_FOUND_DM.en;
     await sendDiscordDM(player.discordId, copy(link));
   }
 }
@@ -377,27 +484,30 @@ export async function joinLobbyAndTryPair(
   isPracticing = false,
   existingRoomCode: string | null = null,
 ) {
-  const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] = await Promise.all([
-    prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
-    getUnresolvedMatchForUser(userId),
-    prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: {
-        region: true,
-        maxMatchDistanceKm: true,
-        rating: true,
-        maxRatingGap: true,
-        gamesPlayed: true,
-        rematchCooldownHours: true,
-        wiredConnection: true,
-        requireWiredOpponent: true,
-        avoidPracticeOpponents: true,
-        queueCooldownUntil: true,
-      },
-    }),
-    getBlockedEitherWayIds(userId),
-    getRecentOpponentTimestamps(userId),
-  ]);
+  const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] =
+    await Promise.all([
+      prisma.ratingLobbyEntry.findFirst({
+        where: { userId, status: LobbyEntryStatus.WAITING },
+      }),
+      getUnresolvedMatchForUser(userId),
+      prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: {
+          region: true,
+          maxMatchDistanceKm: true,
+          rating: true,
+          maxRatingGap: true,
+          gamesPlayed: true,
+          rematchCooldownHours: true,
+          wiredConnection: true,
+          requireWiredOpponent: true,
+          avoidPracticeOpponents: true,
+          queueCooldownUntil: true,
+        },
+      }),
+      getBlockedEitherWayIds(userId),
+      getRecentOpponentTimestamps(userId),
+    ]);
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
   if (unresolvedMatch) return getActiveLobbyEntry(userId);
@@ -405,7 +515,8 @@ export async function joinLobbyAndTryPair(
     // Still genuinely waiting — same expiry rule getActiveLobbyEntry and every
     // pairing path now apply — so hand back the current state rather than
     // queueing this player a second time.
-    if (waitingEntry.expiresAt.getTime() > Date.now()) return getActiveLobbyEntry(userId);
+    if (waitingEntry.expiresAt.getTime() > Date.now())
+      return getActiveLobbyEntry(userId);
     // Expired, just not swept yet by the cron finalizer. It still occupies the
     // unique partial index on (userId) WHERE status = 'WAITING', so retire it
     // here or the create below fails P2002 and this player can never requeue.
@@ -426,17 +537,21 @@ export async function joinLobbyAndTryPair(
   // applyTimeoutCooldown) — repeated no-shows shouldn't just cost the
   // ghosted opponent's time with zero consequence for the one who dodged.
   if (me.queueCooldownUntil && me.queueCooldownUntil > now) {
-    const minutesLeft = Math.ceil((me.queueCooldownUntil.getTime() - now.getTime()) / (60 * 1000));
+    const minutesLeft = Math.ceil(
+      (me.queueCooldownUntil.getTime() - now.getTime()) / (60 * 1000),
+    );
     throw new Error(
       `You timed out of your last match — you can queue again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
     );
   }
 
-  // Matching is same-or-nearby-region by default — a region has to be set
-  // first so there's something to compare — but either side's own match
-  // distance setting can widen (or narrow) how far that reaches.
+  // Where matching is same-or-nearby-region, a region has to be set first so
+  // there is something to compare, and either side's own match distance
+  // setting can widen or narrow how far that reaches. Where it isn't (see
+  // DISTANCE_MATCHMAKING), region is a profile attribute and never blocks a
+  // join — demanding one would be asking for a value nothing then reads.
   const myRegion = me.region;
-  if (!myRegion) {
+  if (DISTANCE_MATCHMAKING && !myRegion) {
     throw new Error(
       "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
     );
@@ -444,7 +559,12 @@ export async function joinLobbyAndTryPair(
   let newEntry: Awaited<ReturnType<typeof prisma.ratingLobbyEntry.create>>;
   try {
     newEntry = await prisma.ratingLobbyEntry.create({
-      data: { userId, isPracticing, existingRoomCode, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
+      data: {
+        userId,
+        isPracticing,
+        existingRoomCode,
+        expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
+      },
     });
   } catch (err) {
     // The waitingEntry check above is a read-then-write race: two concurrent
@@ -454,18 +574,27 @@ export async function joinLobbyAndTryPair(
     // create fail deterministically — treat it exactly like the early return
     // above: the player IS in the queue, so hand back its current state
     // (which the concurrent join may already have paired) instead of an error.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
       return getActiveLobbyEntry(userId);
     }
     throw err;
   }
 
-  const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
+  const myReach = regionReachFilter(myRegion, me.maxMatchDistanceKm);
   const myEffectiveGap = effectiveMaxRatingGap(me);
 
   const paired = await attemptPairing({
     userId,
-    myEntry: { id: newEntry.id, userId, isPracticing, existingRoomCode, joinedAt: newEntry.joinedAt },
+    myEntry: {
+      id: newEntry.id,
+      userId,
+      isPracticing,
+      existingRoomCode,
+      joinedAt: newEntry.joinedAt,
+    },
     myRegion,
     me,
     myReach,
@@ -512,7 +641,10 @@ export async function joinLobbyAndTryPair(
 // join time — the next pairing attempt (retryPairForWaitingUser, the sweep
 // cron, or a fresh join-time check) reads existingRoomCode off the live
 // entry, so the change is picked up on the very next candidate pass.
-export async function updateLobbyRoomCode(userId: string, roomCode: string | null) {
+export async function updateLobbyRoomCode(
+  userId: string,
+  roomCode: string | null,
+) {
   const entry = await prisma.ratingLobbyEntry.findFirst({
     where: { userId, status: LobbyEntryStatus.WAITING },
     orderBy: { joinedAt: "desc" },
@@ -558,7 +690,10 @@ export async function touchWaitingLobbyEntry(userId: string) {
       data: { expiresAt: new Date(now + LOBBY_ENTRY_TTL_MS) },
     });
   } catch (err) {
-    console.error("touchWaitingLobbyEntry failed (non-fatal, entry lapses on its old deadline):", err);
+    console.error(
+      "touchWaitingLobbyEntry failed (non-fatal, entry lapses on its old deadline):",
+      err,
+    );
   }
 }
 
@@ -583,7 +718,11 @@ export async function retryPairForWaitingUser(userId: string) {
   try {
     const now = new Date();
     const entry = await prisma.ratingLobbyEntry.findFirst({
-      where: { userId, status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
+      where: {
+        userId,
+        status: LobbyEntryStatus.WAITING,
+        expiresAt: { gt: now },
+      },
     });
     if (!entry) return;
 
@@ -605,16 +744,19 @@ export async function retryPairForWaitingUser(userId: string) {
       getBlockedEitherWayIds(userId),
       getRecentOpponentTimestamps(userId),
     ]);
-    // Region is required to join in the first place, so this shouldn't be
-    // reachable — guard anyway rather than passing null into region matching.
-    if (!me.region) return;
+    // Region gates joining only when the instance matches on distance; where
+    // it does not, a player without one is perfectly matchable.
+    if (DISTANCE_MATCHMAKING && !me.region) return;
 
-    const myReach = getRegionsWithinDistance(me.region, me.maxMatchDistanceKm);
+    const myReach = regionReachFilter(me.region, me.maxMatchDistanceKm);
     // This is the retry path for someone already sitting in the queue, so
     // their own wait is exactly what the provisional cap should widen
     // against — without it a provisional player searched with the strict
     // ±300 band forever, which is the case the widening exists to fix.
-    const myEffectiveGap = effectiveMaxRatingGap(me, Date.now() - entry.joinedAt.getTime());
+    const myEffectiveGap = effectiveMaxRatingGap(
+      me,
+      Date.now() - entry.joinedAt.getTime(),
+    );
 
     const paired = await attemptPairing({
       userId,
@@ -632,9 +774,13 @@ export async function retryPairForWaitingUser(userId: string) {
       blockedIds,
       recentOpponents,
     });
-    if (paired) deferMatchFoundNotifications(paired.player1Id, paired.player2Id);
+    if (paired)
+      deferMatchFoundNotifications(paired.player1Id, paired.player2Id);
   } catch (err) {
-    console.error("retryPairForWaitingUser failed (non-fatal, will retry next poll or cron sweep):", err);
+    console.error(
+      "retryPairForWaitingUser failed (non-fatal, will retry next poll or cron sweep):",
+      err,
+    );
   }
 }
 
@@ -718,13 +864,16 @@ function canMatch(
   // effectiveMaxRatingGap). Defaults to 0 = the original strict behaviour.
   waits: { a: number; b: number } = { a: 0, b: 0 },
 ) {
-  if (!a.region || !b.region) return false;
   return (
-    getRegionsWithinDistance(a.region, a.maxMatchDistanceKm).includes(b.region) &&
-    getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region) &&
+    regionReachAllows(a.region, a.maxMatchDistanceKm, b.region) &&
+    regionReachAllows(b.region, b.maxMatchDistanceKm, a.region) &&
     ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(a, waits.a)) &&
     ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(b, waits.b)) &&
-    rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours) &&
+    rematchCooldownAllows(
+      lastMatchAt,
+      a.rematchCooldownHours,
+      b.rematchCooldownHours,
+    ) &&
     wiredRequirementAllows(a, b)
   );
 }
@@ -788,8 +937,14 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           b: sweepNow - b.joinedAt.getTime(),
         }) ||
         !practiceMatchAllowed(
-          { isPracticing: a.isPracticing, avoidPracticeOpponents: a.user.avoidPracticeOpponents },
-          { isPracticing: b.isPracticing, avoidPracticeOpponents: b.user.avoidPracticeOpponents },
+          {
+            isPracticing: a.isPracticing,
+            avoidPracticeOpponents: a.user.avoidPracticeOpponents,
+          },
+          {
+            isPracticing: b.isPracticing,
+            avoidPracticeOpponents: b.user.avoidPracticeOpponents,
+          },
         )
       )
         continue;
@@ -799,8 +954,14 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           // Claim both atomically so a join happening at the same moment can't
           // grab one of them out from under this sweep.
           const claim = await tx.ratingLobbyEntry.updateMany({
-            where: { id: { in: [a.id, b.id] }, status: LobbyEntryStatus.WAITING },
-            data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+            where: {
+              id: { in: [a.id, b.id] },
+              status: LobbyEntryStatus.WAITING,
+            },
+            data: {
+              status: LobbyEntryStatus.PAIRED,
+              pairingMethod: PairingMethod.AUTO,
+            },
           });
           if (claim.count !== 2) return null;
 
@@ -844,7 +1005,11 @@ export async function cancelLobbyEntry(userId: string) {
   });
 }
 
-export async function setMatchRoomCode(userId: string, matchId: string, roomCode: string) {
+export async function setMatchRoomCode(
+  userId: string,
+  matchId: string,
+  roomCode: string,
+) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
   if (!match) throw new Error("Match not found");
   if (match.player1Id !== userId && match.player2Id !== userId) {

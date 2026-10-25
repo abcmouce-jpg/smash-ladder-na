@@ -8,8 +8,12 @@ import webpush from "web-push";
 import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, UserStatus } from "@/generated/prisma/enums";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
-import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
-import { getRegionsWithinDistance } from "@/lib/regions";
+import {
+  ratingGapAllows,
+  effectiveMaxRatingGap,
+  wiredRequirementAllows,
+} from "@/lib/match-compat";
+import { regionReachAllows } from "@/lib/regions";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { siteOrigin } from "@/lib/site-url";
@@ -18,10 +22,18 @@ const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY?.trim();
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT?.trim();
 
-export const pushConfigured = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_SUBJECT);
+export const pushConfigured = !!(
+  VAPID_PUBLIC_KEY &&
+  VAPID_PRIVATE_KEY &&
+  VAPID_SUBJECT
+);
 
 if (pushConfigured) {
-  webpush.setVapidDetails(VAPID_SUBJECT!, VAPID_PUBLIC_KEY!, VAPID_PRIVATE_KEY!);
+  webpush.setVapidDetails(
+    VAPID_SUBJECT!,
+    VAPID_PUBLIC_KEY!,
+    VAPID_PRIVATE_KEY!,
+  );
 }
 
 // TTL tells the push SERVICE (FCM/APNs/etc.) how long to keep retrying
@@ -40,18 +52,29 @@ if (pushConfigured) {
 const PUSH_TTL_SECONDS = 5 * 60;
 
 const MATCH_FOUND_MESSAGES = {
-  en: { title: "Match found!", body: "You've been paired — head to the Lobby." },
+  en: {
+    title: "Match found!",
+    body: "You've been paired — head to the Lobby.",
+  },
   es: { title: "¡Partida encontrada!", body: "Te emparejaron — ve a la Sala." },
 } as const;
 
 const QUEUE_OPPORTUNITY_MESSAGES = {
-  en: { title: "Opponent in your range just queued", body: "Jump in now while they're still waiting." },
-  es: { title: "Un rival en tu rango acaba de entrar a la cola", body: "Entra ahora mientras sigue esperando." },
+  en: {
+    title: "Opponent in your range just queued",
+    body: "Jump in now while they're still waiting.",
+  },
+  es: {
+    title: "Un rival en tu rango acaba de entrar a la cola",
+    body: "Entra ahora mientras sigue esperando.",
+  },
 } as const;
 
 const QUEUE_OPPORTUNITY_DM = {
-  en: (link: string) => `👀 Someone in your range just queued — jump in while they're still waiting: ${link}`,
-  es: (link: string) => `👀 Alguien en tu rango acaba de entrar a la cola — entra mientras sigue esperando: ${link}`,
+  en: (link: string) =>
+    `👀 Someone in your range just queued — jump in while they're still waiting: ${link}`,
+  es: (link: string) =>
+    `👀 Alguien en tu rango acaba de entrar a la cola — entra mientras sigue esperando: ${link}`,
 } as const;
 
 const TEST_MESSAGES = {
@@ -65,33 +88,52 @@ const TEST_MESSAGES = {
   },
 } as const;
 
-type StoredSubscription = { id: string; endpoint: string; p256dh: string; auth: string };
+type StoredSubscription = {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+};
 
 // Sends one payload to every subscription in the list. Best-effort by design:
 // a failure on one subscription never throws for the rest. Subscriptions the
 // push service reports as gone (404/410 — uninstalled browser, revoked
 // permission, push service rotation) are deleted so we don't keep paying to
 // send into the void; anything else is left alone and retried next time.
-async function sendPushPayload(subscriptions: StoredSubscription[], payload: string): Promise<number> {
+async function sendPushPayload(
+  subscriptions: StoredSubscription[],
+  payload: string,
+): Promise<number> {
   let sent = 0;
   for (const sub of subscriptions) {
     try {
       await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
+        },
         payload,
         { TTL: PUSH_TTL_SECONDS },
       );
       sent++;
     } catch (err) {
-      if (err instanceof webpush.WebPushError && (err.statusCode === 404 || err.statusCode === 410)) {
-        await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+      if (
+        err instanceof webpush.WebPushError &&
+        (err.statusCode === 404 || err.statusCode === 410)
+      ) {
+        await prisma.pushSubscription
+          .delete({ where: { id: sub.id } })
+          .catch(() => {});
       } else {
         // Anything else (rate limits, malformed keys, push service errors)
         // was previously silent — no way to tell "delivery is unreliable"
         // from "nobody's subscribed" after the fact. Logged, not thrown:
         // this must still never break match creation for the rest of the
         // pairing flow.
-        console.error("push send failed:", err instanceof Error ? err.message : err);
+        console.error(
+          "push send failed:",
+          err instanceof Error ? err.message : err,
+        );
       }
     }
   }
@@ -100,7 +142,10 @@ async function sendPushPayload(subscriptions: StoredSubscription[], payload: str
 
 // Called right after a match is created (join-time pairing and the cron
 // sweep). Never throws, so a push failure can't break the pairing itself.
-export async function notifyMatchFoundToUsers(player1Id: string, player2Id: string) {
+export async function notifyMatchFoundToUsers(
+  player1Id: string,
+  player2Id: string,
+) {
   if (!pushConfigured) return 0;
 
   const players = await prisma.user.findMany({
@@ -118,7 +163,10 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
   for (const player of players) {
     if (player.pushSubscriptions.length === 0) continue;
     if (!isNotificationEnabled(player, "PUSH_MATCH_FOUND")) continue;
-    const copy = player.preferredLanguage === "es" ? MATCH_FOUND_MESSAGES.es : MATCH_FOUND_MESSAGES.en;
+    const copy =
+      player.preferredLanguage === "es"
+        ? MATCH_FOUND_MESSAGES.es
+        : MATCH_FOUND_MESSAGES.en;
     sent += await sendPushPayload(
       player.pushSubscriptions,
       JSON.stringify({
@@ -157,33 +205,49 @@ const QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS = 20 * 60 * 1000;
 export async function notifyQueueOpportunitySubscribers(
   joinerId: string,
   joiner: {
-    region: string;
+    region: string | null;
     rating: number;
     maxMatchDistanceKm: number | null;
     wiredConnection: boolean;
     requireWiredOpponent: boolean;
   },
-  joinerReach: string[],
+  joinerReach: string[] | null,
   joinerEffectiveGap: number | null,
 ) {
   // Nothing to deliver over if neither channel is set up — skip the scan rather
   // than doing work that can't produce a notification.
   if (!pushConfigured && !process.env.DISCORD_BOT_TOKEN) return 0;
 
-  const cooldownCutoff = new Date(Date.now() - QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS);
+  const cooldownCutoff = new Date(
+    Date.now() - QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS,
+  );
   const blockedIds = await getBlockedEitherWayIds(joinerId);
 
   const candidates = await prisma.user.findMany({
     where: {
       id: { notIn: [joinerId, ...blockedIds] },
       status: { not: UserStatus.BANNED },
-      lobbyEntries: { none: { status: { in: [LobbyEntryStatus.WAITING, LobbyEntryStatus.PAIRED] } } },
+      lobbyEntries: {
+        none: {
+          status: { in: [LobbyEntryStatus.WAITING, LobbyEntryStatus.PAIRED] },
+        },
+      },
       // Two separate ORs, so they're combined under AND rather than one key
       // overwriting the other: opted into either channel, and not inside the
       // per-candidate cooldown.
       AND: [
-        { OR: [{ notifyQueueOpportunities: true }, { notifyQueueOpportunitiesDm: true }] },
-        { OR: [{ queueOpportunityNotifiedAt: null }, { queueOpportunityNotifiedAt: { lt: cooldownCutoff } }] },
+        {
+          OR: [
+            { notifyQueueOpportunities: true },
+            { notifyQueueOpportunitiesDm: true },
+          ],
+        },
+        {
+          OR: [
+            { queueOpportunityNotifiedAt: null },
+            { queueOpportunityNotifiedAt: { lt: cooldownCutoff } },
+          ],
+        },
       ],
     },
     select: {
@@ -199,7 +263,9 @@ export async function notifyQueueOpportunitySubscribers(
       discordId: true,
       notifyQueueOpportunities: true,
       notifyQueueOpportunitiesDm: true,
-      pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
+      pushSubscriptions: {
+        select: { id: true, endpoint: true, p256dh: true, auth: true },
+      },
     },
   });
 
@@ -209,9 +275,9 @@ export async function notifyQueueOpportunitySubscribers(
   // one side having a wide radius doesn't override the other's tighter one.
   const eligible = candidates.filter(
     (c) =>
-      c.region !== null &&
-      joinerReach.includes(c.region) &&
-      getRegionsWithinDistance(c.region, c.maxMatchDistanceKm).includes(joiner.region) &&
+      (joinerReach === null ||
+        (c.region !== null && joinerReach.includes(c.region))) &&
+      regionReachAllows(c.region, c.maxMatchDistanceKm, joiner.region) &&
       ratingGapAllows(joiner.rating, c.rating, effectiveMaxRatingGap(c)) &&
       ratingGapAllows(joiner.rating, c.rating, joinerEffectiveGap) &&
       wiredRequirementAllows(joiner, c),
@@ -221,15 +287,30 @@ export async function notifyQueueOpportunitySubscribers(
   const link = `${siteOrigin()}/lobby`;
   let sent = 0;
   for (const candidate of eligible) {
-    const copy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_MESSAGES.es : QUEUE_OPPORTUNITY_MESSAGES.en;
-    if (pushConfigured && candidate.notifyQueueOpportunities && candidate.pushSubscriptions.length > 0) {
+    const copy =
+      candidate.preferredLanguage === "es"
+        ? QUEUE_OPPORTUNITY_MESSAGES.es
+        : QUEUE_OPPORTUNITY_MESSAGES.en;
+    if (
+      pushConfigured &&
+      candidate.notifyQueueOpportunities &&
+      candidate.pushSubscriptions.length > 0
+    ) {
       sent += await sendPushPayload(
         candidate.pushSubscriptions,
-        JSON.stringify({ title: copy.title, body: copy.body, url: "/lobby", icon: "/smash_ladder_icon.png" }),
+        JSON.stringify({
+          title: copy.title,
+          body: copy.body,
+          url: "/lobby",
+          icon: "/smash_ladder_icon.png",
+        }),
       );
     }
     if (isNotificationEnabled(candidate, "DM_QUEUE_OPPORTUNITY")) {
-      const dmCopy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_DM.es : QUEUE_OPPORTUNITY_DM.en;
+      const dmCopy =
+        candidate.preferredLanguage === "es"
+          ? QUEUE_OPPORTUNITY_DM.es
+          : QUEUE_OPPORTUNITY_DM.en;
       await sendDiscordDM(candidate.discordId, dmCopy(link));
     }
   }
@@ -247,9 +328,14 @@ export async function notifyQueueOpportunitySubscribers(
 // every subscription on the account so a player with several devices can
 // verify all of them at once. Returns { error } instead of throwing so the
 // settings UI can show the reason inline.
-export async function sendTestPushToUser(userId: string): Promise<{ sent: number; error?: string }> {
+export async function sendTestPushToUser(
+  userId: string,
+): Promise<{ sent: number; error?: string }> {
   if (!pushConfigured) {
-    return { sent: 0, error: "Push notifications aren't set up on this site yet." };
+    return {
+      sent: 0,
+      error: "Push notifications aren't set up on this site yet.",
+    };
   }
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -261,9 +347,14 @@ export async function sendTestPushToUser(userId: string): Promise<{ sent: number
     },
   });
   if (user.pushSubscriptions.length === 0) {
-    return { sent: 0, error: "No push subscriptions on this account — toggle notifications off and on again." };
+    return {
+      sent: 0,
+      error:
+        "No push subscriptions on this account — toggle notifications off and on again.",
+    };
   }
-  const copy = user.preferredLanguage === "es" ? TEST_MESSAGES.es : TEST_MESSAGES.en;
+  const copy =
+    user.preferredLanguage === "es" ? TEST_MESSAGES.es : TEST_MESSAGES.en;
   const sent = await sendPushPayload(
     user.pushSubscriptions,
     JSON.stringify({
@@ -274,7 +365,11 @@ export async function sendTestPushToUser(userId: string): Promise<{ sent: number
     }),
   );
   if (sent === 0) {
-    return { sent: 0, error: "Couldn't deliver a test notification — toggle notifications off and on again." };
+    return {
+      sent: 0,
+      error:
+        "Couldn't deliver a test notification — toggle notifications off and on again.",
+    };
   }
   return { sent };
 }

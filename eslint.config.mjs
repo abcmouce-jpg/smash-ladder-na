@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // These are root-anchored, so build output inside a nested git worktree
+    // (.claude/worktrees/*) slips past the patterns above and gets linted as
+    // if it were source. One stale worktree's .next turned `npm run lint`
+    // into 920 errors in generated chunks.
+    "**/.next/**",
+    "**/out/**",
+    "**/build/**",
+    ".claude/**",
   ]),
 ]);
 

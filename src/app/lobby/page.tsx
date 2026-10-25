@@ -154,6 +154,7 @@ import {
   updateZenMode,
 } from "./actions";
 import { tr, trNode } from "@/lib/lang";
+import { DISTANCE_MATCHMAKING } from "@/lib/site";
 
 type Match = NonNullable<
   NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]
@@ -684,7 +685,7 @@ async function MatchmakingForm({
     return { error: null, saved: true };
   }
 
-  const missingRegion = !me?.region;
+  const missingRegion = DISTANCE_MATCHMAKING && !me?.region;
 
   return (
     <MatchSettingsForm
@@ -744,21 +745,23 @@ async function MatchmakingForm({
           />
         </label>
 
-        <MatchSettingSelect
-          name="maxMatchDistanceKm"
-          label={tr(lang, {
-            en: "Match distance",
-            es: "Distancia de partida",
-            ja: "対戦距離",
-          })}
-          defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
-          resetKey={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
-          disabled={disabled}
-          options={MATCH_DISTANCE_PRESETS.map((preset) => ({
-            value: String(preset.km ?? WORLDWIDE_VALUE),
-            label: preset.label,
-          }))}
-        />
+        {DISTANCE_MATCHMAKING && (
+          <MatchSettingSelect
+            name="maxMatchDistanceKm"
+            label={tr(lang, {
+              en: "Match distance",
+              es: "Distancia de partida",
+              ja: "対戦距離",
+            })}
+            defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
+            resetKey={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
+            disabled={disabled}
+            options={MATCH_DISTANCE_PRESETS.map((preset) => ({
+              value: String(preset.km ?? WORLDWIDE_VALUE),
+              label: preset.label,
+            }))}
+          />
+        )}
 
         <MatchSettingSelect
           name="maxRatingGap"

@@ -89,3 +89,35 @@ export const SITE_NAME_PARTS = (() => {
     ? { lead: "", accent: SITE_NAME }
     : { lead: SITE_NAME.slice(0, at), accent: SITE_NAME.slice(at + 1) };
 })();
+
+/**
+ * Whether geography narrows who you can be matched against.
+ *
+ * North America is ~5,000km across, so a player in Vancouver matching one in
+ * Miami is a real latency problem and the distance presets exist to stop it.
+ * Japan is ~2,500km end to end and most of its scene sits in a few metro
+ * areas, so the same mechanism mostly just shrinks an already-small launch
+ * pool. Off for Japan: region stays a profile and leaderboard attribute, but
+ * it does not gate matchmaking, and a player without one can still queue.
+ */
+export const DISTANCE_MATCHMAKING = REGION_SET !== "jp";
+
+/**
+ * Whether low-latency firmware mods are permitted on this instance.
+ *
+ * Nothing enforces this — a client-side mod is not detectable from here, so
+ * it is a stated rule rather than a check, and the rules pages say so. It is
+ * false for Japan because the Japanese community treats these mods as
+ * cheating, and launching against that is not a fight worth picking.
+ */
+export const ALLOWS_LATENCY_MODS = REGION_SET !== "jp";
+
+/**
+ * Which rating system new seasons run on. Glicko-2 carries a rating deviation
+ * and volatility a player never sees but which move their number in ways they
+ * cannot predict; Elo moves by an amount they can work out themselves.
+ * スマメイト trained the Japanese scene on the latter, so Japan starts there.
+ * Both are implemented and chosen per season — see NEXT_SEASON_ALGORITHM.
+ */
+export const RATING_SYSTEM: "elo" | "glicko2" =
+  REGION_SET === "jp" ? "elo" : "glicko2";
