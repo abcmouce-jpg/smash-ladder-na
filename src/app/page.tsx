@@ -25,10 +25,10 @@ import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
 import { prisma } from "@/lib/db";
 import { X_ACCOUNT_URL, DISCORD_SERVER_URL } from "@/lib/links";
 import { tr, trNode } from "@/lib/lang";
-import { HAS_DISCORD_SERVER, SCENE_LABEL, SITE_NAME_PARTS } from "@/lib/site";
+import { PUBLISHES_SPANISH, HAS_DISCORD_SERVER, SCENE_LABEL, SITE_NAME_PARTS } from "@/lib/site";
 
 export const metadata: Metadata = {
-  alternates: { languages: { "es-MX": "/es" } },
+  alternates: PUBLISHES_SPANISH ? { languages: { "es-MX": "/es" } } : undefined,
 };
 
 // Shared home section header: small-caps label with the accent tick on the

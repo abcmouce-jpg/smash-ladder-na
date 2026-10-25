@@ -20,13 +20,13 @@ import {
   updateMatchupNoteAction,
   voteOnGuideAction,
 } from "./actions";
-import { SITE_NAME } from "@/lib/site";
+import { PUBLISHES_SPANISH, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata: Metadata = {
   title: `Notes — ${SITE_NAME}`,
   description: "Your private matchup notes and every public community character guide.",
-  alternates: { languages: { "es-MX": "/es" } },
+  alternates: PUBLISHES_SPANISH ? { languages: { "es-MX": "/es" } } : undefined,
 };
 
 // Two views under one "Notes" roof (formerly a single character-grouped page

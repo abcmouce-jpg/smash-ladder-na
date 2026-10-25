@@ -156,6 +156,11 @@ describe("what the Japanese instance does not offer", () => {
     expect(site.USES_REGIONS).toBe(false);
   });
 
+  it("does not keep North America's Spanish landing page", async () => {
+    const { site } = await load("jp");
+    expect(site.PUBLISHES_SPANISH).toBe(false);
+  });
+
   it("takes no donations, so nothing links to Ko-fi", async () => {
     const { site } = await load("jp");
     expect(site.HAS_KOFI).toBe(false);
@@ -166,5 +171,6 @@ describe("what the Japanese instance does not offer", () => {
     expect([...site.SITE_LANGS]).toEqual(["en", "es"]);
     expect(site.USES_REGIONS).toBe(true);
     expect(site.HAS_KOFI).toBe(true);
+    expect(site.PUBLISHES_SPANISH).toBe(true);
   });
 });

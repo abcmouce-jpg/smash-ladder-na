@@ -38,6 +38,15 @@ export const REGION_SET: RegionSet = process.env.NEXT_PUBLIC_REGION_SET?.trim() 
 export const SITE_LANGS: readonly Lang[] = REGION_SET === "jp" ? ["ja"] : ["en", "es"];
 
 /**
+ * Whether /es exists. It is a crawlable Spanish landing page, with Spanish
+ * metadata and hardcoded Spanish strings — on an instance that doesn't
+ * publish Spanish it is a duplicate of "/" in the wrong language, so the
+ * route 404s, drops out of the sitemap, and stops being advertised as an
+ * hreflang alternate.
+ */
+export const PUBLISHES_SPANISH = SITE_LANGS.includes("es");
+
+/**
  * Language a visitor gets before they pick one. getLang() still prefers an
  * explicit cookie and then the signed-in preference; this is only the floor.
  *

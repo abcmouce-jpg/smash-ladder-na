@@ -8,11 +8,11 @@ import { GOLD_SUPPORTER_MIN_AMOUNT_USD } from "@/lib/supporters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { tr } from "@/lib/lang";
-import { HAS_KOFI } from "@/lib/site";
+import { PUBLISHES_SPANISH, HAS_KOFI } from "@/lib/site";
 import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
-  alternates: { languages: { "es-MX": "/es" } },
+  alternates: PUBLISHES_SPANISH ? { languages: { "es-MX": "/es" } } : undefined,
 };
 
 export default async function SupportersPage() {

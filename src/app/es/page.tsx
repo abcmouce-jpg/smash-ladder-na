@@ -24,7 +24,8 @@ import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
-import { SITE_NAME } from "@/lib/site";
+import { PUBLISHES_SPANISH, SITE_NAME } from "@/lib/site";
+import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} — Liga clasificatoria`,
@@ -38,6 +39,8 @@ export const metadata: Metadata = {
 // any visit here, so navigating onward (via the header nav, hero CTAs, etc.)
 // stays in Spanish instead of snapping back to English on the next page.
 export default async function HomeEs() {
+  if (!PUBLISHES_SPANISH) notFound();
+
   const session = await auth();
   const user = session?.user;
 

@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { siteOrigin } from "@/lib/site-url";
-import { HAS_KOFI } from "@/lib/site";
+import { PUBLISHES_SPANISH, HAS_KOFI } from "@/lib/site";
 
 // Profiles are the only part of the site with a search-shaped question
 // behind it ("who is <player>") — the rest is either a utility page or a
@@ -40,7 +40,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   return [
     { url: SITE_URL, lastModified: now, changeFrequency: "daily", priority: 1 },
-    { url: `${SITE_URL}/es`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    ...(PUBLISHES_SPANISH
+      ? [{ url: `${SITE_URL}/es`, lastModified: now, changeFrequency: "daily" as const, priority: 0.9 }]
+      : []),
     { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/leaderboard`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE_URL}/stats`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
