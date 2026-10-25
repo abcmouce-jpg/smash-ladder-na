@@ -102,7 +102,12 @@ const providers = useDevCredentials ? [devCredentials] : [discordProvider];
 // going straight to it — callers should pass this explicitly.
 export const primaryProviderId = useDevCredentials ? "credentials" : "discord";
 
-const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
+const {
+  handlers,
+  auth: uncachedAuth,
+  signIn,
+  signOut,
+} = NextAuth({
   providers,
   session: { strategy: "jwt" },
   trustHost: true,

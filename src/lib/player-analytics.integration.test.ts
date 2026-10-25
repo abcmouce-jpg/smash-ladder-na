@@ -114,10 +114,24 @@ describe("getPersonalAnalytics", () => {
     const older = new Date(Date.now() - 60_000);
     const newer = new Date();
     await prisma.ratingHistory.create({
-      data: { userId: player.id, matchId: match.id, ratingBefore: 1500, ratingAfter: 1550, delta: 50, createdAt: older },
+      data: {
+        userId: player.id,
+        matchId: match.id,
+        ratingBefore: 1500,
+        ratingAfter: 1550,
+        delta: 50,
+        createdAt: older,
+      },
     });
     await prisma.ratingHistory.create({
-      data: { userId: player.id, matchId: match.id, ratingBefore: 1550, ratingAfter: 1530, delta: -20, createdAt: newer },
+      data: {
+        userId: player.id,
+        matchId: match.id,
+        ratingBefore: 1550,
+        ratingAfter: 1530,
+        delta: -20,
+        createdAt: newer,
+      },
     });
 
     const { ratingTrend } = await getPersonalAnalytics(player.id);

@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  PROVISIONAL_RATING_GAP_CAP,
-  effectiveMaxRatingGap,
-  provisionalGapForWait,
-} from "@/lib/match-compat";
+import { PROVISIONAL_RATING_GAP_CAP, effectiveMaxRatingGap, provisionalGapForWait } from "@/lib/match-compat";
 
 const NEW_PLAYER = { gamesPlayed: 0, maxRatingGap: null };
 const ESTABLISHED = { gamesPlayed: 50, maxRatingGap: null };

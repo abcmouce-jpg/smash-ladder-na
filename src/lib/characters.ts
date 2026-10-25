@@ -156,11 +156,7 @@ export function isMatchupCharacter(character: string): boolean {
 
 // The 3 Mii fighters — the only characters that take a user-entered
 // moveset string (see MOVESET_PATTERN) alongside the pick itself.
-export const MII_CHARACTERS: readonly SmashCharacter[] = [
-  "Mii Brawler",
-  "Mii Swordfighter",
-  "Mii Gunner",
-];
+export const MII_CHARACTERS: readonly SmashCharacter[] = ["Mii Brawler", "Mii Swordfighter", "Mii Gunner"];
 
 export function isMiiCharacter(character: string): boolean {
   return (MII_CHARACTERS as readonly string[]).includes(character);

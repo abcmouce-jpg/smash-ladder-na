@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  shouldPollLobby,
-  shouldRefresh,
-  POLL_INTERVAL_MS,
-  BACKGROUND_PUSH_INTERVAL_MS,
-} from "./lobby-poll";
+import { shouldPollLobby, shouldRefresh, POLL_INTERVAL_MS, BACKGROUND_PUSH_INTERVAL_MS } from "./lobby-poll";
 
 describe("shouldPollLobby", () => {
   it("polls while the match is active", () => {
@@ -92,9 +87,7 @@ describe("shouldRefresh", () => {
   it("keeps the old cadence for a hidden waiting tab with no push subscription", () => {
     // These players have no other way of being told, so nothing changes for
     // them: this is the auto-forfeit case keepPollingInBackground exists for.
-    expect(
-      shouldRefresh({ ...base, keepPollingInBackground: true, msSinceLastRefresh: 0 }),
-    ).toBe(true);
+    expect(shouldRefresh({ ...base, keepPollingInBackground: true, msSinceLastRefresh: 0 })).toBe(true);
   });
 
   it("throttles a hidden waiting tab that is push-subscribed", () => {
@@ -104,12 +97,8 @@ describe("shouldRefresh", () => {
       hasPushSubscription: true,
     };
     expect(shouldRefresh({ ...hiddenWithPush, msSinceLastRefresh: 0 })).toBe(false);
-    expect(
-      shouldRefresh({ ...hiddenWithPush, msSinceLastRefresh: BACKGROUND_PUSH_INTERVAL_MS - 1 }),
-    ).toBe(false);
-    expect(
-      shouldRefresh({ ...hiddenWithPush, msSinceLastRefresh: BACKGROUND_PUSH_INTERVAL_MS }),
-    ).toBe(true);
+    expect(shouldRefresh({ ...hiddenWithPush, msSinceLastRefresh: BACKGROUND_PUSH_INTERVAL_MS - 1 })).toBe(false);
+    expect(shouldRefresh({ ...hiddenWithPush, msSinceLastRefresh: BACKGROUND_PUSH_INTERVAL_MS })).toBe(true);
   });
 
   it("stays well inside the 60s striking window even if the push is lost", () => {

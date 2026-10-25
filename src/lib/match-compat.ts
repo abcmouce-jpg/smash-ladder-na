@@ -43,10 +43,7 @@ export function provisionalGapForWait(waitedMs: number) {
 // waitedMs is how long this player has been sitting in the queue. Omitted
 // (0) keeps the original strict cap, which is what every non-pairing caller
 // — e.g. scoring a hypothetical match for a queue-opportunity ping — wants.
-export function effectiveMaxRatingGap(
-  user: { gamesPlayed: number; maxRatingGap: number | null },
-  waitedMs = 0,
-) {
+export function effectiveMaxRatingGap(user: { gamesPlayed: number; maxRatingGap: number | null }, waitedMs = 0) {
   if (user.gamesPlayed >= PROVISIONAL_GAMES_THRESHOLD) return user.maxRatingGap;
   const cap = provisionalGapForWait(waitedMs);
   // An explicit tighter preference still wins — widening is about rescuing

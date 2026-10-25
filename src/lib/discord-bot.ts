@@ -80,15 +80,14 @@ export async function checkGuildMembership(
 // first: `vercel env pull` writes the literal string "[SENSITIVE]" for any
 // variable marked sensitive, so DISCORD_BOT_TOKEN was 11 characters of
 // placeholder and every request failed identically.
-export async function verifyDiscordBotToken(): Promise<
-  { ok: true; username: string } | { ok: false; reason: string }
-> {
+export async function verifyDiscordBotToken(): Promise<{ ok: true; username: string } | { ok: false; reason: string }> {
   if (!process.env.DISCORD_BOT_TOKEN) return { ok: false, reason: "DISCORD_BOT_TOKEN is not set" };
   if (process.env.DISCORD_BOT_TOKEN === "[SENSITIVE]") {
     return {
       ok: false,
-      reason: "DISCORD_BOT_TOKEN is the literal \"[SENSITIVE]\" placeholder that `vercel env pull` "
-        + "writes for a sensitive variable — fetch the real token instead",
+      reason:
+        'DISCORD_BOT_TOKEN is the literal "[SENSITIVE]" placeholder that `vercel env pull` ' +
+        "writes for a sensitive variable — fetch the real token instead",
     };
   }
   try {
@@ -171,11 +170,7 @@ export async function sendDiscordDMsSequentially(
 // and checkGuildMembership above. Without this the DM path silently dropped
 // every rate-limited message: `channelRes.ok` is false for a 429 just as it is
 // for a 403, so a bulk send would report nothing wrong while losing mail.
-export async function sendDiscordDM(
-  discordId: string,
-  content: string,
-  retriesLeft = 3,
-): Promise<DiscordDMOutcome> {
+export async function sendDiscordDM(discordId: string, content: string, retriesLeft = 3): Promise<DiscordDMOutcome> {
   try {
     const channelRes = await discordRequest("/users/@me/channels", {
       method: "POST",

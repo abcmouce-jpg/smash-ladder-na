@@ -56,7 +56,9 @@ export async function resolveApiUser(request: Request): Promise<string | null> {
 
   // Best-effort, same reasoning as auth.ts's lastSignInAt — must never block
   // or fail the actual request just because this bookkeeping write hiccups.
-  prisma.apiToken.update({ where: { tokenHash: hashToken(rawToken) }, data: { lastUsedAt: new Date() } }).catch(() => {});
+  prisma.apiToken
+    .update({ where: { tokenHash: hashToken(rawToken) }, data: { lastUsedAt: new Date() } })
+    .catch(() => {});
 
   return token.userId;
 }

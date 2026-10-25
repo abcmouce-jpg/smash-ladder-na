@@ -20,7 +20,6 @@ export function shouldPollLobby({
   return isInActiveMatch || isWaiting || (matchJustEnded && !hasLeftMatch);
 }
 
-
 // ---------------------------------------------------------------------------
 // How often that poller is allowed to refresh, as opposed to whether it runs
 // at all (shouldPollLobby above).

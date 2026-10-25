@@ -961,7 +961,7 @@ describe("pickSameStage", () => {
   });
 });
 
-describe("stage proposal (mutual agreement, aka \"Small?\")", () => {
+describe('stage proposal (mutual agreement, aka "Small?")', () => {
   it("works before either character is locked in — game 1's blind pick", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();

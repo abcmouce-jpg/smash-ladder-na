@@ -203,7 +203,9 @@ describe("sendTestPushToUser", () => {
 });
 
 describe("notifyQueueOpportunitySubscribers", () => {
-  function joinerParams(overrides: Partial<{ region: string; rating: number; maxMatchDistanceKm: number | null }> = {}) {
+  function joinerParams(
+    overrides: Partial<{ region: string; rating: number; maxMatchDistanceKm: number | null }> = {},
+  ) {
     return {
       region: "USA East",
       rating: 1500,

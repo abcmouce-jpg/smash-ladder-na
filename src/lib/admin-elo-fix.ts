@@ -12,10 +12,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
 import { eloDelta, expectedScore } from "@/lib/matches";
 
-export async function findAffectedChain(
-  tx: Prisma.TransactionClient,
-  targetMatchId: string,
-) {
+export async function findAffectedChain(tx: Prisma.TransactionClient, targetMatchId: string) {
   const target = await tx.ratingMatch.findUniqueOrThrow({ where: { id: targetMatchId } });
   if (target.status !== MatchStatus.CONFIRMED || !target.confirmedAt) {
     throw new Error("Target match is not CONFIRMED");
@@ -135,7 +132,11 @@ export async function applyEloChainFix(
         player2RatingBefore: p2Before,
         player2RatingAfter: p2After,
         ...(isTarget
-          ? { reportedWinnerId: winnerId, secondReportWinnerId: winnerId, confirmationMethod: ConfirmationMethod.CORRECTED }
+          ? {
+              reportedWinnerId: winnerId,
+              secondReportWinnerId: winnerId,
+              confirmationMethod: ConfirmationMethod.CORRECTED,
+            }
           : {}),
       },
     });

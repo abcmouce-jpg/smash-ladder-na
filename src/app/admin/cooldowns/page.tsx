@@ -39,7 +39,9 @@ export default async function AdminCooldownsPage() {
       </p>
 
       <div className="mt-6 flex flex-col gap-2">
-        {cooldowns.length === 0 && <p className="text-sm text-muted-foreground">Nobody&apos;s on cooldown right now.</p>}
+        {cooldowns.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nobody&apos;s on cooldown right now.</p>
+        )}
         {cooldowns.map((c) => (
           <Card key={c.id} className="py-0">
             <CardContent className="flex flex-wrap items-center gap-3 py-3">

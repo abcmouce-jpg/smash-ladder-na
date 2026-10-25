@@ -127,7 +127,6 @@ describe("createPost", () => {
     expect(url).toBe("https://discord.com/api/webhooks/elite");
     expect(content).toContain("Elite+");
   });
-
 });
 
 describe("closePost", () => {

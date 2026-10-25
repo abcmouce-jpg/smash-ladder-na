@@ -251,7 +251,13 @@ describe("characterPickState", () => {
 
   it("games 2+: actorA sees actorB's counterpick once it's in, though it's moot by then", () => {
     const state = characterPickState(
-      { ...counterpickBase, actorACharacter: "Fox", actorAMoveset: null, actorBCharacter: "Falco", actorBMoveset: null },
+      {
+        ...counterpickBase,
+        actorACharacter: "Fox",
+        actorAMoveset: null,
+        actorBCharacter: "Falco",
+        actorBMoveset: null,
+      },
       "winner",
     );
     expect(state).toEqual({

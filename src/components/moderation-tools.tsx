@@ -37,9 +37,8 @@ export function ModerationStatusForm({
           ranked as the suspension having silently failed. */}
       <p className="text-xs text-muted-foreground">
         <span className="font-medium text-foreground">Suspend</span> keeps ranked play open — it only blocks Friendlies
-        posts and filing new reports.{" "}
-        <span className="font-medium text-foreground">Ban</span> blocks everything, including matchmaking. The reason you
-        type here is shown to the player.
+        posts and filing new reports. <span className="font-medium text-foreground">Ban</span> blocks everything,
+        including matchmaking. The reason you type here is shown to the player.
       </p>
       <form action={formAction} className="flex flex-wrap items-center gap-1.5">
         <select

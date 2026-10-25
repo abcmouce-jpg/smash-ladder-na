@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { resolveApiUser } from "@/lib/api-tokens";
-import { getActiveLobbyEntry, joinLobbyAndTryPair, cancelLobbyEntry, touchWaitingLobbyEntry, ROOM_CODE_PATTERN } from "@/lib/lobby";
+import {
+  getActiveLobbyEntry,
+  joinLobbyAndTryPair,
+  cancelLobbyEntry,
+  touchWaitingLobbyEntry,
+  ROOM_CODE_PATTERN,
+} from "@/lib/lobby";
 
 export async function GET(request: Request) {
   const userId = await resolveApiUser(request);
