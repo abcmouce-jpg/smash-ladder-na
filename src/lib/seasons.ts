@@ -130,6 +130,38 @@ export async function ensureActiveSeason() {
   return prisma.season.create({ data: { name: "Season 1", algorithm: NEXT_SEASON_ALGORITHM } });
 }
 
+/**
+ * Changes the algorithm the season that is already running is rated with.
+ *
+ * NEXT_SEASON_ALGORITHM only decides what a season gets at creation, so an
+ * instance that changes RATING_SYSTEM mid-season keeps rating matches with
+ * whatever its current season recorded — invisibly, since nothing on the site
+ * contradicts the new setting. That is how Japan opened Season 1 on ELO's
+ * tapering K after deciding on Smashmate's flat one.
+ *
+ * Only while the season has rated nothing. Past that point the ratings on the
+ * board were produced by the old math and every new one would be produced by
+ * the new, which is not a ladder — ending the season and starting the next on
+ * the new algorithm is the operation for that, and it already exists.
+ */
+export async function setActiveSeasonAlgorithm(algorithm: RatingAlgorithm) {
+  const active = await getActiveSeason();
+  if (!active) throw new Error("No active season");
+  if (active.algorithm === algorithm) return active;
+
+  const ratedCount = await prisma.ratingMatch.count({
+    where: { seasonId: active.id, status: MatchStatus.CONFIRMED },
+  });
+  if (ratedCount > 0) {
+    throw new Error(
+      `${active.name} has already rated ${ratedCount} ${ratedCount === 1 ? "set" : "sets"} with ${active.algorithm} — ` +
+        "end the season and start the next one on the new algorithm instead",
+    );
+  }
+
+  return prisma.season.update({ where: { id: active.id }, data: { algorithm } });
+}
+
 export async function listPastSeasons() {
   return prisma.season.findMany({
     where: { endsAt: { not: null } },

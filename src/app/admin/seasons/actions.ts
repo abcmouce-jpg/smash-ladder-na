@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { RatingAlgorithm } from "@/generated/prisma/enums";
-import { NEXT_SEASON_ALGORITHM, SEASON_MANAGER_USER_ID, endActiveSeasonAndStartNext } from "@/lib/seasons";
+import {
+  NEXT_SEASON_ALGORITHM,
+  SEASON_MANAGER_USER_ID,
+  endActiveSeasonAndStartNext,
+  setActiveSeasonAlgorithm,
+} from "@/lib/seasons";
 
 async function requireModerator() {
   const session = await auth();
@@ -67,4 +72,22 @@ export async function rescheduleActiveSeasonEnd(formData: FormData) {
   await prisma.season.update({ where: { id: active.id }, data: { scheduledEndAt: next } });
 
   revalidatePath("/admin/seasons");
+}
+
+// Changes the running season's algorithm, for the case where RATING_SYSTEM was
+// decided after the season had already opened. Same restriction as endSeason:
+// this is rating-math territory even though setActiveSeasonAlgorithm refuses
+// once the season has rated anything.
+export async function setActiveSeasonAlgorithmAction(formData: FormData) {
+  const userId = await requireModerator();
+  if (SEASON_MANAGER_USER_ID && userId !== SEASON_MANAGER_USER_ID) {
+    throw new Error("Changing a season's rating system is restricted to one admin for now");
+  }
+
+  const raw = formData.get("algorithm") as string | null;
+  if (!raw || !(raw in RatingAlgorithm)) throw new Error("Invalid algorithm");
+
+  await setActiveSeasonAlgorithm(raw as RatingAlgorithm);
+  revalidatePath("/admin/seasons");
+  revalidatePath("/leaderboard");
 }

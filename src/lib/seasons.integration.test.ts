@@ -15,6 +15,7 @@ import {
   PRE_SEASON_NAME,
   PRE_SEASON_STARTS_AT,
   PRE_SEASON_EXPECTED_END_AT,
+  setActiveSeasonAlgorithm,
 } from "@/lib/seasons";
 import { createTestUser } from "@/test/factories";
 import { isCancelSuspendThreshold } from "@/lib/account";
@@ -482,5 +483,61 @@ describe("season rating algorithm", () => {
     await endActiveSeasonAndStartNext("Season 2", after, null, RatingAlgorithm.ELO);
 
     expect((await getActiveSeason())?.algorithm).toBe(RatingAlgorithm.ELO);
+  });
+});
+
+// NEXT_SEASON_ALGORITHM only decides what a season gets at creation, so an
+// instance that settles its rating system after opening a season keeps rating
+// matches with the old math — invisibly. This is the way out of that, and the
+// condition on it is the whole point: it must not be a way to change the math
+// under ratings that already exist.
+describe("setActiveSeasonAlgorithm", () => {
+  it("changes the running season's algorithm while it has rated nothing", async () => {
+    await prisma.season.create({
+      data: { name: "Season 1", algorithm: RatingAlgorithm.ELO, startsAt: new Date("2026-01-01T00:00:00Z") },
+    });
+
+    const updated = await setActiveSeasonAlgorithm(RatingAlgorithm.SMASHMATE);
+
+    expect(updated.algorithm).toBe(RatingAlgorithm.SMASHMATE);
+    expect((await getActiveSeason())?.algorithm).toBe(RatingAlgorithm.SMASHMATE);
+  });
+
+  it("refuses once the season has rated a set, naming what it already rated", async () => {
+    const season = await prisma.season.create({
+      data: { name: "Season 1", algorithm: RatingAlgorithm.ELO, startsAt: new Date("2026-01-01T00:00:00Z") },
+    });
+    const rated = await createTestMatch(MatchStatus.CONFIRMED, new Date());
+    await prisma.ratingMatch.update({ where: { id: rated.id }, data: { seasonId: season.id } });
+
+    await expect(setActiveSeasonAlgorithm(RatingAlgorithm.SMASHMATE)).rejects.toThrow(/already rated 1 set with ELO/);
+
+    expect((await getActiveSeason())?.algorithm).toBe(RatingAlgorithm.ELO);
+  });
+
+  it("ignores a set that an unresolved match left in the season", async () => {
+    // Only CONFIRMED means "this produced ratings" — a match still waiting on
+    // a report hasn't scored anything, so it must not freeze the choice.
+    const season = await prisma.season.create({
+      data: { name: "Season 1", algorithm: RatingAlgorithm.ELO, startsAt: new Date("2026-01-01T00:00:00Z") },
+    });
+    const pending = await createTestMatch(MatchStatus.PENDING_REPORT);
+    await prisma.ratingMatch.update({ where: { id: pending.id }, data: { seasonId: season.id } });
+
+    expect((await setActiveSeasonAlgorithm(RatingAlgorithm.SMASHMATE)).algorithm).toBe(RatingAlgorithm.SMASHMATE);
+  });
+
+  it("is a no-op when the season already runs that algorithm, even once it has rated sets", async () => {
+    const season = await prisma.season.create({
+      data: { name: "Season 1", algorithm: RatingAlgorithm.SMASHMATE, startsAt: new Date("2026-01-01T00:00:00Z") },
+    });
+    const rated = await createTestMatch(MatchStatus.CONFIRMED, new Date());
+    await prisma.ratingMatch.update({ where: { id: rated.id }, data: { seasonId: season.id } });
+
+    expect((await setActiveSeasonAlgorithm(RatingAlgorithm.SMASHMATE)).algorithm).toBe(RatingAlgorithm.SMASHMATE);
+  });
+
+  it("refuses when there is no season running", async () => {
+    await expect(setActiveSeasonAlgorithm(RatingAlgorithm.SMASHMATE)).rejects.toThrow(/No active season/);
   });
 });

@@ -4,12 +4,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { RatingAlgorithm } from "@/generated/prisma/enums";
-
-const ALGORITHM_LABEL: Record<RatingAlgorithm, string> = {
-  ELO: "Elo",
-  GLICKO2: "Glicko-2",
-  SMASHMATE: "Smashmate",
-};
+import { RATING_ALGORITHM_LABEL as ALGORITHM_LABEL } from "@/lib/rating-algorithm";
 
 export function EndSeasonButton({
   action,
