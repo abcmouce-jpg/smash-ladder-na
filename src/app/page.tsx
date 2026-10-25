@@ -7,7 +7,7 @@ import { Activity, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { formatRating } from "@/lib/rating-format";
-import { isRatingVisible } from "@/lib/rank-tier";
+import { isRatingVisible, PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { getFriendliesPosts } from "@/lib/home-feed";
 import { getMatchFeed } from "@/lib/match-feed";
@@ -15,7 +15,6 @@ import { serializeSetEntry } from "@/lib/set-entry";
 import { Button } from "@/components/ui/button";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
-import { RatingHidden } from "@/components/rating-hidden";
 import { FriendliesPosts } from "@/components/friendlies-posts";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { Card, CardContent } from "@/components/ui/card";
@@ -142,31 +141,57 @@ export default async function Home() {
 
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
-          {!ratingVisible ? (
-            <RatingHidden gamesPlayed={me.gamesPlayed} lang={lang} />
-          ) : (
-            trNode(lang, {
-              en: (
-                <>
-                  You&apos;re <span className="font-medium text-foreground">{formatRating(me.rating)}</span> rated
-                  across {me.gamesPlayed} sets.
-                </>
-              ),
-              es: (
-                <>
-                  Tienes una clasificación de{" "}
-                  <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en {me.gamesPlayed}{" "}
-                  partidas.
-                </>
-              ),
-              ja: (
-                <>
-                  {me.gamesPlayed}セットを戦って、レートは{" "}
-                  <span className="font-medium text-foreground">{formatRating(me.rating)}</span> です。
-                </>
-              ),
-            })
-          )}
+          {!ratingVisible
+            ? trNode(lang, {
+                en: (
+                  <>
+                    Your rating appears after {PROVISIONAL_GAMES_THRESHOLD} sets —{" "}
+                    <span className="font-medium text-foreground">
+                      {me.gamesPlayed}/{PROVISIONAL_GAMES_THRESHOLD}
+                    </span>{" "}
+                    so far.
+                  </>
+                ),
+                es: (
+                  <>
+                    Tu clasificación aparece a las {PROVISIONAL_GAMES_THRESHOLD} partidas —{" "}
+                    <span className="font-medium text-foreground">
+                      {me.gamesPlayed}/{PROVISIONAL_GAMES_THRESHOLD}
+                    </span>{" "}
+                    hasta ahora.
+                  </>
+                ),
+                ja: (
+                  <>
+                    レートは{PROVISIONAL_GAMES_THRESHOLD}セットから表示されます（いま{" "}
+                    <span className="font-medium text-foreground">
+                      {me.gamesPlayed}/{PROVISIONAL_GAMES_THRESHOLD}
+                    </span>
+                    ）。
+                  </>
+                ),
+              })
+            : trNode(lang, {
+                en: (
+                  <>
+                    You&apos;re <span className="font-medium text-foreground">{formatRating(me.rating)}</span> rated
+                    across {me.gamesPlayed} sets.
+                  </>
+                ),
+                es: (
+                  <>
+                    Tienes una clasificación de{" "}
+                    <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en {me.gamesPlayed}{" "}
+                    partidas.
+                  </>
+                ),
+                ja: (
+                  <>
+                    {me.gamesPlayed}セットを戦って、レートは{" "}
+                    <span className="font-medium text-foreground">{formatRating(me.rating)}</span> です。
+                  </>
+                ),
+              })}
         </p>
       )}
 
@@ -177,22 +202,63 @@ export default async function Home() {
               <span className="live-pulse absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="font-medium text-foreground">{stats.playingNow}</span>{" "}
-            {tr(lang, { en: "playing now", es: "jugando ahora", ja: "対戦中" })}
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{stats.playingNow}</span> playing now
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
+                </>
+              ),
+              ja: (
+                <>
+                  <span className="font-medium text-foreground">{stats.playingNow}</span>人が対戦中
+                </>
+              ),
+            })}
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.totalPlayers}</span>{" "}
-          {tr(lang, { en: "players", es: "jugadores", ja: "プレイヤー" })}
+          {trNode(lang, {
+            en: (
+              <>
+                <span className="font-medium text-foreground">{stats.totalPlayers}</span> players
+              </>
+            ),
+            es: (
+              <>
+                <span className="font-medium text-foreground">{stats.totalPlayers}</span> jugadores
+              </>
+            ),
+            ja: (
+              <>
+                プレイヤー<span className="font-medium text-foreground">{stats.totalPlayers}</span>人
+              </>
+            ),
+          })}
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.matchesToday}</span>{" "}
-          {tr(lang, {
-            en: "matches today",
-            es: "partidas hoy",
-            ja: "今日の試合",
+          {trNode(lang, {
+            en: (
+              <>
+                <span className="font-medium text-foreground">{stats.matchesToday}</span> matches today
+              </>
+            ),
+            es: (
+              <>
+                <span className="font-medium text-foreground">{stats.matchesToday}</span> partidas hoy
+              </>
+            ),
+            ja: (
+              <>
+                今日の試合<span className="font-medium text-foreground">{stats.matchesToday}</span>件
+              </>
+            ),
           })}
         </span>
       </div>

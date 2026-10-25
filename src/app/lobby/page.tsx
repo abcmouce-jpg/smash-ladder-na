@@ -733,7 +733,7 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
               ),
               ja: (
                 <>
-                  キャンセル数が「キャンセル＋試合数」の25%を超えた場合、または十分な数の相手から回線の問題を報告された場合に自動で解除されます。詳しくは
+                  有線でプレイしていることを自己申告します。キャンセルが多すぎる場合や、回線の問題を相手から何度も報告された場合は自動で外れます。詳しくは
                   <Link href="/rules" className="text-foreground underline underline-offset-2">
                     ルール
                   </Link>
@@ -767,7 +767,7 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
         <MatchSettingToggle
           name="zenMode"
           checked={me?.zenMode ?? false}
-          label={tr(lang, { en: "Zen Mode", es: "Modo Zen", ja: "ゼンモード" })}
+          label={tr(lang, { en: "Zen Mode", es: "Modo Zen", ja: "ゼンモード（レート非表示）" })}
           hint={tr(lang, {
             en: "Hide both ratings while you're in a match.",
             es: "Oculta ambas clasificaciones mientras estás en una partida.",

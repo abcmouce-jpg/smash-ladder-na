@@ -65,44 +65,50 @@ export default async function SeasonStandingsPage({
       )}
 
       <Card className="mt-4 overflow-hidden py-0">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="py-2 pl-4 font-medium">#</th>
-              <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador", ja: "プレイヤー" })}</th>
-              <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango", ja: "ランク帯" })}</th>
-              <th className="py-2 font-medium text-right tabular-nums">
-                {tr(lang, { en: "Final rating", es: "Clasificación final", ja: "最終レート" })}
-              </th>
-              <th className="py-2 pr-4 font-medium text-right tabular-nums">
-                {tr(lang, { en: "Sets", es: "Partidas", ja: "セット" })}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((s) => (
-              <tr key={s.id} className="border-b border-border/60 last:border-0">
-                <td className="py-2 pl-4 tabular-nums text-muted-foreground">{MEDALS[s.rank - 1] ?? s.rank}</td>
-                <td className="py-2">
-                  <Link href={`/players/${s.user.id}`} className="flex items-center gap-2 hover:underline">
-                    {s.user.username}
-                    <CharacterUsageIcons usage={usageByPlayerId.get(s.user.id) ?? []} />
-                  </Link>
-                </td>
-                <td className="py-2">
-                  <RankBadge
-                    rating={s.finalRating}
-                    gamesPlayed={s.gamesPlayed}
-                    tiers={rankTiersFor(season.algorithm)}
-                    lang={lang}
-                  />
-                </td>
-                <td className="py-2 text-right font-medium tabular-nums">{formatRating(s.finalRating)}</td>
-                <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{s.gamesPlayed}</td>
+        {/* Scrolls horizontally instead of clipping columns on narrow viewports —
+            the Card's own overflow-hidden would otherwise cut the rating and
+            sets columns off a phone with no way to reach them. Same wrapper
+            /leaderboard uses for the same five-column table. */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="py-2 pl-4 font-medium">#</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador", ja: "プレイヤー" })}</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango", ja: "ランク帯" })}</th>
+                <th className="py-2 font-medium text-right tabular-nums">
+                  {tr(lang, { en: "Final rating", es: "Clasificación final", ja: "最終レート" })}
+                </th>
+                <th className="py-2 pr-4 font-medium text-right tabular-nums">
+                  {tr(lang, { en: "Sets", es: "Partidas", ja: "セット" })}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {standings.map((s) => (
+                <tr key={s.id} className="border-b border-border/60 last:border-0">
+                  <td className="py-2 pl-4 tabular-nums text-muted-foreground">{MEDALS[s.rank - 1] ?? s.rank}</td>
+                  <td className="py-2">
+                    <Link href={`/players/${s.user.id}`} className="flex items-center gap-2 hover:underline">
+                      {s.user.username}
+                      <CharacterUsageIcons usage={usageByPlayerId.get(s.user.id) ?? []} />
+                    </Link>
+                  </td>
+                  <td className="py-2">
+                    <RankBadge
+                      rating={s.finalRating}
+                      gamesPlayed={s.gamesPlayed}
+                      tiers={rankTiersFor(season.algorithm)}
+                      lang={lang}
+                    />
+                  </td>
+                  <td className="py-2 text-right font-medium tabular-nums">{formatRating(s.finalRating)}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{s.gamesPlayed}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {standings.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">
             {tr(lang, {

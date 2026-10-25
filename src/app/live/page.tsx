@@ -9,7 +9,7 @@ import { LiveStreamProvider } from "@/components/live-streams/selection";
 import { LiveStreamStage } from "@/components/live-streams/stage";
 import { getLang } from "@/lib/i18n";
 import { SetRow } from "@/components/live-streams/set-row";
-import { tr } from "@/lib/lang";
+import { tr, trNode } from "@/lib/lang";
 
 export default async function SetsFeedPage() {
   const [entries, { inProgress, matchesToday }, lang, session] = await Promise.all([
@@ -57,8 +57,23 @@ export default async function SetsFeedPage() {
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{matchesToday}</span>{" "}
-          {tr(lang, { en: "matches today", es: "partidas hoy", ja: "今日の試合" })}
+          {trNode(lang, {
+            en: (
+              <>
+                <span className="font-medium text-foreground">{matchesToday}</span> matches today
+              </>
+            ),
+            es: (
+              <>
+                <span className="font-medium text-foreground">{matchesToday}</span> partidas hoy
+              </>
+            ),
+            ja: (
+              <>
+                今日の試合<span className="font-medium text-foreground">{matchesToday}</span>件
+              </>
+            ),
+          })}
         </span>
       </div>
 

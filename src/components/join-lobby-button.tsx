@@ -69,7 +69,7 @@ export function JoinLobbyForm({
             {tr(lang, {
               en: "Practicing this session",
               es: "Practicando esta sesión",
-              ja: "このセッションは練習として参加",
+              ja: "今回は練習として参加する",
             })}
           </span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
