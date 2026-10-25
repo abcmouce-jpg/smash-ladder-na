@@ -47,7 +47,7 @@ import {
   lastUsedMoveset,
   secondsUntil,
 } from "@/lib/match-games";
-import { stageImagePath, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { STRIKING_STAGES, stageImagePath, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
@@ -2203,50 +2203,64 @@ function GameSection({
                 es: "La selección de escenario empieza cuando ambos elijan personaje.",
                 ja: "ステージ選択は、両者がキャラを選んでから始まります。",
               })
-            : !myTurn
-              ? trNode(lang, {
-                  en: (
-                    <>
-                      Waiting for {opponentName} to {verbLocalized}… (
-                      <Countdown deadline={deadline} />s left)
-                    </>
-                  ),
-                  es: (
-                    <>
-                      Esperando a que {opponentName} {verbLocalized}… (
-                      <Countdown deadline={deadline} />s restantes)
-                    </>
-                  ),
-                  ja: (
-                    <>
-                      {opponentName}がステージを{verbLocalized}
-                      のを待っています…（残り
-                      <Countdown deadline={deadline} />
-                      秒）
-                    </>
-                  ),
+            : !STRIKING_STAGES && current.gameNumber === 1
+              ? // Game 1 is settled by the in-game lottery, so the site records
+                // the outcome rather than running the choice.
+                tr(lang, {
+                  en: "Both players choose the stage they want in game and take whatever the lottery gives — do not pick Random. Record the stage it landed on below.",
+                  es: "Ambos eligen el escenario que quieren dentro del juego y aceptan lo que salga — no elijan Aleatorio. Registren abajo el escenario que tocó.",
+                  ja: "お互いにゲーム内で戦いたいステージを選び、抽選の結果に従ってください（「おまかせ」は選ばないでください）。決まったステージを下で記録してください。",
                 })
-              : trNode(lang, {
-                  en: (
-                    <>
-                      Your turn — {turnDescription} (
-                      <Countdown deadline={deadline} />s left, or it picks automatically).
-                    </>
-                  ),
-                  es: (
-                    <>
-                      Tu turno — {turnDescription} (
-                      <Countdown deadline={deadline} />s restantes, o se elige solo).
-                    </>
-                  ),
-                  ja: (
-                    <>
-                      あなたの番 — {turnDescription}（残り
-                      <Countdown deadline={deadline} />
-                      秒。過ぎると自動で選ばれます）。
-                    </>
-                  ),
-                })}
+              : !STRIKING_STAGES
+                ? tr(lang, {
+                    en: "The last game's loser picks the stage; the winner selects Random in game.",
+                    es: "Quien perdió el último juego elige el escenario; el ganador elige Aleatorio en el juego.",
+                    ja: "前の試合に負けた側がステージを選びます。勝った側はゲーム内で「おまかせ」を選んでください。",
+                  })
+                : !myTurn
+                  ? trNode(lang, {
+                      en: (
+                        <>
+                          Waiting for {opponentName} to {verbLocalized}… (
+                          <Countdown deadline={deadline} />s left)
+                        </>
+                      ),
+                      es: (
+                        <>
+                          Esperando a que {opponentName} {verbLocalized}… (
+                          <Countdown deadline={deadline} />s restantes)
+                        </>
+                      ),
+                      ja: (
+                        <>
+                          {opponentName}がステージを{verbLocalized}
+                          のを待っています…（残り
+                          <Countdown deadline={deadline} />
+                          秒）
+                        </>
+                      ),
+                    })
+                  : trNode(lang, {
+                      en: (
+                        <>
+                          Your turn — {turnDescription} (
+                          <Countdown deadline={deadline} />s left, or it picks automatically).
+                        </>
+                      ),
+                      es: (
+                        <>
+                          Tu turno — {turnDescription} (
+                          <Countdown deadline={deadline} />s restantes, o se elige solo).
+                        </>
+                      ),
+                      ja: (
+                        <>
+                          あなたの番 — {turnDescription}（残り
+                          <Countdown deadline={deadline} />
+                          秒。過ぎると自動で選ばれます）。
+                        </>
+                      ),
+                    })}
         </p>
         <StageProposalSection
           matchId={match.id}

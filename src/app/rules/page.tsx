@@ -4,6 +4,8 @@ import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/se
 import { getLang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
 import { ALLOWS_LATENCY_MODS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL, SITE_NAME } from "@/lib/site";
+import { STRIKING_STAGES } from "@/lib/stages";
+import { GAMES_TO_WIN } from "@/lib/match-games";
 
 export const metadata = { title: `Rules — ${SITE_NAME}` };
 
@@ -28,7 +30,10 @@ export default async function RulesPage() {
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <Section title="Format">
-          <p>All ranked matches are best-of-5. Stage hazards off. Standard stock/time settings.</p>
+          <p>
+            All ranked matches are best-of-{GAMES_TO_WIN === 2 ? "3" : "5"}. Stage hazards off. Standard stock/time
+            settings.
+          </p>
         </Section>
 
         {HAS_PRIZE_POOL ? (
@@ -68,20 +73,47 @@ export default async function RulesPage() {
           </Section>
         )}
 
-        <Section title="Stage striking — game 1">
-          <p>
-            Game 1 draws from five stages: Battlefield, Small Battlefield, Pokémon Stadium 2, Smashville, and Town and
-            City. A randomly chosen player strikes 1, their opponent strikes 2, and the first striker picks the stage
-            from the two that remain.
-          </p>
-        </Section>
+        {STRIKING_STAGES ? (
+          <>
+            <Section title="Stage striking — game 1">
+              <p>
+                Game 1 draws from five stages: Battlefield, Small Battlefield, Pokémon Stadium 2, Smashville, and Town
+                and City. A randomly chosen player strikes 1, their opponent strikes 2, and the first striker picks the
+                stage from the two that remain.
+              </p>
+            </Section>
 
-        <Section title="Stage striking — games 2 and beyond">
-          <p>
-            Three counterpick stages are added — Final Destination, Hollow Bastion, and Kalos Pokémon League — for eight
-            total. The winner of the previous game strikes 3, and the loser picks the stage from what remains.
-          </p>
-        </Section>
+            <Section title="Stage striking — games 2 and beyond">
+              <p>
+                Three counterpick stages are added — Final Destination, Hollow Bastion, and Kalos Pokémon League — for
+                eight total. The winner of the previous game strikes 3, and the loser picks the stage from what remains.
+              </p>
+            </Section>
+          </>
+        ) : (
+          <>
+            <Section title="Stages — game 1">
+              <p>
+                Nobody strikes. Both players choose the stage they want in game and go with whatever the in-game lottery
+                lands on — do not pick Random.
+              </p>
+              <p>
+                Game 1 draws from six: Final Destination, Battlefield, Pokémon Stadium 2, Small Battlefield, Hollow
+                Bastion, and Town and City.
+              </p>
+            </Section>
+
+            <Section title="Stages — games 2 and 3">
+              <p>
+                The previous game&apos;s loser picks the stage, and the winner selects Random in game. Smashville joins
+                the list from game 2, for seven.
+              </p>
+              <p>
+                Final Destination and Battlefield may also be taken as the Ω form or Battlefield form of another stage.
+              </p>
+            </Section>
+          </>
+        )}
 
         <Section title="Room codes">
           <p>
@@ -289,8 +321,8 @@ function RulesPageEs() {
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <Section title="Formato">
           <p>
-            Todas las partidas rankeadas son al mejor de 5. Hazards de escenario desactivados. Configuración estándar de
-            stocks/tiempo.
+            Todas las partidas rankeadas son al mejor de {GAMES_TO_WIN === 2 ? "3" : "5"}. Hazards de escenario
+            desactivados. Configuración estándar de stocks/tiempo.
           </p>
         </Section>
 
@@ -328,21 +360,42 @@ function RulesPageEs() {
           </Section>
         )}
 
-        <Section title="Descarte de escenario — juego 1">
-          <p>
-            El juego 1 se elige entre cinco escenarios: Battlefield, Small Battlefield, Pokémon Stadium 2, Smashville, y
-            Town and City. Un jugador elegido al azar descarta 1, su rival descarta 2, y el primero en descartar elige
-            el escenario entre los dos que quedan.
-          </p>
-        </Section>
+        {STRIKING_STAGES ? (
+          <>
+            <Section title="Descarte de escenario — juego 1">
+              <p>
+                El juego 1 se elige entre cinco escenarios: Battlefield, Small Battlefield, Pokémon Stadium 2,
+                Smashville, y Town and City. Un jugador elegido al azar descarta 1, su rival descarta 2, y el primero en
+                descartar elige el escenario entre los dos que quedan.
+              </p>
+            </Section>
 
-        <Section title="Descarte de escenario — juego 2 en adelante">
-          <p>
-            Se añaden tres escenarios de contra-selección — Final Destination, Hollow Bastion, y Kalos Pokémon League —
-            para ocho en total. Quien ganó el juego anterior descarta 3, y quien perdió elige el escenario entre lo que
-            queda.
-          </p>
-        </Section>
+            <Section title="Descarte de escenario — juego 2 en adelante">
+              <p>
+                Se añaden tres escenarios de contra-selección — Final Destination, Hollow Bastion, y Kalos Pokémon
+                League — para ocho en total. Quien ganó el juego anterior descarta 3, y quien perdió elige el escenario
+                entre lo que queda.
+              </p>
+            </Section>
+          </>
+        ) : (
+          <>
+            <Section title="Escenarios — juego 1">
+              <p>
+                Nadie descarta. Ambos eligen dentro del juego el escenario que quieren y aceptan lo que salga en el
+                sorteo — no elijan Aleatorio. El juego 1 se elige entre seis: Final Destination, Battlefield, Pokémon
+                Stadium 2, Small Battlefield, Hollow Bastion, y Town and City.
+              </p>
+            </Section>
+
+            <Section title="Escenarios — juegos 2 y 3">
+              <p>
+                Quien perdió el juego anterior elige el escenario, y el ganador elige Aleatorio en el juego. Smashville
+                se suma desde el juego 2, para siete.
+              </p>
+            </Section>
+          </>
+        )}
 
         <Section title="Códigos de sala">
           <p>

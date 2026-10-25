@@ -2,13 +2,14 @@ import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { ConfirmationMethod, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
-import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { GAME_ONE_STAGES, COUNTERPICK_STAGES, STRIKING_STAGES } from "@/lib/stages";
+import { REGION_SET } from "@/lib/site";
 import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
 import { isNotificationEnabled } from "@/lib/notifications";
 
-export const GAMES_TO_WIN = 3; // best of 5
+export const GAMES_TO_WIN = REGION_SET === "jp" ? 2 : 3; // Japan best-of-3, NA best-of-5
 const MAX_GAMES = 2 * GAMES_TO_WIN - 1;
 
 // Indirection so `Date.now()` isn't called directly in a component's render
@@ -100,8 +101,7 @@ async function autoResolveStaleTurn(matchId: string) {
   // stage as pickSameStage.
   const allGames = await prisma.matchGame.findMany({ where: { matchId } });
   const previousStage = lastPlayedStage(allGames, game.gameNumber);
-  const repeatStage =
-    previousStage && game.stagesRemaining.includes(previousStage) ? previousStage : null;
+  const repeatStage = previousStage && game.stagesRemaining.includes(previousStage) ? previousStage : null;
 
   const striker = actorForStrike(game);
   if (striker) {
@@ -123,9 +123,7 @@ async function autoResolveStaleTurn(matchId: string) {
     // it resolves at its single deadline. The next actor gets a fresh clock.
     const count = game.struckStages.length;
     const owed =
-      striker === game.actorAId
-        ? game.actorAStrikes - count
-        : game.actorAStrikes + game.actorBStrikes - count;
+      striker === game.actorAId ? game.actorAStrikes - count : game.actorAStrikes + game.actorBStrikes - count;
     const strikes = randomStages(game.stagesRemaining, owed);
     if (strikes.length === 0) return;
     const struckStages = [...game.struckStages, ...strikes];
@@ -134,9 +132,7 @@ async function autoResolveStaleTurn(matchId: string) {
       data: {
         stagesRemaining: game.stagesRemaining.filter((s) => !strikes.includes(s)),
         struckStages,
-        ...(turnPassesToNextActor(game, struckStages, striker)
-          ? { turnStartedAt: new Date() }
-          : {}),
+        ...(turnPassesToNextActor(game, struckStages, striker) ? { turnStartedAt: new Date() } : {}),
       },
     });
     return;
@@ -449,9 +445,9 @@ export async function startFirstGame(userId: string, matchId: string) {
       matchId,
       gameNumber: 1,
       actorAId,
-      actorAStrikes: 1,
+      actorAStrikes: STRIKING_STAGES ? 1 : 0,
       actorBId,
-      actorBStrikes: 2,
+      actorBStrikes: STRIKING_STAGES ? 2 : 0,
       stagesRemaining: [...GAME_ONE_STAGES],
       characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
     },
@@ -484,7 +480,7 @@ function picker(game: { actorAId: string; actorBId: string; actorAStrikes: numbe
 function turnPassesToNextActor(
   game: { actorAId: string; actorBId: string; actorAStrikes: number; actorBStrikes: number },
   struckStages: string[],
-  currentActor: string
+  currentActor: string,
 ) {
   return actorForStrike({ ...game, struckStages }) !== currentActor;
 }
@@ -716,9 +712,7 @@ export async function strikeGameStage(userId: string, matchId: string, gameNumbe
     data: {
       stagesRemaining: game.stagesRemaining.filter((s) => s !== stage),
       struckStages: [...game.struckStages, stage],
-      ...(turnPassesToNextActor(game, [...game.struckStages, stage], actor)
-        ? { turnStartedAt: new Date() }
-        : {}),
+      ...(turnPassesToNextActor(game, [...game.struckStages, stage], actor) ? { turnStartedAt: new Date() } : {}),
     },
   });
 }
@@ -1220,7 +1214,10 @@ export async function autoConfirmStaleGameReport(
         data: { reportedWinnerId, reportedById: reportedWinnerId, reportedAt: now },
       });
       if (claim.count === 0) return false;
-      await tx.matchGame.updateMany({ where: { id: hangingGame.id, winnerId: null }, data: { winnerId: reportedWinnerId } });
+      await tx.matchGame.updateMany({
+        where: { id: hangingGame.id, winnerId: null },
+        data: { winnerId: reportedWinnerId },
+      });
       await applyEloAndConfirm(tx, match, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT, null);
       await applyTimeoutCooldown(tx, nonReporterId, now);
       return true;
@@ -1364,7 +1361,7 @@ async function progressSet(
       matchId: match.id,
       gameNumber: nextGameNumber,
       actorAId: gameWinnerId, // previous game's winner strikes first
-      actorAStrikes: 3,
+      actorAStrikes: STRIKING_STAGES ? 3 : 0,
       actorBId: loserId,
       actorBStrikes: 0,
       stagesRemaining: [...COUNTERPICK_STAGES],

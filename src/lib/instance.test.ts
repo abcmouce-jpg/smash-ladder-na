@@ -8,6 +8,7 @@ async function load(regionSet?: "jp") {
   return {
     site: await import("./site"),
     regions: await import("./regions"),
+    stages: await import("./stages"),
   };
 }
 
@@ -93,5 +94,52 @@ describe("regionReachAllows", () => {
   it("still returns a filter list for North America", async () => {
     const { regions } = await load();
     expect(regions.regionReachFilter("USA East", 0)).toEqual(["USA East", "Washington D.C."]);
+  });
+});
+
+describe("Japan's stage rules, which are Smashmate's", () => {
+  it("strikes no stages at all", async () => {
+    const { stages } = await load("jp");
+    expect(stages.STRIKING_STAGES).toBe(false);
+  });
+
+  it("offers six stages in game 1, すま村 not among them", async () => {
+    const { stages } = await load("jp");
+    expect([...stages.GAME_ONE_STAGES]).toEqual([
+      "Final Destination",
+      "Battlefield",
+      "Pokémon Stadium 2",
+      "Small Battlefield",
+      "Hollow Bastion",
+      "Town and City",
+    ]);
+    expect(stages.GAME_ONE_STAGES).not.toContain("Smashville");
+  });
+
+  it("adds すま村 from game 2, and nothing else", async () => {
+    const { stages } = await load("jp");
+    expect(stages.COUNTERPICK_STAGES).toHaveLength(7);
+    expect(stages.COUNTERPICK_STAGES).toContain("Smashville");
+    // Dropped entirely — it is on North America's list, not Japan's.
+    expect(stages.COUNTERPICK_STAGES).not.toContain("Kalos Pokémon League");
+    const added = stages.COUNTERPICK_STAGES.filter((s) => !stages.GAME_ONE_STAGES.includes(s));
+    expect(added).toEqual(["Smashville"]);
+  });
+
+  it("names the stages the way Japanese players call them", async () => {
+    const { stages } = await load("jp");
+    expect(stages.stageLabel("Smashville", "ja")).toBe("すま村");
+    expect(stages.stageLabel("Town and City", "ja")).toBe("村と町");
+    expect(stages.stageLabel("Hollow Bastion", "ja")).toBe("ホロウバスティオン");
+    // The stored value is the English name, so English is a pass-through.
+    expect(stages.stageLabel("Smashville", "en")).toBe("Smashville");
+  });
+
+  it("leaves North America striking its eight", async () => {
+    const { stages } = await load();
+    expect(stages.STRIKING_STAGES).toBe(true);
+    expect(stages.GAME_ONE_STAGES).toHaveLength(5);
+    expect(stages.COUNTERPICK_STAGES).toHaveLength(8);
+    expect(stages.COUNTERPICK_STAGES).toContain("Kalos Pokémon League");
   });
 });

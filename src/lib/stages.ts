@@ -34,27 +34,29 @@ const NA_COUNTERPICK_STAGES = [
   "Kalos Pokémon League",
 ] as const;
 
-// Japan runs a 7-stage list, and it is not North America's minus one: 終点 and
-// ホロウバスティオン are starters here, while すま村 and 村と町 are
-// counterpicks rather than game-1 options, and カロスポケモンリーグ is out
-// entirely.
+// Japan follows Smashmate's stage rules, which have no striking at all.
+// Game 1 draws from six; すま村 joins only from game 2. 村と街 is a game-1
+// option here, unlike on North America's list where it is a starter but
+// Smashville is too.
 const JP_GAME_ONE_STAGES = [
   "Final Destination",
   "Battlefield",
   "Pokémon Stadium 2",
-  "Hollow Bastion",
   "Small Battlefield",
+  "Hollow Bastion",
+  "Town and City",
 ] as const;
 
-const JP_COUNTERPICK_STAGES = [...JP_GAME_ONE_STAGES, "Town and City", "Smashville"] as const;
+const JP_COUNTERPICK_STAGES = [...JP_GAME_ONE_STAGES, "Smashville"] as const;
 
 // Game 1's starter stagelist. A random player strikes 1, the opponent
 // strikes 2, then the first striker picks the stage from what's left.
 export const GAME_ONE_STAGES: readonly StageName[] = REGION_SET === "jp" ? JP_GAME_ONE_STAGES : NA_GAME_ONE_STAGES;
 
-// Games 2+ add the counterpick stages. The previous game's winner strikes 3,
-// and the loser picks the stage from what's left — five remaining on North
-// America's eight, four on Japan's seven.
+// Games 2+ add the counterpick stages. On North America the previous game's
+// winner strikes 3 and the loser picks from the five left. Japan does not
+// strike: the loser picks from the whole list and the winner selects
+// 「おまかせ」 in game — see STRIKING_STAGES.
 export const COUNTERPICK_STAGES: readonly StageName[] =
   REGION_SET === "jp" ? JP_COUNTERPICK_STAGES : NA_COUNTERPICK_STAGES;
 
@@ -97,3 +99,15 @@ export function stageLabel(stage: string, lang: Lang): string {
   if (lang !== "ja") return stage;
   return STAGE_NAMES_JA[stage] ?? stage;
 }
+
+/**
+ * Whether a set decides its stages by striking.
+ *
+ * North America strikes: 1-2 on game 1, then 3 from the winner each game
+ * after. Japan inherits Smashmate's rules instead, where nobody strikes —
+ * game 1 has both players pick in game and take whatever the in-game lottery
+ * gives, and from game 2 the previous game's loser simply picks while the
+ * winner selects 「おまかせ」. The two are different procedures, not different
+ * strike counts, so this gates the whole phase rather than a number.
+ */
+export const STRIKING_STAGES = REGION_SET !== "jp";
