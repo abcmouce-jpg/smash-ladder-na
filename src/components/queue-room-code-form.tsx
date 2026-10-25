@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useActionState } from "react";
 import { useFlashOnChange } from "@/lib/use-flash-on-change";
 import type { RoomCodeState } from "@/app/lobby/actions";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Idle time before a typed code is pushed to the server — long enough that a
 // code typed straight through only saves once, short enough that the value is
@@ -59,7 +60,11 @@ export function QueueRoomCodeForm({
         autoComplete="off"
       >
         <label className="flex flex-col gap-1 text-sm">
-          {lang === "es" ? "¿Ya tienes una sala lista? (opcional)" : "Already have a room set up? (optional)"}
+          {tr(lang, {
+            en: "Already have a room set up? (optional)",
+            es: "¿Ya tienes una sala lista? (opcional)",
+            ja: "部屋をもう立ててありますか？（任意）",
+          })}
           <input
             name="existingRoomCode"
             value={roomCode}
@@ -85,16 +90,22 @@ export function QueueRoomCodeForm({
         </label>
       </form>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? "Si tu rival no trae una sala también, tú serás el anfitrión y la verá al instante. Déjalo vacío para quitarla."
-          : "As long as your opponent doesn't also bring one, you'll be host and they'll see this right away. Leave it empty to clear it."}
+        {tr(lang, {
+          en: "As long as your opponent doesn't also bring one, you'll be host and they'll see this right away. Leave it empty to clear it.",
+          es: "Si tu rival no trae una sala también, tú serás el anfitrión y la verá al instante. Déjalo vacío para quitarla.",
+          ja: "相手も部屋番号を持ってこない限り、あなたが部屋主になり、相手にはすぐこれが表示されます。空欄にすると取り消せます。",
+        })}
       </p>
       {state.error ? (
         <p className="text-xs text-destructive">{state.error}</p>
       ) : isPending ? (
-        <p className="text-xs text-muted-foreground">{lang === "es" ? "Guardando…" : "Saving…"}</p>
+        <p className="text-xs text-muted-foreground">{tr(lang, { en: "Saving…", es: "Guardando…", ja: "保存中…" })}</p>
       ) : (
-        flashing && <p className="text-xs text-muted-foreground">{lang === "es" ? "¡Guardado!" : "Saved!"}</p>
+        flashing && (
+          <p className="text-xs text-muted-foreground">
+            {tr(lang, { en: "Saved!", es: "¡Guardado!", ja: "保存しました！" })}
+          </p>
+        )
       )}
     </div>
   );

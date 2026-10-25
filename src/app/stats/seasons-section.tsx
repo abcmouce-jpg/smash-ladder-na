@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SectionHeading } from "@/components/section-heading";
 import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -15,7 +16,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 const TOP_FINISHERS = 5;
 
 export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
-  const dateLocale = lang === "es" ? "es-MX" : "en-US";
+  const dateLocale = tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" });
   const active = await getActiveSeason();
 
   const [pastSeasons, podiums] = await Promise.all([
@@ -50,7 +51,7 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
     <div className="flex flex-col gap-8">
       {active && (
         <section>
-          <SectionHeading label={lang === "es" ? "Temporada actual" : "Current season"} />
+          <SectionHeading label={tr(lang, { en: "Current season", es: "Temporada actual", ja: "今シーズン" })} />
           <Card className="mt-3">
             <CardContent className="pt-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -58,10 +59,10 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                   <Trophy className="size-4 text-primary" />
                   <p className="text-sm font-semibold">{active.name}</p>
                   <Badge variant="outline" className="text-xs">
-                    {lang === "es" ? "En curso" : "In progress"}
+                    {tr(lang, { en: "In progress", es: "En curso", ja: "開催中" })}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {lang === "es" ? "desde el " : "since "}
+                    {tr(lang, { en: "since ", es: "desde el ", ja: "開始 " })}
                     {active.startsAt.toLocaleDateString(dateLocale)}
                   </span>
                 </div>
@@ -69,7 +70,7 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                   href="/leaderboard"
                   className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  {lang === "es" ? "Clasificación actual" : "Current leaderboard"}
+                  {tr(lang, { en: "Current leaderboard", es: "Clasificación actual", ja: "現在のランキング" })}
                   <ArrowRight className="size-3" />
                 </Link>
               </div>
@@ -80,14 +81,16 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
 
       <section>
         <SectionHeading
-          label={lang === "es" ? "Campeones anteriores" : "Past champions"}
+          label={tr(lang, { en: "Past champions", es: "Campeones anteriores", ja: "歴代王者" })}
           action={pastSeasons.length > 0 && <span className="text-xs text-muted-foreground">{pastSeasons.length}</span>}
         />
         {pastSeasons.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Todavía no ha terminado ninguna temporada — vuelve cuando esta termine."
-              : "No seasons have ended yet — check back once this one wraps up."}
+            {tr(lang, {
+              en: "No seasons have ended yet — check back once this one wraps up.",
+              es: "Todavía no ha terminado ninguna temporada — vuelve cuando esta termine.",
+              ja: "まだ終了したシーズンがありません。今シーズンが終わったら表示されます。",
+            })}
           </p>
         ) : (
           <div className="mt-3 flex flex-col gap-2">
@@ -106,11 +109,11 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                 >
                   <Link
                     href={`/seasons/${season.id}`}
-                    aria-label={
-                      lang === "es"
-                        ? `Ver la clasificación completa de ${season.name}`
-                        : `View the full standings for ${season.name}`
-                    }
+                    aria-label={tr(lang, {
+                      en: `View the full standings for ${season.name}`,
+                      es: `Ver la clasificación completa de ${season.name}`,
+                      ja: `${season.name}の最終順位を見る`,
+                    })}
                     className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                   {/* Transparent to pointers so clicks fall through to the
@@ -150,15 +153,23 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                     <p className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2 text-xs text-muted-foreground">
                       {playerCount > 0 ? (
                         <span>
-                          {lang === "es"
-                            ? `${playerCount} ${playerCount === 1 ? "jugador" : "jugadores"} en la clasificación final`
-                            : `${playerCount} player${playerCount === 1 ? "" : "s"} in the final standings`}
+                          {tr(lang, {
+                            en: `${playerCount} player${playerCount === 1 ? "" : "s"} in the final standings`,
+                            es: `${playerCount} ${playerCount === 1 ? "jugador" : "jugadores"} en la clasificación final`,
+                            ja: `最終順位に${playerCount}人`,
+                          })}
                         </span>
                       ) : (
-                        <span>{lang === "es" ? "Sin clasificación registrada" : "No standings recorded"}</span>
+                        <span>
+                          {tr(lang, {
+                            en: "No standings recorded",
+                            es: "Sin clasificación registrada",
+                            ja: "順位の記録がありません",
+                          })}
+                        </span>
                       )}
                       <span className="ml-auto flex items-center gap-1 font-medium text-muted-foreground transition-colors group-hover:text-foreground">
-                        {lang === "es" ? "Ver clasificación completa" : "Full standings"}
+                        {tr(lang, { en: "Full standings", es: "Ver clasificación completa", ja: "最終順位" })}
                         <ArrowRight className="size-3" />
                       </span>
                     </p>

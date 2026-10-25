@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateTournamentForm } from "@/components/create-tournament-form";
 import { getLang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const STATUS_VARIANT = {
   SIGNUPS: "outline",
@@ -29,12 +30,16 @@ export default async function TournamentsPage() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Torneos" : "Tournaments"}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {tr(lang, { en: "Tournaments", es: "Torneos", ja: "大会" })}
+        </h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Eventos casuales de la comunidad que no afectan la clasificación — doble eliminación en start.gg por convención."
-          : "Casual, unrated community events — double elimination on start.gg by convention."}
+        {tr(lang, {
+          en: "Casual, unrated community events — double elimination on start.gg by convention.",
+          es: "Eventos casuales de la comunidad que no afectan la clasificación — doble eliminación en start.gg por convención.",
+          ja: "レートのかからない、気軽なコミュニティ大会です。慣例として start.gg のダブルイリミネーションで行います。",
+        })}
       </p>
 
       {session?.user?.id && (
@@ -53,7 +58,8 @@ export default async function TournamentsPage() {
                 <div>
                   <p className="text-sm font-medium">{t.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {lang === "es" ? "Organizado por" : "Hosted by"} {t.host.username} · {t._count.entries}{" "}
+                    {tr(lang, { en: "Hosted by", es: "Organizado por", ja: "主催" })} {t.host.username} ·{" "}
+                    {t._count.entries}{" "}
                     {lang === "es"
                       ? t._count.entries === 1
                         ? "participante"
@@ -72,7 +78,11 @@ export default async function TournamentsPage() {
         ))}
         {tournaments.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            {lang === "es" ? "Aún no hay torneos — organiza uno arriba." : "No tournaments yet — host one above."}
+            {tr(lang, {
+              en: "No tournaments yet — host one above.",
+              es: "Aún no hay torneos — organiza uno arriba.",
+              ja: "まだ大会がありません。上から立ててみてください。",
+            })}
           </p>
         )}
       </div>

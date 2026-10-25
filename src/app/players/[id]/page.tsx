@@ -17,6 +17,7 @@ import { ProfileCharactersSection } from "./profile-characters";
 import { ProfileHeadToHeadSection } from "./profile-headtohead";
 import { ProfileSeasonsSection } from "./profile-seasons";
 import { ProfileMatchHistorySection } from "./profile-match-history";
+import { tr } from "@/lib/lang";
 
 // The profile's sections, driven purely by the `?tab=` query param so
 // every view stays server-rendered and deep-linkable — no client tab state.
@@ -198,11 +199,15 @@ export default async function PlayerProfilePage({
 
       {isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
-          <h2 className="text-sm font-medium text-destructive">{lang === "es" ? "Zona de peligro" : "Danger zone"}</h2>
+          <h2 className="text-sm font-medium text-destructive">
+            {tr(lang, { en: "Danger zone", es: "Zona de peligro", ja: "アカウントの削除" })}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos."
-              : "Deletes your username, avatar, and email. Match history stays, anonymized, so other players' win/loss records stay accurate."}
+            {tr(lang, {
+              en: "Deletes your username, avatar, and email. Match history stays, anonymized, so other players' win/loss records stay accurate.",
+              es: "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos.",
+              ja: "ユーザー名・アイコン・メールアドレスを削除します。対戦履歴は匿名化して残ります。ほかのプレイヤーの戦績が狂わないようにするためです。",
+            })}
           </p>
           <div className="mt-3">
             <DeleteAccountButton action={deleteAccountAction} lang={lang} />

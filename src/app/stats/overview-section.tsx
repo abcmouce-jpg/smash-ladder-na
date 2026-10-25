@@ -9,6 +9,7 @@ import { RatingDistributionChart } from "@/components/rating-distribution-chart"
 import { SectionHeading } from "@/components/section-heading";
 import { StatCard } from "@/components/stat-card";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const WINDOW_DAYS = 90;
 
@@ -26,27 +27,27 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
           icon={CalendarClock}
-          label={lang === "es" ? "Partidas esta temporada" : "Matches this season"}
+          label={tr(lang, { en: "Matches this season", es: "Partidas esta temporada", ja: "今シーズンの試合数" })}
           value={totals.matchesThisSeason}
         />
         <StatCard
           icon={Swords}
-          label={lang === "es" ? "Partidas en total" : "Matches all time"}
+          label={tr(lang, { en: "Matches all time", es: "Partidas en total", ja: "通算の試合数" })}
           value={totals.matchesAllTime}
         />
         <StatCard
           icon={Users}
-          label={lang === "es" ? "Jugadores clasificados" : "Ranked players"}
+          label={tr(lang, { en: "Ranked players", es: "Jugadores clasificados", ja: "ランク対象プレイヤー" })}
           value={totals.rankedPlayers}
         />
       </div>
 
       <section>
         <SectionHeading
-          label={lang === "es" ? "Partidas por día" : "Matches per day"}
+          label={tr(lang, { en: "Matches per day", es: "Partidas por día", ja: "1日あたりの試合数" })}
           action={
             <span className="text-xs text-muted-foreground">
-              {lang === "es" ? `${WINDOW_DAYS} días` : `${WINDOW_DAYS} days`}
+              {tr(lang, { en: `${WINDOW_DAYS} days`, es: `${WINDOW_DAYS} días`, ja: `${WINDOW_DAYS}日間` })}
             </span>
           }
         />
@@ -59,7 +60,7 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
 
       <section>
         <SectionHeading
-          label={lang === "es" ? "Actividad por hora del día" : "Activity by time of day"}
+          label={tr(lang, { en: "Activity by time of day", es: "Actividad por hora del día", ja: "時間帯別の活動" })}
           action={<LocalTimeZoneLabel />}
         />
         <Card className="mt-3">
@@ -71,10 +72,10 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
 
       <section>
         <SectionHeading
-          label={lang === "es" ? "Distribución de clasificación" : "Rating distribution"}
+          label={tr(lang, { en: "Rating distribution", es: "Distribución de clasificación", ja: "レート分布" })}
           action={
             <span className="text-xs text-muted-foreground">
-              {LEADERBOARD_MIN_GAMES}+ {lang === "es" ? "partidas" : "sets"}
+              {LEADERBOARD_MIN_GAMES}+ {tr(lang, { en: "sets", es: "partidas", ja: "セット" })}
             </span>
           }
         />

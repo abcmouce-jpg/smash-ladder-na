@@ -1,6 +1,7 @@
 import { getRankTier, PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import type { RatingBucket } from "@/lib/public-stats";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Histogram of every ranked player's current rating, as a bar per rating bin
 // (see getRatingDistribution). Presentational and server-safe — hover detail
@@ -23,9 +24,11 @@ export function RatingDistributionChart({
   if (total === 0 || buckets.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Aún no hay suficientes jugadores clasificados para trazar una distribución."
-          : "Not enough ranked players to chart a distribution yet."}
+        {tr(lang, {
+          en: "Not enough ranked players to chart a distribution yet.",
+          es: "Aún no hay suficientes jugadores clasificados para trazar una distribución.",
+          ja: "レート分布を描くにはランク対象のプレイヤーが足りません。",
+        })}
       </p>
     );
   }
@@ -36,9 +39,11 @@ export function RatingDistributionChart({
   const labelEvery = Math.max(1, Math.ceil(buckets.length / 7));
 
   const playerLabel = (count: number) =>
-    lang === "es"
-      ? `${count} ${count === 1 ? "jugador" : "jugadores"}`
-      : `${count} ${count === 1 ? "player" : "players"}`;
+    tr(lang, {
+      en: `${count} ${count === 1 ? "player" : "players"}`,
+      es: `${count} ${count === 1 ? "jugador" : "jugadores"}`,
+      ja: `${count}人`,
+    });
   const rangeLabel = (b: RatingBucket) => `${b.min}–${b.max}`;
   // A bucket's whole range sits inside one tier — bin edges and tier floors are
   // both multiples of 25 — so the tier of its lower bound describes it fully.
@@ -48,7 +53,11 @@ export function RatingDistributionChart({
     <div>
       <div
         role="img"
-        aria-label={lang === "es" ? "Distribución de clasificación de los jugadores" : "Distribution of player ratings"}
+        aria-label={tr(lang, {
+          en: "Distribution of player ratings",
+          es: "Distribución de clasificación de los jugadores",
+          ja: "プレイヤーのレート分布",
+        })}
       >
         <div className="flex h-40 items-end gap-px">
           {buckets.map((b) => {
@@ -76,24 +85,28 @@ export function RatingDistributionChart({
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground tabular-nums">
-        {lang === "es"
-          ? `${total} jugadores clasificados — mediana ${median}, promedio ${average}`
-          : `${total} ranked players — median ${median}, average ${average}`}
+        {tr(lang, {
+          en: `${total} ranked players — median ${median}, average ${average}`,
+          es: `${total} jugadores clasificados — mediana ${median}, promedio ${average}`,
+          ja: `ランク対象${total}人 — 中央値${median}、平均${average}`,
+        })}
       </p>
 
       {/* Hover titles are undiscoverable on touch devices, which is what this
           table fallback is for. */}
       <details className="mt-2 text-xs">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          {lang === "es" ? "Ver como tabla" : "View as table"}
+          {tr(lang, { en: "View as table", es: "Ver como tabla", ja: "表で見る" })}
         </summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="text-muted-foreground">
-                <th className="py-1 font-medium">{lang === "es" ? "Clasificación" : "Rating"}</th>
-                <th className="py-1 font-medium">{lang === "es" ? "Rango" : "Rank"}</th>
-                <th className="py-1 text-right font-medium tabular-nums">{lang === "es" ? "Jugadores" : "Players"}</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Rating", es: "Clasificación", ja: "レート" })}</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Rank", es: "Rango", ja: "ランク帯" })}</th>
+                <th className="py-1 text-right font-medium tabular-nums">
+                  {tr(lang, { en: "Players", es: "Jugadores", ja: "人数" })}
+                </th>
               </tr>
             </thead>
             <tbody>

@@ -3,6 +3,7 @@
 import { useBrowserTimeZone } from "@/hooks/use-browser-time-zone";
 import { shortTimeZoneName } from "@/lib/timezone";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Average confirmed matches per hour of day (viewer's timezone), as a
 // 24-column bar chart. Hover tooltips via the title attribute, plus an
@@ -43,9 +44,11 @@ export function MatchesByHourChart({
   if (total === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? `Aún no hay suficientes partidas confirmadas en los últimos ${windowDays} días.`
-          : `Not enough confirmed matches in the last ${windowDays} days yet.`}
+        {tr(lang, {
+          en: `Not enough confirmed matches in the last ${windowDays} days yet.`,
+          es: `Aún no hay suficientes partidas confirmadas en los últimos ${windowDays} días.`,
+          ja: `直近${windowDays}日間に確定した試合が足りません。`,
+        })}
       </p>
     );
   }
@@ -56,11 +59,18 @@ export function MatchesByHourChart({
     return `${display}${period}`;
   };
 
-  const perDaySuffix = lang === "es" ? "/día" : "/day";
+  const perDaySuffix = tr(lang, { en: "/day", es: "/día", ja: "/日" });
 
   return (
     <div>
-      <div role="img" aria-label={lang === "es" ? "Partidas promedio por hora" : "Average matches by hour"}>
+      <div
+        role="img"
+        aria-label={tr(lang, {
+          en: "Average matches by hour",
+          es: "Partidas promedio por hora",
+          ja: "時間帯別の平均試合数",
+        })}
+      >
         <div className="flex h-40 items-end gap-[3px]">
           {averages.map((avg, hour) => {
             const pct = max > 0 ? Math.max(2, Math.round((avg / max) * 100)) : 0;
@@ -90,9 +100,11 @@ export function MatchesByHourChart({
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground tabular-nums">
-        {lang === "es"
-          ? `${total} partidas confirmadas en ${windowDays} días — ${dailyAverage} por día en promedio (${shortTimeZoneName(tz)})`
-          : `${total} confirmed matches over ${windowDays} days — ${dailyAverage} per day on average (${shortTimeZoneName(tz)})`}
+        {tr(lang, {
+          en: `${total} confirmed matches over ${windowDays} days — ${dailyAverage} per day on average (${shortTimeZoneName(tz)})`,
+          es: `${total} partidas confirmadas en ${windowDays} días — ${dailyAverage} por día en promedio (${shortTimeZoneName(tz)})`,
+          ja: `${windowDays}日間で確定した試合 ${total}件 — 1日平均${dailyAverage}件（${shortTimeZoneName(tz)}）`,
+        })}
       </p>
     </div>
   );

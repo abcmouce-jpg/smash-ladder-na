@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // One sortable column per header (character name included). No active sort
 // keeps the roster order SMASH_CHARACTERS already provides.
@@ -276,7 +277,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
               <tr className="border-b border-border text-muted-foreground">
                 <th className="py-2 pl-4 pr-2 text-left">
                   <HeaderLink
-                    label={lang === "es" ? "Personaje" : "Character"}
+                    label={tr(lang, { en: "Character", es: "Personaje", ja: "キャラクター" })}
                     col="alpha"
                     activeKey={sortKey}
                     activeDir={activeDir}
@@ -284,8 +285,8 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 px-2 text-right">
                   <HeaderLink
-                    label={lang === "es" ? "Jugadores" : "Players"}
-                    sub={lang === "es" ? "mains + secundarios" : "Mains + Secondaries"}
+                    label={tr(lang, { en: "Players", es: "Jugadores", ja: "使用人数" })}
+                    sub={tr(lang, { en: "Mains + Secondaries", es: "mains + secundarios", ja: "メイン＋サブ" })}
                     col="players"
                     className="justify-end"
                     activeKey={sortKey}
@@ -303,7 +304,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 px-2 text-right tabular-nums">
                   <HeaderLink
-                    label={lang === "es" ? "Juegos" : "Games"}
+                    label={tr(lang, { en: "Games", es: "Juegos", ja: "試合数" })}
                     col="games"
                     className="justify-end"
                     activeKey={sortKey}
@@ -312,7 +313,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 px-2 text-right tabular-nums">
                   <HeaderLink
-                    label={lang === "es" ? "Tasa de victorias" : "Win rate"}
+                    label={tr(lang, { en: "Win rate", es: "Tasa de victorias", ja: "勝率" })}
                     col="winrate"
                     className="justify-end"
                     activeKey={sortKey}
@@ -321,7 +322,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 pr-4 pl-2 text-right tabular-nums">
                   <HeaderLink
-                    label={lang === "es" ? "Clasificación media" : "Avg Rating"}
+                    label={tr(lang, { en: "Avg Rating", es: "Clasificación media", ja: "平均レート" })}
                     col="rating"
                     className="justify-end"
                     activeKey={sortKey}

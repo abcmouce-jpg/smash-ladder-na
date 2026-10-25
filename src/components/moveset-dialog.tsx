@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { MOVESET_PATTERN } from "@/lib/characters";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Collects a Mii's 4-digit moveset (each digit 1-4) right after picking one
 // of the 3 Mii characters. Validation is blocking, not keystroke-filtering:
@@ -36,9 +37,11 @@ export function MovesetDialog({
   function handleConfirm() {
     if (!MOVESET_PATTERN.test(value)) {
       setError(
-        lang === "es"
-          ? "Ingresa 4 dígitos, cada uno del 1 al 4 (ej: 1221)."
-          : "Enter 4 digits, each 1-4 (e.g. 1221).",
+        tr(lang, {
+          en: "Enter 4 digits, each 1-4 (e.g. 1221).",
+          es: "Ingresa 4 dígitos, cada uno del 1 al 4 (ej: 1221).",
+          ja: "1〜4の数字を4桁で入力してください（例：1221）。",
+        }),
       );
       return;
     }
@@ -54,12 +57,18 @@ export function MovesetDialog({
     >
       <DialogContent>
         <DialogTitle>
-          {lang === "es" ? `Moveset de ${character ?? ""}` : `${character ?? ""} moveset`}
+          {tr(lang, {
+            en: `${character ?? ""} moveset`,
+            es: `Moveset de ${character ?? ""}`,
+            ja: `${character ?? ""}の必殺ワザ設定`,
+          })}
         </DialogTitle>
         <DialogDescription className="mt-1">
-          {lang === "es"
-            ? "Ingresa el moveset personalizado como 4 dígitos, cada uno del 1 al 4 (ej: 1221). Tu rival lo verá junto al nombre del personaje."
-            : "Enter the custom moveset as 4 digits, each 1-4 (e.g. 1221). Your opponent will see it next to the character name."}
+          {tr(lang, {
+            en: "Enter the custom moveset as 4 digits, each 1-4 (e.g. 1221). Your opponent will see it next to the character name.",
+            es: "Ingresa el moveset personalizado como 4 dígitos, cada uno del 1 al 4 (ej: 1221). Tu rival lo verá junto al nombre del personaje.",
+            ja: "必殺ワザの組み合わせを1〜4の数字4桁で入力してください（例：1221）。相手にはキャラクター名の横に表示されます。",
+          })}
         </DialogDescription>
         <input
           autoFocus
@@ -71,10 +80,10 @@ export function MovesetDialog({
         {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-            {lang === "es" ? "Cancelar" : "Cancel"}
+            {tr(lang, { en: "Cancel", es: "Cancelar", ja: "キャンセル" })}
           </Button>
           <Button type="button" size="sm" onClick={handleConfirm}>
-            {lang === "es" ? "Confirmar" : "Confirm"}
+            {tr(lang, { en: "Confirm", es: "Confirmar", ja: "確定" })}
           </Button>
         </div>
       </DialogContent>

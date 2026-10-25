@@ -9,7 +9,7 @@ import { MainNav } from "@/components/main-nav";
 import { DiscordIcon } from "@/components/discord-icon";
 import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang, setLangAction } from "@/lib/i18n";
-import { LANGS, type Lang } from "@/lib/lang";
+import { LANGS, tr, type Lang } from "@/lib/lang";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,8 +66,8 @@ export async function SiteHeader() {
               variant="ghost"
               size="icon-sm"
               className="text-muted-foreground hover:text-foreground"
-              title={lang === "es" ? "Servidor de Discord" : "Discord server"}
-              aria-label={lang === "es" ? "Servidor de Discord" : "Discord server"}
+              title={tr(lang, { en: "Discord server", es: "Servidor de Discord", ja: "Discord サーバー" })}
+              aria-label={tr(lang, { en: "Discord server", es: "Servidor de Discord", ja: "Discord サーバー" })}
             >
               <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
                 <DiscordIcon className="size-[15px]" />
@@ -78,8 +78,8 @@ export async function SiteHeader() {
               variant="ghost"
               size="icon-sm"
               className="text-muted-foreground hover:text-foreground"
-              title={lang === "es" ? "Apóyenos en Ko-fi" : "Support us on Ko-fi"}
-              aria-label={lang === "es" ? "Apóyenos en Ko-fi" : "Support us on Ko-fi"}
+              title={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi", ja: "Ko-fi で支援する" })}
+              aria-label={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi", ja: "Ko-fi で支援する" })}
             >
               <a href={KOFI_URL} target="_blank" rel="noreferrer">
                 <Coffee className="size-[15px]" />
@@ -113,14 +113,14 @@ export async function SiteHeader() {
                     <DropdownMenuItem asChild>
                       <Link href={`/players/${user.id}`} prefetch={false}>
                         <UserRound className="size-3.5" />
-                        {lang === "es" ? "Ver perfil" : "View profile"}
+                        {tr(lang, { en: "View profile", es: "Ver perfil", ja: "プロフィールを見る" })}
                       </Link>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem asChild>
                     <Link href="/settings" prefetch={false}>
                       <Settings className="size-3.5" />
-                      {lang === "es" ? "Ajustes" : "Settings"}
+                      {tr(lang, { en: "Settings", es: "Ajustes", ja: "設定" })}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -133,7 +133,7 @@ export async function SiteHeader() {
                     <DropdownMenuItem asChild>
                       <button type="submit">
                         <LogOut className="size-3.5" />
-                        {lang === "es" ? "Cerrar sesión" : "Sign out"}
+                        {tr(lang, { en: "Sign out", es: "Cerrar sesión", ja: "ログアウト" })}
                       </button>
                     </DropdownMenuItem>
                   </form>
@@ -151,7 +151,7 @@ export async function SiteHeader() {
                 }}
               >
                 <Button type="submit" size="sm">
-                  {lang === "es" ? "Iniciar sesión" : "Sign in"}
+                  {tr(lang, { en: "Sign in", es: "Iniciar sesión", ja: "ログイン" })}
                 </Button>
               </form>
             )}
