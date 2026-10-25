@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { RatingChart } from "@/components/rating-chart";
 import { RatingHidden } from "@/components/rating-hidden";
@@ -70,8 +66,7 @@ const ACHIEVEMENTS_JA: Record<string, AchievementText> = {
   },
   "risky-business": {
     label: "大博打",
-    description:
-      "1セットの第1〜4試合を同じキャラで戦い、第5試合で別のキャラに変えて勝つ。",
+    description: "1セットの第1〜4試合を同じキャラで戦い、第5試合で別のキャラに変えて勝つ。",
   },
   globetrotter: {
     label: "全ステージ制覇",
@@ -118,8 +113,7 @@ const ACHIEVEMENTS_ES: Record<string, AchievementText> = {
   },
   "mirror-match": {
     label: "Espejo",
-    description:
-      "Gana una partida en la que tú y tu rival usaron exactamente el mismo personaje todo el tiempo.",
+    description: "Gana una partida en la que tú y tu rival usaron exactamente el mismo personaje todo el tiempo.",
   },
   "risky-business": {
     label: "Jugada arriesgada",
@@ -140,15 +134,11 @@ const ACHIEVEMENTS_ES: Record<string, AchievementText> = {
   },
   "bounce-back": {
     label: "Recuperación",
-    description:
-      "Pierde la primera partida que juegues en un día, y gana la siguiente que juegues.",
+    description: "Pierde la primera partida que juegues en un día, y gana la siguiente que juegues.",
   },
 };
 
-function localizeAchievement(
-  a: { id: string; label: string; description: string },
-  lang: Lang,
-): AchievementText {
+function localizeAchievement(a: { id: string; label: string; description: string }, lang: Lang): AchievementText {
   if (lang === "en") return a;
   const table = lang === "ja" ? ACHIEVEMENTS_JA : ACHIEVEMENTS_ES;
   const hit = table[a.id];
@@ -237,22 +227,15 @@ export async function ProfileOverviewSection({
   // your main profile" promise as everywhere else practice mode is handled.
   const realRecentHistory = recentHistory.filter((m) => !m.isPracticing);
   const realRecentWins = realRecentHistory.filter((m) => m.won).length;
-  const winRate =
-    realRecentHistory.length > 0
-      ? Math.round((realRecentWins / realRecentHistory.length) * 100)
-      : null;
-  const mostRecentRealMatchId =
-    recentHistory.find((m) => !m.isPracticing)?.id ?? null;
+  const winRate = realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
+  const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   // Only the current rating is gated on the player's *current* status — it's
   // the number that isn't public until they graduate. The chart and the peaks
   // below read history the server already filtered (see getHiddenRatingMatchIds),
   // so they keep earlier seasons and simply omit the active season's opening
   // window.
   const ratingVisible = isRatingVisible(gamesPlayed, isModerator);
-  const practiceRatingVisible = isRatingVisible(
-    practiceGamesPlayed,
-    isModerator,
-  );
+  const practiceRatingVisible = isRatingVisible(practiceGamesPlayed, isModerator);
   const achievements = [
     ...computeAchievements(careerStats),
     ...computeRatingMilestoneAchievements(careerStats.peakRating),
@@ -283,9 +266,7 @@ export async function ProfileOverviewSection({
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
                 {ratingVisible ? (
-                  <p className="text-lg font-semibold tabular-nums">
-                    {formatRating(rating)}
-                  </p>
+                  <p className="text-lg font-semibold tabular-nums">{formatRating(rating)}</p>
                 ) : (
                   <p className="text-sm font-medium text-muted-foreground">
                     <RatingHidden gamesPlayed={gamesPlayed} lang={lang} />
@@ -304,9 +285,7 @@ export async function ProfileOverviewSection({
                   {leaderboardRank.rank ? (
                     <>
                       #{leaderboardRank.rank}
-                      <span className="text-sm">
-                        /{leaderboardRank.totalPlayers}
-                      </span>
+                      <span className="text-sm">/{leaderboardRank.totalPlayers}</span>
                     </>
                   ) : (
                     "—"
@@ -321,9 +300,7 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">
-                  {seasonStats.setsPlayed}
-                </p>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.setsPlayed}</p>
                 <p className="text-xs text-muted-foreground">
                   {tr(lang, {
                     en: "Sets played",
@@ -346,9 +323,7 @@ export async function ProfileOverviewSection({
               </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">
-                  {seasonStats.peakRating != null
-                    ? formatRating(seasonStats.peakRating)
-                    : "—"}
+                  {seasonStats.peakRating != null ? formatRating(seasonStats.peakRating) : "—"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {tr(lang, {
@@ -359,9 +334,7 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">
-                  {seasonStats.bestWinStreak}
-                </p>
+                <p className="text-lg font-semibold tabular-nums">{seasonStats.bestWinStreak}</p>
                 <p className="text-xs text-muted-foreground">
                   {tr(lang, {
                     en: "Season best win streak",
@@ -372,16 +345,10 @@ export async function ProfileOverviewSection({
               </div>
               <div>
                 {practiceRatingVisible ? (
-                  <p className="text-lg font-semibold tabular-nums">
-                    {formatRating(practiceRating)}
-                  </p>
+                  <p className="text-lg font-semibold tabular-nums">{formatRating(practiceRating)}</p>
                 ) : (
                   <p className="text-sm font-medium text-muted-foreground">
-                    <RatingHidden
-                      gamesPlayed={practiceGamesPlayed}
-                      lang={lang}
-                      practice
-                    />
+                    <RatingHidden gamesPlayed={practiceGamesPlayed} lang={lang} practice />
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
@@ -393,9 +360,7 @@ export async function ProfileOverviewSection({
                 </p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">
-                  {practiceGamesPlayed}
-                </p>
+                <p className="text-lg font-semibold tabular-nums">{practiceGamesPlayed}</p>
                 <p className="text-xs text-muted-foreground">
                   {tr(lang, {
                     en: "Practice sets",
@@ -453,9 +418,7 @@ export async function ProfileOverviewSection({
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <p className="text-sm font-medium">
-            {tr(lang, { en: "Career", es: "Carrera", ja: "通算" })}
-          </p>
+          <p className="text-sm font-medium">{tr(lang, { en: "Career", es: "Carrera", ja: "通算" })}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {tr(lang, {
               en: "Doesn't reset between seasons.",
@@ -478,9 +441,7 @@ export async function ProfileOverviewSection({
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">
-                {careerStats.peakRating != null
-                  ? formatRating(careerStats.peakRating)
-                  : "—"}
+                {careerStats.peakRating != null ? formatRating(careerStats.peakRating) : "—"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tr(lang, {
@@ -491,9 +452,7 @@ export async function ProfileOverviewSection({
               </p>
             </div>
             <div>
-              <p className="text-lg font-semibold tabular-nums">
-                {careerStats.bestWinStreak}
-              </p>
+              <p className="text-lg font-semibold tabular-nums">{careerStats.bestWinStreak}</p>
               <p className="text-xs text-muted-foreground">
                 {tr(lang, {
                   en: "Best win streak",
@@ -503,9 +462,7 @@ export async function ProfileOverviewSection({
               </p>
             </div>
             <div>
-              <p className="text-lg font-semibold tabular-nums">
-                {careerStats.seasonsPlayed}
-              </p>
+              <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
               <p className="text-xs text-muted-foreground">
                 {tr(lang, {
                   en: "Seasons played",
@@ -516,9 +473,7 @@ export async function ProfileOverviewSection({
             </div>
           </div>
 
-          <p className="mt-5 text-sm font-medium">
-            {tr(lang, { en: "Achievements", es: "Logros", ja: "実績" })}
-          </p>
+          <p className="mt-5 text-sm font-medium">{tr(lang, { en: "Achievements", es: "Logros", ja: "実績" })}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {achievements.map((a, i) => {
               const display = localizeAchievement(a, lang);
@@ -527,16 +482,8 @@ export async function ProfileOverviewSection({
                   <TooltipTrigger asChild>
                     <Badge
                       variant={a.achieved ? "success" : "outline"}
-                      className={
-                        a.achieved
-                          ? "badge-pop gap-1 cursor-help"
-                          : "gap-1 cursor-help opacity-40"
-                      }
-                      style={
-                        a.achieved
-                          ? { animationDelay: `${i * 60}ms` }
-                          : undefined
-                      }
+                      className={a.achieved ? "badge-pop gap-1 cursor-help" : "gap-1 cursor-help opacity-40"}
+                      style={a.achieved ? { animationDelay: `${i * 60}ms` } : undefined}
                     >
                       <Award className="size-3" />
                       {display.label}
@@ -573,21 +520,12 @@ export async function ProfileOverviewSection({
                 })}
               </Link>
             </div>
-            <HeadToHeadList
-              opponents={rivals}
-              lang={lang}
-              bordered={false}
-              className="mt-2"
-            />
+            <HeadToHeadList opponents={rivals} lang={lang} bordered={false} className="mt-2" />
           </CardContent>
         </Card>
       )}
 
-      <CharacterUsageCard
-        usage={usage}
-        mainCharacter={mainCharacter}
-        lang={lang}
-      />
+      <CharacterUsageCard usage={usage} mainCharacter={mainCharacter} lang={lang} />
       {usage.length > 0 && (
         <p className="mt-1.5 text-right text-xs">
           <Link

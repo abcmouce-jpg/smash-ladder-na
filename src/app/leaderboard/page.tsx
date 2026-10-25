@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, Trophy } from "lucide-react";
 import { auth } from "@/auth";
-import {
-  SMASH_CHARACTERS,
-  echoGroupLabel,
-  type SmashCharacter,
-} from "@/lib/characters";
+import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import {
   MATCH_REGIONS,
   MATCH_REGION_GROUPS,
@@ -22,20 +18,12 @@ import {
   PRE_SEASON_DURATION_MONTHS,
   PRE_SEASON_EXPECTED_END_AT,
 } from "@/lib/seasons";
-import {
-  SEASON_PRIZE_POOL_USD,
-  PRIZE_AMOUNTS_USD,
-  approxMxn,
-  prizeForPlace,
-} from "@/lib/prizes";
+import { SEASON_PRIZE_POOL_USD, PRIZE_AMOUNTS_USD, approxMxn, prizeForPlace } from "@/lib/prizes";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { CharacterFilterSelect } from "@/components/character-filter-select";
 import { InfoPopup } from "@/components/info-popup";
 import { PageHeading } from "@/components/page-heading";
-import {
-  OptionSelect,
-  type OptionSelectOption,
-} from "@/components/option-select";
+import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { RankBadge } from "@/components/rank-badge";
 import { SeasonCountdown } from "@/components/season-countdown";
 import { AdSlot } from "@/components/ad-slot";
@@ -50,9 +38,8 @@ import { DISPLAY_TIME_ZONE, HAS_PRIZE_POOL } from "@/lib/site";
 const MEDALS = ["🥇", "🥈", "🥉"];
 const PAGE_SIZE = 50;
 
-const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap(
-  (group) =>
-    group.regions.map((r) => ({ value: r, label: r, group: group.label })),
+const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group) =>
+  group.regions.map((r) => ({ value: r, label: r, group: group.label })),
 );
 
 const COUNTRY_OPTIONS: OptionSelectOption[] = MATCH_COUNTRIES.map((c) => ({
@@ -72,39 +59,26 @@ export default async function LeaderboardPage({
   }>;
 }) {
   const { character, page: pageParam, q, region, country } = await searchParams;
-  const isValidCharacter =
-    character && (SMASH_CHARACTERS as readonly string[]).includes(character);
-  const isValidCountry =
-    country && (MATCH_COUNTRIES as readonly string[]).includes(country);
+  const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
+  const isValidCountry = country && (MATCH_COUNTRIES as readonly string[]).includes(country);
   const effectiveCountry = isValidCountry ? (country as MatchCountry) : null;
   // A region only stays selected if it actually belongs to the chosen
   // country — otherwise a stale region from before the country was changed
   // (or narrowed) would keep silently filtering by itself even though the
   // Region dropdown no longer shows it as an option, the same "invisible
   // leftover selection" trap the match-distance presets bug hit on 2026-08-05.
-  const countryRegions = effectiveCountry
-    ? new Set(expandCountryForSearch(effectiveCountry))
-    : null;
+  const countryRegions = effectiveCountry ? new Set(expandCountryForSearch(effectiveCountry)) : null;
   const isValidRegion =
-    region &&
-    (MATCH_REGIONS as readonly string[]).includes(region) &&
-    (!countryRegions || countryRegions.has(region));
+    region && (MATCH_REGIONS as readonly string[]).includes(region) && (!countryRegions || countryRegions.has(region));
   const query = (q ?? "").trim().slice(0, 32);
-  const isFiltered =
-    Boolean(isValidCharacter) ||
-    query.length > 0 ||
-    Boolean(isValidRegion) ||
-    Boolean(isValidCountry);
+  const isFiltered = Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion) || Boolean(isValidCountry);
 
   const requestedPage = Number(pageParam);
-  const page =
-    Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   // Narrowed to the selected country's regions once one is picked, so the
   // dropdown can't offer a region that'd just get silently ignored.
-  const regionOptions = countryRegions
-    ? REGION_OPTIONS.filter((opt) => countryRegions.has(opt.value))
-    : REGION_OPTIONS;
+  const regionOptions = countryRegions ? REGION_OPTIONS.filter((opt) => countryRegions.has(opt.value)) : REGION_OPTIONS;
 
   const [session, season, { players, totalCount }, lang] = await Promise.all([
     auth(),
@@ -126,9 +100,7 @@ export default async function LeaderboardPage({
   // player-count, and keeps the icon stack in sync with CharacterUsageIcons'
   // main/secondary/overflow slicing without a second source of truth.
   const usageByPlayerId = new Map(
-    await Promise.all(
-      players.map(async (p) => [p.id, await getCharacterUsage(p.id)] as const),
-    ),
+    await Promise.all(players.map(async (p) => [p.id, await getCharacterUsage(p.id)] as const)),
   );
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
@@ -148,36 +120,24 @@ export default async function LeaderboardPage({
         description={
           <span>
             {(() => {
-              const characterClause = isValidCharacter
-                ? echoGroupLabel(character as SmashCharacter)
-                : null;
-              const placeClause = isValidRegion
-                ? region
-                : isValidCountry
-                  ? country
-                  : null;
+              const characterClause = isValidCharacter ? echoGroupLabel(character as SmashCharacter) : null;
+              const placeClause = isValidRegion ? region : isValidCountry ? country : null;
               return tr(lang, {
                 en:
                   `Ranked players with ${LEADERBOARD_MIN_GAMES}+ sets played` +
-                  (characterClause
-                    ? ` who play ${characterClause} as a main or secondary`
-                    : "") +
+                  (characterClause ? ` who play ${characterClause} as a main or secondary` : "") +
                   (placeClause ? ` in ${placeClause}` : "") +
                   (query ? ` matching "${query}"` : "") +
                   ".",
                 es:
                   `Jugadores rankeados con ${LEADERBOARD_MIN_GAMES}+ partidas jugadas` +
-                  (characterClause
-                    ? ` que usan a ${characterClause} como main o secundario`
-                    : "") +
+                  (characterClause ? ` que usan a ${characterClause} como main o secundario` : "") +
                   (placeClause ? ` en ${placeClause}` : "") +
                   (query ? ` que coinciden con "${query}"` : "") +
                   ".",
                 ja:
                   (placeClause ? `${placeClause}の` : "") +
-                  (characterClause
-                    ? `${characterClause}をメインまたはサブで使う`
-                    : "") +
+                  (characterClause ? `${characterClause}をメインまたはサブで使う` : "") +
                   (query ? `「${query}」に一致する` : "") +
                   `${LEADERBOARD_MIN_GAMES}セット以上プレイしたランク対象プレイヤー。`,
               });
@@ -191,19 +151,14 @@ export default async function LeaderboardPage({
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
-            <h2 className="text-base font-semibold tracking-tight">
-              {season.name}
-            </h2>
+            <h2 className="text-base font-semibold tracking-tight">{season.name}</h2>
           </div>
           {seasonEndsAt && (
             <div className="flex items-center gap-2.5">
               <span className="text-xs text-muted-foreground">
                 {tr(lang, { en: "Ends in", es: "Termina en", ja: "残り" })}
               </span>
-              <SeasonCountdown
-                endsAt={seasonEndsAt.toISOString()}
-                lang={lang}
-              />
+              <SeasonCountdown endsAt={seasonEndsAt.toISOString()} lang={lang} />
             </div>
           )}
         </div>
@@ -216,23 +171,16 @@ export default async function LeaderboardPage({
               {trNode(lang, {
                 en: (
                   <>
-                    🏆{" "}
-                    <span className="font-medium">
-                      ${SEASON_PRIZE_POOL_USD} USD season prize pool
-                    </span>{" "}
-                    — split among the top 3 finishers when {season.name} ends.
+                    🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> — split among
+                    the top 3 finishers when {season.name} ends.
                     {season.name === "Preseason" && (
                       <>
                         {" "}
-                        This is a fixed {PRE_SEASON_DURATION_MONTHS}-month
-                        preseason, expected to end around{" "}
-                        {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString(
-                          "en-US",
-                          {
-                            timeZone: DISPLAY_TIME_ZONE,
-                            dateStyle: "long",
-                          },
-                        )}
+                        This is a fixed {PRE_SEASON_DURATION_MONTHS}-month preseason, expected to end around{" "}
+                        {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
+                          timeZone: DISPLAY_TIME_ZONE,
+                          dateStyle: "long",
+                        })}
                         .
                       </>
                     )}
@@ -243,25 +191,17 @@ export default async function LeaderboardPage({
                     🏆{" "}
                     <span className="font-medium">
                       Bolsa de premios de ${SEASON_PRIZE_POOL_USD} USD (≈ $
-                      {approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")}{" "}
-                      MXN)
+                      {approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN)
                     </span>{" "}
-                    — repartida entre los 3 primeros cuando termine{" "}
-                    {season.name}.
+                    — repartida entre los 3 primeros cuando termine {season.name}.
                     {season.name === "Preseason" && (
                       <>
                         {" "}
-                        Esta preseason es fija de {
-                          PRE_SEASON_DURATION_MONTHS
-                        }{" "}
-                        meses, con fin estimado alrededor del{" "}
-                        {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString(
-                          "es-MX",
-                          {
-                            timeZone: DISPLAY_TIME_ZONE,
-                            dateStyle: "long",
-                          },
-                        )}
+                        Esta preseason es fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor del{" "}
+                        {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("es-MX", {
+                          timeZone: DISPLAY_TIME_ZONE,
+                          dateStyle: "long",
+                        })}
                         .
                       </>
                     )}
@@ -269,23 +209,17 @@ export default async function LeaderboardPage({
                 ),
                 ja: (
                   <>
-                    🏆{" "}
-                    <span className="font-medium">
-                      シーズン賞金 ${SEASON_PRIZE_POOL_USD} USD
-                    </span>{" "}
-                    — {season.name}終了時に上位3名で分配されます。
+                    🏆 <span className="font-medium">シーズン賞金 ${SEASON_PRIZE_POOL_USD} USD</span> — {season.name}
+                    終了時に上位3名で分配されます。
                     {season.name === "Preseason" && (
                       <>
                         {" "}
                         このプレシーズンは{PRE_SEASON_DURATION_MONTHS}
                         ヶ月の固定期間で、
-                        {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString(
-                          "ja-JP",
-                          {
-                            timeZone: DISPLAY_TIME_ZONE,
-                            dateStyle: "long",
-                          },
-                        )}
+                        {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("ja-JP", {
+                          timeZone: DISPLAY_TIME_ZONE,
+                          dateStyle: "long",
+                        })}
                         頃の終了を見込んでいます。
                       </>
                     )}
@@ -311,14 +245,7 @@ export default async function LeaderboardPage({
                   const usd = prizeForPlace(place) ?? 0;
                   // English ordinals are irregular for the first three;
                   // Spanish and Japanese both take one suffix throughout.
-                  const englishOrdinal =
-                    place === 1
-                      ? "1st"
-                      : place === 2
-                        ? "2nd"
-                        : place === 3
-                          ? "3rd"
-                          : `${place}th`;
+                  const englishOrdinal = place === 1 ? "1st" : place === 2 ? "2nd" : place === 3 ? "3rd" : `${place}th`;
                   const rankLabel = tr(lang, {
                     en: englishOrdinal,
                     es: `${place}.º`,
@@ -326,12 +253,8 @@ export default async function LeaderboardPage({
                   });
                   return (
                     <div key={place} className="flex flex-col gap-0.5">
-                      <span className="text-xs text-muted-foreground">
-                        {rankLabel}
-                      </span>
-                      <span className="text-sm font-medium tabular-nums">
-                        ${usd} USD
-                      </span>
+                      <span className="text-xs text-muted-foreground">{rankLabel}</span>
+                      <span className="text-sm font-medium tabular-nums">${usd} USD</span>
                       {lang === "es" && usd > 0 && (
                         <span className="text-[10px] text-muted-foreground">
                           ≈ ${approxMxn(usd).toLocaleString("es-MX")} MXN
@@ -422,12 +345,7 @@ export default async function LeaderboardPage({
             autoSubmit
           />
         </label>
-        <Button
-          type="submit"
-          size="sm"
-          variant="outline"
-          className="h-8 w-full md:w-auto"
-        >
+        <Button type="submit" size="sm" variant="outline" className="h-8 w-full md:w-auto">
           {tr(lang, { en: "Filter", es: "Filtrar", ja: "絞り込む" })}
         </Button>
       </form>
@@ -452,12 +370,8 @@ export default async function LeaderboardPage({
             <thead>
               <tr className="border-b border-border text-muted-foreground">
                 <th className="py-2 pl-4 font-medium">#</th>
-                <th className="py-2 font-medium">
-                  {tr(lang, { en: "Player", es: "Jugador", ja: "プレイヤー" })}
-                </th>
-                <th className="py-2 font-medium">
-                  {tr(lang, { en: "Tier", es: "Rango", ja: "ランク帯" })}
-                </th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador", ja: "プレイヤー" })}</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango", ja: "ランク帯" })}</th>
                 <th className="py-2 font-medium text-right tabular-nums">
                   {tr(lang, {
                     en: "Rating",
@@ -481,33 +395,19 @@ export default async function LeaderboardPage({
                 // Rounded ends mean the shown gap always matches the two shown
                 // ratings, and two players at the same whole number read as 0.
                 const gapToNext =
-                  isViewer && index > 0
-                    ? formatRating(players[index - 1].rating) -
-                      formatRating(player.rating)
-                    : null;
+                  isViewer && index > 0 ? formatRating(players[index - 1].rating) - formatRating(player.rating) : null;
                 return (
                   <tr
                     key={player.id}
                     className={`border-b border-border/60 last:border-0 ${
-                      isViewer
-                        ? "bg-primary/10"
-                        : rank < 3
-                          ? "bg-primary/[0.04]"
-                          : ""
+                      isViewer ? "bg-primary/10" : rank < 3 ? "bg-primary/[0.04]" : ""
                     }`}
                   >
-                    <td className="py-2 pl-4 tabular-nums text-muted-foreground">
-                      {MEDALS[rank] ?? rank + 1}
-                    </td>
+                    <td className="py-2 pl-4 tabular-nums text-muted-foreground">{MEDALS[rank] ?? rank + 1}</td>
                     <td className="py-2">
-                      <Link
-                        href={`/players/${player.id}`}
-                        className="flex items-center gap-2 hover:underline"
-                      >
+                      <Link href={`/players/${player.id}`} className="flex items-center gap-2 hover:underline">
                         {player.username}
-                        <CharacterUsageIcons
-                          usage={usageByPlayerId.get(player.id) ?? []}
-                        />
+                        <CharacterUsageIcons usage={usageByPlayerId.get(player.id) ?? []} />
                         {gapToNext !== null && gapToNext > 0 && (
                           <span className="text-xs font-normal text-muted-foreground">
                             {tr(lang, {
@@ -520,17 +420,10 @@ export default async function LeaderboardPage({
                       </Link>
                     </td>
                     <td className="py-2">
-                      <RankBadge
-                        rating={player.rating}
-                        gamesPlayed={player.gamesPlayed}
-                      />
+                      <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
                     </td>
-                    <td className="py-2 text-right font-medium tabular-nums">
-                      {formatRating(player.rating)}
-                    </td>
-                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                      {player.gamesPlayed}
-                    </td>
+                    <td className="py-2 text-right font-medium tabular-nums">{formatRating(player.rating)}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{player.gamesPlayed}</td>
                   </tr>
                 );
               })}
@@ -614,9 +507,7 @@ function PaginationBar({
             </PageLink>
           </div>
           <form method="get" className="flex items-center gap-1.5">
-            {character && (
-              <input type="hidden" name="character" value={character} />
-            )}
+            {character && <input type="hidden" name="character" value={character} />}
             {query && <input type="hidden" name="q" value={query} />}
             {region && <input type="hidden" name="region" value={region} />}
             {country && <input type="hidden" name="country" value={country} />}
@@ -673,10 +564,7 @@ function PageLink({
   if (country) params.set("country", country);
   params.set("page", String(page));
   return (
-    <Link
-      href={`/leaderboard?${params.toString()}`}
-      className="hover:underline"
-    >
+    <Link href={`/leaderboard?${params.toString()}`} className="hover:underline">
       {children}
     </Link>
   );

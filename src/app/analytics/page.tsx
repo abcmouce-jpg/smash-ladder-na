@@ -64,7 +64,9 @@ export default async function AnalyticsPage() {
       <div className="mt-8 flex flex-col gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{lang === "es" ? "Clasificación a lo largo del tiempo" : "Rating over time"}</CardTitle>
+            <CardTitle className="text-base">
+              {lang === "es" ? "Clasificación a lo largo del tiempo" : "Rating over time"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <RatingTrendChart data={ratingTrend} lang={lang} />
@@ -73,7 +75,9 @@ export default async function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{lang === "es" ? "Porcentaje de victorias por personaje" : "Win rate by character"}</CardTitle>
+            <CardTitle className="text-base">
+              {lang === "es" ? "Porcentaje de victorias por personaje" : "Win rate by character"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <WinRateBars
@@ -86,7 +90,9 @@ export default async function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{lang === "es" ? "Porcentaje de victorias por escenario" : "Win rate by stage"}</CardTitle>
+            <CardTitle className="text-base">
+              {lang === "es" ? "Porcentaje de victorias por escenario" : "Win rate by stage"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <WinRateBars

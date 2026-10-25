@@ -21,17 +21,7 @@ import type { Lang } from "@/lib/i18n";
 // the site cannot even know: nothing stores an X handle. Folding it in here
 // puts the action in words ("Share on X") and leaves a single icon whose
 // meaning is unambiguous.
-export function ShareMenu({
-  url,
-  text,
-  playerId,
-  lang,
-}: {
-  url: string;
-  text: string;
-  playerId: string;
-  lang: Lang;
-}) {
+export function ShareMenu({ url, text, playerId, lang }: { url: string; text: string; playerId: string; lang: Lang }) {
   const [copied, setCopied] = useState(false);
 
   async function copyLink() {
@@ -70,13 +60,7 @@ export function ShareMenu({
         >
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
           <span className="flex-1">
-            {copied
-              ? lang === "es"
-                ? "¡Copiado!"
-                : "Copied!"
-              : lang === "es"
-                ? "Copiar enlace"
-                : "Copy link"}
+            {copied ? (lang === "es" ? "¡Copiado!" : "Copied!") : lang === "es" ? "Copiar enlace" : "Copy link"}
           </span>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

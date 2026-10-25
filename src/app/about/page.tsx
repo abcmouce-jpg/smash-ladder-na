@@ -13,10 +13,10 @@ const copy = {
     whatTitle: "What this is",
     what: (
       <>
-        {SITE_NAME} is a ranked ladder and matchmaking site for the North American Super Smash Bros. Ultimate
-        community. Sign in with Discord, set a region and match preferences, and get paired against opponents around
-        your skill level — no bracket, no sign-up window, just queue up and play. Preseason launched July 2026, with a
-        full first season to follow.
+        {SITE_NAME} is a ranked ladder and matchmaking site for the North American Super Smash Bros. Ultimate community.
+        Sign in with Discord, set a region and match preferences, and get paired against opponents around your skill
+        level — no bracket, no sign-up window, just queue up and play. Preseason launched July 2026, with a full first
+        season to follow.
       </>
     ),
     whyTitle: "Why it exists",
@@ -50,8 +50,12 @@ const copy = {
     support: (kofiLink: React.ReactNode) => (
       <>
         Hosting and domain costs come out of pocket. If you&apos;d like to help cover that, there&apos;s a {kofiLink} —
-        entirely optional. $3+ removes ads and gives you a Supporter badge; $15+ gives a Gold badge and top placement
-        on the <a href="/supporters" className="underline">supporters page</a>.
+        entirely optional. $3+ removes ads and gives you a Supporter badge; $15+ gives a Gold badge and top placement on
+        the{" "}
+        <a href="/supporters" className="underline">
+          supporters page
+        </a>
+        .
       </>
     ),
     kofiPage: "Ko-fi page",
@@ -72,10 +76,10 @@ const copy = {
     whatTitle: "Qué es esto",
     what: (
       <>
-        {SITE_NAME} es un sitio de liga clasificatoria y emparejamiento para la comunidad de Super Smash Bros.
-        Ultimate de Norteamérica. Inicia sesión con Discord, define una región y tus preferencias de partida, y te
-        emparejamos con rivales de tu nivel — sin bracket, sin ventana de inscripción, solo entrar a la cola y jugar. La
-        preseason arrancó en julio de 2026, con una primera temporada completa después.
+        {SITE_NAME} es un sitio de liga clasificatoria y emparejamiento para la comunidad de Super Smash Bros. Ultimate
+        de Norteamérica. Inicia sesión con Discord, define una región y tus preferencias de partida, y te emparejamos
+        con rivales de tu nivel — sin bracket, sin ventana de inscripción, solo entrar a la cola y jugar. La preseason
+        arrancó en julio de 2026, con una primera temporada completa después.
       </>
     ),
     whyTitle: "Por qué existe",
@@ -110,7 +114,11 @@ const copy = {
       <>
         El hosting y el dominio se pagan de nuestro bolsillo. Si quieres ayudar a cubrir ese costo, hay una {kofiLink} —
         totalmente opcional. $3+ quita los anuncios y te da la insignia de Colaborador; $15+ da la insignia Gold y
-        aparece primero en la <a href="/supporters" className="underline">página de colaboradores</a>.
+        aparece primero en la{" "}
+        <a href="/supporters" className="underline">
+          página de colaboradores
+        </a>
+        .
       </>
     ),
     kofiPage: "página de Ko-fi",
@@ -195,7 +203,9 @@ export default async function AboutPage() {
 
         {goldSupporters.length > 0 && (
           <section>
-            <h2 className="text-sm font-medium text-foreground">🏆 {lang === "es" ? "Colaboradores Gold" : "Gold Supporters"}</h2>
+            <h2 className="text-sm font-medium text-foreground">
+              🏆 {lang === "es" ? "Colaboradores Gold" : "Gold Supporters"}
+            </h2>
             <p className="mt-2 flex flex-wrap gap-x-1.5 gap-y-1">
               {goldSupporters.map((s, i) => (
                 <span key={s.id}>

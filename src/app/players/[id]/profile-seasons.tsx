@@ -100,7 +100,8 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
                             : "3rd Place"}
                     </span>
                     <span className="font-normal text-muted-foreground tabular-nums">
-                      — {formatRating(standing.finalRating)} {tr(lang, { en: "rating", es: "de clasificación", ja: "レート" })}
+                      — {formatRating(standing.finalRating)}{" "}
+                      {tr(lang, { en: "rating", es: "de clasificación", ja: "レート" })}
                     </span>
                   </>
                 ) : lang === "es" ? (
@@ -135,7 +136,11 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
 
       {participatedPast.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          {tr(lang, { en: "No past-season history yet.", es: "Aún no hay historial de temporadas anteriores.", ja: "過去シーズンの記録がまだありません。" })}
+          {tr(lang, {
+            en: "No past-season history yet.",
+            es: "Aún no hay historial de temporadas anteriores.",
+            ja: "過去シーズンの記録がまだありません。",
+          })}
         </p>
       )}
     </div>

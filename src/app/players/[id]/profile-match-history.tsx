@@ -140,7 +140,11 @@ export async function ProfileMatchHistorySection({
             {tr(lang, { en: "Match history", es: "Historial de partidas", ja: "対戦履歴" })}
           </h2>
           <Badge variant="outline">
-            {tr(lang, { en: `${totalMatchCount} ${totalMatchCount === 1 ? "match" : "matches"}`, es: `${totalMatchCount} ${totalMatchCount === 1 ? "partida" : "partidas"}`, ja: `${totalMatchCount}試合` })}
+            {tr(lang, {
+              en: `${totalMatchCount} ${totalMatchCount === 1 ? "match" : "matches"}`,
+              es: `${totalMatchCount} ${totalMatchCount === 1 ? "partida" : "partidas"}`,
+              ja: `${totalMatchCount}試合`,
+            })}
           </Badge>
         </div>
         {totalPages > 1 && (
@@ -215,7 +219,11 @@ function MatchHistoryPaginationControls({
         {tr(lang, { en: "← Previous", es: "← Anterior", ja: "← 前へ" })}
       </MatchHistoryPageLink>
       <span className="text-muted-foreground tabular-nums">
-        {tr(lang, { en: `Page ${page} of ${totalPages}`, es: `Página ${page} de ${totalPages}`, ja: `${totalPages}ページ中${page}ページ目` })}
+        {tr(lang, {
+          en: `Page ${page} of ${totalPages}`,
+          es: `Página ${page} de ${totalPages}`,
+          ja: `${totalPages}ページ中${page}ページ目`,
+        })}
       </span>
       <MatchHistoryPageLink playerId={playerId} page={page + 1} filters={filters} disabled={page >= totalPages}>
         {tr(lang, { en: "Next →", es: "Siguiente →", ja: "次へ →" })}

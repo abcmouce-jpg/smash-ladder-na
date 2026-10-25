@@ -79,27 +79,18 @@ export function MainNav({ lang, role }: { lang: Lang; role?: Role }) {
   const isStaff = role === "MOD" || role === "ADMIN";
 
   const isActive = (href: string) =>
-    pathname === href ||
-    (href !== "/" &&
-      (pathname.startsWith(href + "/") || pathname.startsWith(href + "?")));
+    pathname === href || (href !== "/" && (pathname.startsWith(href + "/") || pathname.startsWith(href + "?")));
 
   const linkClass = (active: boolean) =>
     cn(
       "flex shrink-0 items-center gap-1.5 whitespace-nowrap transition-colors",
-      active
-        ? "font-medium text-foreground"
-        : "text-muted-foreground hover:text-foreground",
+      active ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
     );
 
   return (
     <nav className="flex items-center gap-4 overflow-x-auto text-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
       {PRIMARY_LINKS.map(({ href, label, Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          prefetch={false}
-          className={linkClass(isActive(href))}
-        >
+        <Link key={href} href={href} prefetch={false} className={linkClass(isActive(href))}>
           <Icon className="size-3.5" />
           {label[lang]}
         </Link>
@@ -109,12 +100,7 @@ export function MainNav({ lang, role }: { lang: Lang; role?: Role }) {
         <>
           <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
           {STAFF_LINKS.map(({ href, label, Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              prefetch={false}
-              className={linkClass(isActive(href))}
-            >
+            <Link key={href} href={href} prefetch={false} className={linkClass(isActive(href))}>
               <Icon className="size-3.5" />
               {label}
             </Link>

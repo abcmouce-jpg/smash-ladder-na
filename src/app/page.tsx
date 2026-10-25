@@ -33,13 +33,7 @@ export const metadata: Metadata = {
 
 // Shared home section header: small-caps label with the accent tick on the
 // left, optional action link on the right.
-function SectionHeading({
-  label,
-  action,
-}: {
-  label: string;
-  action?: ReactNode;
-}) {
+function SectionHeading({ label, action }: { label: string; action?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <h2 className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
@@ -68,18 +62,10 @@ export default async function Home() {
     getFriendliesPosts(6),
     getMatchesPerDay(30),
   ]);
-  const parentHost =
-    (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
-  const liveEntries = feed
-    .filter((entry) => entry.hasLiveStreamer)
-    .map(serializeSetEntry);
+  const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
+  const liveEntries = feed.filter((entry) => entry.hasLiveStreamer).map(serializeSetEntry);
   const ratingVisible = Boolean(
-    me &&
-    user &&
-    isRatingVisible(
-      me.gamesPlayed,
-      user.role === "MOD" || user.role === "ADMIN",
-    ),
+    me && user && isRatingVisible(me.gamesPlayed, user.role === "MOD" || user.role === "ADMIN"),
   );
 
   return (
@@ -158,29 +144,21 @@ export default async function Home() {
             trNode(lang, {
               en: (
                 <>
-                  You&apos;re{" "}
-                  <span className="font-medium text-foreground">
-                    {formatRating(me.rating)}
-                  </span>{" "}
-                  rated across {me.gamesPlayed} sets.
+                  You&apos;re <span className="font-medium text-foreground">{formatRating(me.rating)}</span> rated
+                  across {me.gamesPlayed} sets.
                 </>
               ),
               es: (
                 <>
                   Tienes una clasificación de{" "}
-                  <span className="font-medium text-foreground">
-                    {formatRating(me.rating)}
-                  </span>{" "}
-                  en {me.gamesPlayed} partidas.
+                  <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en {me.gamesPlayed}{" "}
+                  partidas.
                 </>
               ),
               ja: (
                 <>
                   {me.gamesPlayed}セットを戦って、レートは{" "}
-                  <span className="font-medium text-foreground">
-                    {formatRating(me.rating)}
-                  </span>{" "}
-                  です。
+                  <span className="font-medium text-foreground">{formatRating(me.rating)}</span> です。
                 </>
               ),
             })
@@ -195,24 +173,18 @@ export default async function Home() {
               <span className="live-pulse absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="font-medium text-foreground">
-              {stats.playingNow}
-            </span>{" "}
+            <span className="font-medium text-foreground">{stats.playingNow}</span>{" "}
             {tr(lang, { en: "playing now", es: "jugando ahora", ja: "対戦中" })}
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">
-            {stats.totalPlayers}
-          </span>{" "}
+          <span className="font-medium text-foreground">{stats.totalPlayers}</span>{" "}
           {tr(lang, { en: "players", es: "jugadores", ja: "プレイヤー" })}
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">
-            {stats.matchesToday}
-          </span>{" "}
+          <span className="font-medium text-foreground">{stats.matchesToday}</span>{" "}
           {tr(lang, {
             en: "matches today",
             es: "partidas hoy",
@@ -265,9 +237,7 @@ export default async function Home() {
               <Link key={p.id} href={`/players/${p.id}`}>
                 <Card className="h-full py-0 transition-colors hover:border-foreground/30">
                   <CardContent className="flex items-center gap-3 py-3">
-                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">
-                      {["🥇", "🥈", "🥉"][i]}
-                    </span>
+                    <span className="shrink-0 text-lg tabular-nums text-muted-foreground">{["🥇", "🥈", "🥉"][i]}</span>
                     {p.avatarUrl && (
                       <Image
                         src={p.avatarUrl}
@@ -278,9 +248,7 @@ export default async function Home() {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {p.username}
-                      </p>
+                      <p className="truncate text-sm font-medium">{p.username}</p>
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         <p className="text-xs tabular-nums text-muted-foreground">
                           {formatRating(p.rating)}{" "}
@@ -290,10 +258,7 @@ export default async function Home() {
                             ja: "レート",
                           })}
                         </p>
-                        <RankBadge
-                          rating={p.rating}
-                          gamesPlayed={p.gamesPlayed}
-                        />
+                        <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
                       </div>
                     </div>
                   </CardContent>

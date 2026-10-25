@@ -113,8 +113,8 @@ export default async function HomeEs() {
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
           {ratingVisible ? (
             <>
-              Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en{" "}
-              {me.gamesPlayed} partidas.
+              Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span>{" "}
+              en {me.gamesPlayed} partidas.
             </>
           ) : (
             <RatingHidden gamesPlayed={me.gamesPlayed} lang="es" />

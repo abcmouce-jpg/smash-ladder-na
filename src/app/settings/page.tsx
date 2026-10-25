@@ -11,11 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
 import { SectionTabs } from "@/components/section-tabs";
 import { SettingsSaveForm } from "@/components/settings-save-form";
-import {
-  NOTIFICATION_DEFS,
-  isNotificationEnabled,
-  type NotificationDef,
-} from "@/lib/notifications";
+import { NOTIFICATION_DEFS, isNotificationEnabled, type NotificationDef } from "@/lib/notifications";
 import { type MatchFoundSound } from "@/lib/sound";
 import { referralLink, getReferralCount } from "@/lib/referrals";
 import {
@@ -28,10 +24,7 @@ import {
 import { KOFI_URL } from "@/lib/links";
 import { listBlockedUsers, MAX_BLOCKS_PER_USER } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
-import {
-  DEFAULT_QUICK_MESSAGES,
-  MAX_QUICK_MESSAGE_LENGTH,
-} from "@/lib/quick-messages";
+import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
 import { listApiTokens } from "@/lib/api-tokens";
 import { ApiTokensPanel } from "@/components/api-tokens-panel";
@@ -78,13 +71,7 @@ export default async function SettingsPage({
   }>;
 }) {
   const session = await auth();
-  const {
-    tab: tabParam,
-    startggConnected,
-    startggError,
-    twitchConnected,
-    twitchError,
-  } = await searchParams;
+  const { tab: tabParam, startggConnected, startggError, twitchConnected, twitchError } = await searchParams;
   const host = (await headers()).get("host") ?? "";
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
   const lang = await getLang();
@@ -104,45 +91,42 @@ export default async function SettingsPage({
     );
   }
 
-  const [me, blocked, referralCount, apiTokens, supporterCode] =
-    await Promise.all([
-      prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          username: true,
-          discordUsername: true,
-          hideDiscordUsername: true,
-          startggUserId: true,
-          startggSlug: true,
-          startggGamerTag: true,
-          twitchUserId: true,
-          twitchUsername: true,
-          twitchDisplayName: true,
-          twitchProfileImageUrl: true,
-          arenaPassword: true,
-          avoidPracticeOpponents: true,
-          audioPingOnMatch: true,
-          matchFoundSound: true,
-          notifyQueueOpportunities: true,
-          notifyQueueOpportunitiesDm: true,
-          notificationsDisabled: true,
-          quickMessages: true,
-          isSupporter: true,
-          isGoldSupporter: true,
-          supporterExpiresAt: true,
-          postMatchMessage: true,
-          _count: { select: { pushSubscriptions: true } },
-        },
-      }),
-      listBlockedUsers(session.user.id),
-      getReferralCount(session.user.id),
-      listApiTokens(session.user.id),
-      getOrCreateSupporterCode(session.user.id),
-    ]);
+  const [me, blocked, referralCount, apiTokens, supporterCode] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        username: true,
+        discordUsername: true,
+        hideDiscordUsername: true,
+        startggUserId: true,
+        startggSlug: true,
+        startggGamerTag: true,
+        twitchUserId: true,
+        twitchUsername: true,
+        twitchDisplayName: true,
+        twitchProfileImageUrl: true,
+        arenaPassword: true,
+        avoidPracticeOpponents: true,
+        audioPingOnMatch: true,
+        matchFoundSound: true,
+        notifyQueueOpportunities: true,
+        notifyQueueOpportunitiesDm: true,
+        notificationsDisabled: true,
+        quickMessages: true,
+        isSupporter: true,
+        isGoldSupporter: true,
+        supporterExpiresAt: true,
+        postMatchMessage: true,
+        _count: { select: { pushSubscriptions: true } },
+      },
+    }),
+    listBlockedUsers(session.user.id),
+    getReferralCount(session.user.id),
+    listApiTokens(session.user.id),
+    getOrCreateSupporterCode(session.user.id),
+  ]);
 
-  const tab: SettingsTab = VALID_TABS.includes((tabParam ?? "") as SettingsTab)
-    ? (tabParam as SettingsTab)
-    : "user";
+  const tab: SettingsTab = VALID_TABS.includes((tabParam ?? "") as SettingsTab) ? (tabParam as SettingsTab) : "user";
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -235,11 +219,7 @@ export default async function SettingsPage({
           }
           twitchJustConnected={twitchConnected === "1"}
           twitchError={twitchError}
-          startgg={
-            me?.startggUserId && me.startggSlug
-              ? { slug: me.startggSlug, gamerTag: me.startggGamerTag }
-              : null
-          }
+          startgg={me?.startggUserId && me.startggSlug ? { slug: me.startggSlug, gamerTag: me.startggGamerTag } : null}
           startggJustConnected={startggConnected === "1"}
           startggError={startggError}
           apiTokens={apiTokens.map((token) => ({
@@ -286,11 +266,7 @@ function UserTab({
     <div className="mt-6 flex flex-col gap-4">
       <Card>
         <CardContent className="pt-4">
-          <SettingsSaveForm
-            action={updateUserSettingsAction}
-            lang={lang}
-            className="flex flex-col gap-4"
-          >
+          <SettingsSaveForm action={updateUserSettingsAction} lang={lang} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1 text-sm">
               <span>
                 {tr(lang, {
@@ -359,11 +335,7 @@ function UserTab({
 
       <Card>
         <CardContent className="pt-4">
-          <InviteLinkCard
-            userId={userId}
-            referralCount={referralCount}
-            lang={lang}
-          />
+          <InviteLinkCard userId={userId} referralCount={referralCount} lang={lang} />
         </CardContent>
       </Card>
 
@@ -408,10 +380,7 @@ function UserTab({
             <ul className="mt-3 flex flex-col gap-2">
               {blocked.map((b) => (
                 <li key={b.id} className="text-sm">
-                  <Link
-                    href={`/players/${b.blocked.id}`}
-                    className="hover:underline"
-                  >
+                  <Link href={`/players/${b.blocked.id}`} className="hover:underline">
                     {b.blocked.username}
                   </Link>
                 </li>
@@ -439,20 +408,13 @@ function LobbyTab({
   quickMessages: string[];
   lang: Lang;
 }) {
-  const quickMessageSlots = Array.from(
-    { length: DEFAULT_QUICK_MESSAGES.length },
-    (_, i) => quickMessages[i] ?? "",
-  );
+  const quickMessageSlots = Array.from({ length: DEFAULT_QUICK_MESSAGES.length }, (_, i) => quickMessages[i] ?? "");
 
   return (
     <div className="mt-6 flex flex-col gap-4">
       <Card>
         <CardContent className="pt-4">
-          <SettingsSaveForm
-            action={updateLobbySettingsAction}
-            lang={lang}
-            className="flex flex-col gap-5"
-          >
+          <SettingsSaveForm action={updateLobbySettingsAction} lang={lang} className="flex flex-col gap-5">
             <label className="flex items-start gap-2 text-sm">
               <input
                 key={String(avoidPracticeOpponents)}
@@ -506,14 +468,8 @@ function LobbyTab({
                 </span>
               </label>
               <div className="flex items-center justify-between gap-2 pl-6">
-                <span className="text-sm">
-                  {tr(lang, { en: "Sound", es: "Sonido", ja: "音" })}
-                </span>
-                <MatchFoundSoundPicker
-                  key={matchFoundSound}
-                  defaultValue={matchFoundSound}
-                  lang={lang}
-                />
+                <span className="text-sm">{tr(lang, { en: "Sound", es: "Sonido", ja: "音" })}</span>
+                <MatchFoundSoundPicker key={matchFoundSound} defaultValue={matchFoundSound} lang={lang} />
               </div>
             </div>
 
@@ -529,31 +485,23 @@ function LobbyTab({
                 {trNode(lang, {
                   en: (
                     <>
-                      Shown to your opponent as what to set the in-game room
-                      password to. Leave blank to use the ladder default (
-                      <span className="font-medium text-foreground">
-                        {DEFAULT_ARENA_PASSWORD}
-                      </span>
+                      Shown to your opponent as what to set the in-game room password to. Leave blank to use the ladder
+                      default (<span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>
                       ).
                     </>
                   ),
                   es: (
                     <>
-                      Se muestra a tu rival como la contraseña que debe poner en
-                      la sala del juego. Déjalo en blanco para usar el valor por
-                      defecto del ladder (
-                      <span className="font-medium text-foreground">
-                        {DEFAULT_ARENA_PASSWORD}
-                      </span>
+                      Se muestra a tu rival como la contraseña que debe poner en la sala del juego. Déjalo en blanco
+                      para usar el valor por defecto del ladder (
+                      <span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>
                       ).
                     </>
                   ),
                   ja: (
                     <>
                       ゲーム内の部屋に設定するパスワードとして、相手に表示されます。空欄にすると既定値（
-                      <span className="font-medium text-foreground">
-                        {DEFAULT_ARENA_PASSWORD}
-                      </span>
+                      <span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>
                       ）が使われます。
                     </>
                   ),
@@ -610,15 +558,7 @@ function LobbyTab({
 // key as a checked `notifications` value (the action rebuilds
 // notificationsDisabled from whatever is left checked); the opt-in
 // queue-opportunity push submits under its own field.
-function NotificationToggle({
-  def,
-  enabled,
-  lang,
-}: {
-  def: NotificationDef;
-  enabled: boolean;
-  lang: Lang;
-}) {
+function NotificationToggle({ def, enabled, lang }: { def: NotificationDef; enabled: boolean; lang: Lang }) {
   return (
     <label className="flex items-start gap-2 text-sm">
       <input
@@ -631,9 +571,7 @@ function NotificationToggle({
       />
       <span>
         <span className="font-medium">{def.label[lang]}</span>
-        <span className="block text-xs font-normal text-muted-foreground">
-          {def.description[lang]}
-        </span>
+        <span className="block text-xs font-normal text-muted-foreground">{def.description[lang]}</span>
       </span>
     </label>
   );
@@ -670,11 +608,7 @@ function NotificationsTab({
 
       <Card>
         <CardContent className="pt-4">
-          <SettingsSaveForm
-            action={updateNotificationSettingsAction}
-            lang={lang}
-            className="flex flex-col gap-5"
-          >
+          <SettingsSaveForm action={updateNotificationSettingsAction} lang={lang} className="flex flex-col gap-5">
             <div className="flex flex-col gap-3">
               <p className="text-sm font-medium">
                 {tr(lang, {
@@ -760,12 +694,7 @@ function AppsTab({
     <div className="mt-6 flex flex-col gap-4">
       <Card>
         <CardContent className="pt-4">
-          <TwitchConnectCard
-            connected={twitch}
-            justConnected={twitchJustConnected}
-            error={twitchError}
-            lang={lang}
-          />
+          <TwitchConnectCard connected={twitch} justConnected={twitchJustConnected} error={twitchError} lang={lang} />
         </CardContent>
       </Card>
 
@@ -782,12 +711,7 @@ function AppsTab({
 
       <Card>
         <CardContent className="pt-4">
-          <StreamOverlayCard
-            userId={userId}
-            host={host}
-            protocol={protocol}
-            lang={lang}
-          />
+          <StreamOverlayCard userId={userId} host={host} protocol={protocol} lang={lang} />
         </CardContent>
       </Card>
 
@@ -812,15 +736,7 @@ function AppsTab({
   );
 }
 
-function InviteLinkCard({
-  userId,
-  referralCount,
-  lang,
-}: {
-  userId: string;
-  referralCount: number;
-  lang: Lang;
-}) {
+function InviteLinkCard({ userId, referralCount, lang }: { userId: string; referralCount: number; lang: Lang }) {
   const link = referralLink(userId);
 
   return (
@@ -872,10 +788,9 @@ function SupporterCard({
   lang: Lang;
 }) {
   const expiresLabel = supporterExpiresAt
-    ? new Date(supporterExpiresAt).toLocaleDateString(
-        tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" }),
-        { dateStyle: "long" },
-      )
+    ? new Date(supporterExpiresAt).toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" }), {
+        dateStyle: "long",
+      })
     : null;
 
   return (
@@ -1006,16 +921,14 @@ function StreamOverlayCard({
         {trNode(lang, {
           en: (
             <>
-              Use this URL as an OBS Browser Source (set to{" "}
-              <strong>1920 x 1080</strong>) to show your rating, recent matches,
-              and current match info on stream.
+              Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your rating, recent
+              matches, and current match info on stream.
             </>
           ),
           es: (
             <>
-              Usa esta URL como Browser Source en OBS (configurada a{" "}
-              <strong>1920 x 1080</strong>) para mostrar tu clasificación,
-              partidas recientes, y la partida actual en tu stream.
+              Usa esta URL como Browser Source en OBS (configurada a <strong>1920 x 1080</strong>) para mostrar tu
+              clasificación, partidas recientes, y la partida actual en tu stream.
             </>
           ),
           ja: (
@@ -1074,15 +987,9 @@ function TwitchConnectCard({
           <div className="mt-1 flex items-center gap-2">
             {connected.profileImageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={connected.profileImageUrl}
-                alt=""
-                className="size-6 rounded-full"
-              />
+              <img src={connected.profileImageUrl} alt="" className="size-6 rounded-full" />
             )}
-            <span className="font-medium">
-              {connected.displayName ?? connected.username} ✓
-            </span>
+            <span className="font-medium">{connected.displayName ?? connected.username} ✓</span>
             <form action={disconnectTwitchAction}>
               <Button type="submit" size="sm" variant="outline">
                 {tr(lang, {
@@ -1217,20 +1124,12 @@ function PreferredLanguageForm({ currentLang }: { currentLang: Lang }) {
       </div>
       <div className="flex shrink-0 gap-2">
         <form action={setEnglish}>
-          <Button
-            type="submit"
-            size="sm"
-            variant={currentLang === "en" ? "default" : "outline"}
-          >
+          <Button type="submit" size="sm" variant={currentLang === "en" ? "default" : "outline"}>
             English
           </Button>
         </form>
         <form action={setSpanish}>
-          <Button
-            type="submit"
-            size="sm"
-            variant={currentLang === "es" ? "default" : "outline"}
-          >
+          <Button type="submit" size="sm" variant={currentLang === "es" ? "default" : "outline"}>
             Español
           </Button>
         </form>

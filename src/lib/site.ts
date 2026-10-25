@@ -12,13 +12,11 @@
 import type { Lang } from "@/lib/i18n";
 
 /** Display name of this instance. */
-export const SITE_NAME =
-  process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Smash Ladder NA";
+export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Smash Ladder NA";
 
 /** One-line description, used in metadata, the manifest and OG images. */
 export const SITE_DESCRIPTION =
-  process.env.NEXT_PUBLIC_SITE_DESCRIPTION?.trim() ||
-  "North American ranked ladder and matchmaking for Smash.";
+  process.env.NEXT_PUBLIC_SITE_DESCRIPTION?.trim() || "North American ranked ladder and matchmaking for Smash.";
 
 /**
  * Language a visitor gets before they pick one. getLang() still prefers an
@@ -36,24 +34,21 @@ export const DEFAULT_LANG: Lang = (() => {
  * filtering after the fact.
  */
 export type RegionSet = "na" | "jp";
-export const REGION_SET: RegionSet =
-  process.env.NEXT_PUBLIC_REGION_SET?.trim() === "jp" ? "jp" : "na";
+export const REGION_SET: RegionSet = process.env.NEXT_PUBLIC_REGION_SET?.trim() === "jp" ? "jp" : "na";
 
 // The custom domain, for links meant to be shared off-site (an X intent,
 // a Discord message) where the nicer branded URL matters. layout.tsx,
 // robots.ts, and sitemap.ts each still hardcode the vercel.app domain for
 // SEO canonicalization — a separate, pre-existing decision this doesn't
 // touch.
-export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://nasmashmate.com";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://nasmashmate.com";
 
 /**
  * Time zone dates are displayed in. A season ends at one instant worldwide;
  * this is only which clock to show it on, so it follows the instance rather
  * than the viewer's browser (a server-rendered date has no browser to ask).
  */
-export const DISPLAY_TIME_ZONE =
-  REGION_SET === "jp" ? "Asia/Tokyo" : "America/New_York";
+export const DISPLAY_TIME_ZONE = REGION_SET === "jp" ? "Asia/Tokyo" : "America/New_York";
 
 /**
  * Whether this instance runs the cash prize program. North America's is a
@@ -85,9 +80,7 @@ export const SCENE_LABEL: Record<Lang, string> =
  */
 export const SITE_NAME_PARTS = (() => {
   const at = SITE_NAME.lastIndexOf(" ");
-  return at <= 0
-    ? { lead: "", accent: SITE_NAME }
-    : { lead: SITE_NAME.slice(0, at), accent: SITE_NAME.slice(at + 1) };
+  return at <= 0 ? { lead: "", accent: SITE_NAME } : { lead: SITE_NAME.slice(0, at), accent: SITE_NAME.slice(at + 1) };
 })();
 
 /**
@@ -119,5 +112,4 @@ export const ALLOWS_LATENCY_MODS = REGION_SET !== "jp";
  * スマメイト trained the Japanese scene on the latter, so Japan starts there.
  * Both are implemented and chosen per season — see NEXT_SEASON_ALGORITHM.
  */
-export const RATING_SYSTEM: "elo" | "glicko2" =
-  REGION_SET === "jp" ? "elo" : "glicko2";
+export const RATING_SYSTEM: "elo" | "glicko2" = REGION_SET === "jp" ? "elo" : "glicko2";

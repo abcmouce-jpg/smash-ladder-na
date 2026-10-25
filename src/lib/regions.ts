@@ -6,18 +6,8 @@ import { DISTANCE_MATCHMAKING, REGION_SET } from "@/lib/site";
 // strand those players' matchmaking (getRegionsWithinDistance can only ever
 // return regions still in MATCH_REGIONS). New players get finer-grained
 // options; nobody's existing setting breaks.
-const USA_BROAD = [
-  "USA East",
-  "USA Central",
-  "USA Mountain",
-  "USA Pacific",
-] as const;
-const CANADA_BROAD = [
-  "Canada East",
-  "Canada Central",
-  "Canada Mountain",
-  "Canada Pacific",
-] as const;
+const USA_BROAD = ["USA East", "USA Central", "USA Mountain", "USA Pacific"] as const;
+const CANADA_BROAD = ["Canada East", "Canada Central", "Canada Mountain", "Canada Pacific"] as const;
 
 const USA_STATES = [
   "Alabama",
@@ -109,44 +99,10 @@ const REST_OF_WORLD = [
 // granularity anyone needs, and the 地方 split below is just how the picker
 // groups them. Prefectures carry their official 都/道/府/県 suffix so the
 // dropdown reads the way a Japanese player expects.
-const JAPAN_HOKKAIDO_TOHOKU = [
-  "北海道",
-  "青森県",
-  "岩手県",
-  "宮城県",
-  "秋田県",
-  "山形県",
-  "福島県",
-] as const;
-const JAPAN_KANTO = [
-  "茨城県",
-  "栃木県",
-  "群馬県",
-  "埼玉県",
-  "千葉県",
-  "東京都",
-  "神奈川県",
-] as const;
-const JAPAN_CHUBU = [
-  "新潟県",
-  "富山県",
-  "石川県",
-  "福井県",
-  "山梨県",
-  "長野県",
-  "岐阜県",
-  "静岡県",
-  "愛知県",
-] as const;
-const JAPAN_KINKI = [
-  "三重県",
-  "滋賀県",
-  "京都府",
-  "大阪府",
-  "兵庫県",
-  "奈良県",
-  "和歌山県",
-] as const;
+const JAPAN_HOKKAIDO_TOHOKU = ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"] as const;
+const JAPAN_KANTO = ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"] as const;
+const JAPAN_CHUBU = ["新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県"] as const;
+const JAPAN_KINKI = ["三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県"] as const;
 const JAPAN_CHUGOKU_SHIKOKU = [
   "鳥取県",
   "島根県",
@@ -191,13 +147,7 @@ const JAPAN_PREFECTURES = [
   ...JAPAN_KYUSHU_OKINAWA,
 ] as const;
 
-const NA_REGIONS = [
-  ...USA_BROAD,
-  ...USA_STATES,
-  ...CANADA_BROAD,
-  ...CANADA_PROVINCES,
-  ...REST_OF_WORLD,
-] as const;
+const NA_REGIONS = [...USA_BROAD, ...USA_STATES, ...CANADA_BROAD, ...CANADA_PROVINCES, ...REST_OF_WORLD] as const;
 
 const JP_REGIONS = [...JAPAN_PREFECTURES, ...JAPAN_OVERSEAS] as const;
 
@@ -206,15 +156,13 @@ const JP_REGIONS = [...JAPAN_PREFECTURES, ...JAPAN_OVERSEAS] as const;
  * a shared helper can be handed any stored region, while MATCH_REGIONS below
  * — what validation and the pickers actually read — is only this instance's.
  */
-export type MatchRegion =
-  (typeof NA_REGIONS)[number] | (typeof JP_REGIONS)[number];
+export type MatchRegion = (typeof NA_REGIONS)[number] | (typeof JP_REGIONS)[number];
 
 // Matchmaking is distance-based, so the two pools have to be separated at the
 // catalog rather than filtered after the fact: a Japanese player must never
 // be offered a North American region, or the other way round. Each instance's
 // database only ever holds its own set.
-export const MATCH_REGIONS: readonly MatchRegion[] =
-  REGION_SET === "jp" ? JP_REGIONS : NA_REGIONS;
+export const MATCH_REGIONS: readonly MatchRegion[] = REGION_SET === "jp" ? JP_REGIONS : NA_REGIONS;
 
 // Drives the picker's <optgroup> sections — purely presentational grouping,
 // doesn't affect matching (that's all distance math over REGION_COORDINATES
@@ -241,8 +189,7 @@ const JP_REGION_GROUPS: MatchRegionGroup[] = [
   { label: "海外", regions: JAPAN_OVERSEAS },
 ];
 
-export const MATCH_REGION_GROUPS: MatchRegionGroup[] =
-  REGION_SET === "jp" ? JP_REGION_GROUPS : NA_REGION_GROUPS;
+export const MATCH_REGION_GROUPS: MatchRegionGroup[] = REGION_SET === "jp" ? JP_REGION_GROUPS : NA_REGION_GROUPS;
 
 // One level coarser than region, for players who think "which country" long
 // before they think "which state" — the leaderboard's country filter reads
@@ -256,19 +203,15 @@ const NA_COUNTRIES = ["United States", "Canada", "Mexico", "Other"] as const;
 // prefectures already give every useful narrowing below it.
 const JP_COUNTRIES = ["日本", "海外"] as const;
 
-export type MatchCountry =
-  (typeof NA_COUNTRIES)[number] | (typeof JP_COUNTRIES)[number];
+export type MatchCountry = (typeof NA_COUNTRIES)[number] | (typeof JP_COUNTRIES)[number];
 
-export const MATCH_COUNTRIES: readonly MatchCountry[] =
-  REGION_SET === "jp" ? JP_COUNTRIES : NA_COUNTRIES;
+export const MATCH_COUNTRIES: readonly MatchCountry[] = REGION_SET === "jp" ? JP_COUNTRIES : NA_COUNTRIES;
 
 const COUNTRY_TO_REGIONS: Partial<Record<MatchCountry, readonly string[]>> = {
   "United States": [...USA_BROAD, ...USA_STATES],
   Canada: [...CANADA_BROAD, ...CANADA_PROVINCES],
   Mexico: ["Mexico North", "Mexico Central"],
-  Other: REST_OF_WORLD.filter(
-    (r) => r !== "Mexico North" && r !== "Mexico Central",
-  ),
+  Other: REST_OF_WORLD.filter((r) => r !== "Mexico North" && r !== "Mexico Central"),
   日本: JAPAN_PREFECTURES,
   海外: JAPAN_OVERSEAS,
 };
@@ -476,12 +419,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const sinLat = Math.sin(dLat / 2);
   const sinLon = Math.sin(dLon / 2);
-  const h =
-    sinLat * sinLat +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      sinLon *
-      sinLon;
+  const h = sinLat * sinLat + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * sinLon * sinLon;
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
@@ -558,10 +496,7 @@ export const DEFAULT_MATCH_DISTANCE_KM = REGION_SET === "jp" ? 1200 : 2400;
 // Includes the region itself, so callers can treat this as the whole set of
 // regions worth matching against without a separate same-region check.
 // maxKm of null means no limit (worldwide).
-export function getRegionsWithinDistance(
-  region: string | null,
-  maxKm: number | null,
-): string[] {
+export function getRegionsWithinDistance(region: string | null, maxKm: number | null): string[] {
   if (!region) return [];
   const origin = REGION_COORDINATES[region];
   if (!origin) return [region]; // "Other" or anything without known coordinates
@@ -626,15 +561,7 @@ const USA_BROAD_TO_STATES: Record<string, readonly string[]> = {
     "Texas",
     "Wisconsin",
   ],
-  "USA Mountain": [
-    "Arizona",
-    "Colorado",
-    "Idaho",
-    "Montana",
-    "New Mexico",
-    "Utah",
-    "Wyoming",
-  ],
+  "USA Mountain": ["Arizona", "Colorado", "Idaho", "Montana", "New Mexico", "Utah", "Wyoming"],
   "USA Pacific": ["California", "Nevada", "Oregon", "Washington"],
 };
 
@@ -675,11 +602,7 @@ export function expandRegionForSearch(region: string): string[] {
  * narrower one wins. With DISTANCE_MATCHMAKING off, a missing region stops
  * mattering too — there is nothing left for it to gate.
  */
-export function regionReachAllows(
-  aRegion: string | null,
-  aMaxKm: number | null,
-  bRegion: string | null,
-): boolean {
+export function regionReachAllows(aRegion: string | null, aMaxKm: number | null, bRegion: string | null): boolean {
   if (!DISTANCE_MATCHMAKING) return true;
   if (!aRegion || !bRegion) return false;
   return getRegionsWithinDistance(aRegion, aMaxKm).includes(bRegion);
@@ -690,9 +613,6 @@ export function regionReachAllows(
  * narrow" — which is what an instance without distance matchmaking wants, so
  * the filter is dropped from the query rather than passed a list of everything.
  */
-export function regionReachFilter(
-  region: string | null,
-  maxKm: number | null,
-): string[] | null {
+export function regionReachFilter(region: string | null, maxKm: number | null): string[] | null {
   return DISTANCE_MATCHMAKING ? getRegionsWithinDistance(region, maxKm) : null;
 }

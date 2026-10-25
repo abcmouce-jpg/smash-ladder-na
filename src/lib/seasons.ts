@@ -1,20 +1,12 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import {
-  MatchStatus,
-  RatingAlgorithm,
-  UserStatus,
-} from "@/generated/prisma/enums";
+import { MatchStatus, RatingAlgorithm, UserStatus } from "@/generated/prisma/enums";
 import { DELETED_USERNAME } from "@/lib/account";
 import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
 import { stripTierRolesForDiscordIds } from "@/lib/tier-roles";
 import { isNotificationEnabled } from "@/lib/notifications";
-import {
-  GLICKO2_INITIAL_RATING,
-  GLICKO2_INITIAL_RD,
-  GLICKO2_INITIAL_VOLATILITY,
-} from "@/lib/glicko2";
+import { GLICKO2_INITIAL_RATING, GLICKO2_INITIAL_RD, GLICKO2_INITIAL_VOLATILITY } from "@/lib/glicko2";
 import { formatRating } from "@/lib/rating-format";
 import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
 import { dayKeyInTimeZone, zonedTimeToUtc } from "@/lib/timezone";
@@ -51,9 +43,7 @@ export function addMonths(date: Date, months: number): Date {
   const shifted = new Date(date);
   shifted.setUTCDate(1); // park on the 1st so the month shift can't overflow
   shifted.setUTCMonth(shifted.getUTCMonth() + months);
-  const lastDayOfTargetMonth = new Date(
-    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0),
-  ).getUTCDate();
+  const lastDayOfTargetMonth = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0)).getUTCDate();
   shifted.setUTCDate(Math.min(day, lastDayOfTargetMonth));
   return shifted;
 }
@@ -74,10 +64,7 @@ export function nextSeasonEndAt(start: Date): Date {
   // addMonths preserves the day-of-month (clamping to the target month's last
   // day), run here against the start's ET calendar date rather than its raw
   // UTC fields.
-  const target = addMonths(
-    new Date(Date.UTC(year, month - 1, day)),
-    SEASON_DURATION_MONTHS,
-  );
+  const target = addMonths(new Date(Date.UTC(year, month - 1, day)), SEASON_DURATION_MONTHS);
   return zonedTimeToUtc({
     year: target.getUTCFullYear(),
     month: target.getUTCMonth() + 1,
@@ -97,21 +84,14 @@ export function hasPreSeasonStarted() {
 // the announced rollover time for a still-active season, set at creation
 // (see the admin Seasons form) so a countdown and auto-rollover both work
 // for any season, not just the preseason.
-export function getSeasonEndsAt(season: {
-  endsAt: Date | null;
-  scheduledEndAt: Date | null;
-}): Date | null {
+export function getSeasonEndsAt(season: { endsAt: Date | null; scheduledEndAt: Date | null }): Date | null {
   return season.endsAt ?? season.scheduledEndAt;
 }
 
 // Split out from the SeasonEndingBanner server component so its render body
 // never calls Date.now() directly — components must stay pure per React's
 // rules, even server-only ones.
-export function isWithinSeasonEndingWindow(
-  endsAt: Date,
-  windowMs: number,
-  now = new Date(),
-) {
+export function isWithinSeasonEndingWindow(endsAt: Date, windowMs: number, now = new Date()) {
   return endsAt.getTime() - now.getTime() <= windowMs;
 }
 
@@ -119,16 +99,14 @@ export function isWithinSeasonEndingWindow(
 // hold ADMIN now (mostly for community/promotion reasons, not moderation)
 // that this narrows who can trigger it, independent of the ADMIN/MOD role
 // check. Revisit once ADMIN grants are reviewed.
-export const SEASON_MANAGER_USER_ID =
-  process.env.SEASON_MANAGER_USER_ID?.trim() || null;
+export const SEASON_MANAGER_USER_ID = process.env.SEASON_MANAGER_USER_ID?.trim() || null;
 
 // Which rating system a newly-started season runs on. Every season created from
 // here on starts fresh on Glicko-2 (see endActiveSeasonAndStartNext); a season
 // that's already running keeps whatever its own `algorithm` column says, so
 // this never rewrites the current season. Flip back to ELO to make the next
 // rollover produce an Elo season again.
-export const NEXT_SEASON_ALGORITHM =
-  RATING_SYSTEM === "elo" ? RatingAlgorithm.ELO : RatingAlgorithm.GLICKO2;
+export const NEXT_SEASON_ALGORITHM = RATING_SYSTEM === "elo" ? RatingAlgorithm.ELO : RatingAlgorithm.GLICKO2;
 
 export async function getActiveSeason() {
   return prisma.season.findFirst({
@@ -165,9 +143,7 @@ const PLACEMENT_LABEL = ["Champion", "Runner-up", "3rd Place"];
 // also a "Preseason Participant" badge — being there for the very first one
 // is worth commemorating regardless of where you placed, unlike a normal
 // season's rank medals.
-export async function getPlayerSeasonAchievements(
-  userId: string,
-): Promise<Achievement[]> {
+export async function getPlayerSeasonAchievements(userId: string): Promise<Achievement[]> {
   const standings = await prisma.seasonStanding.findMany({
     where: {
       userId,
@@ -191,8 +167,7 @@ export async function getPlayerSeasonAchievements(
       achievements.push({
         id: `season-${s.seasonId}-preseason-participant`,
         label: "Preseason Participant",
-        description:
-          "Played enough ranked sets during the Preseason to make the final standings.",
+        description: "Played enough ranked sets during the Preseason to make the final standings.",
         achieved: true,
       });
     }
@@ -208,10 +183,7 @@ export async function getPlayerSeasonAchievements(
 // concern here. Excludes deleted accounts — same as the live leaderboard —
 // so a self-deletion doesn't leave a dangling "Deleted User" row sitting in
 // a historical top finish.
-export async function getSeasonStandings(
-  seasonId: string,
-  pagination: { skip?: number; take?: number } = {},
-) {
+export async function getSeasonStandings(seasonId: string, pagination: { skip?: number; take?: number } = {}) {
   const where = { seasonId, user: { username: { not: DELETED_USERNAME } } };
   const [standings, totalCount] = await Promise.all([
     prisma.seasonStanding.findMany({
@@ -239,11 +211,7 @@ async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
   const unresolved = await tx.ratingMatch.findMany({
     where: {
       status: {
-        in: [
-          MatchStatus.PENDING_REPORT,
-          MatchStatus.REPORTED,
-          MatchStatus.DISPUTED,
-        ],
+        in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED],
       },
     },
     select: { id: true },
@@ -333,10 +301,7 @@ export async function endActiveSeasonAndStartNext(
         startsAt: now,
         // Omitted → the standard 2-month season ending 8pm ET on the 25th;
         // explicit null → manual-only.
-        scheduledEndAt:
-          nextScheduledEndAt === undefined
-            ? nextSeasonEndAt(now)
-            : nextScheduledEndAt,
+        scheduledEndAt: nextScheduledEndAt === undefined ? nextSeasonEndAt(now) : nextScheduledEndAt,
         algorithm: nextAlgorithm,
       },
       select: { name: true },
@@ -372,9 +337,7 @@ export async function endActiveSeasonAndStartNext(
   // of Discord calls must not hold up the rollover itself. Players who sat
   // out last season but still carry an old role are caught by the per-match
   // sync on their next tiered match, or by scripts/reconcile-tier-roles.ts.
-  const tierRoleRecipients = lastSeasonPlayers.map(
-    (player) => player.discordId,
-  );
+  const tierRoleRecipients = lastSeasonPlayers.map((player) => player.discordId);
   if (tierRoleRecipients.length > 0) {
     try {
       after(() => stripTierRolesForDiscordIds(tierRoleRecipients));
@@ -420,12 +383,7 @@ export async function launchPreSeasonIfDue(now = new Date()) {
     // The preseason stays on Elo regardless of NEXT_SEASON_ALGORITHM — it's a
     // fixed trial run whose framing predates Glicko-2, and the Glicko-2 season
     // that follows it is created by the normal rollover path below.
-    await endActiveSeasonAndStartNext(
-      PRE_SEASON_NAME,
-      now,
-      PRE_SEASON_EXPECTED_END_AT,
-      RatingAlgorithm.ELO,
-    );
+    await endActiveSeasonAndStartNext(PRE_SEASON_NAME, now, PRE_SEASON_EXPECTED_END_AT, RatingAlgorithm.ELO);
   } else {
     await prisma.season.create({
       data: {

@@ -41,7 +41,11 @@ export default async function NotesPage({
 }: {
   searchParams: Promise<{ tab?: string; character?: string }>;
 }) {
-  const [{ tab: tabParam, character: characterParam }, session, lang] = await Promise.all([searchParams, auth(), getLang()]);
+  const [{ tab: tabParam, character: characterParam }, session, lang] = await Promise.all([
+    searchParams,
+    auth(),
+    getLang(),
+  ]);
   const userId = session?.user?.id ?? null;
   // Signed out, "My Notes" is nothing but a sign-in prompt, so the bare /notes
   // URL — the one in the sitemap, and the one a crawler or a first-time
@@ -57,7 +61,8 @@ export default async function NotesPage({
   // and anything else (incl. "Random") is dropped so a hand-edited URL can't
   // pre-filter to a tag that doesn't exist.
   const canonicalCharacter = characterParam ? echoGroupCanonical(characterParam as SmashCharacter) : null;
-  const initialGuideCharacter = canonicalCharacter && isMatchupCharacter(canonicalCharacter) ? canonicalCharacter : null;
+  const initialGuideCharacter =
+    canonicalCharacter && isMatchupCharacter(canonicalCharacter) ? canonicalCharacter : null;
 
   // One blurb per tab, sitting in the heading block the way the Stats page
   // does it — the two views need different framing.

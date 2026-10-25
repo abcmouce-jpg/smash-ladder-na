@@ -16,8 +16,8 @@ export default async function TermsPage() {
           <section>
             <h2 className="text-sm font-medium text-foreground">Qué es esto</h2>
             <p className="mt-2">
-              {SITE_NAME} es un ladder rankeado de Super Smash Bros. administrado por la comunidad, organizado
-              mediante inicio de sesión con Discord. Es gratis. Al iniciar sesión, aceptas estos términos.
+              {SITE_NAME} es un ladder rankeado de Super Smash Bros. administrado por la comunidad, organizado mediante
+              inicio de sesión con Discord. Es gratis. Al iniciar sesión, aceptas estos términos.
             </p>
           </section>
 
@@ -44,8 +44,8 @@ export default async function TermsPage() {
             <p className="mt-2">
               Otros jugadores pueden reportar mala conducta. Los reportes son revisados por mods antes de tomar
               cualquier acción — presentar un reporte por sí solo no hace nada. Las cuentas que acumulan suficientes
-              reportes confirmados por mods se suspenden (solo se bloquea el juego rankeado; Amistosos y nuevos
-              reportes también se bloquean) o se banean (todo bloqueado), en una escala gradual. Consulta la{" "}
+              reportes confirmados por mods se suspenden (solo se bloquea el juego rankeado; Amistosos y nuevos reportes
+              también se bloquean) o se banean (todo bloqueado), en una escala gradual. Consulta la{" "}
               <a href="/rules" className="underline">
                 página de Reglas
               </a>{" "}
@@ -77,8 +77,7 @@ export default async function TermsPage() {
             <p className="mt-2">
               El sitio se ofrece tal cual (&quot;as-is&quot;). No garantizamos disponibilidad continua, que el
               matchmaking siempre te encuentre una partida, ni que el servicio esté libre de errores. Nintendo no tiene
-              ninguna afiliación con este sitio — {SITE_NAME} es un proyecto comunitario independiente, hecho por
-              fans.
+              ninguna afiliación con este sitio — {SITE_NAME} es un proyecto comunitario independiente, hecho por fans.
             </p>
           </section>
 

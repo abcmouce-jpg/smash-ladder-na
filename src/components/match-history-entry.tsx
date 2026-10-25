@@ -128,7 +128,11 @@ export function MatchHistoryEntry({
           : "text-muted-foreground",
   );
   const ratingTrailTitle = match.isPracticing
-    ? tr(lang, { en: "Practice rating before → after", es: "Clasificación de práctica antes → después", ja: "練習レートの変動（前 → 後）" })
+    ? tr(lang, {
+        en: "Practice rating before → after",
+        es: "Clasificación de práctica antes → después",
+        ja: "練習レートの変動（前 → 後）",
+      })
     : tr(lang, { en: "Rating before → after", es: "Clasificación antes → después", ja: "レートの変動（前 → 後）" });
 
   return (
@@ -276,9 +280,12 @@ function MatchDetailsModal({
               {tr(lang, { en: "Match details", es: "Detalles de la partida", ja: "試合の詳細" })}
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              {match.isPracticing && <Badge variant="outline">{tr(lang, { en: "Practice", es: "Práctica", ja: "練習" })}</Badge>}
+              {match.isPracticing && (
+                <Badge variant="outline">{tr(lang, { en: "Practice", es: "Práctica", ja: "練習" })}</Badge>
+              )}
               <span className="font-medium">
-                {viewedPlayerName} <span className="text-muted-foreground">{tr(lang, { en: "vs", es: "contra", ja: "vs" })}</span>{" "}
+                {viewedPlayerName}{" "}
+                <span className="text-muted-foreground">{tr(lang, { en: "vs", es: "contra", ja: "vs" })}</span>{" "}
                 {match.opponent.username}
               </span>
               {hasScore && (
@@ -300,13 +307,21 @@ function MatchDetailsModal({
         <div className="mt-4 flex flex-col gap-2">
           {match.games.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              {tr(lang, { en: "No games were recorded for this set.", es: "No se registró ningún juego para esta partida.", ja: "このセットの試合記録はありません。" })}
+              {tr(lang, {
+                en: "No games were recorded for this set.",
+                es: "No se registró ningún juego para esta partida.",
+                ja: "このセットの試合記録はありません。",
+              })}
             </p>
           )}
           {match.games.map((game) => (
             <div key={game.gameNumber} className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs font-medium text-muted-foreground">
-                {tr(lang, { en: `Game ${game.gameNumber}`, es: `Juego ${game.gameNumber}`, ja: `第${game.gameNumber}試合` })}
+                {tr(lang, {
+                  en: `Game ${game.gameNumber}`,
+                  es: `Juego ${game.gameNumber}`,
+                  ja: `第${game.gameNumber}試合`,
+                })}
                 {game.stage ? `: ${game.stage}` : ""}
               </p>
               <div className="mt-2 flex items-center justify-between gap-2">

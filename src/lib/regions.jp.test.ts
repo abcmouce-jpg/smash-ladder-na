@@ -44,7 +44,7 @@ describe("the Japanese instance's region catalog", () => {
     expect(isolated).toEqual([]);
   });
 
-  it("keeps 海外（その他） matching only itself, like NA's \"Other\"", async () => {
+  it('keeps 海外（その他） matching only itself, like NA\'s "Other"', async () => {
     const { getRegionsWithinDistance } = await loadJapaneseInstance();
     expect(getRegionsWithinDistance("海外（その他）", 5000)).toEqual(["海外（その他）"]);
   });

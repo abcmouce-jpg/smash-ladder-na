@@ -143,9 +143,9 @@ export default async function FaqPage() {
             for exactly what&apos;s kept and why.
           </QA>
           <QA q="Can I undo an account deletion, or merge it into a new account?">
-            Signing back in with the same Discord account resumes your original account — same rating and match
-            history — rather than starting a fresh one, but your username, avatar, and email stay scrubbed until you
-            change them yourself. There&apos;s no way to merge a deletion into a different, separate account.
+            Signing back in with the same Discord account resumes your original account — same rating and match history
+            — rather than starting a fresh one, but your username, avatar, and email stay scrubbed until you change them
+            yourself. There&apos;s no way to merge a deletion into a different, separate account.
           </QA>
           <QA q="Is matchmaking open worldwide?">
             Yes — anyone can join. Set your region and a match distance on the Lobby page; the defaults match you with
@@ -174,9 +174,8 @@ export default async function FaqPage() {
             reach out in the Discord server above.
           </QA>
           <QA q="Is this affiliated with Japan's Smash Ladder / Smashmate?">
-            No — this is an independent, separately-run project built for the NA scene. It borrows its name as a
-            hat-tip to Japan&apos;s long-running online matchmaking platform, but the two projects are not connected in
-            any way.
+            No — this is an independent, separately-run project built for the NA scene. It borrows its name as a hat-tip
+            to Japan&apos;s long-running online matchmaking platform, but the two projects are not connected in any way.
           </QA>
           <QA q="Do you use AI to help build and run this site?">
             Yes. A lot of the code, bug fixes, and day-to-day maintenance (deploys, moderation tooling, this FAQ entry
@@ -289,8 +288,8 @@ function FaqPageEs() {
           <QA q="¿Cuál es la diferencia real entre suspendido y baneado?">
             Suspendido (Nivel 1) todavía te deja jugar rankeado — esa es la actividad principal, y las disputas ya le
             dan a los malos resultados su propio camino de corrección — pero bloquea publicar en Amistosos y presentar
-            nuevos reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó.
-            Baneado (Nivel 2) bloquea todo.
+            nuevos reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó. Baneado
+            (Nivel 2) bloquea todo.
           </QA>
         </Category>
 

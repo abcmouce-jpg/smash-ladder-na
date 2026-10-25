@@ -2,11 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { auth } from "@/auth";
-import {
-  getAchievedFreeBattleTiers,
-  getOwnActivePost,
-  getUserBrief,
-} from "@/lib/free-battle";
+import { getAchievedFreeBattleTiers, getOwnActivePost, getUserBrief } from "@/lib/free-battle";
 import { getFriendliesPosts } from "@/lib/home-feed";
 import { FREE_BATTLE_TIERS, type FreeBattleTier } from "@/lib/rank-tier";
 import { PageHeading } from "@/components/page-heading";
@@ -20,11 +16,7 @@ import { getLang, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
 
 export default async function FriendliesPage() {
-  const [session, lang, posts] = await Promise.all([
-    auth(),
-    getLang(),
-    getFriendliesPosts(20),
-  ]);
+  const [session, lang, posts] = await Promise.all([auth(), getLang(), getFriendliesPosts(20)]);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
@@ -38,26 +30,23 @@ export default async function FriendliesPage() {
         description={trNode(lang, {
           en: (
             <>
-              Post what you&apos;re looking for and get casual, unranked
-              friendlies going — no rating on the line, and no auto-matching.
-              It&apos;s the opposite of the{" "}
+              Post what you&apos;re looking for and get casual, unranked friendlies going — no rating on the line, and
+              no auto-matching. It&apos;s the opposite of the{" "}
               <Link href="/lobby" className="underline hover:text-foreground">
                 Lobby
               </Link>
-              &apos;s ranked queue: here, you post what you want and whoever
-              sees it on Discord reaches out to you directly.
+              &apos;s ranked queue: here, you post what you want and whoever sees it on Discord reaches out to you
+              directly.
             </>
           ),
           es: (
             <>
-              Publica lo que buscas y arma amistosos casuales sin clasificación
-              — no hay puntos en juego ni emparejamiento automático. Es lo
-              opuesto a la cola rankeada de la{" "}
+              Publica lo que buscas y arma amistosos casuales sin clasificación — no hay puntos en juego ni
+              emparejamiento automático. Es lo opuesto a la cola rankeada de la{" "}
               <Link href="/lobby" className="underline hover:text-foreground">
                 Sala
               </Link>
-              : tú publicas lo que buscas y quien lo vea en Discord te contacta
-              directamente.
+              : tú publicas lo que buscas y quien lo vea en Discord te contacta directamente.
             </>
           ),
           ja: (
@@ -66,8 +55,7 @@ export default async function FriendliesPage() {
               <Link href="/lobby" className="underline hover:text-foreground">
                 ロビー
               </Link>
-              のレート対戦とは逆で、自分で希望を投稿し、Discord
-              で見た人が直接連絡してくる形です。
+              のレート対戦とは逆で、自分で希望を投稿し、Discord で見た人が直接連絡してくる形です。
             </>
           ),
         })}
@@ -76,51 +64,28 @@ export default async function FriendliesPage() {
           {trNode(lang, {
             en: (
               <>
-                <li>
-                  1. Post what you&apos;re looking for (matchup, availability,
-                  etc).
-                </li>
+                <li>1. Post what you&apos;re looking for (matchup, availability, etc).</li>
                 <li>2. Your post gets announced in the community Discord.</li>
-                <li>
-                  3. Whoever&apos;s interested reaches out on Discord — this
-                  page just makes the introduction.
-                </li>
-                <li>
-                  4. Posts auto-expire after 24 hours; close and repost anytime.
-                </li>
+                <li>3. Whoever&apos;s interested reaches out on Discord — this page just makes the introduction.</li>
+                <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
               </>
             ),
             es: (
               <>
                 <li>1. Publica qué buscas (matchup, disponibilidad, etc).</li>
+                <li>2. Tu publicación se anuncia en el Discord de la comunidad.</li>
+                <li>3. Quien esté interesado te contacta por Discord — esta página solo hace la presentación.</li>
                 <li>
-                  2. Tu publicación se anuncia en el Discord de la comunidad.
-                </li>
-                <li>
-                  3. Quien esté interesado te contacta por Discord — esta página
-                  solo hace la presentación.
-                </li>
-                <li>
-                  4. Las publicaciones expiran solas después de 24 horas;
-                  ciérrala y vuelve a publicar cuando quieras.
+                  4. Las publicaciones expiran solas después de 24 horas; ciérrala y vuelve a publicar cuando quieras.
                 </li>
               </>
             ),
             ja: (
               <>
-                <li>
-                  1.
-                  探している対戦を投稿する（対面したいキャラ、対戦できる時間帯など）。
-                </li>
+                <li>1. 探している対戦を投稿する（対面したいキャラ、対戦できる時間帯など）。</li>
                 <li>2. 投稿がコミュニティの Discord に告知される。</li>
-                <li>
-                  3. 興味を持った人が Discord
-                  で連絡してくる。このページは紹介までを担います。
-                </li>
-                <li>
-                  4.
-                  投稿は24時間で自動的に期限切れになります。いつでも閉じて再投稿できます。
-                </li>
+                <li>3. 興味を持った人が Discord で連絡してくる。このページは紹介までを担います。</li>
+                <li>4. 投稿は24時間で自動的に期限切れになります。いつでも閉じて再投稿できます。</li>
               </>
             ),
           })}
@@ -157,52 +122,29 @@ export default async function FriendliesPage() {
   );
 }
 
-async function FriendliesActionsPanel({
-  userId,
-  lang,
-}: {
-  userId: string;
-  lang: Lang;
-}) {
-  const [ownPost, achievedTiers] = await Promise.all([
-    getOwnActivePost(userId),
-    getAchievedFreeBattleTiers(userId),
-  ]);
+async function FriendliesActionsPanel({ userId, lang }: { userId: string; lang: Lang }) {
+  const [ownPost, achievedTiers] = await Promise.all([getOwnActivePost(userId), getAchievedFreeBattleTiers(userId)]);
 
   return (
     <div className="mt-6">
-      {ownPost ? (
-        <OwnPostCard post={ownPost} lang={lang} />
-      ) : (
-        <PostForm lang={lang} achievedTiers={achievedTiers} />
-      )}
+      {ownPost ? <OwnPostCard post={ownPost} lang={lang} /> : <PostForm lang={lang} achievedTiers={achievedTiers} />}
     </div>
   );
 }
 
-function PostForm({
-  lang,
-  achievedTiers,
-}: {
-  lang: Lang;
-  achievedTiers: FreeBattleTier[];
-}) {
+function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBattleTier[] }) {
   async function action(formData: FormData) {
     "use server";
     const comment = String(formData.get("comment") ?? "");
     const rawMinTier = String(formData.get("minTier") ?? "");
-    const minTier = FREE_BATTLE_TIERS.includes(rawMinTier as FreeBattleTier)
-      ? (rawMinTier as FreeBattleTier)
-      : null;
+    const minTier = FREE_BATTLE_TIERS.includes(rawMinTier as FreeBattleTier) ? (rawMinTier as FreeBattleTier) : null;
     await postFreeBattle(comment, minTier);
   }
 
   // FREE_BATTLE_TIERS is ordered highest to lowest; the form should offer
   // them the other way round (Elite before Grandmaster) so restricting to
   // your own rank is the first, most obvious option below "Anyone".
-  const selectableTiers = [...FREE_BATTLE_TIERS]
-    .reverse()
-    .filter((tier) => achievedTiers.includes(tier));
+  const selectableTiers = [...FREE_BATTLE_TIERS].reverse().filter((tier) => achievedTiers.includes(tier));
 
   return (
     <Card>
@@ -238,9 +180,7 @@ function PostForm({
                 defaultValue=""
                 className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
               >
-                <option value="">
-                  {tr(lang, { en: "Anyone", es: "Cualquiera", ja: "誰でも" })}
-                </option>
+                <option value="">{tr(lang, { en: "Anyone", es: "Cualquiera", ja: "誰でも" })}</option>
                 {selectableTiers.map((tier) => (
                   <option key={tier} value={tier}>
                     {tier}+
@@ -291,10 +231,7 @@ async function OwnPostCard({
             })}
             {post.minTier && <Badge>{post.minTier}+</Badge>}
           </p>
-          <form
-            action={closeFreeBattlePost.bind(null, post.id)}
-            className="mt-3"
-          >
+          <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
             <Button type="submit" variant="outline" size="sm">
               {tr(lang, {
                 en: "Close post",
@@ -308,9 +245,7 @@ async function OwnPostCard({
     );
   }
 
-  const matchedWith = post.matchedWithId
-    ? await getUserBrief(post.matchedWithId)
-    : null;
+  const matchedWith = post.matchedWithId ? await getUserBrief(post.matchedWithId) : null;
 
   return (
     <Card>

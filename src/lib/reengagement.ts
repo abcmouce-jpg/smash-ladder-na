@@ -109,9 +109,7 @@ async function findDormantPlayers(
     take: limit * 3,
   });
 
-  return candidates
-    .filter((player) => isNotificationEnabled(player, "DM_SEASON_ROLLOVER"))
-    .slice(0, limit);
+  return candidates.filter((player) => isNotificationEnabled(player, "DM_SEASON_ROLLOVER")).slice(0, limit);
 }
 
 export function reengagementMessage(seasonName: string, endsAt: Date | null) {
@@ -208,12 +206,7 @@ export async function sendReengagementBatch({
         // Rate limits and transient errors mean the message never landed, so
         // undo the stamp for those recipients. A "blocked" recipient keeps
         // theirs: Discord will refuse them again tomorrow for the same reason.
-        if (
-          outcome === "rate_limited" ||
-          outcome === "error" ||
-          outcome === "no_token" ||
-          outcome === "unauthorized"
-        ) {
+        if (outcome === "rate_limited" || outcome === "error" || outcome === "no_token" || outcome === "unauthorized") {
           const id = byDiscordId.get(discordId);
           if (id) unreached.push(id);
         }
@@ -227,8 +220,7 @@ export async function sendReengagementBatch({
   );
 
   // Anyone the send never reached at all (it stopped early) is also unreached.
-  const attempted =
-    tally.sent + tally.blocked + tally.unauthorized + tally.rate_limited + tally.error + tally.no_token;
+  const attempted = tally.sent + tally.blocked + tally.unauthorized + tally.rate_limited + tally.error + tally.no_token;
   if (attempted < batch.length) {
     result.stoppedEarly = true;
     for (const player of batch.slice(attempted)) unreached.push(player.id);

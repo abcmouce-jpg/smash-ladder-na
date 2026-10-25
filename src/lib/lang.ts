@@ -43,9 +43,6 @@ export function tr(lang: Lang, strings: Record<Lang, string>): string {
  * All three nodes are built and two are discarded. They're element objects,
  * not rendered output, so that costs an allocation, not a render.
  */
-export function trNode(
-  lang: Lang,
-  nodes: Record<Lang, React.ReactNode>,
-): React.ReactNode {
+export function trNode(lang: Lang, nodes: Record<Lang, React.ReactNode>): React.ReactNode {
   return nodes[lang];
 }

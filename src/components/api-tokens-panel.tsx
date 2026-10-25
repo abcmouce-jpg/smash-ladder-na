@@ -82,9 +82,7 @@ export function ApiTokensPanel({
       {state.rawToken && (
         <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 p-3">
           <p className="text-xs font-medium text-foreground">
-            {lang === "es"
-              ? "Copia esto ahora — no se volverá a mostrar:"
-              : "Copy this now — it won't be shown again:"}
+            {lang === "es" ? "Copia esto ahora — no se volverá a mostrar:" : "Copy this now — it won't be shown again:"}
           </p>
           <code className="break-all rounded bg-background px-2 py-1 text-xs">{state.rawToken}</code>
         </div>
