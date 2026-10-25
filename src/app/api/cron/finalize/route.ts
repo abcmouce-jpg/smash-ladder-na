@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
+import { hasBearerSecret } from "@/lib/secret-compare";
 import { finalizeExpiredFreeBattlePosts, finalizeExpiredLobbyEntries, finalizeExpiredMatches } from "@/lib/finalize";
 import { sweepLobbyPairing } from "@/lib/lobby";
 import { autoSuspendWatchlistViolators } from "@/lib/admin-watchlist";
 import { endActiveSeasonIfDue } from "@/lib/seasons";
 
 function isAuthorized(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-
-  return request.headers.get("authorization") === `Bearer ${secret}`;
+  return hasBearerSecret(request, process.env.CRON_SECRET);
 }
 
 async function handle(request: Request) {

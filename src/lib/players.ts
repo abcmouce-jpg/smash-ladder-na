@@ -110,7 +110,7 @@ export async function getPlayerProfile(userId: string, viewerIsModerator = false
       cancelCount: true,
       status: true,
       suspendedUntil: true,
-      lastKnownIp: true, // only ever rendered in the mod-only section of the profile page
+      lastKnownIp: true, // blanked below for a non-mod viewer
       _count: { select: { connectionReportsReceived: true } },
     },
   });
@@ -135,6 +135,13 @@ export async function getPlayerProfile(userId: string, viewerIsModerator = false
   return {
     ...player,
     discordUsername,
+    // Gated here rather than only where it renders. The profile page shows it
+    // inside a mod-only block today and the components around it pick scalar
+    // props, so nothing leaked — but that left a column no visitor may see
+    // riding on an object handed to every one of them, one `player={player}`
+    // into a client component away from being published in the RSC payload.
+    // Same treatment discordUsername above already gets.
+    lastKnownIp: viewerIsModerator ? player.lastKnownIp : null,
     status,
     isSupporter: isEffectiveSupporter(player),
     isGoldSupporter: isEffectiveGoldSupporter(player),

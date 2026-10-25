@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasBearerSecret } from "@/lib/secret-compare";
 import { CHARACTER_TIMEOUT_MS, REPORT_TIMEOUT_MS, STRIKE_TIMEOUT_MS } from "@/lib/match-games";
 
 // Diagnostic-only: lets us confirm what's actually executing in production
@@ -10,9 +11,7 @@ import { CHARACTER_TIMEOUT_MS, REPORT_TIMEOUT_MS, STRIKE_TIMEOUT_MS } from "@/li
 // CHARACTER_TIMEOUT_MS to 3 minutes. Same CRON_SECRET gate as /api/cron/finalize
 // since this exposes internal config, not because it does anything sensitive.
 function isAuthorized(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return request.headers.get("authorization") === `Bearer ${secret}`;
+  return hasBearerSecret(request, process.env.CRON_SECRET);
 }
 
 export async function GET(request: Request) {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { secretEquals } from "@/lib/secret-compare";
 import { prisma } from "@/lib/db";
 import { GOLD_SUPPORTER_MIN_AMOUNT_USD, KOFI_SUPPORTER_GRACE_DAYS } from "@/lib/supporters";
 
@@ -40,8 +41,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const secret = process.env.KOFI_VERIFICATION_TOKEN;
-  if (!secret || payload.verification_token !== secret) {
+  // Ko-fi sends a shared token in the body rather than signing the request,
+  // so this is the only thing standing between the endpoint and anyone who
+  // wants to grant themselves supporter perks — compared without leaking how
+  // much of a guess was right.
+  if (!secretEquals(payload.verification_token, process.env.KOFI_VERIFICATION_TOKEN)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasBearerSecret } from "@/lib/secret-compare";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { formatRating } from "@/lib/rating-format";
@@ -10,9 +11,7 @@ import { formatRating } from "@/lib/rating-format";
 function isAuthorized(request: Request, role: string | undefined) {
   if (role === "MOD" || role === "ADMIN") return true;
 
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return request.headers.get("authorization") === `Bearer ${secret}`;
+  return hasBearerSecret(request, process.env.CRON_SECRET);
 }
 
 function csvField(value: string) {
