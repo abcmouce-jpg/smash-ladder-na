@@ -527,6 +527,35 @@ describe("setActiveSeasonAlgorithm", () => {
     expect((await setActiveSeasonAlgorithm(RatingAlgorithm.SMASHMATE)).algorithm).toBe(RatingAlgorithm.SMASHMATE);
   });
 
+  it("ignores a set both sides queued as practice, which moved no ladder rating", async () => {
+    // Trying the queue end to end is what someone does before deciding the
+    // season is set up right, and practice mode is how they do it without
+    // touching the board — so it must not freeze the choice.
+    const season = await prisma.season.create({
+      data: { name: "Season 1", algorithm: RatingAlgorithm.ELO, startsAt: new Date("2026-01-01T00:00:00Z") },
+    });
+    const practice = await createTestMatch(MatchStatus.CONFIRMED, new Date());
+    await prisma.ratingMatch.update({
+      where: { id: practice.id },
+      data: { seasonId: season.id, player1IsPracticing: true, player2IsPracticing: true },
+    });
+
+    expect((await setActiveSeasonAlgorithm(RatingAlgorithm.SMASHMATE)).algorithm).toBe(RatingAlgorithm.SMASHMATE);
+  });
+
+  it("still refuses when only one side was practicing — the other side's rating moved", async () => {
+    const season = await prisma.season.create({
+      data: { name: "Season 1", algorithm: RatingAlgorithm.ELO, startsAt: new Date("2026-01-01T00:00:00Z") },
+    });
+    const mixed = await createTestMatch(MatchStatus.CONFIRMED, new Date());
+    await prisma.ratingMatch.update({
+      where: { id: mixed.id },
+      data: { seasonId: season.id, player1IsPracticing: true, player2IsPracticing: false },
+    });
+
+    await expect(setActiveSeasonAlgorithm(RatingAlgorithm.SMASHMATE)).rejects.toThrow(/already rated 1 set/);
+  });
+
   it("is a no-op when the season already runs that algorithm, even once it has rated sets", async () => {
     const season = await prisma.season.create({
       data: { name: "Season 1", algorithm: RatingAlgorithm.SMASHMATE, startsAt: new Date("2026-01-01T00:00:00Z") },

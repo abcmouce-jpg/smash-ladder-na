@@ -30,7 +30,11 @@ export default async function SeasonsAdminPage() {
   // same condition setActiveSeasonAlgorithm enforces, asked here so the form
   // isn't offered for something the server would refuse.
   const ratedCount = await prisma.ratingMatch.count({
-    where: { seasonId: active.id, status: MatchStatus.CONFIRMED },
+    where: {
+      seasonId: active.id,
+      status: MatchStatus.CONFIRMED,
+      NOT: { player1IsPracticing: true, player2IsPracticing: true },
+    },
   });
 
   return (

@@ -165,8 +165,18 @@ export async function setActiveSeasonAlgorithm(algorithm: RatingAlgorithm) {
   if (!active) throw new Error("No active season");
   if (active.algorithm === algorithm) return active;
 
+  // A set where BOTH sides queued as practicing moved no ladder rating —
+  // applyEloAndConfirm writes practiceRating for a practicing side and leaves
+  // rating alone — so it must not freeze the choice. Which matters in
+  // practice: trying the queue end to end on a new instance is exactly what
+  // someone does before deciding the season is set up right, and practice
+  // mode is how they do it without touching the board.
   const ratedCount = await prisma.ratingMatch.count({
-    where: { seasonId: active.id, status: MatchStatus.CONFIRMED },
+    where: {
+      seasonId: active.id,
+      status: MatchStatus.CONFIRMED,
+      NOT: { player1IsPracticing: true, player2IsPracticing: true },
+    },
   });
   if (ratedCount > 0) {
     throw new Error(
