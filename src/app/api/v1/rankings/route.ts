@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getRankingsForExport } from "@/lib/leaderboard";
 import { getActiveSeason } from "@/lib/seasons";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import { RATING_SYSTEM, SITE_NAME } from "@/lib/site";
+import { RatingAlgorithm } from "@/generated/prisma/enums";
+import { SITE_NAME } from "@/lib/site";
 
 // Public, read-only ranking export, built for SPSP: it seeds offline brackets
 // and wants a player's online rating before it does. とさかず asked whether
@@ -24,6 +25,23 @@ export const revalidate = 60;
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 1000;
 
+/**
+ * The family a season's math belongs to, for the `ratingSystem` field.
+ *
+ * That field was `RATING_SYSTEM` — which is this instance's setting for the
+ * NEXT season, not what rated the numbers in this response. The two differ
+ * whenever a season is already running under different math, which is exactly
+ * the case on an instance that changed its setting mid-season.
+ *
+ * Its value domain stays "elo" | "glicko2" so a consumer switching on it
+ * doesn't meet a third string it has never seen. Smashmate's ladder is Elo
+ * with a flat K, so "elo" is true of it at this resolution, and
+ * `ratingAlgorithm` below carries the exact answer for anyone who needs it.
+ */
+export function ratingSystemFamily(algorithm: RatingAlgorithm | null): "elo" | "glicko2" {
+  return algorithm === RatingAlgorithm.GLICKO2 ? "glicko2" : "elo";
+}
+
 function clampInt(raw: string | null, fallback: number, min: number, max: number) {
   const n = Number(raw);
   if (!Number.isFinite(n)) return fallback;
@@ -40,7 +58,11 @@ export async function GET(request: Request) {
   return NextResponse.json({
     site: SITE_NAME,
     season: season ? { name: season.name, startsAt: season.startsAt, scheduledEndAt: season.scheduledEndAt } : null,
-    ratingSystem: RATING_SYSTEM,
+    ratingSystem: ratingSystemFamily(season?.algorithm ?? null),
+    // The exact algorithm the ratings above were computed with, as the season
+    // records it: "ELO", "GLICKO2" or "SMASHMATE". New field — `ratingSystem`
+    // keeps its old two values so nothing reading it has to change.
+    ratingAlgorithm: season?.algorithm ?? null,
     // Stated so a consumer doesn't have to infer why a player it expected is
     // absent, and doesn't treat an unranked player as rating 0.
     minimumSetsToRank: LEADERBOARD_MIN_GAMES,
