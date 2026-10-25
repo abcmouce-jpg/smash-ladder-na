@@ -9,6 +9,7 @@ import { MainNav } from "@/components/main-nav";
 import { DiscordIcon } from "@/components/discord-icon";
 import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang, setLangAction } from "@/lib/i18n";
+import { LANGS, type Lang } from "@/lib/lang";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,14 +17,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SITE_NAME_PARTS } from "@/lib/site";
 
 export async function SiteHeader() {
   const session = await auth();
   const user = session?.user;
   const lang = await getLang();
   const role = user?.role;
-  const enAction = setLangAction.bind(null, "en");
-  const esAction = setLangAction.bind(null, "es");
+  // One bound action per language, so adding a language to LANGUAGES in the
+  // toggle doesn't also need a new prop threaded through here.
+  const langActions = Object.fromEntries(LANGS.map((l) => [l, setLangAction.bind(null, l)])) as Record<
+    Lang,
+    () => Promise<void>
+  >;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background">
@@ -49,7 +55,8 @@ export async function SiteHeader() {
               className="size-[26px] hidden dark:block"
             />
             <span className="hidden truncate min-[420px]:inline">
-              Smash Ladder <span className="text-primary">NA</span>
+              {SITE_NAME_PARTS.lead && `${SITE_NAME_PARTS.lead} `}
+              <span className="text-primary">{SITE_NAME_PARTS.accent}</span>
             </span>
           </Link>
 
@@ -82,7 +89,7 @@ export async function SiteHeader() {
             <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
 
             <ThemeMenu lang={lang} />
-            <LanguageToggle lang={lang} enAction={enAction} esAction={esAction} />
+            <LanguageToggle lang={lang} actions={langActions} />
 
             <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
 

@@ -1,7 +1,7 @@
 import { prisma } from "../src/lib/db";
 import { ConfirmationMethod, MatchStatus, PairingMethod, TournamentStatus } from "../src/generated/prisma/enums";
 
-const SEED_USERS = [
+const SEED_USERS_NA = [
   {
     discordId: "seed-001",
     username: "FoxMain_East",
@@ -98,6 +98,102 @@ const SEED_USERS = [
   },
 ] as const;
 
+// Japan's demo roster. Deliberately invented handles — a showcase site must
+// not put words in the mouth of a real player — with the characters and
+// prefectures the Japanese scene actually concentrates in.
+const SEED_USERS_JP = [
+  {
+    discordId: "seed-jp-001",
+    username: "しろねこ",
+    rating: 1835,
+    gamesPlayed: 71,
+    mainCharacter: "Palutena",
+    region: "東京都",
+    twitchUsername: "shironeko_ssbu",
+    twitchDisplayName: "しろねこ",
+  },
+  {
+    discordId: "seed-jp-002",
+    username: "カエデ",
+    rating: 1788,
+    gamesPlayed: 64,
+    mainCharacter: "Pikachu",
+    region: "大阪府",
+    twitchUsername: "kaede_pika",
+    twitchDisplayName: "カエデ",
+  },
+  {
+    discordId: "seed-jp-003",
+    username: "ユウキ",
+    rating: 1702,
+    gamesPlayed: 52,
+    mainCharacter: "Mr. Game & Watch",
+    region: "神奈川県",
+    twitchUsername: "yuuki_gw",
+    twitchDisplayName: "ユウキ",
+  },
+  {
+    discordId: "seed-jp-004",
+    username: "ハルト",
+    rating: 1664,
+    gamesPlayed: 45,
+    mainCharacter: "Joker",
+    region: "愛知県",
+    twitchUsername: "haruto_joker",
+    twitchDisplayName: "ハルト",
+  },
+  {
+    discordId: "seed-jp-005",
+    username: "ミドリ",
+    rating: 1621,
+    gamesPlayed: 38,
+    mainCharacter: "Steve",
+    region: "福岡県",
+  },
+  {
+    discordId: "seed-jp-006",
+    username: "そら",
+    rating: 1583,
+    gamesPlayed: 31,
+    mainCharacter: "Sonic",
+    region: "北海道",
+    twitchUsername: "sora_sonic",
+    twitchDisplayName: "そら",
+  },
+  {
+    discordId: "seed-jp-007",
+    username: "レン",
+    rating: 1547,
+    gamesPlayed: 26,
+    mainCharacter: "Wolf",
+    region: "埼玉県",
+  },
+  {
+    discordId: "seed-jp-008",
+    username: "あおい",
+    rating: 1512,
+    gamesPlayed: 18,
+    mainCharacter: "Pyra/Mythra",
+    region: "京都府",
+  },
+  {
+    discordId: "seed-jp-009",
+    username: "タクミ",
+    rating: 1468,
+    gamesPlayed: 13,
+    mainCharacter: "Cloud",
+    region: "兵庫県",
+  },
+  {
+    discordId: "seed-jp-010",
+    username: "ナギ",
+    rating: 1431,
+    gamesPlayed: 9,
+    mainCharacter: "Roy",
+    region: "広島県",
+  },
+] as const;
+
 // (winnerIndex, loserIndex, daysAgo) into SEED_USERS — a small, hand-picked
 // schedule rather than a full replay of everyone's real gamesPlayed count.
 // Illustrative only: enough recent history for the profile match list and
@@ -114,6 +210,12 @@ const SEED_MATCHES = [
   [3, 4, 2],
   [1, 2, 1],
 ] as const;
+
+// Which roster to load. Seeding a Japanese instance with "FoxMain_East" in
+// "New York" would make the showcase site read as a translation of someone
+// else's ladder, which is the one thing it must not look like.
+const IS_JP = process.env.NEXT_PUBLIC_REGION_SET?.trim() === "jp";
+const SEED_USERS = IS_JP ? SEED_USERS_JP : SEED_USERS_NA;
 
 async function main() {
   const users = [];
@@ -227,27 +329,50 @@ async function main() {
   }
   console.log(`Seeded Preseason standings for ${ranked.length} players.`);
 
-  // Open Friendlies posts for the landing page's Friendlies section.
-  const friendliesPosts = [
-    {
-      id: "seed-post-1",
-      authorId: users[3].id,
-      comment: "Looking for friendlies — Sheik vs Fox/Marth, EST evenings.",
-      region: "Florida",
-    },
-    {
-      id: "seed-post-2",
-      authorId: users[2].id,
-      comment: "Anyone around for a late-night set? G&W main, wired.",
-      region: "Texas",
-    },
-    {
-      id: "seed-post-3",
-      authorId: users[1].id,
-      comment: "Pika ditto practice before the weekly — hit me up!",
-      region: "California",
-    },
-  ] as const;
+  // Open Friendlies posts for the landing page's Friendlies section. A post
+  // carries its own region, so these have to follow the roster — otherwise a
+  // 大阪府 player advertises a set in California.
+  const friendliesPosts = IS_JP
+    ? ([
+        {
+          id: "seed-post-1",
+          authorId: users[3].id,
+          comment: "ジョーカー使いです。夜に何本かお願いしたいです！",
+          region: "愛知県",
+        },
+        {
+          id: "seed-post-2",
+          authorId: users[2].id,
+          comment: "有線です。ゲムヲ対策したい方どうぞ〜",
+          region: "神奈川県",
+        },
+        {
+          id: "seed-post-3",
+          authorId: users[1].id,
+          comment: "ピカミラーの練習相手募集してます。平日夜なら空いてます。",
+          region: "大阪府",
+        },
+      ] as const)
+    : ([
+        {
+          id: "seed-post-1",
+          authorId: users[3].id,
+          comment: "Looking for friendlies — Sheik vs Fox/Marth, EST evenings.",
+          region: "Florida",
+        },
+        {
+          id: "seed-post-2",
+          authorId: users[2].id,
+          comment: "Anyone around for a late-night set? G&W main, wired.",
+          region: "Texas",
+        },
+        {
+          id: "seed-post-3",
+          authorId: users[1].id,
+          comment: "Pika ditto practice before the weekly — hit me up!",
+          region: "California",
+        },
+      ] as const);
   for (const post of friendliesPosts) {
     await prisma.freeBattlePost.upsert({
       where: { id: post.id },
@@ -379,7 +504,7 @@ async function main() {
     update: {},
     create: {
       id: "seed-tournament-1",
-      name: "NA Weekly #1",
+      name: IS_JP ? "オンライン週末大会 #1" : "NA Weekly #1",
       description: "A casual weekly local, bracket on start.gg.",
       hostId: users[0].id,
       status: TournamentStatus.SIGNUPS,

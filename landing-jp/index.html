@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smash Ladder JP — 準備中</title>
+    <meta
+      name="description"
+      content="スマメイトのサービス終了を受けて開発中の、日本のスマブラSP向けレート対戦マッチングサイトです。準備中。"
+    />
+    <meta property="og:title" content="Smash Ladder JP — 準備中" />
+    <meta
+      property="og:description"
+      content="日本のスマブラSP向け、レート対戦のマッチングサイト。準備中です。"
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="icon.png" />
+    <style>
+      :root {
+        --bg: #0b0b0d;
+        --panel: #141418;
+        --border: #26262c;
+        --fg: #f4f4f5;
+        --muted: #a1a1aa;
+        --accent: #f0536c;
+        --ok: #4ade80;
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+        line-height: 1.8;
+        /* Japanese text at this size reads better slightly looser. */
+        letter-spacing: 0.02em;
+      }
+      .wrap { max-width: 720px; margin: 0 auto; padding: 56px 16px 80px; }
+      header { display: flex; align-items: center; gap: 12px; }
+      header img { width: 36px; height: 36px; }
+      .badge {
+        display: inline-block;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 3px 12px;
+        font-size: 12px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+      }
+      h1 {
+        font-size: clamp(30px, 7vw, 46px);
+        line-height: 1.25;
+        margin: 28px 0 0;
+        letter-spacing: -0.01em;
+      }
+      h1 .accent { color: var(--accent); }
+      .lead { font-size: 17px; color: var(--muted); margin-top: 14px; }
+      h2 {
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+        margin: 48px 0 14px;
+        font-weight: 600;
+      }
+      p { margin: 0 0 14px; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 22px;
+      }
+      ul { margin: 0; padding-left: 1.3em; }
+      li { margin-bottom: 9px; }
+      li:last-child { margin-bottom: 0; }
+      .rules li strong { color: var(--fg); }
+      .cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin-top: 10px;
+        background: #5865f2;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        padding: 13px 22px;
+        border-radius: 11px;
+      }
+      .cta:hover { filter: brightness(1.1); }
+      footer {
+        margin-top: 56px;
+        padding-top: 22px;
+        border-top: 1px solid var(--border);
+        font-size: 12.5px;
+        color: var(--muted);
+        line-height: 1.9;
+      }
+      @media (prefers-color-scheme: light) {
+        :root:not([data-theme="dark"]) {
+          --bg: #ffffff;
+          --panel: #f7f7f8;
+          --border: #e4e4e7;
+          --fg: #18181b;
+          --muted: #52525b;
+          --accent: #d6294a;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <img src="icon.png" alt="" />
+        <span class="badge">準備中 / COMING SOON</span>
+      </header>
+
+      <h1>Smash Ladder <span class="accent">JP</span></h1>
+      <p class="lead">日本のスマブラSP向け、レート対戦のマッチングサイトです。</p>
+
+      <h2>これは何か</h2>
+      <div class="card">
+        <p>
+          スマメイトのサービス終了を受けて、日本向けのレート対戦サイトを開発しています。
+          北米で稼働している Smash Ladder と同じ基盤を使い、ルールは日本のコミュニティに合わせて決めています。
+        </p>
+        <p style="margin-bottom: 0">
+          Discord でログインして待機すると、レートの近い相手と自動でマッチングします。
+          対戦が決まってからステージのBAN、結果の報告までは画面が順番に案内します。
+        </p>
+      </div>
+
+      <h2>決まっていること</h2>
+      <div class="card">
+        <ul class="rules">
+          <li><strong>低遅延Mod（ディレイMod）の使用は禁止します。</strong>改造していない本体でプレイしてください。回線を良くしたい場合は有線LANアダプタを使ってください。有線の相手だけとマッチングする設定も用意します。</li>
+          <li><strong>賞金はありません。</strong>シーズンは順位をつける期間で、賞金を懸けたイベントではありません。</li>
+          <li><strong>マッチングは全国一律です。</strong>距離で相手を絞りません。都道府県はランキングとプロフィール用です。</li>
+          <li><strong>レートは Elo です。</strong>自分で計算して確かめられる増減にしています。</li>
+          <li>対戦は <strong>5先（Bo5）</strong>、ステージギミックはオフです。</li>
+          <li>
+            <strong>ステージは7つ。</strong><br />
+            スターター：終点 / 戦場 / ポケモンスタジアム2 / ホロウバスティオン / 小戦場<br />
+            カウンター：村と町 / すま村
+          </li>
+        </ul>
+      </div>
+
+      <h2>公開について</h2>
+      <div class="card">
+        <p style="margin-bottom: 0">
+          現在開発中です。公開日が決まり次第、Discord と
+          <a href="https://x.com/SmashLadder_NA" style="color: var(--fg)">X</a>
+          でお知らせします。テスターや、日本のコミュニティとのつなぎ役を探しています。
+        </p>
+      </div>
+
+      <h2>参加・連絡</h2>
+      <a class="cta" href="https://discord.gg/zE8B44vQxf" rel="noopener">Discord サーバーに参加する</a>
+
+      <footer>
+        本サイトは有志による非公式のサービスです。任天堂株式会社とは一切関係ありません。<br />
+        また、スマメイトの公式な後継サービスではありません。<br />
+        「大乱闘スマッシュブラザーズ」は任天堂株式会社の登録商標です。
+      </footer>
+    </div>
+  </body>
+</html>

@@ -6,6 +6,7 @@ import { setPreferredLanguage } from "@/lib/account";
 // server-only imports above so client components can use them. Re-exported
 // here because 65 files already import the type from this path.
 import { asLang, type Lang } from "@/lib/lang";
+import { DEFAULT_LANG } from "@/lib/site";
 
 export type { Lang };
 
@@ -31,7 +32,7 @@ export async function getLang(): Promise<Lang> {
     if (stored) return stored;
   }
 
-  return "en";
+  return DEFAULT_LANG;
 }
 
 // Shared server action for the header's language toggle. Sets the cookie so
