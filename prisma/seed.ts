@@ -111,6 +111,10 @@ const SEED_USERS_JP = [
     region: "東京都",
     twitchUsername: "shironeko_ssbu",
     twitchDisplayName: "しろねこ",
+    startggUserId: "seed-sgg-user-001",
+    startggPlayerId: "seed-sgg-player-001",
+    startggSlug: "user/seed-shironeko",
+    startggGamerTag: "しろねこ",
   },
   {
     discordId: "seed-jp-002",
@@ -121,6 +125,10 @@ const SEED_USERS_JP = [
     region: "大阪府",
     twitchUsername: "kaede_pika",
     twitchDisplayName: "カエデ",
+    startggUserId: "seed-sgg-user-002",
+    startggPlayerId: "seed-sgg-player-002",
+    startggSlug: "user/seed-kaede",
+    startggGamerTag: "Kaede",
   },
   {
     discordId: "seed-jp-003",
