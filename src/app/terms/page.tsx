@@ -1,8 +1,10 @@
 import { getLang } from "@/lib/i18n";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_NAME, instanceText } from "@/lib/site";
 import { X_ACCOUNT_URL } from "@/lib/links";
 
-export const metadata = { title: `Terms of Service — ${SITE_NAME}` };
+export const metadata = {
+  title: `${instanceText({ en: "Terms of Service", es: "Términos del servicio", ja: "利用規約" })} — ${SITE_NAME}`,
+};
 
 export default async function TermsPage() {
   const lang = await getLang();

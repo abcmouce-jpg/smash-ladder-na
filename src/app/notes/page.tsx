@@ -20,11 +20,11 @@ import {
   updateMatchupNoteAction,
   voteOnGuideAction,
 } from "./actions";
-import { HAS_COMMUNITY_GUIDES, PUBLISHES_SPANISH, SITE_NAME } from "@/lib/site";
+import { HAS_COMMUNITY_GUIDES, PUBLISHES_SPANISH, SITE_NAME, instanceText } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata: Metadata = {
-  title: `Notes — ${SITE_NAME}`,
+  title: `${instanceText({ en: "Notes", es: "Notas", ja: "対策メモ" })} — ${SITE_NAME}`,
   description: "Your private matchup notes and every public community character guide.",
   alternates: PUBLISHES_SPANISH ? { languages: { "es-MX": "/es" } } : undefined,
 };

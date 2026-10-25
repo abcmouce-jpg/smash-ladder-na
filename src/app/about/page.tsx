@@ -1,10 +1,12 @@
 import { X_ACCOUNT_URL, DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
-import { HAS_KOFI, HAS_DISCORD_SERVER, RATING_SYSTEM_LABEL, SCENE_LABEL, SITE_NAME } from "@/lib/site";
+import { HAS_KOFI, HAS_DISCORD_SERVER, RATING_SYSTEM_LABEL, SCENE_LABEL, SITE_NAME, instanceText } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
-export const metadata = { title: `About — ${SITE_NAME}` };
+export const metadata = {
+  title: `${instanceText({ en: "About", es: "Acerca de", ja: "このサイトについて" })} — ${SITE_NAME}`,
+};
 
 const copy = {
   en: {

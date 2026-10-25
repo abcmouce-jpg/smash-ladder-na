@@ -48,6 +48,20 @@ describe("the Japanese instance's launch rules", () => {
     const { site } = await load("jp");
     expect(site.HAS_COMMUNITY_GUIDES).toBe(false);
   });
+
+  it("declares itself Japanese to browsers and crawlers", async () => {
+    const { site } = await load("jp");
+    // <html lang> and og:locale were hardcoded to English, so the Japanese
+    // site told a screen reader to read Japanese with English pronunciation
+    // and told search engines it was an English page.
+    expect(site.DEFAULT_LANG).toBe("ja");
+    expect(site.OG_LOCALE).toBe("ja_JP");
+  });
+
+  it("titles its pages in Japanese", async () => {
+    const { site } = await load("jp");
+    expect(site.instanceText({ en: "Rules", es: "Reglas", ja: "ルール" })).toBe("ルール");
+  });
 });
 
 describe("North America keeps every one of them", () => {
@@ -59,6 +73,8 @@ describe("North America keeps every one of them", () => {
     expect(site.RATING_SYSTEM).toBe("glicko2");
     expect(site.DISPLAY_TIME_ZONE).toBe("America/New_York");
     expect(site.HAS_COMMUNITY_GUIDES).toBe(true);
+    expect(site.DEFAULT_LANG).toBe("en");
+    expect(site.OG_LOCALE).toBe("en_US");
   });
 });
 

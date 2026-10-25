@@ -5,10 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DiscordIcon } from "@/components/discord-icon";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_NAME, instanceText } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
-export const metadata = { title: `Join our Discord — ${SITE_NAME}` };
+export const metadata = {
+  title: `${instanceText({ en: "Join our Discord", es: "Únete a nuestro Discord", ja: "Discord に参加" })} — ${SITE_NAME}`,
+};
 
 // Landed on by auth.ts's signIn callback returning this path instead of
 // true/false — Auth.js redirects here rather than completing the sign-in,

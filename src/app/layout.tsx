@@ -16,7 +16,7 @@ import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import { Toaster } from "@/components/ui/sonner";
 import { siteOrigin } from "@/lib/site-url";
 import "./globals.css";
-import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
+import { SITE_NAME, SITE_DESCRIPTION, DEFAULT_LANG, OG_LOCALE } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: TITLE,
     type: "website",
-    locale: "en_US",
+    locale: OG_LOCALE,
   },
   twitter: {
     card: "summary_large_image",
@@ -98,7 +98,7 @@ export default async function RootLayout({
 
   return (
     <html
-      lang="en"
+      lang={DEFAULT_LANG}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >

@@ -3,13 +3,20 @@ import { SEASON_PRIZE_POOL_USD, PRIZE_AMOUNTS_USD, approxMxn } from "@/lib/prize
 import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { getLang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
-import { ALLOWS_LATENCY_MODS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL, RATING_SYSTEM, SITE_NAME } from "@/lib/site";
+import {
+  ALLOWS_LATENCY_MODS,
+  DISPLAY_TIME_ZONE,
+  HAS_PRIZE_POOL,
+  RATING_SYSTEM,
+  SITE_NAME,
+  instanceText,
+} from "@/lib/site";
 import { MAX_RATING_DELTA, SMASHMATE_K_FACTOR } from "@/lib/matches";
 import { STRIKING_STAGES } from "@/lib/stages";
 import { GAMES_TO_WIN } from "@/lib/match-games";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 
-export const metadata = { title: `Rules — ${SITE_NAME}` };
+export const metadata = { title: `${instanceText({ en: "Rules", es: "Reglas", ja: "ルール" })} — ${SITE_NAME}` };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

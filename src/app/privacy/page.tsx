@@ -1,8 +1,10 @@
 import { getLang } from "@/lib/i18n";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_NAME, instanceText } from "@/lib/site";
 import { X_ACCOUNT_URL } from "@/lib/links";
 
-export const metadata = { title: `Privacy Policy — ${SITE_NAME}` };
+export const metadata = {
+  title: `${instanceText({ en: "Privacy Policy", es: "Política de privacidad", ja: "プライバシーポリシー" })} — ${SITE_NAME}`,
+};
 
 export default async function PrivacyPage() {
   const lang = await getLang();

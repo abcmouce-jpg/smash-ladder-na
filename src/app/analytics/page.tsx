@@ -9,10 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RatingTrendChart } from "@/components/rating-trend-chart";
 import { WinRateBars } from "@/components/win-rate-bars";
-import { HAS_KOFI, SITE_NAME } from "@/lib/site";
+import { HAS_KOFI, SITE_NAME, instanceText } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
-export const metadata = { title: `Analytics — ${SITE_NAME}` };
+export const metadata = {
+  title: `${instanceText({ en: "Analytics", es: "Analíticas", ja: "アナリティクス" })} — ${SITE_NAME}`,
+};
 
 export default async function AnalyticsPage() {
   const [session, lang] = await Promise.all([auth(), getLang()]);
