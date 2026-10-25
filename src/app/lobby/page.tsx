@@ -124,7 +124,7 @@ import {
   updateZenMode,
 } from "./actions";
 import { tr, trNode } from "@/lib/lang";
-import { DISTANCE_MATCHMAKING } from "@/lib/site";
+import { USES_REGIONS, DISTANCE_MATCHMAKING } from "@/lib/site";
 
 type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
 
@@ -195,7 +195,7 @@ export default async function LobbyPage() {
   // Region is required to queue (see joinLobbyAndTryPair), so the Lobby states
   // that up front and points at the settings card instead of letting the Find
   // Match button fail server-side with an error message.
-  const hasRegion = Boolean(me?.region);
+  const hasRegion = !USES_REGIONS || Boolean(me?.region);
   const queueCooldownUntil = me?.queueCooldownUntil?.toISOString() ?? null;
   const hasPushSubscription = (me?._count.pushSubscriptions ?? 0) > 0;
   const audioPingOnMatch = me?.audioPingOnMatch ?? true;
@@ -363,9 +363,15 @@ export default async function LobbyPage() {
                     </CardTitle>
                     <CardDescription className="mt-0.5">
                       {tr(lang, {
-                        en: "Join the queue and we'll pair you with a nearby opponent.",
-                        es: "Entra en la cola y te emparejaremos con un rival cercano.",
-                        ja: "待機すると、近くの相手とマッチングします。",
+                        en: DISTANCE_MATCHMAKING
+                          ? "Join the queue and we'll pair you with a nearby opponent."
+                          : "Join the queue and we'll pair you with an opponent.",
+                        es: DISTANCE_MATCHMAKING
+                          ? "Entra en la cola y te emparejaremos con un rival cercano."
+                          : "Entra en la cola y te emparejaremos con un rival.",
+                        ja: DISTANCE_MATCHMAKING
+                          ? "待機すると、近くの相手とマッチングします。"
+                          : "待機すると、対戦相手とマッチングします。",
                       })}
                     </CardDescription>
                   </div>
@@ -556,9 +562,11 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
   async function action(_prevState: MatchSettingsState, formData: FormData): Promise<MatchSettingsState> {
     "use server";
     try {
-      await updateRegion(String(formData.get("region") ?? ""));
-      const distance = String(formData.get("maxMatchDistanceKm") ?? "");
-      await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
+      if (USES_REGIONS) await updateRegion(String(formData.get("region") ?? ""));
+      if (DISTANCE_MATCHMAKING) {
+        const distance = String(formData.get("maxMatchDistanceKm") ?? "");
+        await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
+      }
       const ratingGap = String(formData.get("maxRatingGap") ?? "");
       await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
       const rematchCooldown = String(formData.get("rematchCooldownHours") ?? "");
@@ -591,43 +599,45 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          <span className="flex items-center gap-1.5">
-            {tr(lang, {
-              en: "Match region",
-              es: "Región de partida",
-              ja: "対戦地域",
-            })}
-            {missingRegion && (
-              <Badge variant="warning">{tr(lang, { en: "Required", es: "Requerido", ja: "必須" })}</Badge>
-            )}
-          </span>
-          <OptionSelect
-            key={me?.region ?? ""}
-            name="region"
-            defaultValue={me?.region ?? ""}
-            placeholder={tr(lang, {
-              en: "Not set",
-              es: "Sin definir",
-              ja: "未設定",
-            })}
-            clearLabel={tr(lang, {
-              en: "Not set",
-              es: "Sin definir",
-              ja: "未設定",
-            })}
-            className="w-full"
-            searchable
-            autoSubmit
-            searchPlaceholder={tr(lang, {
-              en: "Search regions…",
-              es: "Buscar regiones…",
-              ja: "地域を検索…",
-            })}
-            disabled={disabled}
-            options={REGION_OPTIONS}
-          />
-        </label>
+        {USES_REGIONS && (
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            <span className="flex items-center gap-1.5">
+              {tr(lang, {
+                en: "Match region",
+                es: "Región de partida",
+                ja: "対戦地域",
+              })}
+              {missingRegion && (
+                <Badge variant="warning">{tr(lang, { en: "Required", es: "Requerido", ja: "必須" })}</Badge>
+              )}
+            </span>
+            <OptionSelect
+              key={me?.region ?? ""}
+              name="region"
+              defaultValue={me?.region ?? ""}
+              placeholder={tr(lang, {
+                en: "Not set",
+                es: "Sin definir",
+                ja: "未設定",
+              })}
+              clearLabel={tr(lang, {
+                en: "Not set",
+                es: "Sin definir",
+                ja: "未設定",
+              })}
+              className="w-full"
+              searchable
+              autoSubmit
+              searchPlaceholder={tr(lang, {
+                en: "Search regions…",
+                es: "Buscar regiones…",
+                ja: "地域を検索…",
+              })}
+              disabled={disabled}
+              options={REGION_OPTIONS}
+            />
+          </label>
+        )}
 
         {DISTANCE_MATCHMAKING && (
           <MatchSettingSelect
@@ -659,7 +669,7 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
           disabled={disabled}
           options={MATCH_RATING_GAP_PRESETS.map((preset) => ({
             value: String(preset.gap ?? ANY_RATING_VALUE),
-            label: preset.label,
+            label: preset.label[lang],
           }))}
         />
 
@@ -675,7 +685,7 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
           disabled={disabled}
           options={REMATCH_COOLDOWN_PRESETS.map((preset) => ({
             value: String(preset.hours ?? ANYTIME_VALUE),
-            label: preset.label,
+            label: preset.label[lang],
           }))}
         />
       </div>
@@ -758,9 +768,9 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
           checked={me?.zenMode ?? false}
           label={tr(lang, { en: "Zen Mode", es: "Modo Zen", ja: "ゼンモード" })}
           hint={tr(lang, {
-            en: "Hide your opponent's rating, name, characters, and avatar.",
-            es: "Oculta la clasificación, el nombre, los personajes y el avatar de tu rival.",
-            ja: "相手のレート・名前・使用キャラ・アイコンを隠します。",
+            en: "Hide both ratings while you're in a match.",
+            es: "Oculta ambas clasificaciones mientras estás en una partida.",
+            ja: "対戦中、お互いのレートを隠します。",
           })}
           disabled={disabled}
         />
@@ -870,10 +880,10 @@ async function PairedView({
     },
   });
   const zenMode = me?.zenMode ?? false;
-  const displayName = zenMode ? tr(lang, { en: "Opponent", es: "Rival", ja: "相手" }) : opponent.username;
-  // Doesn't hide the opponent's real name/rating from them (that's what
-  // zenMode above does, one-directionally) — just lets them know you have
-  // it on, so they're not confused if you're less chatty/less findable.
+  const displayName = opponent.username;
+  // Doesn't hide the opponent's own rating from them (that's what zenMode
+  // above does, one-directionally) — just lets them know you have it on, so
+  // they're not confused if you don't talk rating.
   const opponentInZenMode = opponent.zenMode;
   const opponentIsPracticing = isPlayer1 ? match.player2IsPracticing : match.player1IsPracticing;
   const myIsPracticing = isPlayer1 ? match.player1IsPracticing : match.player2IsPracticing;
@@ -890,7 +900,6 @@ async function PairedView({
         match={match}
         opponentName={displayName}
         opponentHasLeft={!!opponentLeftAt}
-        zenMode={zenMode}
         lang={lang}
       />
     );
@@ -949,9 +958,8 @@ async function PairedView({
   );
   const opponentStreak = currentStreak(await getPlayerMatchHistory(opponent.id));
   // Lifetime record vs this specific opponent (confirmed, non-practice sets
-  // only). Skipped in zen mode — like the streak badge, it would give away
-  // who the masked opponent is.
-  const headToHead = zenMode ? null : await getHeadToHead(userId, opponent.id);
+  // only).
+  const headToHead = await getHeadToHead(userId, opponent.id);
   // Once any game's been decided or reported, cancelMatch is blocked
   // outright (see its gameInProgress check) — surrenderMatch isn't, so the
   // button always means "surrender" from that point on, no need to spend a
@@ -965,7 +973,6 @@ async function PairedView({
       match={match}
       opponentName={displayName}
       opponentHasLeft={!!opponentLeftAt}
-      zenMode={zenMode}
       lang={lang}
     />
   );
@@ -1556,7 +1563,7 @@ function MatchScoreboard({
                 </Badge>
               )}
             </p>
-            {(!zenMode || me?.region) && (
+            {(!zenMode || (USES_REGIONS && me?.region)) && (
               <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground tabular-nums">
                 {!zenMode && (
                   <span>
@@ -1579,7 +1586,7 @@ function MatchScoreboard({
                     )}
                   </span>
                 )}
-                {me?.region && (
+                {USES_REGIONS && me?.region && (
                   <span className="inline-flex items-center gap-1">
                     <MapPin className="size-3" />
                     {me.region}
@@ -1587,7 +1594,7 @@ function MatchScoreboard({
                 )}
               </p>
             )}
-            {!zenMode && myTopCharacters.length > 0 && (
+            {myTopCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center gap-1.5">
                 <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
                   {tr(lang, {
@@ -1620,14 +1627,10 @@ function MatchScoreboard({
         <div className="flex min-w-0 items-start justify-end gap-3 text-right sm:flex-1">
           <div className="min-w-0">
             <p className="flex flex-wrap items-center justify-end gap-1.5 font-medium">
-              {!zenMode ? (
-                <Link href={`/players/${opponent.id}`} prefetch={false} className="truncate hover:underline">
-                  {opponentName}
-                </Link>
-              ) : (
-                <span className="truncate">{opponentName}</span>
-              )}
-              {!zenMode && opponentStreak > 0 && (
+              <Link href={`/players/${opponent.id}`} prefetch={false} className="truncate hover:underline">
+                {opponentName}
+              </Link>
+              {opponentStreak > 0 && (
                 <Badge variant="success" className="tabular-nums">
                   {tr(lang, {
                     en: `${opponentStreak} win streak`,
@@ -1655,7 +1658,7 @@ function MatchScoreboard({
                 </Badge>
               )}
             </p>
-            {(!zenMode || opponent.region) && (
+            {(!zenMode || (USES_REGIONS && opponent.region)) && (
               <p className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground tabular-nums">
                 {!zenMode && (
                   <span>
@@ -1678,7 +1681,7 @@ function MatchScoreboard({
                     )}
                   </span>
                 )}
-                {opponent.region && (
+                {USES_REGIONS && opponent.region && (
                   <span className="inline-flex items-center gap-1">
                     <MapPin className="size-3" />
                     {opponent.region}
@@ -1686,7 +1689,7 @@ function MatchScoreboard({
                 )}
               </p>
             )}
-            {!zenMode && topCharacters.length > 0 && (
+            {topCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center justify-end gap-1.5">
                 <span className="pointer-events-none absolute -top-6 right-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
                   {tr(lang, {
@@ -1701,7 +1704,7 @@ function MatchScoreboard({
               </div>
             )}
           </div>
-          {!zenMode && opponent.avatarUrl && (
+          {opponent.avatarUrl && (
             <Image
               src={opponent.avatarUrl}
               alt={opponent.username}
@@ -1714,30 +1717,28 @@ function MatchScoreboard({
       </CardContent>
 
       {/* Your record vs this opponent — its own row along the bottom */}
-      {!zenMode && (
-        <CardContent className="pb-2">
-          <p className="text-center text-xs tabular-nums text-muted-foreground">
-            {headToHead ? (
-              <>
-                {tr(lang, {
-                  en: "Your record: ",
-                  es: "Tu récord: ",
-                  ja: "あなたの戦績：",
-                })}
-                {headToHead.wins}
-                {tr(lang, { en: "W", es: "V", ja: "勝" })}–{headToHead.losses}
-                {tr(lang, { en: "L", es: "D", ja: "敗" })}
-              </>
-            ) : (
-              tr(lang, {
-                en: "First time opponent",
-                es: "Primera vez que se enfrentan",
-                ja: "初めて当たる相手です",
-              })
-            )}
-          </p>
-        </CardContent>
-      )}
+      <CardContent className="pb-2">
+        <p className="text-center text-xs tabular-nums text-muted-foreground">
+          {headToHead ? (
+            <>
+              {tr(lang, {
+                en: "Your record: ",
+                es: "Tu récord: ",
+                ja: "あなたの戦績：",
+              })}
+              {headToHead.wins}
+              {tr(lang, { en: "W", es: "V", ja: "勝" })}–{headToHead.losses}
+              {tr(lang, { en: "L", es: "D", ja: "敗" })}
+            </>
+          ) : (
+            tr(lang, {
+              en: "First time opponent",
+              es: "Primera vez que se enfrentan",
+              ja: "初めて当たる相手です",
+            })
+          )}
+        </p>
+      </CardContent>
     </Card>
   );
 }
@@ -3168,14 +3169,12 @@ async function CommentsSection({
   match,
   opponentName,
   opponentHasLeft,
-  zenMode,
   lang,
 }: {
   userId: string;
   match: Match;
   opponentName: string;
   opponentHasLeft: boolean;
-  zenMode?: boolean;
   lang: Lang;
 }) {
   const rawComments = await listMatchComments(userId, match.id);
@@ -3186,17 +3185,11 @@ async function CommentsSection({
   });
   const myQuickMessages = resolveQuickMessages(myQuickMessagesRaw?.quickMessages ?? []);
 
-  // Determine opponent's user id for zen mode — replace their name in chat
-  const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
-
   // Serialize dates to strings for the client component
   const comments = rawComments.map((c) => ({
     id: c.id,
     author: {
-      username:
-        zenMode && c.author.id === opponentId
-          ? tr(lang, { en: "Opponent", es: "Rival", ja: "相手" })
-          : c.author.username,
+      username: c.author.username,
       role: c.author.role,
     },
     body: c.body,

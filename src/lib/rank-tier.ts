@@ -1,3 +1,5 @@
+import type { Lang } from "@/lib/lang";
+
 export type RankTier = {
   name: string;
   minRating: number;
@@ -20,17 +22,17 @@ export type RankTier = {
 // storing it — see the equivalent warning on MATCH_DISTANCE_PRESETS in
 // regions.ts. Any future change MUST ship with a migration for existing
 // stored values.
-export const MATCH_RATING_GAP_PRESETS = [
-  { label: "Within 25", gap: 25 },
-  { label: "Within 50", gap: 50 },
-  { label: "Within 75", gap: 75 },
-  { label: "Within 100", gap: 100 },
-  { label: "Within 150", gap: 150 },
-  { label: "Within 200", gap: 200 },
-  { label: "Within 300", gap: 300 },
-  { label: "Within 500", gap: 500 },
-  { label: "Any rating", gap: null },
-] as const;
+export const MATCH_RATING_GAP_PRESETS: readonly { label: Record<Lang, string>; gap: number | null }[] = [
+  { label: { en: "Within 25", es: "Dentro de 25", ja: "±25以内" }, gap: 25 },
+  { label: { en: "Within 50", es: "Dentro de 50", ja: "±50以内" }, gap: 50 },
+  { label: { en: "Within 75", es: "Dentro de 75", ja: "±75以内" }, gap: 75 },
+  { label: { en: "Within 100", es: "Dentro de 100", ja: "±100以内" }, gap: 100 },
+  { label: { en: "Within 150", es: "Dentro de 150", ja: "±150以内" }, gap: 150 },
+  { label: { en: "Within 200", es: "Dentro de 200", ja: "±200以内" }, gap: 200 },
+  { label: { en: "Within 300", es: "Dentro de 300", ja: "±300以内" }, gap: 300 },
+  { label: { en: "Within 500", es: "Dentro de 500", ja: "±500以内" }, gap: 500 },
+  { label: { en: "Any rating", es: "Cualquier clasificación", ja: "制限なし" }, gap: null },
+];
 
 // Ordered highest to lowest; the first tier whose floor the rating clears
 // wins.
@@ -344,7 +346,12 @@ export function computeRatingMilestoneAchievements(peakRating: number | null): A
 
   const achievements: Achievement[] = [];
   for (let m = RATING_MILESTONE_START; m <= highestReached; m += RATING_MILESTONE_STEP) {
-    achievements.push({ id: `rating-${m}`, label: `Reached ${m}`, description: `Reach a rating of ${m}.`, achieved: true });
+    achievements.push({
+      id: `rating-${m}`,
+      label: `Reached ${m}`,
+      description: `Reach a rating of ${m}.`,
+      achieved: true,
+    });
   }
   const nextGoal = highestReached + RATING_MILESTONE_STEP;
   achievements.push({

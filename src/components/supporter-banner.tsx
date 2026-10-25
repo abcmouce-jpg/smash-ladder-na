@@ -5,6 +5,7 @@ import { Coffee, X } from "lucide-react";
 import { KOFI_URL } from "@/lib/links";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
+import { HAS_KOFI } from "@/lib/site";
 
 const DISMISSED_AT_KEY = "supporterBannerDismissedAt";
 // Unlike PushNudgeBanner's permanent dismiss, this is asking for money, not
@@ -30,7 +31,7 @@ export function SupporterBanner({ supporterCount, lang }: { supporterCount: numb
     setVisible(false);
   }
 
-  if (!visible) return null;
+  if (!HAS_KOFI || !visible) return null;
 
   return (
     <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3 text-sm">

@@ -1,7 +1,7 @@
 import { X_ACCOUNT_URL, DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
-import { HAS_DISCORD_SERVER, RATING_SYSTEM, SCENE_LABEL, SITE_NAME } from "@/lib/site";
+import { HAS_KOFI, HAS_DISCORD_SERVER, RATING_SYSTEM, SCENE_LABEL, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata = { title: `About — ${SITE_NAME}` };
@@ -140,7 +140,7 @@ const copy = {
     what: (
       <>
         {SITE_NAME}は、{SCENE_LABEL.ja}スマブラSPコミュニティ向けの、レート対戦とマッチングのサイトです。Discord
-        でログインし、地域と対戦設定を決めると、近い実力の相手と自動でマッチングします。ブラケットも参加受付の締切もなく、待機して対戦するだけです。
+        でログインし、対戦設定を決めると、近い実力の相手と自動でマッチングします。ブラケットも参加受付の締切もなく、待機して対戦するだけです。
       </>
     ),
     whyTitle: "なぜ作ったか",
@@ -196,7 +196,7 @@ const copy = {
 };
 
 export default async function AboutPage() {
-  const [lang, goldSupporters] = await Promise.all([getLang(), getCurrentGoldSupporters()]);
+  const [lang, goldSupporters] = await Promise.all([getLang(), HAS_KOFI ? getCurrentGoldSupporters() : []]);
   const t = copy[lang];
 
   // The label comes from the copy table, the destination from the instance:
@@ -260,10 +260,12 @@ export default async function AboutPage() {
           <p className="mt-2">{t.contribute(githubLink, discordServerLink)}</p>
         </section>
 
-        <section>
-          <h2 className="text-sm font-medium text-foreground">{t.supportTitle}</h2>
-          <p className="mt-2">{t.support(kofiLink)}</p>
-        </section>
+        {HAS_KOFI && (
+          <section>
+            <h2 className="text-sm font-medium text-foreground">{t.supportTitle}</h2>
+            <p className="mt-2">{t.support(kofiLink)}</p>
+          </section>
+        )}
 
         {goldSupporters.length > 0 && (
           <section>

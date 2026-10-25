@@ -8,12 +8,16 @@ import { GOLD_SUPPORTER_MIN_AMOUNT_USD } from "@/lib/supporters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { tr } from "@/lib/lang";
+import { HAS_KOFI } from "@/lib/site";
+import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
   alternates: { languages: { "es-MX": "/es" } },
 };
 
 export default async function SupportersPage() {
+  if (!HAS_KOFI) notFound();
+
   const [lang, supporterCount] = await Promise.all([getLang(), getSupporterCount()]);
 
   // Only donors who left is_public: true on Ko-fi's end are shown here — see

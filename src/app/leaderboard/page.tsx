@@ -33,7 +33,7 @@ import { Card } from "@/components/ui/card";
 import { getLang, type Lang } from "@/lib/i18n";
 import { formatRating } from "@/lib/rating-format";
 import { tr, trNode } from "@/lib/lang";
-import { REGION_FILTERS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL } from "@/lib/site";
+import { USES_REGIONS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL } from "@/lib/site";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 const PAGE_SIZE = 50;
@@ -60,7 +60,7 @@ export default async function LeaderboardPage({
 }) {
   const { character, page: pageParam, q, region, country } = await searchParams;
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
-  const isValidCountry = REGION_FILTERS && country && (MATCH_COUNTRIES as readonly string[]).includes(country);
+  const isValidCountry = USES_REGIONS && country && (MATCH_COUNTRIES as readonly string[]).includes(country);
   const effectiveCountry = isValidCountry ? (country as MatchCountry) : null;
   // A region only stays selected if it actually belongs to the chosen
   // country — otherwise a stale region from before the country was changed
@@ -69,7 +69,7 @@ export default async function LeaderboardPage({
   // leftover selection" trap the match-distance presets bug hit on 2026-08-05.
   const countryRegions = effectiveCountry ? new Set(expandCountryForSearch(effectiveCountry)) : null;
   const isValidRegion =
-    REGION_FILTERS &&
+    USES_REGIONS &&
     region &&
     (MATCH_REGIONS as readonly string[]).includes(region) &&
     (!countryRegions || countryRegions.has(region));
@@ -297,7 +297,7 @@ export default async function LeaderboardPage({
           lang={lang}
           className="w-full md:w-40"
         />
-        {REGION_FILTERS && (
+        {USES_REGIONS && (
           <>
             <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
               {tr(lang, { en: "Country", es: "País", ja: "国" })}

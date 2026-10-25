@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HAS_DISCORD_SERVER, SITE_LANGS, SITE_NAME_PARTS } from "@/lib/site";
+import { HAS_KOFI, HAS_DISCORD_SERVER, SITE_LANGS, SITE_NAME_PARTS } from "@/lib/site";
 
 export async function SiteHeader() {
   const session = await auth();
@@ -75,18 +75,20 @@ export async function SiteHeader() {
                 </a>
               </Button>
             )}
-            <Button
-              asChild
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-foreground"
-              title={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi", ja: "Ko-fi で支援する" })}
-              aria-label={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi", ja: "Ko-fi で支援する" })}
-            >
-              <a href={KOFI_URL} target="_blank" rel="noreferrer">
-                <Coffee className="size-[15px]" />
-              </a>
-            </Button>
+            {HAS_KOFI && (
+              <Button
+                asChild
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground"
+                title={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi", ja: "Ko-fi で支援する" })}
+                aria-label={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi", ja: "Ko-fi で支援する" })}
+              >
+                <a href={KOFI_URL} target="_blank" rel="noreferrer">
+                  <Coffee className="size-[15px]" />
+                </a>
+              </Button>
+            )}
 
             <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
 

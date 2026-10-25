@@ -16,6 +16,7 @@ import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
 import { RatingHidden } from "@/components/rating-hidden";
 import { tr } from "@/lib/lang";
+import { USES_REGIONS } from "@/lib/site";
 
 // How long the picked stage stays highlighted on stream once it's picked,
 // and how long the server keeps rendering the highlight card — the window
@@ -265,7 +266,7 @@ export default async function StreamOverlayPage({
               <span className="text-red-400 font-semibold">{dailyStats.totalLosses}L</span>
             </div>
 
-            {user.region && (
+            {USES_REGIONS && user.region && (
               <div className="mt-2 flex items-center gap-2 text-xl">
                 <MapPin className="size-5 text-white/50" />
                 <span className="text-white/50">{user.region}</span>

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RatingTrendChart } from "@/components/rating-trend-chart";
 import { WinRateBars } from "@/components/win-rate-bars";
-import { SITE_NAME } from "@/lib/site";
+import { HAS_KOFI, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata = { title: `Analytics — ${SITE_NAME}` };
@@ -42,7 +42,7 @@ export default async function AnalyticsPage() {
     supporterExpiresAt: user?.supporterExpiresAt ?? null,
   });
 
-  if (!isGold) {
+  if (HAS_KOFI && !isGold) {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />

@@ -18,7 +18,7 @@ import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
 import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
-import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { USES_REGIONS, SITE_NAME, SITE_URL } from "@/lib/site";
 import type { Lang } from "@/lib/i18n";
 import type { BlockState } from "../actions";
 import { tr } from "@/lib/lang";
@@ -218,7 +218,7 @@ export function PlayerProfileHeader({
               </a>
             )}
             <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
-            {player.region && (
+            {USES_REGIONS && player.region && (
               <Badge variant="outline">
                 <MapPin className="size-3" />
                 {player.region}
@@ -385,17 +385,19 @@ function CurrentMatchCard({
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{myName}</p>
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {myRatingVisible ? (
-                  tr(lang, {
-                    en: `${formatRating(myRating)} rating`,
-                    es: `${formatRating(myRating)} de clasificación`,
-                    ja: `レート ${formatRating(myRating)}`,
-                  })
-                ) : (
-                  <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} />
-                )}
-              </p>
+              {!zenMode && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {myRatingVisible ? (
+                    tr(lang, {
+                      en: `${formatRating(myRating)} rating`,
+                      es: `${formatRating(myRating)} de clasificación`,
+                      ja: `レート ${formatRating(myRating)}`,
+                    })
+                  ) : (
+                    <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} />
+                  )}
+                </p>
+              )}
             </div>
           </div>
 
@@ -413,25 +415,18 @@ function CurrentMatchCard({
           </div>
 
           <div className="flex min-w-0 items-center justify-end gap-2.5">
-            {!zenMode &&
-              (showCharacters && opponentCharacter ? (
-                <CharacterIcon name={opponentCharacter} size={32} />
-              ) : (
-                <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
-              ))}
+            {showCharacters && opponentCharacter ? (
+              <CharacterIcon name={opponentCharacter} size={32} />
+            ) : (
+              <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+            )}
             <div className="min-w-0">
-              {zenMode ? (
-                <p className="truncate text-right text-sm font-medium">
-                  {tr(lang, { en: "Opponent", es: "Rival", ja: "相手" })}
-                </p>
-              ) : (
-                <Link
-                  href={`/players/${opponent.id}`}
-                  className="block truncate text-right text-sm font-medium hover:underline"
-                >
-                  {opponent.username}
-                </Link>
-              )}
+              <Link
+                href={`/players/${opponent.id}`}
+                className="block truncate text-right text-sm font-medium hover:underline"
+              >
+                {opponent.username}
+              </Link>
               {!zenMode && (
                 <p className="text-right text-xs text-muted-foreground tabular-nums">
                   {opponentRatingVisible ? (

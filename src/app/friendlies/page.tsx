@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
+import { USES_REGIONS } from "@/lib/site";
 
 export default async function FriendliesPage() {
   const [session, lang, posts] = await Promise.all([auth(), getLang(), getFriendliesPosts(20)]);
@@ -196,13 +197,15 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
               </span>
             </label>
           )}
-          <p className="text-xs text-muted-foreground">
-            {tr(lang, {
-              en: "Region is pulled from your profile — set it on the Lobby page.",
-              es: "La región se toma de tu perfil — configúrala en la página de Sala.",
-              ja: "地域はプロフィールから読み込まれます。ロビーのページで設定してください。",
-            })}
-          </p>
+          {USES_REGIONS && (
+            <p className="text-xs text-muted-foreground">
+              {tr(lang, {
+                en: "Region is pulled from your profile — set it on the Lobby page.",
+                es: "La región se toma de tu perfil — configúrala en la página de Sala.",
+                ja: "地域はプロフィールから読み込まれます。ロビーのページで設定してください。",
+              })}
+            </p>
+          )}
           <Button type="submit" className="self-start">
             {tr(lang, { en: "Post", es: "Publicar", ja: "投稿する" })}
           </Button>

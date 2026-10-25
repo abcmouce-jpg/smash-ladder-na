@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { siteOrigin } from "@/lib/site-url";
+import { HAS_KOFI } from "@/lib/site";
 
 // Profiles are the only part of the site with a search-shaped question
 // behind it ("who is <player>") — the rest is either a utility page or a
@@ -51,7 +52,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/notes`, lastModified: now, changeFrequency: "daily", priority: 0.5 },
     { url: `${SITE_URL}/rules`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${SITE_URL}/supporters`, lastModified: now, changeFrequency: "weekly", priority: 0.4 },
+    ...(HAS_KOFI
+      ? [
+          {
+            url: `${SITE_URL}/supporters`,
+            lastModified: now,
+            changeFrequency: "weekly" as const,
+            priority: 0.4,
+          },
+        ]
+      : []),
     { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     ...(await playerEntries(SITE_URL)),

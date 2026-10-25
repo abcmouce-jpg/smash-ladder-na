@@ -3,7 +3,7 @@ import { Coffee } from "lucide-react";
 import { X_ACCOUNT_URL, DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { getSupporterCount } from "@/lib/public-stats";
-import { HAS_DISCORD_SERVER, SITE_NAME } from "@/lib/site";
+import { HAS_KOFI, HAS_DISCORD_SERVER, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export async function SiteFooter() {
@@ -43,15 +43,17 @@ export async function SiteFooter() {
           >
             {HAS_DISCORD_SERVER ? "Discord" : "X"}
           </a>
-          <Link
-            href="/supporters"
-            prefetch={false}
-            className="flex items-center gap-1 hover:text-foreground hover:underline"
-          >
-            <Coffee className="size-3.5" />
-            {tr(lang, { en: "Support us", es: "Apóyanos", ja: "支援する" })}
-            {supporterCount > 0 && ` · ${supporterCount}`}
-          </Link>
+          {HAS_KOFI && (
+            <Link
+              href="/supporters"
+              prefetch={false}
+              className="flex items-center gap-1 hover:text-foreground hover:underline"
+            >
+              <Coffee className="size-3.5" />
+              {tr(lang, { en: "Support us", es: "Apóyanos", ja: "支援する" })}
+              {supporterCount > 0 && ` · ${supporterCount}`}
+            </Link>
+          )}
         </nav>
       </div>
     </footer>

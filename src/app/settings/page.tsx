@@ -41,7 +41,7 @@ import {
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
-import { SITE_LANGS } from "@/lib/site";
+import { HAS_KOFI, SITE_LANGS } from "@/lib/site";
 import { LIVE_DECLARATION_TTL_MS } from "@/lib/stream-links";
 
 const LIVE_DECLARATION_HOURS = LIVE_DECLARATION_TTL_MS / (60 * 60 * 1000);
@@ -350,18 +350,20 @@ function UserTab({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-4">
-          <SupporterCard
-            supporterCode={supporterCode}
-            isSupporter={isSupporter}
-            isGoldSupporter={isGoldSupporter}
-            supporterExpiresAt={supporterExpiresAt}
-            postMatchMessage={postMatchMessage}
-            lang={lang}
-          />
-        </CardContent>
-      </Card>
+      {HAS_KOFI && (
+        <Card>
+          <CardContent className="pt-4">
+            <SupporterCard
+              supporterCode={supporterCode}
+              isSupporter={isSupporter}
+              isGoldSupporter={isGoldSupporter}
+              supporterExpiresAt={supporterExpiresAt}
+              postMatchMessage={postMatchMessage}
+              lang={lang}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="pt-4">

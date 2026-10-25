@@ -153,12 +153,18 @@ describe("what the Japanese instance does not offer", () => {
 
   it("has no country or region filters", async () => {
     const { site } = await load("jp");
-    expect(site.REGION_FILTERS).toBe(false);
+    expect(site.USES_REGIONS).toBe(false);
   });
 
-  it("leaves both in place on North America", async () => {
+  it("takes no donations, so nothing links to Ko-fi", async () => {
+    const { site } = await load("jp");
+    expect(site.HAS_KOFI).toBe(false);
+  });
+
+  it("leaves all three in place on North America", async () => {
     const { site } = await load();
     expect([...site.SITE_LANGS]).toEqual(["en", "es"]);
-    expect(site.REGION_FILTERS).toBe(true);
+    expect(site.USES_REGIONS).toBe(true);
+    expect(site.HAS_KOFI).toBe(true);
   });
 });

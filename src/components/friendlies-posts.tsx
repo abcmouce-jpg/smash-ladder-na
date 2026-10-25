@@ -11,6 +11,7 @@ import { RatingHidden } from "@/components/rating-hidden";
 import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
 import { tr } from "@/lib/lang";
+import { USES_REGIONS } from "@/lib/site";
 
 // Shared "who's looking for a game" card. The home page's Friendlies section
 // and the Friendlies page itself render the same list, so an open post looks
@@ -76,9 +77,9 @@ export function FriendliesPosts({
             </span>
           </div>
           <p className="mt-1 text-sm leading-snug">{post.comment}</p>
-          {(post.region || post.minTier) && (
+          {((USES_REGIONS && post.region) || post.minTier) && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {post.region && (
+              {USES_REGIONS && post.region && (
                 <Badge variant="outline">
                   <MapPin className="size-3" />
                   {post.region}

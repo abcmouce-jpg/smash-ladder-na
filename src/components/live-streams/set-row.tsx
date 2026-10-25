@@ -26,6 +26,7 @@ import { useLiveStreamSelection } from "@/components/live-streams/selection";
 import { TwitchIcon } from "@/components/twitch-icon";
 import { tr } from "@/lib/lang";
 import { playerStreamLink } from "@/lib/stream-links";
+import { USES_REGIONS } from "@/lib/site";
 
 // Expandable feed row. The collapsed header summarizes the set (both
 // players, current score, status); clicking anywhere except the player-name
@@ -270,7 +271,7 @@ function Side({
           className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "sm:justify-end")}
         >
           {ratingVisible && <span className="tabular-nums">{formatRating(player.rating)}</span>}
-          {player.region && (
+          {USES_REGIONS && player.region && (
             <span className="flex min-w-0 items-center gap-0.5">
               <MapPin className="size-3 shrink-0" />
               <span className="truncate">{player.region}</span>

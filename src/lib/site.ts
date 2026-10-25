@@ -132,14 +132,15 @@ export const ALLOWS_LATENCY_MODS = REGION_SET !== "jp";
 export const RATING_SYSTEM: "elo" | "glicko2" = REGION_SET === "jp" ? "elo" : "glicko2";
 
 /**
- * Whether the leaderboard offers country and region filters.
+ * Whether this instance uses regions at all.
  *
- * They narrow a board by where players are, which is worth having when
- * matchmaking is regional and the scene spans a continent. On an instance
- * that matches nationwide, the filters slice the one pool everybody already
- * shares, so they are off.
+ * On North America a region is load-bearing: it drives distance-based
+ * matchmaking and narrows the leaderboard across a continent. On an instance
+ * that matches nationwide it drives nothing, so collecting it would be asking
+ * every player for a value no screen would ever read. Off means no picker, no
+ * filters, and no region shown anywhere.
  */
-export const REGION_FILTERS = REGION_SET !== "jp";
+export const USES_REGIONS = REGION_SET !== "jp";
 
 /**
  * Whether this instance runs a community Discord server.
@@ -149,3 +150,14 @@ export const REGION_FILTERS = REGION_SET !== "jp";
  * point at the X account instead of advertising a server it has no part in.
  */
 export const HAS_DISCORD_SERVER = REGION_SET !== "jp";
+
+/**
+ * Whether this instance takes donations through Ko-fi.
+ *
+ * Off for Japan, which means more than hiding a link: the supporter and gold
+ * tiers exist only as a thank-you for donating, so with no way to donate the
+ * badges can never be earned and anything gated behind them would be
+ * permanently out of reach for everyone. Where this is off, those gates open
+ * instead of locking a feature nobody can unlock.
+ */
+export const HAS_KOFI = REGION_SET !== "jp";
