@@ -1229,7 +1229,7 @@ function MatchFooterActions({
               ? tr(lang, {
                   en: "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel.",
                   es: "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis.",
-                  ja: "相手はすでにこの試合を開始しています。ここで退出すると無償のキャンセルではなく、降参（敗北）になります。",
+                  ja: "相手はすでにこのセットを始めています。ここで退出すると無償のキャンセルではなく、降参（敗北）になります。",
                 })
               : tr(lang, {
                   en: "Your opponent hasn't shown up yet. Cancelling now is free.",
@@ -1967,10 +1967,7 @@ function MatchActionBanner({
         (largeCountdown ? (
           <div className="shrink-0 text-right">
             <p className="flex items-baseline justify-end gap-1 text-2xl leading-none font-bold tabular-nums">
-              <Countdown deadline={deadlineIso} />
-              <span className="text-base font-semibold text-muted-foreground">
-                {tr(lang, { en: "s", es: "s", ja: "秒" })}
-              </span>
+              <Countdown deadline={deadlineIso} format="clock" />
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
               {tr(lang, {
@@ -1982,7 +1979,7 @@ function MatchActionBanner({
           </div>
         ) : (
           <p className="shrink-0 text-sm text-muted-foreground tabular-nums">
-            <Countdown deadline={deadlineIso} />s
+            <Countdown deadline={deadlineIso} format="clock" />
           </p>
         ))}
     </div>
@@ -2049,17 +2046,33 @@ function GameSection({
     return (
       <CardContent className={cn("border-t border-border pt-4", INPUT_FOCUS)}>
         <p className="text-sm font-medium">
+          {/* Both halves describe striking, which only one instance does.
+              Where nobody strikes, game 1's stage comes out of the in-game
+              lottery and later games are the previous loser's pick — so
+              neither sentence is true there. */}
           {gameNumber === 1
-            ? tr(lang, {
-                en: "Ready to pick a stage",
-                es: "Listo para elegir escenario",
-                ja: "ステージを選びます",
-              })
-            : tr(lang, {
-                en: `Game ${gameNumber} — the last game's winner strikes first`,
-                es: `Juego ${gameNumber} — quien ganó el último juego descarta primero`,
-                ja: `第${gameNumber}試合 — 前の試合に勝った側が先にBANします`,
-              })}
+            ? STRIKING_STAGES
+              ? tr(lang, {
+                  en: "Ready to pick a stage",
+                  es: "Listo para elegir escenario",
+                  ja: "ステージを選びます",
+                })
+              : tr(lang, {
+                  en: "Ready to start game 1",
+                  es: "Listo para empezar el juego 1",
+                  ja: "第1試合を始めます",
+                })
+            : STRIKING_STAGES
+              ? tr(lang, {
+                  en: `Game ${gameNumber} — the last game's winner strikes first`,
+                  es: `Juego ${gameNumber} — quien ganó el último juego descarta primero`,
+                  ja: `第${gameNumber}試合 — 前の試合に勝った側が先にBANします`,
+                })
+              : tr(lang, {
+                  en: `Game ${gameNumber} — the last game's loser picks the stage`,
+                  es: `Juego ${gameNumber} — quien perdió el último juego elige escenario`,
+                  ja: `第${gameNumber}試合 — 前の試合に負けた側がステージを選びます`,
+                })}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {tr(lang, {
@@ -2601,7 +2614,9 @@ async function CharacterPickSection({
               <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
               {pickedCharacterLabel(yourCharacter, yourMoveset, lang)}
             </span>
-            , {opponentName}:{" "}
+            {tr(lang, { en: ", ", es: ", ", ja: "／" })}
+            {opponentName}
+            {tr(lang, { en: ": ", es: ": ", ja: "：" })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
               {pickedCharacterLabel(opponentCharacter, opponentMoveset, lang)}
@@ -2753,10 +2768,12 @@ async function CharacterPickSection({
                 </>
               ),
               ja: (
+                // 「残り…以内に選んでください」 doubles up — 残り and 以内 say
+                // the same thing, and the countdown above the card already
+                // shows the number. Just name the consequence.
                 <>
-                  残り
                   <Countdown deadline={deadline} />
-                  秒以内に選んでください。過ぎると{timeoutCost.ja}。
+                  秒以内に選ばないと{timeoutCost.ja}。
                 </>
               ),
             })}
