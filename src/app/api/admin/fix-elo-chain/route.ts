@@ -9,10 +9,21 @@ import { prisma } from "@/lib/db";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { findAffectedChain, applyEloChainFix } from "@/lib/admin-elo-fix";
 
+// Carries the status so the catch below can refuse properly: an unauthenticated
+// caller gets 401 and a signed-in non-admin gets 403, rather than both coming
+// back as 500 as though the endpoint had fallen over.
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
-  if (session.user.role !== "ADMIN") throw new Error("Not authorized");
+  if (!session?.user?.id) throw new HttpError(401, "Not signed in");
+  if (session.user.role !== "ADMIN") throw new HttpError(403, "Not authorized");
 }
 
 export async function GET(req: NextRequest) {
@@ -66,7 +77,8 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    const status = err instanceof HttpError ? err.status : 500;
+    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status });
   }
 }
 
@@ -92,7 +104,8 @@ export async function POST(req: NextRequest) {
       throw err;
     }
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    const status = err instanceof HttpError ? err.status : 500;
+    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status });
   }
 }
 
