@@ -5,18 +5,15 @@ import { REGION_SET } from "@/lib/site";
 // database and keyed on in STAGE_IMAGE_MAP, so these English strings are the
 // canonical identity of a stage everywhere; Japanese is a display concern
 // handled by stageLabel() below.
-const ALL_STAGES = [
-  "Battlefield",
-  "Small Battlefield",
-  "Pokémon Stadium 2",
-  "Smashville",
-  "Town and City",
-  "Final Destination",
-  "Hollow Bastion",
-  "Kalos Pokémon League",
-] as const;
-
-export type StageName = (typeof ALL_STAGES)[number];
+export type StageName =
+  | "Battlefield"
+  | "Small Battlefield"
+  | "Pokémon Stadium 2"
+  | "Smashville"
+  | "Town and City"
+  | "Final Destination"
+  | "Hollow Bastion"
+  | "Kalos Pokémon League";
 
 // North America: 5 starters, 3 more added from game 2 for 8 total.
 const NA_GAME_ONE_STAGES = [

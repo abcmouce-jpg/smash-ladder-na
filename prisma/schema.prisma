@@ -216,6 +216,9 @@ model User {
   twitchDisplayName          String? // Twitch display name
   twitchProfileImageUrl      String? // Twitch profile image URL
   twitchConnectedAt          DateTime?
+  youtubeChannelUrl          String? // channel link shown on the profile, like twitchUsername; YouTube liveness is not detectable on the free quota (see lib/stream-links.ts)
+  liveStreamUrl              String? // the stream the player says they are running right now, Twitch or YouTube
+  liveStreamAt               DateTime? // when liveStreamUrl was set, so a forgotten link expires — see LIVE_DECLARATION_TTL_MS
   role                       UserRole        @default(USER)
   isSupporter                Boolean         @default(false) // true while supporter perks (ad-free, profile badge) are active — set by an admin (see admin/players, no expiry) or by a qualifying Ko-fi payment (see supporterExpiresAt, and the webhook at api/webhooks/kofi). Read isEffectiveSupporter's result, not this raw column, anywhere perks are gated.
   isGoldSupporter             Boolean         @default(false) // true when the payment that produced the current isSupporter/supporterExpiresAt cycle met the Gold threshold (see GOLD_SUPPORTER_MIN_AMOUNT_USD in the kofi webhook) — re-evaluated on every qualifying payment, not cumulative, so a lower renewal after a one-time Gold-tier tip drops back to base on its own expiry cycle. Shares supporterExpiresAt with the base tier rather than tracking its own. Read isEffectiveGoldSupporter's result, not this raw column.

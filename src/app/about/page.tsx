@@ -1,6 +1,5 @@
 import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
-import type { Lang } from "@/lib/i18n";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
 import { RATING_SYSTEM, SCENE_LABEL, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";

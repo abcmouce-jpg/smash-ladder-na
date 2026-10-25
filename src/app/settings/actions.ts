@@ -12,8 +12,10 @@ import {
   setNotificationsDisabled,
   setNotifyQueueOpportunities,
   setNotifyQueueOpportunitiesDm,
+  setLiveStreamUrl,
   setQuickMessages,
   setUsername,
+  setYoutubeChannelUrl,
 } from "@/lib/account";
 import { disabledKeysFromEnabled } from "@/lib/notifications";
 import { setArenaPassword } from "@/lib/arena";
@@ -192,4 +194,27 @@ export async function revokeApiTokenAction(tokenId: string) {
   const userId = await requireUserId();
   await revokeApiToken(userId, tokenId);
   revalidatePath("/settings");
+}
+
+export async function updateStreamLinksAction(
+  _prev: SettingsSaveState,
+  formData: FormData,
+): Promise<SettingsSaveState> {
+  const userId = await requireUserId();
+
+  // The live link is checked first: if it is wrong, nothing is written, so a
+  // typo there can't silently save the channel field and look like a success.
+  const live = await setLiveStreamUrl(userId, String(formData.get("liveStreamUrl") ?? ""));
+  if (!live.ok) {
+    return { error: "That stream link isn't a Twitch or YouTube URL we can embed.", saved: false };
+  }
+
+  const channel = await setYoutubeChannelUrl(userId, String(formData.get("youtubeChannelUrl") ?? ""));
+  if (!channel.ok) {
+    return { error: "That channel link isn't a YouTube URL we recognise.", saved: false };
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/live");
+  return { error: null, saved: true };
 }

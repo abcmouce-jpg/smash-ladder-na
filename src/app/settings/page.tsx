@@ -37,10 +37,14 @@ import {
   updateNotificationSettingsAction,
   updateUserSettingsAction,
   updatePostMatchMessageAction,
+  updateStreamLinksAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
 import { SITE_LANGS } from "@/lib/site";
+import { LIVE_DECLARATION_TTL_MS } from "@/lib/stream-links";
+
+const LIVE_DECLARATION_HOURS = LIVE_DECLARATION_TTL_MS / (60 * 60 * 1000);
 
 // ?tab= picks which group of settings renders, so each stays deep-linkable and
 // server-rendered — same pattern as the Stats, Notes, and profile pages.
@@ -106,6 +110,8 @@ export default async function SettingsPage({
         twitchUsername: true,
         twitchDisplayName: true,
         twitchProfileImageUrl: true,
+        youtubeChannelUrl: true,
+        liveStreamUrl: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
         audioPingOnMatch: true,
@@ -223,6 +229,8 @@ export default async function SettingsPage({
           startgg={me?.startggUserId && me.startggSlug ? { slug: me.startggSlug, gamerTag: me.startggGamerTag } : null}
           startggJustConnected={startggConnected === "1"}
           startggError={startggError}
+          liveStreamUrl={me?.liveStreamUrl ?? null}
+          youtubeChannelUrl={me?.youtubeChannelUrl ?? null}
           apiTokens={apiTokens.map((token) => ({
             id: token.id,
             name: token.name,
@@ -679,6 +687,8 @@ function AppsTab({
   startggJustConnected,
   startggError,
   apiTokens,
+  liveStreamUrl,
+  youtubeChannelUrl,
   lang,
 }: {
   userId: string;
@@ -691,6 +701,8 @@ function AppsTab({
   startggJustConnected: boolean;
   startggError?: string;
   apiTokens: ApiTokenSummary[];
+  liveStreamUrl: string | null;
+  youtubeChannelUrl: string | null;
   lang: Lang;
 }) {
   return (
@@ -698,6 +710,12 @@ function AppsTab({
       <Card>
         <CardContent className="pt-4">
           <TwitchConnectCard connected={twitch} justConnected={twitchJustConnected} error={twitchError} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <StreamLinksCard liveStreamUrl={liveStreamUrl} youtubeChannelUrl={youtubeChannelUrl} lang={lang} />
         </CardContent>
       </Card>
 
@@ -945,6 +963,74 @@ function StreamOverlayCard({
       <div className="mt-3">
         <OverlayUrlToggle baseUrl={overlayUrl} />
       </div>
+    </div>
+  );
+}
+
+// Twitch liveness is detected; YouTube's cannot be on the free quota (see
+// lib/stream-links.ts), so a player streaming there says so here. The same
+// field takes a Twitch URL too — someone streaming from an account they
+// haven't connected still gets to be listed.
+function StreamLinksCard({
+  liveStreamUrl,
+  youtubeChannelUrl,
+  lang,
+}: {
+  liveStreamUrl: string | null;
+  youtubeChannelUrl: string | null;
+  lang: Lang;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <p className="font-medium">{tr(lang, { en: "Stream links", es: "Enlaces de stream", ja: "配信リンク" })}</p>
+      <SettingsSaveForm action={updateStreamLinksAction} lang={lang} className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="font-medium text-foreground">
+            {tr(lang, {
+              en: "Streaming right now",
+              es: "Transmitiendo ahora",
+              ja: "いま配信中のURL",
+            })}
+          </span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {tr(lang, {
+              en: `Paste the URL of the stream you're running and your sets get listed as live for ${LIVE_DECLARATION_HOURS} hours. Twitch or YouTube. Clear it when you stop.`,
+              es: `Pega la URL del stream que estés haciendo y tus partidas aparecerán como en vivo durante ${LIVE_DECLARATION_HOURS} horas. Twitch o YouTube. Bórralo cuando termines.`,
+              ja: `配信中のURLを貼ると、${LIVE_DECLARATION_HOURS}時間のあいだ自分のセットが配信中として表示されます。Twitch と YouTube に対応しています。終わったら空にしてください。`,
+            })}
+          </span>
+          <input
+            name="liveStreamUrl"
+            type="url"
+            defaultValue={liveStreamUrl ?? ""}
+            placeholder="https://www.youtube.com/watch?v=…"
+            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="font-medium text-foreground">
+            {tr(lang, {
+              en: "YouTube channel",
+              es: "Canal de YouTube",
+              ja: "YouTube チャンネル",
+            })}
+          </span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {tr(lang, {
+              en: "Shown on your profile, the same way a connected Twitch account is.",
+              es: "Se muestra en tu perfil, igual que una cuenta de Twitch conectada.",
+              ja: "連携済みの Twitch アカウントと同じように、プロフィールに表示されます。",
+            })}
+          </span>
+          <input
+            name="youtubeChannelUrl"
+            type="url"
+            defaultValue={youtubeChannelUrl ?? ""}
+            placeholder="https://www.youtube.com/channel/UC…/live"
+            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+          />
+        </label>
+      </SettingsSaveForm>
     </div>
   );
 }

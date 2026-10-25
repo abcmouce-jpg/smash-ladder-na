@@ -7,6 +7,7 @@ import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-me
 import { CONFIGURABLE_NOTIFICATION_KEYS } from "@/lib/notifications";
 import type { Lang } from "@/lib/i18n";
 import { SITE_NAME } from "@/lib/site";
+import { parseStreamUrl } from "@/lib/stream-links";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -390,4 +391,47 @@ export async function getAccountRestriction(userId: string): Promise<AccountRest
     reason: report?.reason ?? null,
     at: report?.actionedAt ?? null,
   };
+}
+
+/**
+ * Records the stream a player says they are running right now, or clears it.
+ *
+ * Validated through parseStreamUrl so only a link this site can actually embed
+ * is stored — a Kick or niconico URL would otherwise be saved and then quietly
+ * render nothing. The timestamp is what makes the declaration expire, so it is
+ * rewritten on every save, including a re-save of the same URL: that is how a
+ * player extends a long session.
+ */
+export async function setLiveStreamUrl(userId: string, rawUrl: string | null) {
+  if (rawUrl === null || rawUrl.trim() === "") {
+    await prisma.user.update({ where: { id: userId }, data: { liveStreamUrl: null, liveStreamAt: null } });
+    return { ok: true as const };
+  }
+
+  const link = parseStreamUrl(rawUrl);
+  if (!link) return { ok: false as const, error: "unsupported" as const };
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { liveStreamUrl: link.watchUrl, liveStreamAt: new Date() },
+  });
+  return { ok: true as const };
+}
+
+/**
+ * The channel link shown on a player's profile. Stored as the normalised watch
+ * URL of whatever they pasted, so a /live link and a /watch link settle to the
+ * same thing, and anything unembeddable is refused rather than stored.
+ */
+export async function setYoutubeChannelUrl(userId: string, rawUrl: string | null) {
+  if (rawUrl === null || rawUrl.trim() === "") {
+    await prisma.user.update({ where: { id: userId }, data: { youtubeChannelUrl: null } });
+    return { ok: true as const };
+  }
+
+  const link = parseStreamUrl(rawUrl);
+  if (!link || link.platform !== "youtube") return { ok: false as const, error: "unsupported" as const };
+
+  await prisma.user.update({ where: { id: userId }, data: { youtubeChannelUrl: link.watchUrl } });
+  return { ok: true as const };
 }

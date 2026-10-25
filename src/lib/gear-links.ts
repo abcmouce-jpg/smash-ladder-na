@@ -1,5 +1,4 @@
 import { REGION_SET } from "@/lib/site";
-import type { Lang } from "@/lib/lang";
 
 // Amazon search-result links instead of fixed product pages — a specific
 // ASIN can go out of stock or get delisted and turn into a dead/wrong link,

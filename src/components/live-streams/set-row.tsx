@@ -25,6 +25,7 @@ import {
 import { useLiveStreamSelection } from "@/components/live-streams/selection";
 import { TwitchIcon } from "@/components/twitch-icon";
 import { tr } from "@/lib/lang";
+import { playerStreamLink } from "@/lib/stream-links";
 
 // Expandable feed row. The collapsed header summarizes the set (both
 // players, current score, status); clicking anywhere except the player-name
@@ -190,7 +191,7 @@ function unfinishedGameLabel({ gameNumber, inProgress }: UnfinishedGame, lang: L
 // pill that fills in while this side is the one embedded up top.
 function OpenStreamButton({ player, matchId, lang }: { player: FeedPlayer; matchId: string; lang: Lang }) {
   const { selection, select } = useLiveStreamSelection();
-  if (!player.twitchUsername) return null;
+  if (!playerStreamLink(player)) return null;
   const name = player.twitchDisplayName ?? player.username;
   const selected = selection?.matchId === matchId && selection?.playerId === player.id;
   return (

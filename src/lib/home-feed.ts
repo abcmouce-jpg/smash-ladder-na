@@ -1,27 +1,38 @@
 import { prisma } from "@/lib/db";
 import { PostStatus } from "@/generated/prisma/enums";
 import { getLiveTwitchUsernames } from "@/lib/twitch-helix";
+import { isDeclarationFresh, parseStreamUrl, type StreamPlatform } from "@/lib/stream-links";
 
 export type LiveStreamer = {
   userId: string;
   name: string;
-  twitchUsername: string;
-  twitchDisplayName: string | null;
+  platform: StreamPlatform;
+  /** Where a viewer goes to watch. */
+  watchUrl: string;
+  displayName: string | null;
   avatarUrl: string | null;
   rating: number;
   gamesPlayed: number;
 };
 
-// Home-page "Live on Twitch" row. Pulls the highest-rated players who have a
-// Twitch connection and checks them all in one batched Helix call (100
-// usernames per request) instead of one API round trip per player, then keeps
-// only the ones actually live. Ordered by rating so a sparse live field still
-// shows the most recognizable names. Fails closed to an empty list on any API
-// error — getLiveTwitchUsernames already skips bad batches — so the section
-// silently hides rather than erroring out the whole landing page.
+// Home-page "live now" row. Two sources, because the two platforms are not
+// equally knowable:
+//
+//   Twitch — detected. The highest-rated players with a Twitch connection are
+//   checked in one batched Helix call (100 logins per request) rather than one
+//   round trip each.
+//
+//   YouTube and anything else — declared. The player pastes the URL of the
+//   stream they are running and it expires on its own; there is no polling it,
+//   for the quota reasons in lib/stream-links.ts.
+//
+// Ordered by rating so a sparse live field still shows the most recognisable
+// names. Fails closed to an empty list on an API error — getLiveTwitchUsernames
+// already skips bad batches — so the section hides rather than taking the
+// landing page down with it.
 export async function getLiveStreamers(limit = 8): Promise<LiveStreamer[]> {
   const candidates = await prisma.user.findMany({
-    where: { twitchUsername: { not: null } },
+    where: { OR: [{ twitchUsername: { not: null } }, { liveStreamUrl: { not: null } }] },
     orderBy: { rating: "desc" },
     take: 200,
     select: {
@@ -32,6 +43,8 @@ export async function getLiveStreamers(limit = 8): Promise<LiveStreamer[]> {
       gamesPlayed: true,
       twitchUsername: true,
       twitchDisplayName: true,
+      liveStreamUrl: true,
+      liveStreamAt: true,
     },
   });
 
@@ -39,12 +52,20 @@ export async function getLiveStreamers(limit = 8): Promise<LiveStreamer[]> {
 
   const streamers: LiveStreamer[] = [];
   for (const u of candidates) {
-    if (!u.twitchUsername || !live.has(u.twitchUsername.toLowerCase())) continue;
+    // A declared link wins: it says where this player is right now, which may
+    // be a different account from the one they connected.
+    const declared = u.liveStreamUrl && isDeclarationFresh(u.liveStreamAt) ? parseStreamUrl(u.liveStreamUrl) : null;
+    const detected = u.twitchUsername && live.has(u.twitchUsername.toLowerCase());
+
+    const link = declared ?? (detected && u.twitchUsername ? parseStreamUrl(`twitch.tv/${u.twitchUsername}`) : null);
+    if (!link) continue;
+
     streamers.push({
       userId: u.id,
       name: u.username,
-      twitchUsername: u.twitchUsername,
-      twitchDisplayName: u.twitchDisplayName,
+      platform: link.platform,
+      watchUrl: link.watchUrl,
+      displayName: u.twitchDisplayName,
       avatarUrl: u.avatarUrl,
       rating: u.rating,
       gamesPlayed: u.gamesPlayed,
@@ -54,11 +75,6 @@ export async function getLiveStreamers(limit = 8): Promise<LiveStreamer[]> {
   return streamers;
 }
 
-// Most recent open Free Battle posts for the home page's Friendlies section —
-// newest first so the section reads as "who's looking for a game right now".
-// The expiresAt guard is a lazy read-side check on top of the status filter:
-// OPEN flips to EXPIRED only when the cron finalizer runs, so a post whose
-// 24h TTL has lapsed would otherwise linger here until the next sweep.
 export async function getFriendliesPosts(limit = 6) {
   return prisma.freeBattlePost.findMany({
     where: { status: PostStatus.OPEN, expiresAt: { gt: new Date() } },

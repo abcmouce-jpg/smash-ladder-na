@@ -12,7 +12,8 @@ import { RankBadge } from "@/components/rank-badge";
 import { RatingHidden } from "@/components/rating-hidden";
 import { BlockUserButton } from "@/components/block-user-button";
 import { ShareMenu } from "@/components/share-menu";
-import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
+import { LiveStreamEmbed } from "@/components/live-stream-embed";
+import { playerStreamLink } from "@/lib/stream-links";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
 import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
@@ -170,6 +171,21 @@ export function PlayerProfileHeader({
                 {discordHiddenFromPublic && <EyeOff className="size-3" />}
               </Badge>
             )}
+            {player.youtubeChannelUrl && (
+              <a
+                href={player.youtubeChannelUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={tr(lang, {
+                  en: "YouTube channel",
+                  es: "Canal de YouTube",
+                  ja: "YouTube チャンネル",
+                })}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                YouTube
+              </a>
+            )}
             {player.twitchUsername && (
               <a
                 href={`https://twitch.tv/${player.twitchUsername}`}
@@ -265,9 +281,16 @@ export function PlayerProfileHeader({
         </div>
       </div>
 
-      {inMatch && isLiveOnTwitch && player.twitchUsername && (
-        <TwitchLiveEmbed username={player.twitchUsername} parentHost={parentHost} />
-      )}
+      {inMatch &&
+        (() => {
+          const link = playerStreamLink(player);
+          // A detected Twitch stream, or one the player declared — the second
+          // is the only way a YouTube stream can be known (see lib/stream-links.ts).
+          if (!link || (link.platform === "twitch" && !isLiveOnTwitch && !player.liveStreamUrl)) return null;
+          return (
+            <LiveStreamEmbed link={link} title={player.twitchDisplayName ?? player.username} parentHost={parentHost} />
+          );
+        })()}
 
       {currentMatch && (
         <CurrentMatchCard

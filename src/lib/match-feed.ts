@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { getLiveTwitchUsernames } from "@/lib/twitch-helix";
+import { isDeclarationFresh } from "@/lib/stream-links";
 import { getMatchesTodayCount } from "@/lib/public-stats";
 
 // "Recent" here means the public feed's finished-match tail, not the mod
@@ -19,6 +20,8 @@ const feedPlayerSelect = {
   mainCharacter: true,
   twitchUsername: true,
   twitchDisplayName: true,
+  liveStreamUrl: true,
+  liveStreamAt: true,
   region: true,
 } as const;
 
@@ -125,10 +128,19 @@ export async function getMatchFeed() {
     // stream of THIS set, so pinning it to the top and badging it live
     // would just send viewers to a stream with nothing left to watch.
     const isInProgress = match.status === MatchStatus.PENDING_REPORT || match.status === MatchStatus.REPORTED;
-    const player1Live =
-      isInProgress && !!match.player1.twitchUsername && liveUsernames.has(match.player1.twitchUsername.toLowerCase());
-    const player2Live =
-      isInProgress && !!match.player2.twitchUsername && liveUsernames.has(match.player2.twitchUsername.toLowerCase());
+    // Two ways to be live: Twitch said so, or the player told us. YouTube can
+    // only ever be the second — see lib/stream-links.ts for why there is no
+    // detecting it.
+    const liveFor = (player: {
+      twitchUsername: string | null;
+      liveStreamUrl: string | null;
+      liveStreamAt: Date | null;
+    }) =>
+      isInProgress &&
+      ((!!player.twitchUsername && liveUsernames.has(player.twitchUsername.toLowerCase())) ||
+        (!!player.liveStreamUrl && isDeclarationFresh(player.liveStreamAt)));
+    const player1Live = liveFor(match.player1);
+    const player2Live = liveFor(match.player2);
 
     return {
       ...match,

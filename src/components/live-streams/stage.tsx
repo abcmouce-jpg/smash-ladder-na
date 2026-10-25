@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Radio } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
-import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
+import { LiveStreamEmbed } from "@/components/live-stream-embed";
+import { playerStreamLink } from "@/lib/stream-links";
 import { cn } from "@/lib/utils";
 import type { Lang } from "@/lib/i18n";
 import type { FeedPlayer, SerializedSetEntry } from "@/lib/set-entry";
@@ -32,16 +33,17 @@ export function LiveStreamStage({
 }) {
   const { selection } = useLiveStreamSelection();
   const active = resolveLiveStream(entries, selection);
-  const channel = active?.player.twitchUsername;
-  if (!active || !channel) return null;
+  const link = active ? playerStreamLink(active.player) : null;
+  if (!active || !link) return null;
 
   const { entry, player } = active;
 
   return (
     <div>
-      <TwitchLiveEmbed
+      <LiveStreamEmbed
         key={`${entry.id}:${player.id}`}
-        username={channel}
+        link={link}
+        title={`${player.twitchDisplayName ?? player.username}`}
         parentHost={parentHost}
         collapsible={false}
       />
