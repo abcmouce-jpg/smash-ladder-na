@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { rankCardUrl, tweetIntentUrl } from "@/lib/share";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Every way to share a profile, behind one button.
 //
@@ -53,8 +54,8 @@ export function ShareMenu({
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label={lang === "es" ? "Compartir" : "Share"}
-          title={lang === "es" ? "Compartir" : "Share"}
+          aria-label={tr(lang, { en: "Share", es: "Compartir", ja: "共有" })}
+          title={tr(lang, { en: "Share", es: "Compartir", ja: "共有" })}
           className="text-muted-foreground hover:text-foreground"
         >
           <Share2 className="size-4" />
@@ -71,12 +72,8 @@ export function ShareMenu({
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
           <span className="flex-1">
             {copied
-              ? lang === "es"
-                ? "¡Copiado!"
-                : "Copied!"
-              : lang === "es"
-                ? "Copiar enlace"
-                : "Copy link"}
+              ? tr(lang, { en: "Copied!", es: "¡Copiado!", ja: "コピーしました！" })
+              : tr(lang, { en: "Copy link", es: "Copiar enlace", ja: "リンクをコピー" })}
           </span>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -84,14 +81,14 @@ export function ShareMenu({
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
-            <span className="flex-1">{lang === "es" ? "Compartir en X" : "Share on X"}</span>
+            <span className="flex-1">{tr(lang, { en: "Share on X", es: "Compartir en X", ja: "Xでシェア" })}</span>
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <a href={rankCardUrl(playerId)} target="_blank" rel="noreferrer">
             <ImageDown className="size-3.5" />
-            <span className="flex-1">{lang === "es" ? "Tarjeta de clasificación" : "Rank card image"}</span>
+            <span className="flex-1">{tr(lang, { en: "Rank card image", es: "Tarjeta de clasificación", ja: "ランクカード画像" })}</span>
           </a>
         </DropdownMenuItem>
       </DropdownMenuContent>

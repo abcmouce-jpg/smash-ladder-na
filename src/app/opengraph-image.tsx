@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
+import { SCENE_CODE, SITE_NAME } from "@/lib/site";
 
 // Renders once at build/request time and gets picked up automatically by
 // Next.js's file-based metadata convention — no manual <meta> wiring needed,
@@ -42,7 +43,7 @@ export default function Image() {
         }}
       >
         <img src={iconDataUri} width={48} height={48} style={{ borderRadius: 10 }} alt="" />
-        SMASH LADDER NA
+        {SITE_NAME.toUpperCase()}
       </div>
       <div
         style={{
@@ -67,7 +68,7 @@ export default function Image() {
           lineHeight: 1.05,
         }}
       >
-        NA Smash Ultimate
+        {SCENE_CODE} Smash Ultimate
       </div>
       <div
         style={{

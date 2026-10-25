@@ -13,6 +13,7 @@ import { getRegionsWithinDistance } from "@/lib/regions";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { siteOrigin } from "@/lib/site-url";
+import { langOrDefault } from "@/lib/site";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY?.trim();
@@ -42,16 +43,19 @@ const PUSH_TTL_SECONDS = 5 * 60;
 const MATCH_FOUND_MESSAGES = {
   en: { title: "Match found!", body: "You've been paired — head to the Lobby." },
   es: { title: "¡Partida encontrada!", body: "Te emparejaron — ve a la Sala." },
+  ja: { title: "対戦相手が見つかりました！", body: "マッチングしました。ロビーへどうぞ。" },
 } as const;
 
 const QUEUE_OPPORTUNITY_MESSAGES = {
   en: { title: "Opponent in your range just queued", body: "Jump in now while they're still waiting." },
   es: { title: "Un rival en tu rango acaba de entrar a la cola", body: "Entra ahora mientras sigue esperando." },
+  ja: { title: "レートの近い相手が待機を始めました", body: "相手が待っているうちに参加しましょう。" },
 } as const;
 
 const QUEUE_OPPORTUNITY_DM = {
   en: (link: string) => `👀 Someone in your range just queued — jump in while they're still waiting: ${link}`,
   es: (link: string) => `👀 Alguien en tu rango acaba de entrar a la cola — entra mientras sigue esperando: ${link}`,
+  ja: (link: string) => `👀 レートの近い相手が待機を始めました。相手が待っているうちに参加しましょう: ${link}`,
 } as const;
 
 const TEST_MESSAGES = {
@@ -62,6 +66,10 @@ const TEST_MESSAGES = {
   es: {
     title: "Notificación de prueba",
     body: "Las notificaciones push funcionan — te avisaremos aquí cuando te emparejen.",
+  },
+  ja: {
+    title: "テスト通知",
+    body: "プッシュ通知は正常に動作しています。マッチングするとここに通知が届きます。",
   },
 } as const;
 
@@ -118,7 +126,7 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
   for (const player of players) {
     if (player.pushSubscriptions.length === 0) continue;
     if (!isNotificationEnabled(player, "PUSH_MATCH_FOUND")) continue;
-    const copy = player.preferredLanguage === "es" ? MATCH_FOUND_MESSAGES.es : MATCH_FOUND_MESSAGES.en;
+    const copy = MATCH_FOUND_MESSAGES[langOrDefault(player.preferredLanguage)];
     sent += await sendPushPayload(
       player.pushSubscriptions,
       JSON.stringify({
@@ -221,7 +229,7 @@ export async function notifyQueueOpportunitySubscribers(
   const link = `${siteOrigin()}/lobby`;
   let sent = 0;
   for (const candidate of eligible) {
-    const copy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_MESSAGES.es : QUEUE_OPPORTUNITY_MESSAGES.en;
+    const copy = QUEUE_OPPORTUNITY_MESSAGES[langOrDefault(candidate.preferredLanguage)];
     if (pushConfigured && candidate.notifyQueueOpportunities && candidate.pushSubscriptions.length > 0) {
       sent += await sendPushPayload(
         candidate.pushSubscriptions,
@@ -229,7 +237,7 @@ export async function notifyQueueOpportunitySubscribers(
       );
     }
     if (isNotificationEnabled(candidate, "DM_QUEUE_OPPORTUNITY")) {
-      const dmCopy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_DM.es : QUEUE_OPPORTUNITY_DM.en;
+      const dmCopy = QUEUE_OPPORTUNITY_DM[langOrDefault(candidate.preferredLanguage)];
       await sendDiscordDM(candidate.discordId, dmCopy(link));
     }
   }
@@ -263,7 +271,7 @@ export async function sendTestPushToUser(userId: string): Promise<{ sent: number
   if (user.pushSubscriptions.length === 0) {
     return { sent: 0, error: "No push subscriptions on this account — toggle notifications off and on again." };
   }
-  const copy = user.preferredLanguage === "es" ? TEST_MESSAGES.es : TEST_MESSAGES.en;
+  const copy = TEST_MESSAGES[langOrDefault(user.preferredLanguage)];
   const sent = await sendPushPayload(
     user.pushSubscriptions,
     JSON.stringify({

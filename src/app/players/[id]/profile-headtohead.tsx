@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getHeadToHeadOpponents } from "@/lib/profile-stats";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 import { HeadToHeadList } from "./head-to-head-list";
 
 const HEAD_TO_HEAD_PAGE_SIZE = 20;
@@ -18,7 +19,7 @@ export async function ProfileHeadToHeadSection({ id, page, lang }: { id: string;
   if (total === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es" ? "Aún no hay oponentes registrados." : "No opponents recorded yet."}
+        {tr(lang, { en: "No opponents recorded yet.", es: "Aún no hay oponentes registrados.", ja: "まだ対戦相手の記録はありません。" })}
       </p>
     );
   }
@@ -29,9 +30,11 @@ export async function ProfileHeadToHeadSection({ id, page, lang }: { id: string;
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          {lang === "es"
-            ? `${total} ${total === 1 ? "oponente distinto" : "oponentes distintos"}`
-            : `${total} distinct ${total === 1 ? "opponent" : "opponents"}`}
+          {tr(lang, {
+            en: `${total} distinct ${total === 1 ? "opponent" : "opponents"}`,
+            es: `${total} ${total === 1 ? "oponente distinto" : "oponentes distintos"}`,
+            ja: `対戦相手 ${total}人`,
+          })}
         </p>
         {totalPages > 1 && (
           <HeadToHeadPaginationControls playerId={id} page={page} totalPages={totalPages} lang={lang} />
@@ -56,13 +59,13 @@ function HeadToHeadPaginationControls({
   return (
     <div className="flex items-center gap-2 text-sm">
       <HeadToHeadPageLink playerId={playerId} page={page - 1} disabled={page <= 1}>
-        {lang === "es" ? "← Anterior" : "← Previous"}
+        {tr(lang, { en: "← Previous", es: "← Anterior", ja: "← 前へ" })}
       </HeadToHeadPageLink>
       <span className="text-muted-foreground tabular-nums">
-        {lang === "es" ? `Página ${page} de ${totalPages}` : `Page ${page} of ${totalPages}`}
+        {tr(lang, { en: `Page ${page} of ${totalPages}`, es: `Página ${page} de ${totalPages}`, ja: `${page} / ${totalPages} ページ` })}
       </span>
       <HeadToHeadPageLink playerId={playerId} page={page + 1} disabled={page >= totalPages}>
-        {lang === "es" ? "Siguiente →" : "Next →"}
+        {tr(lang, { en: "Next →", es: "Siguiente →", ja: "次へ →" })}
       </HeadToHeadPageLink>
     </div>
   );

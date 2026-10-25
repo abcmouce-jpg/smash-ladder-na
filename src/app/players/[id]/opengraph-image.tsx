@@ -99,7 +99,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <img src={ICON_URI} width={36} height={36} style={{ borderRadius: 8 }} alt="" />
         <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: "#9a9a9e", letterSpacing: 1 }}>
-          SMASH LADDER NA
+          {SITE_NAME.toUpperCase()}
         </div>
       </div>
 

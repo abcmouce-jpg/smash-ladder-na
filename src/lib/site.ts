@@ -9,16 +9,20 @@
 // NEXT_PUBLIC_ because the name appears in client components (share text, the
 // header) as well as in server-rendered metadata.
 
-import type { Lang } from "@/lib/i18n";
+import { asLang, type Lang } from "@/lib/lang";
 
 /** Display name of this instance. */
 export const SITE_NAME =
   process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Smash Ladder NA";
 
 /** One-line description, used in metadata, the manifest and OG images. */
+// The fallback follows the region, so a JP deploy missing this variable
+// doesn't describe itself as North American in every search result.
 export const SITE_DESCRIPTION =
   process.env.NEXT_PUBLIC_SITE_DESCRIPTION?.trim() ||
-  "North American ranked ladder and matchmaking for Smash.";
+  (process.env.NEXT_PUBLIC_REGION_SET?.trim() === "jp"
+    ? "日本のスマブラSP向けレート対戦・マッチングサイト。"
+    : "North American ranked ladder and matchmaking for Smash.");
 
 /**
  * Language a visitor gets before they pick one. getLang() still prefers an
@@ -28,6 +32,16 @@ export const DEFAULT_LANG: Lang = (() => {
   const v = process.env.NEXT_PUBLIC_DEFAULT_LANG?.trim();
   return v === "ja" || v === "es" ? v : "en";
 })();
+
+/**
+ * Reads a stored User.preferredLanguage. null means "never picked one", which
+ * is this instance's default — English on the NA site, Japanese on the JP
+ * one. Comparing against "es" and falling back to English, as the
+ * notification senders used to, would DM every Japanese player in English.
+ */
+export function langOrDefault(stored: string | null | undefined): Lang {
+  return asLang(stored) ?? DEFAULT_LANG;
+}
 
 /**
  * Which set of match regions this instance offers. Matchmaking is distance
@@ -76,6 +90,12 @@ export const SCENE_LABEL: Record<Lang, string> =
   REGION_SET === "jp"
     ? { en: "Japanese", es: "japonesa", ja: "日本の" }
     : { en: "North American", es: "norteamericana", ja: "北米の" };
+
+/**
+ * Short latin code for the scene, for places that can't take the adjective:
+ * the OG images, whose renderer only has a latin font loaded.
+ */
+export const SCENE_CODE = REGION_SET === "jp" ? "JP" : "NA";
 
 /**
  * SITE_NAME split for the home page's heading, which colours the last word

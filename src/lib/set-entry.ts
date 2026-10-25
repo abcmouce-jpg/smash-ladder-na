@@ -1,4 +1,5 @@
 import type { MatchFeedEntry } from "@/lib/match-feed";
+import type { Lang } from "@/lib/lang";
 
 // Dates can't cross the server→client boundary, so match-feed entries are
 // serialized before being handed to the client rows, player, and thumbnails.
@@ -17,13 +18,13 @@ export function serializeSetEntry(entry: MatchFeedEntry): SerializedSetEntry {
   };
 }
 
-export const STATUS_LABEL: Record<string, { en: string; es: string }> = {
-  PENDING_REPORT: { en: "In progress", es: "En curso" },
-  REPORTED: { en: "In progress", es: "En curso" },
-  DISPUTED: { en: "Disputed", es: "En disputa" },
-  CONFIRMED: { en: "Final", es: "Final" },
-  CANCELLED: { en: "Cancelled", es: "Cancelada" },
-  EXPIRED: { en: "Expired", es: "Expirada" },
+export const STATUS_LABEL: Record<string, Record<Lang, string>> = {
+  PENDING_REPORT: { en: "In progress", es: "En curso", ja: "対戦中" },
+  REPORTED: { en: "In progress", es: "En curso", ja: "対戦中" },
+  DISPUTED: { en: "Disputed", es: "En disputa", ja: "異議申し立て中" },
+  CONFIRMED: { en: "Final", es: "Final", ja: "確定" },
+  CANCELLED: { en: "Cancelled", es: "Cancelada", ja: "キャンセル" },
+  EXPIRED: { en: "Expired", es: "Expirada", ja: "期限切れ" },
 };
 
 export const STATUS_VARIANT: Record<string, "success" | "warning" | "outline"> = {

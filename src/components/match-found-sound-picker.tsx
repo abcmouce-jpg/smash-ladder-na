@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { OptionSelect } from "@/components/option-select";
 import { playMatchFoundSound, type MatchFoundSound } from "@/lib/sound";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Client wrapper for the match-found sound setting: tracks the dropdown's
 // selection so the Preview button can play the chosen sound in the browser
@@ -23,12 +24,12 @@ export function MatchFoundSoundPicker({ defaultValue, lang }: { defaultValue: Ma
         onChange={(v) => setValue(v as MatchFoundSound)}
         className="w-48"
         options={[
-          { value: "CHIME", label: lang === "es" ? "Tono original" : "Original chime" },
-          { value: "ANNOUNCER", label: lang === "es" ? "Anuncio de voz" : "Announcer voice clip" },
+          { value: "CHIME", label: tr(lang, { en: "Original chime", es: "Tono original", ja: "オリジナルのチャイム" }) },
+          { value: "ANNOUNCER", label: tr(lang, { en: "Announcer voice clip", es: "Anuncio de voz", ja: "アナウンサーボイス" }) },
         ]}
       />
       <Button type="button" size="sm" variant="outline" onClick={() => playMatchFoundSound(value)}>
-        {lang === "es" ? "Probar" : "Preview"}
+        {tr(lang, { en: "Preview", es: "Probar", ja: "試聴" })}
       </Button>
     </div>
   );

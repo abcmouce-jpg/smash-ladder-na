@@ -225,8 +225,10 @@ export async function setQuickMessages(userId: string, messages: string[]) {
 // bounces to — see the field's own comment in schema.prisma. `null` means
 // English (the default); anything else falls back to English too, so a
 // future removed-language value can't strand someone on a 404.
-// null = English (the default), so the column stays empty for most rows.
-export async function setPreferredLanguage(userId: string, language: Exclude<Lang, "en"> | null) {
+// null = this instance's DEFAULT_LANG (see langOrDefault in lib/site.ts), so
+// the column stays empty for most rows. "en" is a real value on the Japanese
+// instance, where English is the non-default choice.
+export async function setPreferredLanguage(userId: string, language: Lang | null) {
   await prisma.user.update({ where: { id: userId }, data: { preferredLanguage: language } });
 }
 

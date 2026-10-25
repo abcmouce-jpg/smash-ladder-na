@@ -11,7 +11,7 @@ import { ExpandableTextarea } from "@/components/expandable-textarea";
 import { echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import { getPushSubscription, subscribeToPush } from "@/lib/push-client";
 import { savePushSubscriptionAction } from "@/app/settings/actions";
-import type { Lang } from "@/lib/i18n";
+import { tr, type Lang } from "@/lib/lang";
 import type {
   GuideActionState,
   GuideFormState,
@@ -85,7 +85,7 @@ export function MatchupNotesList({
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder={lang === "es" ? "Buscar personaje…" : "Search character…"}
+        placeholder={tr(lang, { en: "Search character…", es: "Buscar personaje…", ja: "キャラを検索…" })}
         className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
       />
       <ul className="mt-3 flex flex-col gap-2">
@@ -114,7 +114,11 @@ export function MatchupNotesList({
         ))}
         {sorted.length === 0 && (
           <p className="mt-4 text-sm text-muted-foreground">
-            {lang === "es" ? "Ningún personaje coincide con esa búsqueda." : "No characters match that search."}
+            {tr(lang, {
+              en: "No characters match that search.",
+              es: "Ningún personaje coincide con esa búsqueda.",
+              ja: "該当するキャラがいません。",
+            })}
           </p>
         )}
       </ul>
@@ -192,7 +196,13 @@ function MatchupNoteRow({
       }
       setSubscribed(result.subscribed);
     } catch {
-      setSubError(lang === "es" ? "Algo salió mal — inténtalo de nuevo." : "Something went wrong — try again.");
+      setSubError(
+        tr(lang, {
+          en: "Something went wrong — try again.",
+          es: "Algo salió mal — inténtalo de nuevo.",
+          ja: "エラーが発生しました。もう一度お試しください。",
+        }),
+      );
     } finally {
       setSubBusy(false);
     }
@@ -220,18 +230,24 @@ function MatchupNoteRow({
               disabled={subBusy}
               aria-label={
                 subscribed
-                  ? lang === "es"
-                    ? "Dejar de recibir notificaciones de nuevas guías"
-                    : "Stop notifying me of new guides"
-                  : lang === "es"
-                    ? "Recibir notificaciones de nuevas guías"
-                    : "Notify me of new guides"
+                  ? tr(lang, {
+                      en: "Stop notifying me of new guides",
+                      es: "Dejar de recibir notificaciones de nuevas guías",
+                      ja: "新しい攻略の通知をオフにする",
+                    })
+                  : tr(lang, {
+                      en: "Notify me of new guides",
+                      es: "Recibir notificaciones de nuevas guías",
+                      ja: "新しい攻略を通知する",
+                    })
               }
               title={
                 subscribed
-                  ? lang === "es"
-                    ? "Recibirás una notificación cuando alguien publique una nueva guía"
-                    : "You'll be notified when someone posts a new guide"
+                  ? tr(lang, {
+                      en: "You'll be notified when someone posts a new guide",
+                      es: "Recibirás una notificación cuando alguien publique una nueva guía",
+                      ja: "誰かが新しい攻略を投稿すると通知が届きます",
+                    })
                   : undefined
               }
               className={
@@ -263,7 +279,11 @@ function MatchupNoteRow({
               defaultValue={note}
               maxLength={maxLength}
               rows={6}
-              placeholder={lang === "es" ? "Tu nota privada para este personaje…" : "Your private note for this character…"}
+              placeholder={tr(lang, {
+                en: "Your private note for this character…",
+                es: "Tu nota privada para este personaje…",
+                ja: "このキャラ対策の自分用メモ…",
+              })}
               className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
               title={character}
             />
@@ -274,7 +294,7 @@ function MatchupNoteRow({
                 <span />
               )}
               <Button type="submit" size="sm" disabled={isPending}>
-                {lang === "es" ? "Guardar" : "Save"}
+                {tr(lang, { en: "Save", es: "Guardar", ja: "保存" })}
               </Button>
             </div>
           </form>

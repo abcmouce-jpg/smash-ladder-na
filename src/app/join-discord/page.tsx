@@ -6,6 +6,7 @@ import { DiscordIcon } from "@/components/discord-icon";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { SITE_NAME } from "@/lib/site";
+import { tr } from "@/lib/lang";
 
 export const metadata = { title: `Join our Discord — ${SITE_NAME}` };
 
@@ -22,16 +23,26 @@ export default async function JoinDiscordPage() {
         <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
           <DiscordIcon className="size-10 text-[#5865F2]" />
           <h1 className="text-xl font-semibold tracking-tight">
-            {lang === "es" ? "Primero únete a nuestro Discord" : "Join our Discord first"}
+            {tr(lang, {
+              en: "Join our Discord first",
+              es: "Primero únete a nuestro Discord",
+              ja: "先に Discord サーバーに参加してください",
+            })}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? `Para usar ${SITE_NAME} necesitas estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta.`
-              : `You need to be in our Discord server to use ${SITE_NAME} — it's how staff can actually reach you if something goes wrong with a match or an account.`}
+            {tr(lang, {
+              en: `You need to be in our Discord server to use ${SITE_NAME} — it's how staff can actually reach you if something goes wrong with a match or an account.`,
+              es: `Para usar ${SITE_NAME} necesitas estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta.`,
+              ja: `${SITE_NAME} を使うには Discord サーバーへの参加が必要です。試合やアカウントでトラブルがあったとき、スタッフが連絡を取れるようにするためです。`,
+            })}
           </p>
           <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="w-full">
             <Button className="w-full gap-2">
-              {lang === "es" ? "Unirse al Discord" : "Join the Discord"}
+              {tr(lang, {
+                en: "Join the Discord",
+                es: "Unirse al Discord",
+                ja: "Discord に参加",
+              })}
               <ExternalLink className="size-4" />
             </Button>
           </a>
@@ -44,7 +55,11 @@ export default async function JoinDiscordPage() {
               }}
             >
               <Button type="submit" variant="outline" className="w-full">
-                {lang === "es" ? "Ya me uní — intentar de nuevo" : "I've joined — try again"}
+                {tr(lang, {
+                  en: "I've joined — try again",
+                  es: "Ya me uní — intentar de nuevo",
+                  ja: "参加しました — もう一度試す",
+                })}
               </Button>
             </form>
           )}

@@ -10,7 +10,8 @@ import { Card } from "@/components/ui/card";
 import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { RankBadge } from "@/components/rank-badge";
 import { formatRating } from "@/lib/rating-format";
-import { getLang, type Lang } from "@/lib/i18n";
+import { getLang } from "@/lib/i18n";
+import { tr, type Lang } from "@/lib/lang";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 // A season's standings can run long (the preseason snapshots everyone who
@@ -37,7 +38,7 @@ export default async function SeasonStandingsPage({
     getSeasonStandings(id, { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     getLang(),
   ]);
-  const dateLocale = lang === "es" ? "es-MX" : "en-US";
+  const dateLocale = tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" });
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   // Live/all-time usage, same as the leaderboard's — this season's standings
@@ -56,7 +57,7 @@ export default async function SeasonStandingsPage({
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {season.startsAt.toLocaleDateString(dateLocale)} –{" "}
-        {season.endsAt?.toLocaleDateString(dateLocale) ?? (lang === "es" ? "actualidad" : "present")}
+        {season.endsAt?.toLocaleDateString(dateLocale) ?? tr(lang, { en: "present", es: "actualidad", ja: "現在" })}
       </p>
 
       {totalCount > 0 && (
@@ -68,12 +69,12 @@ export default async function SeasonStandingsPage({
           <thead>
             <tr className="border-b border-border text-muted-foreground">
               <th className="py-2 pl-4 font-medium">#</th>
-              <th className="py-2 font-medium">{lang === "es" ? "Jugador" : "Player"}</th>
-              <th className="py-2 font-medium">{lang === "es" ? "Rango" : "Tier"}</th>
+              <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador", ja: "プレイヤー" })}</th>
+              <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango", ja: "ランク" })}</th>
               <th className="py-2 font-medium text-right tabular-nums">
-                {lang === "es" ? "Clasificación final" : "Final rating"}
+                {tr(lang, { en: "Final rating", es: "Clasificación final", ja: "最終レート" })}
               </th>
-              <th className="py-2 pr-4 font-medium text-right tabular-nums">{lang === "es" ? "Partidas" : "Sets"}</th>
+              <th className="py-2 pr-4 font-medium text-right tabular-nums">{tr(lang, { en: "Sets", es: "Partidas", ja: "セット数" })}</th>
             </tr>
           </thead>
           <tbody>
@@ -97,7 +98,11 @@ export default async function SeasonStandingsPage({
         </table>
         {standings.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">
-            {lang === "es" ? "Nadie jugó rankeado esa temporada." : "No ranked players that season."}
+            {tr(lang, {
+              en: "No ranked players that season.",
+              es: "Nadie jugó rankeado esa temporada.",
+              ja: "このシーズンにランク入りしたプレイヤーはいません。",
+            })}
           </p>
         )}
       </Card>
@@ -121,20 +126,26 @@ function PaginationBar({
   return (
     <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
       <Badge variant="outline">
-        {lang === "es"
-          ? `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`
-          : `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`}
+        {tr(lang, {
+          en: `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`,
+          es: `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`,
+          ja: `ランク入り ${totalCount}人`,
+        })}
       </Badge>
       {totalPages > 1 && (
         <div className="flex items-center gap-2 text-sm">
           <PageLink id={id} page={page - 1} disabled={page <= 1}>
-            {lang === "es" ? "← Anterior" : "← Previous"}
+            {tr(lang, { en: "← Previous", es: "← Anterior", ja: "← 前へ" })}
           </PageLink>
           <span className="text-muted-foreground tabular-nums">
-            {lang === "es" ? `Página ${page} de ${totalPages}` : `Page ${page} of ${totalPages}`}
+            {tr(lang, {
+              en: `Page ${page} of ${totalPages}`,
+              es: `Página ${page} de ${totalPages}`,
+              ja: `${page} / ${totalPages} ページ`,
+            })}
           </span>
           <PageLink id={id} page={page + 1} disabled={page >= totalPages}>
-            {lang === "es" ? "Siguiente →" : "Next →"}
+            {tr(lang, { en: "Next →", es: "Siguiente →", ja: "次へ →" })}
           </PageLink>
         </div>
       )}

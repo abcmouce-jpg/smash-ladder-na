@@ -7,6 +7,7 @@ import { MovesetDialog } from "@/components/moveset-dialog";
 import { Button } from "@/components/ui/button";
 import { isMiiCharacter } from "@/lib/characters";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 /**
  * Character picker with one-click shortcuts for the player's most-played
@@ -95,10 +96,10 @@ export function CharacterPickForm({
           value={character}
           onChange={attemptSelect}
           name="character"
-          placeholder={lang === "es" ? "Elegir personaje" : "Select character"}
+          placeholder={tr(lang, { en: "Select character", es: "Elegir personaje", ja: "キャラを選択" })}
         />
         <Button type="submit" size="sm" variant="outline" disabled={!canSubmit}>
-          {lang === "es" ? "Elegir" : "Lock in"}
+          {tr(lang, { en: "Lock in", es: "Elegir", ja: "決定" })}
         </Button>
       </form>
       {pendingCharacter !== null && (

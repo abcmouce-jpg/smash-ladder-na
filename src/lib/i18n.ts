@@ -6,13 +6,15 @@ import { setPreferredLanguage } from "@/lib/account";
 // server-only imports above so client components can use them. Re-exported
 // here because 65 files already import the type from this path.
 import { asLang, type Lang } from "@/lib/lang";
+import { DEFAULT_LANG } from "@/lib/site";
 
 export type { Lang };
 
 const LANG_COOKIE = "lang";
 
 // Resolution order: explicit cookie (works for signed-out visitors too) →
-// signed-in user's stored preference → English default. The cookie exists
+// signed-in user's stored preference → the instance default (DEFAULT_LANG:
+// English on NA, Japanese on JP). The cookie exists
 // so the switcher in the header works everywhere without requiring an
 // account, while still staying in sync with Settings for signed-in users
 // (see setLangAction below).
@@ -31,7 +33,7 @@ export async function getLang(): Promise<Lang> {
     if (stored) return stored;
   }
 
-  return "en";
+  return DEFAULT_LANG;
 }
 
 // Shared server action for the header's language toggle. Sets the cookie so
@@ -48,8 +50,8 @@ export async function setLangAction(lang: Lang) {
   });
 
   const session = await auth();
-  // null means "English", the default, so the column stays empty for the
-  // majority rather than storing "en" on every row.
+  // null means "the instance default" (see langOrDefault), so the column
+  // stays empty for the majority rather than storing it on every row.
   if (session?.user?.id)
-    await setPreferredLanguage(session.user.id, lang === "en" ? null : lang);
+    await setPreferredLanguage(session.user.id, lang === DEFAULT_LANG ? null : lang);
 }

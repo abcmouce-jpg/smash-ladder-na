@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 type DisputeResolutionState = { error: string | null; message: string | null };
 
@@ -24,16 +25,22 @@ export function DisputeResolutionForm({
   return (
     <div className="mt-2 flex flex-col gap-1.5 text-xs">
       <p className="text-muted-foreground">
-        {lang === "es"
-          ? `Pónganse de acuerdo en quién ganó este juego y se resuelve al instante. Sin esperar a un mod.`
-          : `Agree on who won this game and it resolves right away. No mod needed.`}
+        {tr(lang, {
+          en: "Agree on who won this game and it resolves right away. No mod needed.",
+          es: "Pónganse de acuerdo en quién ganó este juego y se resuelve al instante. Sin esperar a un mod.",
+          ja: "この試合の勝者について両者が合意すれば、すぐに解決します。モデレーターを待つ必要はありません。",
+        })}
       </p>
       <form action={formAction} className="flex gap-2">
         <Button type="submit" name="winnerId" value={myId} size="sm" variant="outline" disabled={isPending}>
-          {lang === "es" ? "Gané yo" : "I won"}
+          {tr(lang, { en: "I won", es: "Gané yo", ja: "自分の勝ち" })}
         </Button>
         <Button type="submit" name="winnerId" value={opponentId} size="sm" variant="outline" disabled={isPending}>
-          {lang === "es" ? `Ganó ${opponentUsername}` : `${opponentUsername} won`}
+          {tr(lang, {
+            en: `${opponentUsername} won`,
+            es: `Ganó ${opponentUsername}`,
+            ja: `${opponentUsername}の勝ち`,
+          })}
         </Button>
       </form>
       {state.error && <p className="text-destructive">{state.error}</p>}

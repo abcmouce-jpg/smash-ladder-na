@@ -5,7 +5,8 @@ import { getMatchupNotes, getNotedCharacters, MAX_MATCHUP_NOTE_LENGTH } from "@/
 import { getAllCharacterGuides, getAllGuides, MAX_GUIDE_LENGTH } from "@/lib/character-guides";
 import { getSubscribedCharacters } from "@/lib/character-guide-subscriptions";
 import { echoGroupCanonical, isMatchupCharacter, type SmashCharacter } from "@/lib/characters";
-import { getLang, type Lang } from "@/lib/i18n";
+import { getLang } from "@/lib/i18n";
+import { tr, type Lang } from "@/lib/lang";
 import { PageHeading } from "@/components/page-heading";
 import { SectionTabs } from "@/components/section-tabs";
 import { MatchupNotesList } from "@/components/matchup-notes-list";
@@ -63,25 +64,29 @@ export default async function NotesPage({
   // does it — the two views need different framing.
   const description =
     tab === "matchups"
-      ? lang === "es"
-        ? "Solo tú puedes ver tus notas privadas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Las guías de la comunidad son públicas — cualquiera puede escribir una. Los personajes echo comparten entrada con su personaje base."
-        : "Only you can see your private notes. They pop up automatically in your matches once your opponent's character is locked in. Community guides are public — anyone can write one. Echo fighters share an entry with their base fighter."
-      : lang === "es"
-        ? "Todas las guías de la comunidad en una sola lista, etiquetadas por personaje. Filtra por etiqueta o busca para encontrar consejos de matchup. Los personajes echo comparten etiqueta con su personaje base."
-        : "Every community guide in one list, tagged by character. Filter by tag or search to find matchup advice. Echo fighters share a tag with their base fighter.";
+      ? tr(lang, {
+          en: "Only you can see your private notes. They pop up automatically in your matches once your opponent's character is locked in. Community guides are public — anyone can write one. Echo fighters share an entry with their base fighter.",
+          es: "Solo tú puedes ver tus notas privadas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Las guías de la comunidad son públicas — cualquiera puede escribir una. Los personajes echo comparten entrada con su personaje base.",
+          ja: "自分用メモは自分だけが見られます。対戦中、相手のキャラが確定すると自動で表示されます。みんなの攻略は公開されていて、誰でも書けます。ダッシュファイターは元のファイターと同じ項目にまとめています。",
+        })
+      : tr(lang, {
+          en: "Every community guide in one list, tagged by character. Filter by tag or search to find matchup advice. Echo fighters share a tag with their base fighter.",
+          es: "Todas las guías de la comunidad en una sola lista, etiquetadas por personaje. Filtra por etiqueta o busca para encontrar consejos de matchup. Los personajes echo comparten etiqueta con su personaje base.",
+          ja: "みんなの攻略をキャラ別のタグ付きで一覧にしています。タグで絞り込んだり検索したりして、キャラ対策を探せます。ダッシュファイターは元のファイターと同じタグです。",
+        });
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
-      <PageHeading icon={NotebookPen} title={lang === "es" ? "Notas" : "Notes"} description={description} />
+      <PageHeading icon={NotebookPen} title={tr(lang, { en: "Notes", es: "Notas", ja: "メモ" })} description={description} />
       <SectionTabs
         className="mt-8"
         items={[
           {
             href: "?tab=matchups",
-            label: lang === "es" ? "Mis notas" : "My Notes",
+            label: tr(lang, { en: "My Notes", es: "Mis notas", ja: "自分のメモ" }),
             active: tab === "matchups",
           },
-          { href: "?tab=guides", label: lang === "es" ? "Guías" : "Guides", active: tab === "guides" },
+          { href: "?tab=guides", label: tr(lang, { en: "Guides", es: "Guías", ja: "攻略" }), active: tab === "guides" },
         ]}
       />
       <div className="mt-6">
@@ -99,9 +104,11 @@ async function MatchupsTab({ userId, lang }: { userId: string | null; lang: Lang
   if (!userId) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Inicia sesión con Discord (arriba a la derecha) para ver tus notas."
-          : "Sign in with Discord (top right) to view your notes."}
+        {tr(lang, {
+          en: "Sign in with Discord (top right) to view your notes.",
+          es: "Inicia sesión con Discord (arriba a la derecha) para ver tus notas.",
+          ja: "右上の Discord でログインすると、自分のメモが見られます。",
+        })}
       </p>
     );
   }

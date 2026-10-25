@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { isSeasonTimeUp, seasonTimeRemaining } from "@/lib/season-countdown";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const UNITS = ["days", "hours", "minutes", "seconds"] as const;
 
@@ -30,7 +31,7 @@ export function SeasonCountdown({ endsAt, lang }: { endsAt: string; lang: Lang }
   if (isSeasonTimeUp(remaining)) {
     return (
       <span className="text-xs text-muted-foreground">
-        {lang === "es" ? "Cerrando la temporada…" : "Wrapping up the season…"}
+        {tr(lang, { en: "Wrapping up the season…", es: "Cerrando la temporada…", ja: "シーズンを締めくくり中…" })}
       </span>
     );
   }

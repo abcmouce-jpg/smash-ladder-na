@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useFlashOnChange } from "@/lib/use-flash-on-change";
 import type { RoomCodeState } from "@/app/lobby/actions";
-import type { Lang } from "@/lib/i18n";
+import { tr, type Lang } from "@/lib/lang";
 
 // The setter's own editable room code field — flashes and plays a short
 // blip on a successful save (in addition to the input already showing
@@ -27,7 +27,7 @@ export function RoomCodeForm({
     <div className="flex flex-col gap-1">
       <form action={formAction} className="flex items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">
-          {lang === "es" ? "Código de sala" : "Room code"}
+          {tr(lang, { en: "Room code", es: "Código de sala", ja: "部屋ID" })}
           <input
             name="roomCode"
             value={roomCode}
@@ -39,7 +39,7 @@ export function RoomCodeForm({
                   .slice(0, 5),
               )
             }
-            placeholder="e.g. AB123"
+            placeholder={tr(lang, { en: "e.g. AB123", es: "p. ej. AB123", ja: "例: AB123" })}
             maxLength={5}
             pattern="[A-Z0-9]{5}"
             required
@@ -51,12 +51,12 @@ export function RoomCodeForm({
           />
         </label>
         <Button type="submit" size="sm" disabled={isPending}>
-          {lang === "es" ? "Guardar" : "Save"}
+          {tr(lang, { en: "Save", es: "Guardar", ja: "保存" })}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
       {flashing && !state.error && (
-        <p className="text-xs text-muted-foreground">{lang === "es" ? "¡Guardado!" : "Saved!"}</p>
+        <p className="text-xs text-muted-foreground">{tr(lang, { en: "Saved!", es: "¡Guardado!", ja: "保存しました！" })}</p>
       )}
     </div>
   );

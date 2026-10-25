@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, ChevronDown, MapPin, Radio } from "lucide-react";
 import type { MatchFeedEntry } from "@/lib/match-feed";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { LocalTime } from "@/components/local-time";
@@ -110,12 +111,12 @@ export function SetRow({
         <div className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground sm:px-4">
           <span className="flex min-w-0 items-center gap-1.5">
             <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"} className="shrink-0 px-1.5 py-0 text-[10px]">
-              {lang === "es" ? label?.es : label?.en}
+              {label?.[lang]}
             </Badge>
             {entry.hasLiveStreamer && (
               <span className="flex shrink-0 items-center gap-1 font-medium text-red-500">
                 <Radio className="size-3" />
-                {lang === "es" ? "En vivo" : "Live"}
+                {tr(lang, { en: "Live", es: "En vivo", ja: "配信中" })}
               </span>
             )}
           </span>
@@ -150,9 +151,11 @@ export function SetRow({
           ) : (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
-              {lang === "es"
-                ? "Aún no se ha jugado ningún juego — esta partida no ha empezado."
-                : "No games played yet — this set hasn't started."}
+              {tr(lang, {
+                en: "No games played yet — this set hasn't started.",
+                es: "Aún no se ha jugado ningún juego — esta partida no ha empezado.",
+                ja: "まだ試合が行われていません。このセットは始まっていません。",
+              })}
             </p>
           )}
         </div>
@@ -167,9 +170,9 @@ export function SetRow({
 // a clock is still running on a finished set.
 function unfinishedGameLabel({ gameNumber, inProgress }: UnfinishedGame, lang: Lang) {
   if (inProgress) {
-    return lang === "es" ? `Juego ${gameNumber} en curso…` : `Game ${gameNumber} in progress…`;
+    return tr(lang, { en: `Game ${gameNumber} in progress…`, es: `Juego ${gameNumber} en curso…`, ja: `第${gameNumber}試合 対戦中…` });
   }
-  return lang === "es" ? `Juego ${gameNumber} — sin terminar` : `Game ${gameNumber} — not finished`;
+  return tr(lang, { en: `Game ${gameNumber} — not finished`, es: `Juego ${gameNumber} — sin terminar`, ja: `第${gameNumber}試合 — 未決着` });
 }
 
 // Streams a side's channel in the pinned player: the Twitch mark plus the
@@ -192,7 +195,7 @@ function OpenStreamButton({ player, matchId, lang }: { player: FeedPlayer; match
       }}
       onKeyDown={(event) => event.stopPropagation()}
       aria-pressed={selected}
-      aria-label={`${lang === "es" ? "Abrir stream" : "Open stream"}: ${name}`}
+      aria-label={`${tr(lang, { en: "Open stream", es: "Abrir stream", ja: "配信を開く" })}: ${name}`}
       className={cn(
         "inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
         selected
@@ -296,7 +299,7 @@ function GameLine({
     <div className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm sm:gap-3 sm:px-3">
       <span className="flex w-14 shrink-0 flex-col sm:w-24">
         <span className="text-xs tabular-nums text-muted-foreground">
-          {lang === "es" ? `Juego ${game.gameNumber}` : `Game ${game.gameNumber}`}
+          {tr(lang, { en: `Game ${game.gameNumber}`, es: `Juego ${game.gameNumber}`, ja: `第${game.gameNumber}試合` })}
         </span>
         {game.finalStage && (
           <span title={game.finalStage} className="truncate text-[10px] leading-4 text-muted-foreground/60">

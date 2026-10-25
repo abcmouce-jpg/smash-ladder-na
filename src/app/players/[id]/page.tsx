@@ -6,6 +6,7 @@ import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BanIpButton, ModerationStatusForm } from "@/components/moderation-tools";
 import { auth } from "@/auth";
 import { getLang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 import { getCharacterUsage, getCurrentMatchForUser, getHeadToHead, getPlayerProfile } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { isBlockedByMe } from "@/lib/blocks";
@@ -67,8 +68,6 @@ export default async function PlayerProfilePage({
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
 
-  const tabLabel = (label: string, es: string) => (lang === "es" ? es : label);
-
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
       <PlayerProfileHeader
@@ -89,15 +88,47 @@ export default async function PlayerProfilePage({
       <SectionTabs
         className="mt-8"
         items={[
-          { href: "?tab=overview", label: tabLabel("Overview", "Resumen"), active: tab === "overview" },
+          {
+            href: "?tab=overview",
+            label: tr(lang, { en: "Overview", es: "Resumen", ja: "概要" }),
+            active: tab === "overview",
+          },
           {
             href: "?tab=matches",
-            label: tabLabel("Match History", "Historial de partidas"),
+            label: tr(lang, {
+              en: "Match History",
+              es: "Historial de partidas",
+              ja: "対戦履歴",
+            }),
             active: tab === "matches",
           },
-          { href: "?tab=characters", label: tabLabel("Characters", "Personajes"), active: tab === "characters" },
-          { href: "?tab=headtohead", label: tabLabel("Head 2 Heads", "Cara a Cara"), active: tab === "headtohead" },
-          { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas"), active: tab === "seasons" },
+          {
+            href: "?tab=characters",
+            label: tr(lang, {
+              en: "Characters",
+              es: "Personajes",
+              ja: "キャラクター",
+            }),
+            active: tab === "characters",
+          },
+          {
+            href: "?tab=headtohead",
+            label: tr(lang, {
+              en: "Head 2 Heads",
+              es: "Cara a Cara",
+              ja: "相手別戦績",
+            }),
+            active: tab === "headtohead",
+          },
+          {
+            href: "?tab=seasons",
+            label: tr(lang, {
+              en: "Seasons",
+              es: "Temporadas",
+              ja: "シーズン",
+            }),
+            active: tab === "seasons",
+          },
         ]}
       />
 
@@ -198,11 +229,19 @@ export default async function PlayerProfilePage({
 
       {isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
-          <h2 className="text-sm font-medium text-destructive">{lang === "es" ? "Zona de peligro" : "Danger zone"}</h2>
+          <h2 className="text-sm font-medium text-destructive">
+            {tr(lang, {
+              en: "Danger zone",
+              es: "Zona de peligro",
+              ja: "危険な操作",
+            })}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos."
-              : "Deletes your username, avatar, and email. Match history stays, anonymized, so other players' win/loss records stay accurate."}
+            {tr(lang, {
+              en: "Deletes your username, avatar, and email. Match history stays, anonymized, so other players' win/loss records stay accurate.",
+              es: "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos.",
+              ja: "ユーザー名・アバター・メールアドレスを削除します。他のプレイヤーの勝敗記録が正しく残るよう、対戦履歴は匿名化したうえで保持されます。",
+            })}
           </p>
           <div className="mt-3">
             <DeleteAccountButton action={deleteAccountAction} lang={lang} />

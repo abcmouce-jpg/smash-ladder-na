@@ -149,8 +149,13 @@ function localizeAchievement(
   a: { id: string; label: string; description: string },
   lang: Lang,
 ): AchievementText {
-  if (lang === "en") return a;
-  const table = lang === "ja" ? ACHIEVEMENTS_JA : ACHIEVEMENTS_ES;
+  const tables: Record<Lang, Record<string, AchievementText> | null> = {
+    en: null,
+    es: ACHIEVEMENTS_ES,
+    ja: ACHIEVEMENTS_JA,
+  };
+  const table = tables[lang];
+  if (!table) return a;
   const hit = table[a.id];
   if (hit) return hit;
   // Reached Elite/Master/Grandmaster/Legend — the rank names stay in English
@@ -158,12 +163,14 @@ function localizeAchievement(
   // threshold back out of the English description rather than re-deriving it.
   const rating = a.description.match(/\d+/)?.[0] ?? "";
   const tier = a.label.replace("Reached ", "");
-  return lang === "ja"
-    ? { label: `${tier}到達`, description: `レート${rating}に到達する。` }
-    : {
-        label: `Alcanzó ${tier}`,
-        description: `Alcanza una clasificación de ${rating}.`,
-      };
+  return {
+    label: tr(lang, { en: a.label, es: `Alcanzó ${tier}`, ja: `${tier}到達` }),
+    description: tr(lang, {
+      en: a.description,
+      es: `Alcanza una clasificación de ${rating}.`,
+      ja: `レート${rating}に到達する。`,
+    }),
+  };
 }
 
 // The default tab: rating chart, season/career summary cards, rivals,

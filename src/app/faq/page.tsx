@@ -1,7 +1,7 @@
 import { DISCORD_SERVER_URL } from "@/lib/links";
-import { getLang } from "@/lib/i18n";
+import { getLang, type Lang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
-import { SITE_NAME } from "@/lib/site";
+import { SCENE_LABEL, SITE_NAME } from "@/lib/site";
 
 export const metadata = { title: `Q&A — ${SITE_NAME}` };
 
@@ -25,7 +25,11 @@ function Category({ title, children }: { title: string; children: React.ReactNod
 
 export default async function FaqPage() {
   const lang = await getLang();
-  if (lang === "es") return <FaqPageEs />;
+  const Faq = FAQ[lang];
+  return <Faq />;
+}
+
+function FaqPageEn() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Q&amp;A</h1>
@@ -143,9 +147,9 @@ export default async function FaqPage() {
             for exactly what&apos;s kept and why.
           </QA>
           <QA q="Can I undo an account deletion, or merge it into a new account?">
-            Signing back in with the same Discord account resumes your original account — same rating and match
-            history — rather than starting a fresh one, but your username, avatar, and email stay scrubbed until you
-            change them yourself. There&apos;s no way to merge a deletion into a different, separate account.
+            Signing back in with the same Discord account resumes your original account — same rating and match history
+            — rather than starting a fresh one, but your username, avatar, and email stay scrubbed until you change them
+            yourself. There&apos;s no way to merge a deletion into a different, separate account.
           </QA>
           <QA q="Is matchmaking open worldwide?">
             Yes — anyone can join. Set your region and a match distance on the Lobby page; the defaults match you with
@@ -174,9 +178,9 @@ export default async function FaqPage() {
             reach out in the Discord server above.
           </QA>
           <QA q="Is this affiliated with Japan's Smash Ladder / Smashmate?">
-            No — this is an independent, separately-run project built for the NA scene. It borrows its name as a
-            hat-tip to Japan&apos;s long-running online matchmaking platform, but the two projects are not connected in
-            any way.
+            No — this is an independent, separately-run project built for the {SCENE_LABEL.en} scene. It borrows its
+            name as a hat-tip to Japan&apos;s long-running online matchmaking platform, but the two projects are not
+            connected in any way.
           </QA>
           <QA q="Do you use AI to help build and run this site?">
             Yes. A lot of the code, bug fixes, and day-to-day maintenance (deploys, moderation tooling, this FAQ entry
@@ -289,8 +293,8 @@ function FaqPageEs() {
           <QA q="¿Cuál es la diferencia real entre suspendido y baneado?">
             Suspendido (Nivel 1) todavía te deja jugar rankeado — esa es la actividad principal, y las disputas ya le
             dan a los malos resultados su propio camino de corrección — pero bloquea publicar en Amistosos y presentar
-            nuevos reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó.
-            Baneado (Nivel 2) bloquea todo.
+            nuevos reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó. Baneado
+            (Nivel 2) bloquea todo.
           </QA>
         </Category>
 
@@ -338,7 +342,7 @@ function FaqPageEs() {
             de Discord de arriba.
           </QA>
           <QA q="¿Esto está afiliado con Smash Ladder / Smashmate de Japón?">
-            No — este es un proyecto independiente, gestionado por separado, construido para la escena de Norteamérica.
+            No — este es un proyecto independiente, gestionado por separado, construido para la escena {SCENE_LABEL.es}.
             Toma su nombre como un guiño a la plataforma japonesa de matchmaking en línea, pero los dos proyectos no
             están conectados de ninguna manera.
           </QA>
@@ -352,3 +356,157 @@ function FaqPageEs() {
     </main>
   );
 }
+
+function FaqPageJa() {
+  return (
+    <main className="mx-auto w-full max-w-3xl px-6 py-16">
+      <h1 className="text-2xl font-semibold tracking-tight">Q&amp;A</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        ここで触れている試合ルールの詳細は{" "}
+        <a href="/rules" className="underline">
+          ルールページ
+        </a>{" "}
+        もあわせてご覧ください。
+      </p>
+
+      <div className="mt-8 flex flex-col gap-8">
+        <Category title="ランクマッチ">
+          <QA q="マッチしたのに相手から反応がありません。どうすればいいですか？">
+            試合をキャンセルして次に進んでください。キャンセルボタンはまさにそのためのものです。同じプレイヤーで何度も起きる場合は通報してください。
+          </QA>
+          <QA q="自分だけ結果を報告して、相手が報告してくれません。試合は有効になりますか？">
+            はい。相手が報告しないままの場合、試合開始から 24
+            時間後にあなたの報告が自動で採用され、相手には無断不参加が記録されます。24
+            時間以内にどちらも報告しなかった場合、試合はどちらのレートも変わらないまま終了します。
+          </QA>
+          <QA q="間違えて逆の勝者を報告してしまいました。">
+            相手が報告する前に、正しい結果でもう一度報告してください。お互いの報告が一致すれば問題ありません。すでに報告が食い違っている場合は、異議申立としてモデレーターの確認に回ります。
+          </QA>
+          <QA q="相手が実際とは違う勝者を報告しました。">
+            報告をやり直して様子を見るのではなく、そのままにしておいてください。試合は異議申立の状態になり、双方の報告をもとにモデレーターが判断します。故意だと思われる場合は、あわせて通報もしてください。
+          </QA>
+          <QA q="試合が確定したのにレートが変わりません。">
+            レート差が極端に大きい場合、端数処理で変動が 0
+            になることがあります。これは仕様で、不具合ではありません。双方の報告が明らかに一致していて、プロフィール上の勝者がおかしい場合は、異議申立をしてください。
+          </QA>
+          <QA q="「有線接続」バッジには何が必要ですか？">
+            携帯モードなら USB-C 有線 LAN アダプター、TV モードならドックに LAN
+            ケーブルを挿すだけです。おすすめ機材の一覧は{" "}
+            <a href="/rules" className="underline">
+              ルールページ
+            </a>{" "}
+            にあります：{" "}
+            {GEAR_RECOMMENDATIONS.map((item, i) => (
+              <span key={item.url}>
+                {i > 0 && " · "}
+                <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
+                  {item.label}
+                </a>
+              </span>
+            ))}
+            。Amazon アソシエイトとして、当サイトは適格販売により収入を得ています。
+          </QA>
+        </Category>
+
+        <Category title="練習モード">
+          <QA q="練習モードの試合はラダーのレートに影響しますか？">
+            いいえ。練習モードの結果はすべて別枠の練習用レートに反映されます。勝っても負けても、通常のラダーのレートとセット数は変わりません。
+          </QA>
+          <QA q="うっかり練習モードにチェックを入れてしまいました。試合中にオフにできますか？">
+            いいえ。マッチした時点でその試合については固定されます。まだ間に合うなら試合をキャンセルするか、試合画面から相手に双方合意でのキャンセルを提案して、チェックを外してから待ち直してください。
+          </QA>
+          <QA q="練習モード中にメインキャラを使ってもいいですか？">
+            いいえ（ルールページ参照）。練習モードでは自分のレートが懸からなくなるため、練習モードでない相手にメインキャラで挑むと、リスクを相手だけに負わせることになります。システムでは防いでいないので、遭遇した場合は通報してください。
+          </QA>
+        </Category>
+
+        <Category title="キャラクターの報告">
+          <QA q="プロフィールに自分のキャラクターが表示されません。">
+            キャラクターは試合後に対戦相手が報告して初めて表示されます。自分で選ぶ仕組みはありません。試合が終わったばかりなら少し待ってください。しばらく経っても表示されない場合は、相手が報告しなかった可能性があります。
+          </QA>
+          <QA q="相手に間違ったキャラクターを報告されました。">
+            キャラクターランキングは報告を集計して見ているので、1
+            件の誤報告で大きくずれることはありません。悪意のある誤報告が繰り返されていると思う場合は、そのプレイヤーを通報してください。
+          </QA>
+        </Category>
+
+        <Category title="マナー・通報・アカウントの状態">
+          <QA q="試合以外の場所（Discord の DM や配信のチャットなど）で嫌がらせを受けました。">
+            通報システムが対象とするのは、このサイトのランクマッチに関わる行為です。サイト外の出来事については相手をブロックし、深刻な場合は
+            Discord に直接報告してください。
+          </QA>
+          <QA q="通報した相手がどうなったか教えてもらえますか？">
+            いいえ。個々の通報に対する処分内容は公開していません。主に、通報者が特定されて報復を受けないようにするためです。結果が見えなくても通報は有効です。1
+            件の通報だけで処分に至ることはまれですが、同様の通報が重なれば対応につながります。
+          </QA>
+          <QA q="アカウントが利用停止・BAN されました。理由は？異議は申し立てられますか？">
+            上と同じく報復防止のため、状態変更の根拠となった通報の内容は公開していません。間違いだと思う場合は{" "}
+            <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
+              コミュニティの Discord サーバー
+            </a>{" "}
+            でモデレーターか管理者に連絡してください。異議申し立ては通報システムではなく、そちらで受け付けています。
+          </QA>
+          <QA q="利用停止と BAN の違いは何ですか？">
+            利用停止（レベル
+            1）でもランクマッチは遊べます。ランクマッチはサイトの中心で、結果のトラブルには異議申立という別の解決手段があるためです。ただし、フリー対戦への投稿と新たな通報はできなくなり、通報した相手に報復することはできません。BAN（レベル
+            2）ではすべての機能が使えなくなります。
+          </QA>
+        </Category>
+
+        <Category title="アカウント">
+          <QA q="アカウントを削除するには？">
+            プロフィールページの「危険な操作」から削除できます。ユーザー名・アバター・メールアドレスは即座に消去されます。何が残り、なぜ残るのかは{" "}
+            <a href="/privacy" className="underline">
+              プライバシーポリシー
+            </a>{" "}
+            をご覧ください。
+          </QA>
+          <QA q="アカウントの削除を取り消したり、新しいアカウントに統合したりできますか？">
+            同じ Discord
+            アカウントでもう一度ログインすると、新規ではなく元のアカウント（レートや対戦履歴もそのまま）が再開されます。ただし、ユーザー名・アバター・メールアドレスは自分で設定し直すまで消去されたままです。削除したアカウントを別のアカウントに統合する方法はありません。
+          </QA>
+          <QA q="マッチングは世界中に開かれていますか？">
+            はい、誰でも参加できます。ロビーのページで地域とマッチング距離を設定してください。初期設定では同じ地域か近い地域のプレイヤーとマッチし、早くマッチしたい場合は「全世界」まで広げられます。距離設定の詳しい仕組みはルールページをご覧ください。
+          </QA>
+        </Category>
+
+        <Category title="シーズン">
+          <QA q="シーズンが終わるとレートはどうなりますか？">
+            順位が記録されたあと、次のシーズン開始時に全員のレートとセット数がリセットされます。一部だけ戻すのではなく完全にリセットするので、どのシーズンも全員が同じ条件でスタートします。
+          </QA>
+        </Category>
+
+        <Category title="コミュニティとモデレーション">
+          <QA q="Discord サーバーはありますか？">
+            はい。
+            <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
+              こちらから参加
+            </a>
+            できます。交流、サイトの不具合報告、モデレーターや管理者への連絡（BAN
+            への異議申し立てなど）はこちらでどうぞ。
+          </QA>
+          <QA q="モデレーションは誰がやっていますか？">
+            現在、ボランティアで選ばれた 5 人ほどのモデレーター・管理者が担当しています。手伝ってみたい方は、上の
+            Discord サーバーで声をかけてください。
+          </QA>
+          <QA q="日本のスマメイトと関係はありますか？">
+            いいえ。これは{SCENE_LABEL.ja}
+            シーンのために作られた、独立した別運営のプロジェクトです。名前は日本で長く続いてきたオンライン対戦プラットフォームへの敬意を込めて借りていますが、両者に一切のつながりはありません。
+          </QA>
+          <QA q="サイトの開発や運営に AI を使っていますか？">
+            はい。コードの多く、不具合の修正、日々の保守作業（デプロイ、モデレーション用ツール、この Q&amp;A
+            の項目も含む）は AI
+            の支援を受けて行っています。隠すつもりはありません。特定の機能がどう作られたか気になる方は、上の Discord
+            サーバーで聞いてみてください。
+          </QA>
+        </Category>
+      </div>
+    </main>
+  );
+}
+
+const FAQ: Record<Lang, () => React.JSX.Element> = {
+  en: FaqPageEn,
+  es: FaqPageEs,
+  ja: FaqPageJa,
+};

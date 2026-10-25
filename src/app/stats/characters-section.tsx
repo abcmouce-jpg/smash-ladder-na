@@ -13,7 +13,7 @@ import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { Lang } from "@/lib/i18n";
+import { tr, trNode, type Lang } from "@/lib/lang";
 
 // One sortable column per header (character name included). No active sort
 // keeps the roster order SMASH_CHARACTERS already provides.
@@ -244,7 +244,16 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          {lang === "es" ? (
+          {trNode(lang, {
+            en: (
+              <>
+                Click a column header to sort. Mains and secondaries are computed automatically from your actual match
+                history — a secondary needs 10%+ of your games to count. Most echo fighters (Dark Pit, Daisy, Dark
+                Samus, Richter) are counted together with their base fighter — Marth/Lucina, Roy/Chrom, and Ryu/Ken are
+                kept separate. Games and win rate cover ranked games from the selected season.
+              </>
+            ),
+            es: (
             <>
               Haz clic en un encabezado para ordenar. Los mains y secundarios se calculan automáticamente a partir de tu
               historial real de partidas — un secundario necesita 10%+ de tus partidas para contar. La mayoría de los
@@ -252,14 +261,15 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
               Marth/Lucina, Roy/Chrom y Ryu/Ken se mantienen aparte. Juegos y tasa de victorias cubren juegos rankeados
               de la temporada seleccionada.
             </>
-          ) : (
-            <>
-              Click a column header to sort. Mains and secondaries are computed automatically from your actual match
-              history — a secondary needs 10%+ of your games to count. Most echo fighters (Dark Pit, Daisy, Dark Samus,
-              Richter) are counted together with their base fighter — Marth/Lucina, Roy/Chrom, and Ryu/Ken are kept
-              separate. Games and win rate cover ranked games from the selected season.
-            </>
-          )}
+            ),
+            ja: (
+              <>
+                列の見出しをクリックすると並べ替えられます。メインとサブは実際の対戦履歴から自動で算出され、サブとして数えるには試合数の10%以上が必要です。ほとんどのダッシュファイター（Dark
+                Pit、Daisy、Dark Samus、Richter）は元のファイターとまとめて集計しますが、Marth/Lucina、Roy/Chrom、Ryu/Ken
+                は別々に扱います。試合数と勝率は、選択中のシーズンのランク戦が対象です。
+              </>
+            ),
+          })}
         </p>
         {season && (
           <Badge variant="outline" className="shrink-0">
@@ -276,7 +286,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
               <tr className="border-b border-border text-muted-foreground">
                 <th className="py-2 pl-4 pr-2 text-left">
                   <HeaderLink
-                    label={lang === "es" ? "Personaje" : "Character"}
+                    label={tr(lang, { en: "Character", es: "Personaje", ja: "キャラ" })}
                     col="alpha"
                     activeKey={sortKey}
                     activeDir={activeDir}
@@ -284,8 +294,8 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 px-2 text-right">
                   <HeaderLink
-                    label={lang === "es" ? "Jugadores" : "Players"}
-                    sub={lang === "es" ? "mains + secundarios" : "Mains + Secondaries"}
+                    label={tr(lang, { en: "Players", es: "Jugadores", ja: "プレイヤー" })}
+                    sub={tr(lang, { en: "Mains + Secondaries", es: "mains + secundarios", ja: "メイン＋サブ" })}
                     col="players"
                     className="justify-end"
                     activeKey={sortKey}
@@ -294,7 +304,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 px-2 text-right tabular-nums">
                   <HeaderLink
-                    label="Mains"
+                    label={tr(lang, { en: "Mains", es: "Mains", ja: "メイン" })}
                     col="mains"
                     className="justify-end"
                     activeKey={sortKey}
@@ -303,7 +313,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 px-2 text-right tabular-nums">
                   <HeaderLink
-                    label={lang === "es" ? "Juegos" : "Games"}
+                    label={tr(lang, { en: "Games", es: "Juegos", ja: "試合数" })}
                     col="games"
                     className="justify-end"
                     activeKey={sortKey}
@@ -312,7 +322,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 px-2 text-right tabular-nums">
                   <HeaderLink
-                    label={lang === "es" ? "Tasa de victorias" : "Win rate"}
+                    label={tr(lang, { en: "Win rate", es: "Tasa de victorias", ja: "勝率" })}
                     col="winrate"
                     className="justify-end"
                     activeKey={sortKey}
@@ -321,7 +331,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 </th>
                 <th className="py-2 pr-4 pl-2 text-right tabular-nums">
                   <HeaderLink
-                    label={lang === "es" ? "Clasificación media" : "Avg Rating"}
+                    label={tr(lang, { en: "Avg Rating", es: "Clasificación media", ja: "平均レート" })}
                     col="rating"
                     className="justify-end"
                     activeKey={sortKey}

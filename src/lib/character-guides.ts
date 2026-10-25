@@ -11,6 +11,8 @@ import {
 import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { siteOrigin } from "@/lib/site-url";
+import { langOrDefault } from "@/lib/site";
+import { LANGS, type Lang } from "@/lib/lang";
 
 export const MAX_GUIDE_LENGTH = 10000;
 
@@ -116,6 +118,7 @@ export async function getAllGuides(viewerId: string | null): Promise<GuideView[]
 const GUIDE_DM = {
   en: (label: string, link: string) => `📖 New community guide for ${label} — check it out: ${link}`,
   es: (label: string, link: string) => `📖 Nueva guía de la comunidad para ${label} — mírala: ${link}`,
+  ja: (label: string, link: string) => `📖 ${label}の新しい攻略ノートが投稿されました: ${link}`,
 } as const;
 
 // DMs everyone subscribed to a character's bell (the follow button on /notes),
@@ -136,14 +139,14 @@ export async function notifyCharacterGuideSubscribers(character: string, authorI
   });
 
   const link = `${siteOrigin()}/notes`;
-  const en: { discordId: string }[] = [];
-  const es: { discordId: string }[] = [];
+  const byLang: Record<Lang, { discordId: string }[]> = { en: [], es: [], ja: [] };
   for (const subscriber of subscribers) {
     if (!isNotificationEnabled(subscriber, "DM_CHARACTER_GUIDE")) continue;
-    (subscriber.preferredLanguage === "es" ? es : en).push({ discordId: subscriber.discordId });
+    byLang[langOrDefault(subscriber.preferredLanguage)].push({ discordId: subscriber.discordId });
   }
-  if (en.length > 0) await sendDiscordDMsSequentially(en, GUIDE_DM.en(label, link));
-  if (es.length > 0) await sendDiscordDMsSequentially(es, GUIDE_DM.es(label, link));
+  for (const lang of LANGS) {
+    if (byLang[lang].length > 0) await sendDiscordDMsSequentially(byLang[lang], GUIDE_DM[lang](label, link));
+  }
 }
 
 // Defers notifyCharacterGuideSubscribers to run once the creating request

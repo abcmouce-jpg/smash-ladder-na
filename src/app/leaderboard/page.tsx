@@ -332,11 +332,17 @@ export default async function LeaderboardPage({
                       <span className="text-sm font-medium tabular-nums">
                         ${usd} USD
                       </span>
-                      {lang === "es" && usd > 0 && (
-                        <span className="text-[10px] text-muted-foreground">
-                          ≈ ${approxMxn(usd).toLocaleString("es-MX")} MXN
-                        </span>
-                      )}
+                      {/* MXN equivalent is a Spanish-audience nicety only. */}
+                      {usd > 0 &&
+                        trNode(lang, {
+                          en: null,
+                          es: (
+                            <span className="text-[10px] text-muted-foreground">
+                              ≈ ${approxMxn(usd).toLocaleString("es-MX")} MXN
+                            </span>
+                          ),
+                          ja: null,
+                        })}
                     </div>
                   );
                 })}

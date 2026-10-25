@@ -6,8 +6,8 @@ import { OptionSelect } from "@/components/option-select";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { getActiveSeason, listPastSeasons } from "@/lib/seasons";
 import { getHiddenRatingMatchIds, getPlayerMatchCount, getPlayerMatchHistory } from "@/lib/players";
-import type { Lang } from "@/lib/i18n";
 import { MatchHistoryList } from "./match-history-list";
+import { tr, type Lang } from "@/lib/lang";
 
 // Rows per page on the full Match History tab — larger than the overview's
 // recent strip, since this tab exists precisely to browse further back.
@@ -83,44 +83,44 @@ export async function ProfileMatchHistorySection({
             a plain form submit drops any params it doesn't re-declare. */}
         <input type="hidden" name="tab" value="matches" />
         <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-          {lang === "es" ? "Temporada" : "Season"}
+          {tr(lang, { en: "Season", es: "Temporada", ja: "シーズン" })}
           {/* key forces remount so defaultValue syncs when searchParams change */}
           <OptionSelect
             key={seasonId ?? ""}
             name="season"
             defaultValue={seasonId ?? ""}
-            placeholder={lang === "es" ? "Todas las temporadas" : "All seasons"}
-            clearLabel={lang === "es" ? "Todas las temporadas" : "All seasons"}
+            placeholder={tr(lang, { en: "All seasons", es: "Todas las temporadas", ja: "すべてのシーズン" })}
+            clearLabel={tr(lang, { en: "All seasons", es: "Todas las temporadas", ja: "すべてのシーズン" })}
             className="w-full md:w-44"
             searchable
-            searchPlaceholder={lang === "es" ? "Buscar temporadas…" : "Search seasons…"}
+            searchPlaceholder={tr(lang, { en: "Search seasons…", es: "Buscar temporadas…", ja: "シーズンを検索…" })}
             options={seasonOptions}
           />
         </label>
         <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-          {lang === "es" ? "Personaje usado" : "Character played"}
+          {tr(lang, { en: "Character played", es: "Personaje usado", ja: "使用キャラ" })}
           <CharacterSelect
             key={playedCharacter ?? ""}
             name="character"
             defaultValue={playedCharacter ?? ""}
-            placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
-            clearLabel={lang === "es" ? "Todos los personajes" : "All characters"}
+            placeholder={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
+            clearLabel={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
             className="w-full md:w-44"
           />
         </label>
         <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-          {lang === "es" ? "Contra personaje" : "Character against"}
+          {tr(lang, { en: "Character against", es: "Contra personaje", ja: "相手のキャラ" })}
           <CharacterSelect
             key={againstCharacter ?? ""}
             name="against"
             defaultValue={againstCharacter ?? ""}
-            placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
-            clearLabel={lang === "es" ? "Todos los personajes" : "All characters"}
+            placeholder={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
+            clearLabel={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
             className="w-full md:w-44"
           />
         </label>
         <Button type="submit" size="sm" variant="outline" className="h-8 w-full md:w-auto">
-          {lang === "es" ? "Filtrar" : "Filter"}
+          {tr(lang, { en: "Filter", es: "Filtrar", ja: "絞り込む" })}
         </Button>
         {isFiltered && (
           <Link
@@ -128,7 +128,7 @@ export async function ProfileMatchHistorySection({
             prefetch={false}
             className="flex h-8 items-center text-sm text-muted-foreground hover:text-foreground hover:underline"
           >
-            {lang === "es" ? "Limpiar" : "Clear"}
+            {tr(lang, { en: "Clear", es: "Limpiar", ja: "クリア" })}
           </Link>
         )}
       </form>
@@ -136,12 +136,10 @@ export async function ProfileMatchHistorySection({
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-muted-foreground">
-            {lang === "es" ? "Historial de partidas" : "Match history"}
+            {tr(lang, { en: "Match history", es: "Historial de partidas", ja: "対戦履歴" })}
           </h2>
           <Badge variant="outline">
-            {lang === "es"
-              ? `${totalMatchCount} ${totalMatchCount === 1 ? "partida" : "partidas"}`
-              : `${totalMatchCount} ${totalMatchCount === 1 ? "match" : "matches"}`}
+            {tr(lang, { en: `${totalMatchCount} ${totalMatchCount === 1 ? "match" : "matches"}`, es: `${totalMatchCount} ${totalMatchCount === 1 ? "partida" : "partidas"}`, ja: `${totalMatchCount}試合` })}
           </Badge>
         </div>
         {totalPages > 1 && (
@@ -157,13 +155,17 @@ export async function ProfileMatchHistorySection({
 
       {history.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          {lang === "es"
-            ? isFiltered
-              ? "Ninguna partida coincide con estos filtros."
-              : "Aún no hay partidas confirmadas."
-            : isFiltered
-              ? "No matches match these filters."
-              : "No confirmed matches yet."}
+          {isFiltered
+            ? tr(lang, {
+                en: "No matches match these filters.",
+                es: "Ninguna partida coincide con estos filtros.",
+                ja: "条件に一致する試合はありません。",
+              })
+            : tr(lang, {
+                en: "No confirmed matches yet.",
+                es: "Aún no hay partidas confirmadas.",
+                ja: "確定した試合はまだありません。",
+              })}
         </p>
       ) : (
         <MatchHistoryList
@@ -213,13 +215,13 @@ function MatchHistoryPaginationControls({
   return (
     <div className="flex items-center gap-2 text-sm">
       <MatchHistoryPageLink playerId={playerId} page={page - 1} filters={filters} disabled={page <= 1}>
-        {lang === "es" ? "← Anterior" : "← Previous"}
+        {tr(lang, { en: "← Previous", es: "← Anterior", ja: "← 前へ" })}
       </MatchHistoryPageLink>
       <span className="text-muted-foreground tabular-nums">
-        {lang === "es" ? `Página ${page} de ${totalPages}` : `Page ${page} of ${totalPages}`}
+        {tr(lang, { en: `Page ${page} of ${totalPages}`, es: `Página ${page} de ${totalPages}`, ja: `${totalPages}ページ中${page}ページ目` })}
       </span>
       <MatchHistoryPageLink playerId={playerId} page={page + 1} filters={filters} disabled={page >= totalPages}>
-        {lang === "es" ? "Siguiente →" : "Next →"}
+        {tr(lang, { en: "Next →", es: "Siguiente →", ja: "次へ →" })}
       </MatchHistoryPageLink>
     </div>
   );

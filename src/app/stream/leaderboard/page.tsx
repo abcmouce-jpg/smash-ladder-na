@@ -6,6 +6,7 @@ import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 import { getLang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 import { formatRating } from "@/lib/rating-format";
 
 const DEFAULT_LIMIT = 10;
@@ -77,7 +78,7 @@ export default async function StreamLeaderboardPage({
       </table>
       {players.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? "Aún no hay jugadores rankeados." : "No ranked players yet."}
+          {tr(lang, { en: "No ranked players yet.", es: "Aún no hay jugadores rankeados.", ja: "ランク入りプレイヤーはまだいません。" })}
         </p>
       )}
     </div>

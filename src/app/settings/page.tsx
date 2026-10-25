@@ -46,7 +46,7 @@ import {
   updatePostMatchMessageAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
-import { tr, trNode } from "@/lib/lang";
+import { asLang, tr, trNode } from "@/lib/lang";
 
 // ?tab= picks which group of settings renders, so each stays deep-linkable and
 // server-rendered — same pattern as the Stats, Notes, and profile pages.
@@ -1195,46 +1195,46 @@ function PageTitle({ lang }: { lang: Lang }) {
   );
 }
 
+// Endonyms, so each option is readable by the person who needs it.
+const LANGUAGE_OPTIONS: { lang: Lang; label: string }[] = [
+  { lang: "en", label: "English" },
+  { lang: "es", label: "Español" },
+  { lang: "ja", label: "日本語" },
+];
+
 function PreferredLanguageForm({ currentLang }: { currentLang: Lang }) {
-  async function setEnglish() {
+  async function setLanguage(formData: FormData) {
     "use server";
-    await setLangAction("en");
-  }
-  async function setSpanish() {
-    "use server";
-    await setLangAction("es");
+    const lang = asLang(formData.get("lang")?.toString());
+    if (lang) await setLangAction(lang);
   }
 
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="text-sm">
-        <p>{currentLang === "es" ? "Idioma" : "Language"}</p>
+        <p>{tr(currentLang, { en: "Language", es: "Idioma", ja: "言語" })}</p>
         <p className="text-xs font-normal text-muted-foreground">
-          {currentLang === "es"
-            ? "Cambia el idioma de todo el sitio (excepto las páginas de administración). También puedes cambiarlo desde el enlace en la parte superior de cualquier página."
-            : "Changes the language across the whole site (except admin pages). You can also switch it from the link at the top of any page."}
+          {tr(currentLang, {
+            en: "Changes the language across the whole site (except admin pages). You can also switch it from the link at the top of any page.",
+            es: "Cambia el idioma de todo el sitio (excepto las páginas de administración). También puedes cambiarlo desde el enlace en la parte superior de cualquier página.",
+            ja: "サイト全体の表示言語を切り替えます（管理ページを除く）。各ページ上部のリンクからも変更できます。",
+          })}
         </p>
       </div>
-      <div className="flex shrink-0 gap-2">
-        <form action={setEnglish}>
+      <form action={setLanguage} className="flex shrink-0 gap-2">
+        {LANGUAGE_OPTIONS.map((o) => (
           <Button
+            key={o.lang}
             type="submit"
+            name="lang"
+            value={o.lang}
             size="sm"
-            variant={currentLang === "en" ? "default" : "outline"}
+            variant={currentLang === o.lang ? "default" : "outline"}
           >
-            English
+            {o.label}
           </Button>
-        </form>
-        <form action={setSpanish}>
-          <Button
-            type="submit"
-            size="sm"
-            variant={currentLang === "es" ? "default" : "outline"}
-          >
-            Español
-          </Button>
-        </form>
-      </div>
+        ))}
+      </form>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const WIDTH = 640;
 const HEIGHT = 220;
@@ -30,9 +31,11 @@ export function RatingTrendChart({
   if (data.length < 2) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Todavía no hay suficientes partidas confirmadas para una gráfica."
-          : "Not enough confirmed matches yet for a trend line."}
+        {tr(lang, {
+          en: "Not enough confirmed matches yet for a trend line.",
+          es: "Todavía no hay suficientes partidas confirmadas para una gráfica.",
+          ja: "推移グラフを表示するには、確定した試合がまだ足りません。",
+        })}
       </p>
     );
   }
@@ -69,7 +72,11 @@ export function RatingTrendChart({
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full overflow-visible"
         role="img"
-        aria-label={lang === "es" ? "Gráfica de clasificación a lo largo del tiempo" : "Rating over time chart"}
+        aria-label={tr(lang, {
+          en: "Rating over time chart",
+          es: "Gráfica de clasificación a lo largo del tiempo",
+          ja: "レート推移グラフ",
+        })}
       >
         {ticks.map((t) => (
           <g key={t}>
@@ -130,7 +137,7 @@ export function RatingTrendChart({
         >
           <div className="font-medium tabular-nums">{Math.round(hovered.rating)}</div>
           <div className="text-muted-foreground">
-            {hovered.date.toLocaleDateString(lang === "es" ? "es-MX" : "en-US", { dateStyle: "medium" })}
+            {hovered.date.toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" }), { dateStyle: "medium" })}
           </div>
         </div>
       )}

@@ -12,6 +12,7 @@ import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { siteOrigin } from "@/lib/site-url";
 import { isNotificationEnabled } from "@/lib/notifications";
+import { langOrDefault } from "@/lib/site";
 
 // isPracticing lives on the join (RatingLobbyEntry), not the user, since
 // it's a per-session choice — avoidPracticeOpponents is the user-level
@@ -335,10 +336,11 @@ function deferNotification(notify: () => Promise<unknown>) {
 }
 
 // The "match found" DM copy, mirroring MATCH_FOUND_MESSAGES in push-server.ts
-// — same event, same en/es split by the player's preferredLanguage.
+// — same event, same per-language split by the player's preferredLanguage.
 const MATCH_FOUND_DM = {
   en: (link: string) => `🎮 Match found! You've been paired — head to the Lobby to play: ${link}`,
   es: (link: string) => `🎮 ¡Partida encontrada! Te emparejaron — ve a la Sala para jugar: ${link}`,
+  ja: (link: string) => `🎮 対戦相手が見つかりました！ロビーへ移動して対戦しましょう: ${link}`,
 };
 
 // DMs both players through the Discord bot once a match exists, alongside the
@@ -359,7 +361,7 @@ export async function notifyMatchFoundViaDiscord(player1Id: string, player2Id: s
   const link = `${siteOrigin()}/lobby`;
   for (const player of players) {
     if (!isNotificationEnabled(player, "DM_MATCH_FOUND")) continue;
-    const copy = player.preferredLanguage === "es" ? MATCH_FOUND_DM.es : MATCH_FOUND_DM.en;
+    const copy = MATCH_FOUND_DM[langOrDefault(player.preferredLanguage)];
     await sendDiscordDM(player.discordId, copy(link));
   }
 }

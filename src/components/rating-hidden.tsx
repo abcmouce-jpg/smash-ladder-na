@@ -1,5 +1,6 @@
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Stands in wherever a player's rating would be shown while they're still
 // provisional (see isRatingVisible). Reads "Provisional" to echo the tier badge
@@ -24,16 +25,13 @@ export function RatingHidden({
 }) {
   const progress = `${gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD}`;
   const noun = practice
-    ? lang === "es"
-      ? "Clasificación de práctica"
-      : "Practice rating"
-    : lang === "es"
-      ? "Clasificación"
-      : "Rating";
-  const rule =
-    lang === "es"
-      ? `${noun} se muestra después de ${PROVISIONAL_GAMES_THRESHOLD} partidas`
-      : `${noun} is shown after ${PROVISIONAL_GAMES_THRESHOLD} sets`;
+    ? tr(lang, { en: "Practice rating", es: "Clasificación de práctica", ja: "練習用レート" })
+    : tr(lang, { en: "Rating", es: "Clasificación", ja: "レート" });
+  const rule = tr(lang, {
+    en: `${noun} is shown after ${PROVISIONAL_GAMES_THRESHOLD} sets`,
+    es: `${noun} se muestra después de ${PROVISIONAL_GAMES_THRESHOLD} partidas`,
+    ja: `${noun}は${PROVISIONAL_GAMES_THRESHOLD}セット終えると表示されます`,
+  });
   return (
     <span className={className} title={rule}>
       Provisional ({progress})

@@ -1,7 +1,8 @@
 import { ChartLine } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { getLang, type Lang } from "@/lib/i18n";
+import { getLang } from "@/lib/i18n";
+import { tr, type Lang } from "@/lib/lang";
 import { getPersonalAnalytics } from "@/lib/player-analytics";
 import { isEffectiveGoldSupporter, GOLD_SUPPORTER_MIN_AMOUNT_USD } from "@/lib/supporters";
 import { KOFI_URL } from "@/lib/links";
@@ -21,9 +22,11 @@ export default async function AnalyticsPage() {
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "es"
-            ? "Inicia sesión con Discord (arriba a la derecha) para ver tus estadísticas."
-            : "Sign in with Discord (top right) to view your analytics."}
+          {tr(lang, {
+            en: "Sign in with Discord (top right) to view your analytics.",
+            es: "Inicia sesión con Discord (arriba a la derecha) para ver tus estadísticas.",
+            ja: "右上の Discord でログインすると、自分の分析が見られます。",
+          })}
         </p>
       </main>
     );
@@ -44,12 +47,14 @@ export default async function AnalyticsPage() {
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "es"
-            ? `Esto es exclusivo para colaboradores Gold ($${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ en Ko-fi): tu gráfica de clasificación, y el desglose de victorias por personaje y escenario.`
-            : `This is Gold-supporter exclusive ($${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ on Ko-fi): your rating trend, and a win-rate breakdown by character and stage.`}
+          {tr(lang, {
+            en: `This is Gold-supporter exclusive ($${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ on Ko-fi): your rating trend, and a win-rate breakdown by character and stage.`,
+            es: `Esto es exclusivo para colaboradores Gold ($${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ en Ko-fi): tu gráfica de clasificación, y el desglose de victorias por personaje y escenario.`,
+            ja: `ゴールドサポーター（Ko-fi で $${GOLD_SUPPORTER_MIN_AMOUNT_USD}以上）限定の機能です。レートの推移と、キャラ別・ステージ別の勝率を確認できます。`,
+          })}
         </p>
         <a href={KOFI_URL} target="_blank" rel="noreferrer" className="mt-4 block w-fit">
-          <Button type="button">{lang === "es" ? "Ir a Ko-fi" : "Go to Ko-fi"}</Button>
+          <Button type="button">{tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi", ja: "Ko-fi へ" })}</Button>
         </a>
       </main>
     );
@@ -64,7 +69,7 @@ export default async function AnalyticsPage() {
       <div className="mt-8 flex flex-col gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{lang === "es" ? "Clasificación a lo largo del tiempo" : "Rating over time"}</CardTitle>
+            <CardTitle className="text-base">{tr(lang, { en: "Rating over time", es: "Clasificación a lo largo del tiempo", ja: "レートの推移" })}</CardTitle>
           </CardHeader>
           <CardContent>
             <RatingTrendChart data={ratingTrend} lang={lang} />
@@ -73,26 +78,34 @@ export default async function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{lang === "es" ? "Porcentaje de victorias por personaje" : "Win rate by character"}</CardTitle>
+            <CardTitle className="text-base">{tr(lang, { en: "Win rate by character", es: "Porcentaje de victorias por personaje", ja: "キャラ別勝率" })}</CardTitle>
           </CardHeader>
           <CardContent>
             <WinRateBars
               rows={characterWinRates}
               lang={lang}
-              emptyMessage={lang === "es" ? "Todavía no hay partidas confirmadas." : "No confirmed matches yet."}
+              emptyMessage={tr(lang, {
+                en: "No confirmed matches yet.",
+                es: "Todavía no hay partidas confirmadas.",
+                ja: "確定した試合はまだありません。",
+              })}
             />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{lang === "es" ? "Porcentaje de victorias por escenario" : "Win rate by stage"}</CardTitle>
+            <CardTitle className="text-base">{tr(lang, { en: "Win rate by stage", es: "Porcentaje de victorias por escenario", ja: "ステージ別勝率" })}</CardTitle>
           </CardHeader>
           <CardContent>
             <WinRateBars
               rows={stageWinRates}
               lang={lang}
-              emptyMessage={lang === "es" ? "Todavía no hay partidas confirmadas." : "No confirmed matches yet."}
+              emptyMessage={tr(lang, {
+                en: "No confirmed matches yet.",
+                es: "Todavía no hay partidas confirmadas.",
+                ja: "確定した試合はまだありません。",
+              })}
             />
           </CardContent>
         </Card>
@@ -106,10 +119,10 @@ function PageTitle({ lang }: { lang: Lang }) {
     <>
       <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
         <ChartLine className="size-6 text-primary" />
-        {lang === "es" ? "🏆 Análisis" : "🏆 Analytics"}
+        {tr(lang, { en: "🏆 Analytics", es: "🏆 Análisis", ja: "🏆 分析" })}
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {lang === "es" ? "Exclusivo para colaboradores Gold." : "Gold supporter exclusive."}
+        {tr(lang, { en: "Gold supporter exclusive.", es: "Exclusivo para colaboradores Gold.", ja: "ゴールドサポーター限定。" })}
       </p>
     </>
   );

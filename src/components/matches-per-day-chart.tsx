@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useBrowserTimeZone } from "@/hooks/use-browser-time-zone";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const WIDTH = 560;
 const HEIGHT = 160;
@@ -60,23 +61,36 @@ export function MatchesPerDayChart({
   const dayEntries = keys.map((key) => ({ key, count: counts.get(key)! }));
   const total = dayEntries.reduce((sum, d) => sum + d.count, 0);
 
-  const months = lang === "es" ? MONTHS_ES : MONTHS_EN;
+  // Japanese writes dates numerically (10月25日), so it needs no month table.
+  const shortDateLabel = (month: number, day: number) =>
+    tr(lang, {
+      en: `${MONTHS_EN[month - 1]} ${day}`,
+      es: `${day} ${MONTHS_ES[month - 1]}`,
+      ja: `${month}月${day}日`,
+    });
   const dateLabel = (key: string) => {
     const [year, month, day] = key.split("-").map(Number);
-    if (lang === "es") return `${day} ${months[month - 1]} ${year}`;
-    return `${months[month - 1]} ${day}, ${year}`;
+    return tr(lang, {
+      en: `${MONTHS_EN[month - 1]} ${day}, ${year}`,
+      es: `${day} ${MONTHS_ES[month - 1]} ${year}`,
+      ja: `${year}年${month}月${day}日`,
+    });
   };
   const countLabel = (count: number) =>
-    lang === "es"
-      ? `${count} ${count === 1 ? "partida" : "partidas"}`
-      : `${count} ${count === 1 ? "match" : "matches"}`;
+    tr(lang, {
+      en: `${count} ${count === 1 ? "match" : "matches"}`,
+      es: `${count} ${count === 1 ? "partida" : "partidas"}`,
+      ja: `${count}試合`,
+    });
 
   if (total === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? `Aún no hay partidas confirmadas en los últimos ${days} días.`
-          : `No confirmed matches in the last ${days} days yet.`}
+        {tr(lang, {
+          en: `No confirmed matches in the last ${days} days yet.`,
+          es: `Aún no hay partidas confirmadas en los últimos ${days} días.`,
+          ja: `過去${days}日間に確定した試合はまだありません。`,
+        })}
       </p>
     );
   }
@@ -114,7 +128,11 @@ export function MatchesPerDayChart({
         onMouseLeave={() => setHoverIndex(null)}
         role="img"
         aria-label={
-          lang === "es" ? `Partidas por día en los últimos ${days} días` : `Matches per day over the last ${days} days`
+          tr(lang, {
+            en: `Matches per day over the last ${days} days`,
+            es: `Partidas por día en los últimos ${days} días`,
+            ja: `過去${days}日間の1日あたりの試合数`,
+          })
         }
       >
         {gridLines.map((g) => (
@@ -191,7 +209,7 @@ export function MatchesPerDayChart({
               className="fill-muted-foreground"
               style={{ fontSize: 9 }}
             >
-              {lang === "es" ? `${day} ${months[month - 1]}` : `${months[month - 1]} ${day}`}
+              {shortDateLabel(month, day)}
             </text>
           );
         })}
@@ -200,23 +218,25 @@ export function MatchesPerDayChart({
       <div className="flex h-5 items-center justify-center text-xs text-muted-foreground">
         {hovered && hoverIndex !== null
           ? `${dateLabel(dayEntries[hoverIndex].key)} — ${countLabel(dayEntries[hoverIndex].count)}`
-          : lang === "es"
-            ? `${total} partidas confirmadas en los últimos ${days} días`
-            : `${total} confirmed matches in the last ${days} days`}
+          : tr(lang, {
+              en: `${total} confirmed matches in the last ${days} days`,
+              es: `${total} partidas confirmadas en los últimos ${days} días`,
+              ja: `過去${days}日間に確定した試合：${total}試合`,
+            })}
       </div>
 
       {/* Hover is undiscoverable on touch devices, which is what the
           rating chart's table fallback is for too. */}
       <details className="mt-2 text-xs">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          {lang === "es" ? "Ver como tabla" : "View as table"}
+          {tr(lang, { en: "View as table", es: "Ver como tabla", ja: "表で見る" })}
         </summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="text-muted-foreground">
-                <th className="py-1 font-medium">{lang === "es" ? "Fecha" : "Date"}</th>
-                <th className="py-1 text-right font-medium tabular-nums">{lang === "es" ? "Partidas" : "Matches"}</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Date", es: "Fecha", ja: "日付" })}</th>
+                <th className="py-1 text-right font-medium tabular-nums">{tr(lang, { en: "Matches", es: "Partidas", ja: "試合数" })}</th>
               </tr>
             </thead>
             <tbody>

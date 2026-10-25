@@ -17,6 +17,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { siteOrigin } from "@/lib/site-url";
 import "./globals.css";
 import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
+import { getLang } from "@/lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -96,9 +97,13 @@ export default async function RootLayout({
   const blockedForDiscord =
     !isStreamOverlay && pathname !== "/join-discord" && Boolean(session?.user?.needsDiscordJoin);
 
+  // The language the page is actually rendered in, so screen readers, the
+  // browser's translate prompt and CJK font selection all see the truth.
+  const lang = await getLang();
+
   return (
     <html
-      lang="en"
+      lang={lang}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >

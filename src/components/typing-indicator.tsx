@@ -1,6 +1,7 @@
 "use client";
 
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 export function TypingIndicator({ opponentName, lang = "en" }: { opponentName: string; lang?: Lang }) {
   return (
@@ -10,7 +11,13 @@ export function TypingIndicator({ opponentName, lang = "en" }: { opponentName: s
         <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
         <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
       </span>
-      <span>{lang === "es" ? `${opponentName} está escribiendo…` : `${opponentName} is typing…`}</span>
+      <span>
+        {tr(lang, {
+          en: `${opponentName} is typing…`,
+          es: `${opponentName} está escribiendo…`,
+          ja: `${opponentName} さんが入力中…`,
+        })}
+      </span>
     </div>
   );
 }

@@ -10,6 +10,8 @@ import { CharacterIcon } from "@/components/character-icon";
 import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 import { StagePickHighlight } from "@/components/stage-pick-highlight";
 import { getLang } from "@/lib/i18n";
+import { asLang, tr } from "@/lib/lang";
+import { SITE_NAME_PARTS } from "@/lib/site";
 import { bothCharactersLocked } from "@/lib/match-games";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES, stageImagePath } from "@/lib/stages";
 import { formatRating } from "@/lib/rating-format";
@@ -45,7 +47,7 @@ function nowMs() {
 //   hideStageBans=1    — hides the stage pick/ban panel (bottom-center);
 //                        hidden by default — streamers opt in by removing
 //                        it in the settings toggle
-//   lang=es            — Spanish labels (OBS's embedded browser doesn't
+//   lang=es|ja|en      — label language (OBS's embedded browser doesn't
 //                         share cookies with the streamer's own browser, so
 //                         the usual cookie/DB language resolution can't
 //                         reach this page — an explicit query param is the
@@ -65,7 +67,7 @@ export default async function StreamOverlayPage({
 }) {
   const { id } = await params;
   const { hideRecentMatches, hideRatingCard, hideStageBans, lang: langParam } = await searchParams;
-  const lang = langParam === "es" ? "es" : langParam === "en" ? "en" : await getLang();
+  const lang = asLang(langParam) ?? (await getLang());
 
   const user = await prisma.user.findUnique({
     where: { id },
@@ -97,10 +99,20 @@ export default async function StreamOverlayPage({
       orderBy: { createdAt: "desc" },
       include: {
         player1: {
-          select: { id: true, username: true, rating: true, gamesPlayed: true },
+          select: {
+            id: true,
+            username: true,
+            rating: true,
+            gamesPlayed: true,
+          },
         },
         player2: {
-          select: { id: true, username: true, rating: true, gamesPlayed: true },
+          select: {
+            id: true,
+            username: true,
+            rating: true,
+            gamesPlayed: true,
+          },
         },
       },
     }),
@@ -237,7 +249,7 @@ export default async function StreamOverlayPage({
         <div className="absolute left-8 top-8">
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {lang === "es" ? "Clas." : "Rating"}
+              {tr(lang, { en: "Rating", es: "Clas.", ja: "レート" })}
             </span>
             <RankBadge rating={user.rating} gamesPlayed={user.gamesPlayed} className="text-md mx-3 px-3 py-1" />
             <div className="mt-1 flex items-baseline gap-4">
@@ -249,15 +261,25 @@ export default async function StreamOverlayPage({
             <div className="mt-1.5 flex items-center gap-4">
               {rank && (
                 <span className="text-2xl text-white/50">
-                  {lang === "es" ? `Rango #${rank}/${totalPlayers}` : `Rank #${rank}/${totalPlayers}`}
+                  {tr(lang, {
+                    en: `Rank #${rank}/${totalPlayers}`,
+                    es: `Rango #${rank}/${totalPlayers}`,
+                    ja: `${totalPlayers}人中 ${rank}位`,
+                  })}
                 </span>
               )}
             </div>
 
             <div className="text-white mt-1.5 flex items-center gap-5 text-xl">
-              {lang === "es" ? "Hoy:" : "Today:"}
-              <span className="text-emerald-400 font-semibold">{dailyStats.totalWins}W</span>
-              <span className="text-red-400 font-semibold">{dailyStats.totalLosses}L</span>
+              {tr(lang, { en: "Today:", es: "Hoy:", ja: "今日:" })}
+              <span className="text-emerald-400 font-semibold">
+                {dailyStats.totalWins}
+                {tr(lang, { en: "W", es: "W", ja: "勝" })}
+              </span>
+              <span className="text-red-400 font-semibold">
+                {dailyStats.totalLosses}
+                {tr(lang, { en: "L", es: "L", ja: "敗" })}
+              </span>
             </div>
 
             {user.region && (
@@ -281,7 +303,7 @@ export default async function StreamOverlayPage({
           <>
             {/* Best of 5 label */}
             <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
-              {lang === "es" ? "Mejor de 5" : "Best of 5"}
+              {tr(lang, { en: "Best of 5", es: "Mejor de 5", ja: "3本先取" })}
             </span>
 
             {/* Scoreboard */}
@@ -352,12 +374,20 @@ export default async function StreamOverlayPage({
         <div className="absolute right-8" style={{ top: "calc(2.5rem + 96px)" }}>
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {lang === "es" ? "Partidas recientes" : "Recent matches"}
+              {tr(lang, {
+                en: "Recent matches",
+                es: "Partidas recientes",
+                ja: "最近の対戦",
+              })}
             </span>
             <div className="mt-3 flex flex-col gap-2">
               {recentMatches.length === 0 ? (
                 <span className="text-lg text-white/40">
-                  {lang === "es" ? "Aún no hay partidas" : "No matches yet"}
+                  {tr(lang, {
+                    en: "No matches yet",
+                    es: "Aún no hay partidas",
+                    ja: "まだ対戦はありません",
+                  })}
                 </span>
               ) : (
                 recentMatches.map((match) => (
@@ -367,7 +397,7 @@ export default async function StreamOverlayPage({
                         match.won ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
-                      {match.won ? (lang === "es" ? "V" : "W") : lang === "es" ? "D" : "L"}
+                      {match.won ? tr(lang, { en: "W", es: "V", ja: "勝" }) : tr(lang, { en: "L", es: "D", ja: "負" })}
                     </span>
                     <span className="min-w-0 max-w-48 truncate text-white/80">{match.opponent.username}</span>
                     <span
@@ -400,9 +430,17 @@ export default async function StreamOverlayPage({
           <StagePickHighlight autoHide={showPickHighlight} holdMs={PICK_HIGHLIGHT_HOLD_MS}>
             <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-4 shadow-2xl backdrop-blur-sm">
               <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-                {lang === "es"
-                  ? `Juego ${currentGame.gameNumber} — ${pickedStage ? "Escenario elegido" : "Elección de escenario"}`
-                  : `Game ${currentGame.gameNumber} — ${pickedStage ? "Stage picked" : "Stage pick/ban"}`}
+                {pickedStage
+                  ? tr(lang, {
+                      en: `Game ${currentGame.gameNumber} — Stage picked`,
+                      es: `Juego ${currentGame.gameNumber} — Escenario elegido`,
+                      ja: `第${currentGame.gameNumber}試合 — ステージ決定`,
+                    })
+                  : tr(lang, {
+                      en: `Game ${currentGame.gameNumber} — Stage pick/ban`,
+                      es: `Juego ${currentGame.gameNumber} — Elección de escenario`,
+                      ja: `第${currentGame.gameNumber}試合 — ステージ選択/BAN`,
+                    })}
               </span>
               <div className="mt-3 flex gap-2">
                 {stagePool.map((stage) => {
@@ -421,7 +459,11 @@ export default async function StreamOverlayPage({
                       )}
                       {picked && (
                         <span className="absolute inset-x-0 top-0 z-30 bg-emerald-500/90 px-1 py-0.5 text-center text-[10px] font-bold tracking-wider text-white uppercase">
-                          {lang === "es" ? "Elegido" : "Picked"}
+                          {tr(lang, {
+                            en: "Picked",
+                            es: "Elegido",
+                            ja: "決定",
+                          })}
                         </span>
                       )}
                       {owner && (
@@ -451,7 +493,8 @@ export default async function StreamOverlayPage({
         <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-2 shadow-2xl backdrop-blur-sm">
           <Image src="/smash_ladder_icon_white.png" alt="" width={256} height={256} className={`block size-12`} />
           <span className={`font-semibold tracking-tight text-white text-xl`}>
-            Smash Ladder <span className="text-primary">NA</span>
+            {SITE_NAME_PARTS.lead && `${SITE_NAME_PARTS.lead} `}
+            <span className="text-primary">{SITE_NAME_PARTS.accent}</span>
           </span>
         </div>
       </div>

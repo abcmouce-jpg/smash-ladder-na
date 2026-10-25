@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Lang } from "@/lib/i18n";
+import { trNode } from "@/lib/lang";
 
 function msRemaining(deadlineMs: number) {
   return Math.max(0, deadlineMs - Date.now());
@@ -47,11 +48,11 @@ export function QueueCooldownGate({
 
   return (
     <p className="text-sm text-muted-foreground">
-      {lang === "es" ? (
-        <>Perdiste tu última partida por tiempo — puedes volver a entrar a la cola en {countdown}.</>
-      ) : (
-        <>You timed out of your last match — you can queue again in {countdown}.</>
-      )}
+      {trNode(lang, {
+        en: <>You timed out of your last match — you can queue again in {countdown}.</>,
+        es: <>Perdiste tu última partida por tiempo — puedes volver a entrar a la cola en {countdown}.</>,
+        ja: <>前回の試合はタイムアウトになりました。あと {countdown} で再び待機できます。</>,
+      })}
     </p>
   );
 }

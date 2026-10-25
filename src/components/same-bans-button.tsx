@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
-import type { Lang } from "@/lib/i18n";
+import { tr, type Lang } from "@/lib/lang";
 
 export function SameBansButton({
   action,
@@ -24,7 +24,11 @@ export function SameBansButton({
 
   const button = (
     <Button type="submit" size="sm" variant="default" disabled={!canAct}>
-      {lang === "es" ? `Mismos bans que el juego ${gameNumber}` : `Same bans as Game ${gameNumber}`}
+      {tr(lang, {
+        en: `Same bans as Game ${gameNumber}`,
+        es: `Mismos bans que el juego ${gameNumber}`,
+        ja: `第${gameNumber}試合と同じBAN`,
+      })}
     </Button>
   );
 

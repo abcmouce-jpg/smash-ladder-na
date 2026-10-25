@@ -8,10 +8,14 @@ import { getCharacterMatchups } from "@/lib/profile-stats";
 import { formatUsagePercent } from "@/lib/character-usage-display";
 import type { CharacterUsage } from "@/lib/players";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 function gamesLabel(count: number, lang: Lang) {
-  if (lang === "es") return count === 1 ? "partida" : "partidas";
-  return count === 1 ? "game" : "games";
+  return tr(lang, {
+    en: count === 1 ? "game" : "games",
+    es: count === 1 ? "partida" : "partidas",
+    ja: "試合",
+  });
 }
 
 // Per-character matchup breakdowns. The character list on the left is the
@@ -35,7 +39,11 @@ export async function ProfileCharactersSection({
   if (usage.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es" ? "Aún no hay partidas rankeadas registradas." : "No ranked games recorded yet."}
+        {tr(lang, {
+          en: "No ranked games recorded yet.",
+          es: "Aún no hay partidas rankeadas registradas.",
+          ja: "ランク戦の記録はまだありません。",
+        })}
       </p>
     );
   }
@@ -59,7 +67,7 @@ export async function ProfileCharactersSection({
   return (
     <div className="grid items-start gap-6 sm:grid-cols-[220px_1fr]">
       <nav
-        aria-label={lang === "es" ? "Personajes" : "Characters"}
+        aria-label={tr(lang, { en: "Characters", es: "Personajes", ja: "キャラ" })}
         className="flex flex-col gap-1 sm:max-h-128 sm:overflow-y-auto sm:pr-1"
       >
         {usage.map((u) => {
@@ -122,14 +130,18 @@ export async function ProfileCharactersSection({
                 ·
               </span>
               <span className="tabular-nums">
-                {formatUsagePercent(selectedUsage.usagePercent)} {lang === "es" ? "de uso" : "usage"}
+                {tr(lang, {
+                  en: `${formatUsagePercent(selectedUsage.usagePercent)} usage`,
+                  es: `${formatUsagePercent(selectedUsage.usagePercent)} de uso`,
+                  ja: `使用率 ${formatUsagePercent(selectedUsage.usagePercent)}`,
+                })}
               </span>
             </p>
           </div>
         </div>
 
         <div className="mt-6">
-          <SectionHeading>{lang === "es" ? "Enfrentamientos" : "Matchups"}</SectionHeading>
+          <SectionHeading>{tr(lang, { en: "Matchups", es: "Enfrentamientos", ja: "キャラ対策" })}</SectionHeading>
         </div>
 
         {breakdown && breakdown.matchups.length > 0 ? (
@@ -175,7 +187,11 @@ export async function ProfileCharactersSection({
           </ul>
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">
-            {lang === "es" ? "Aún no hay enfrentamientos registrados." : "No recorded matchups yet."}
+            {tr(lang, {
+              en: "No recorded matchups yet.",
+              es: "Aún no hay enfrentamientos registrados.",
+              ja: "対キャラの記録はまだありません。",
+            })}
           </p>
         )}
       </section>

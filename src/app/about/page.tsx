@@ -1,8 +1,9 @@
 import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
-import { SITE_NAME } from "@/lib/site";
+import { SCENE_LABEL, SITE_NAME } from "@/lib/site";
 
 export const metadata = { title: `About — ${SITE_NAME}` };
 
@@ -13,7 +14,7 @@ const copy = {
     whatTitle: "What this is",
     what: (
       <>
-        {SITE_NAME} is a ranked ladder and matchmaking site for the North American Super Smash Bros. Ultimate
+        {SITE_NAME} is a ranked ladder and matchmaking site for the {SCENE_LABEL.en} Super Smash Bros. Ultimate
         community. Sign in with Discord, set a region and match preferences, and get paired against opponents around
         your skill level — no bracket, no sign-up window, just queue up and play. Preseason launched July 2026, with a
         full first season to follow.
@@ -24,7 +25,7 @@ const copy = {
       <>
         Competitive Smash has plenty of tournament infrastructure (start.gg and friends) but not much for the
         day-to-day: finding a real ranked opponent outside of an event. This fills that gap — a Glicko-2 rating,
-        seasonal leaderboards, and Friendlies for casual matches, all built around the North American scene
+        seasonal leaderboards, and Friendlies for casual matches, all built around the {SCENE_LABEL.en} scene
         specifically.
       </>
     ),
@@ -72,8 +73,8 @@ const copy = {
     whatTitle: "Qué es esto",
     what: (
       <>
-        {SITE_NAME} es un sitio de liga clasificatoria y emparejamiento para la comunidad de Super Smash Bros.
-        Ultimate de Norteamérica. Inicia sesión con Discord, define una región y tus preferencias de partida, y te
+        {SITE_NAME} es un sitio de liga clasificatoria y emparejamiento para la comunidad {SCENE_LABEL.es} de Super
+        Smash Bros. Ultimate. Inicia sesión con Discord, define una región y tus preferencias de partida, y te
         emparejamos con rivales de tu nivel — sin bracket, sin ventana de inscripción, solo entrar a la cola y jugar. La
         preseason arrancó en julio de 2026, con una primera temporada completa después.
       </>
@@ -84,7 +85,7 @@ const copy = {
         La escena competitiva de Smash tiene mucha infraestructura para torneos (start.gg y similares) pero poco para el
         día a día: encontrar un rival rankeado real fuera de un evento. Esto llena ese vacío — una clasificación
         Glicko-2, tablas de posiciones por temporada, y Amistosos para partidas casuales, todo construido pensando en la
-        escena de Norteamérica específicamente.
+        escena {SCENE_LABEL.es} específicamente.
       </>
     ),
     whoTitle: "Quién lo administra",
@@ -125,11 +126,60 @@ const copy = {
     communityDiscord: "servidor de Discord de la comunidad",
     rules: "Reglas",
   },
-} satisfies Partial<Record<Lang, unknown>>;
+  ja: {
+    heading: "このサイトについて",
+    subtitle: `${SITE_NAME} の運営者と、サイトの目的について。`,
+    whatTitle: "どんなサイト？",
+    what: (
+      <>
+        {SITE_NAME} は、{SCENE_LABEL.ja}大乱闘スマッシュブラザーズ SPECIAL コミュニティ向けのランクラダー兼マッチングサイトです。Discord
+        でログインして地域と対戦設定を決めれば、実力の近い相手とマッチングします。トーナメント表もエントリー期間もなく、待機して対戦するだけです。2026年7月にプレシーズンが始まり、その後に正式な第1シーズンが始まります。
+      </>
+    ),
+    whyTitle: "作った理由",
+    why: (
+      <>
+        スマブラの対戦シーンには大会向けの仕組み（start.gg など）は充実していますが、普段の対戦、つまり大会以外で本気のランク戦の相手を見つける手段はあまりありません。このサイトはその隙間を埋めるものです。Glicko-2
+        によるレート、シーズンごとのランキング、気軽に遊べるフリー対戦を、{SCENE_LABEL.ja}シーンに特化して用意しています。
+      </>
+    ),
+    whoTitle: "運営について",
+    who: (faqLink: React.ReactNode) => (
+      <>
+        ファンによる独立したプロジェクトで、任天堂・start.gg・既存のラダー／マッチングサービスとは一切関係ありません。モデレーションはコミュニティから集まった少人数のボランティアのモデレーター・管理者が担当しています。体制については{faqLink}をご覧ください。
+      </>
+    ),
+    qaPage: "Q&A ページ",
+    contributeTitle: "協力するには？",
+    contribute: (githubLink: React.ReactNode, discordLink: React.ReactNode) => (
+      <>
+        ソースコードは {githubLink} で公開しています。バグ報告や機能の提案は issue で歓迎しており、プルリクエストもレビューしています。サイトの機能のいくつかはコミュニティからの
+        PR で実装されたものです。コードが書けなくても、{discordLink}での協力も同じくらい助かります。バグ報告、改善の提案、モデレーターとしての手伝いなど、どれも大歓迎です。
+      </>
+    ),
+    discordServer: "Discord サーバー",
+    supportTitle: "プロジェクトを支援する",
+    support: (kofiLink: React.ReactNode) => (
+      <>
+        サーバー代やドメイン代は運営の自腹でまかなっています。費用を支援していただける方は{kofiLink}からどうぞ（もちろん任意です）。$3以上で広告が消えてサポーターのバッジが付き、$15以上でゴールドバッジと
+        <a href="/supporters" className="underline">サポーターページ</a>での上位掲載が付きます。
+      </>
+    ),
+    kofiPage: "Ko-fi ページ",
+    contactTitle: "お問い合わせ",
+    contact: (discordLink: React.ReactNode, rulesLink: React.ReactNode, faqLink: React.ReactNode) => (
+      <>
+        運営メンバーが普段いるのは{discordLink}です。バグ報告、機能の提案、BAN への異議申し立て、その他の質問はすべてそちらで受け付けています。ラダーの仕組みについては{rulesLink}と{faqLink}のページをご覧ください。
+      </>
+    ),
+    communityDiscord: "コミュニティの Discord サーバー",
+    rules: "ルール",
+  },
+} satisfies Record<Lang, unknown>;
 
 export default async function AboutPage() {
   const [lang, goldSupporters] = await Promise.all([getLang(), getCurrentGoldSupporters()]);
-  const t = lang in copy ? copy[lang as keyof typeof copy] : copy.en;
+  const t = copy[lang];
 
   const faqLink = (
     <a href="/faq" className="underline">
@@ -195,7 +245,7 @@ export default async function AboutPage() {
 
         {goldSupporters.length > 0 && (
           <section>
-            <h2 className="text-sm font-medium text-foreground">🏆 {lang === "es" ? "Colaboradores Gold" : "Gold Supporters"}</h2>
+            <h2 className="text-sm font-medium text-foreground">🏆 {tr(lang, { en: "Gold Supporters", es: "Colaboradores Gold", ja: "ゴールドサポーター" })}</h2>
             <p className="mt-2 flex flex-wrap gap-x-1.5 gap-y-1">
               {goldSupporters.map((s, i) => (
                 <span key={s.id}>

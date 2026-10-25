@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import type { UserRole } from "@/generated/prisma/enums";
 import { translateText } from "@/lib/translate";
 import type { Lang } from "@/lib/i18n";
+import { langOrDefault } from "@/lib/site";
 
 export async function listMatchComments(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({
@@ -26,8 +27,8 @@ export async function listMatchComments(userId: string, matchId: string) {
   ]);
 
   // preferredLanguage is nullable — null means "never explicitly set", which
-  // getLang() treats as English everywhere else, so match that default here.
-  const viewerLang: Lang = viewer?.preferredLanguage === "es" ? "es" : "en";
+  // getLang() treats as the instance default everywhere else, so match it here.
+  const viewerLang: Lang = langOrDefault(viewer?.preferredLanguage);
 
   return Promise.all(comments.map((c) => attachTranslation(c, userId, viewerLang)));
 }

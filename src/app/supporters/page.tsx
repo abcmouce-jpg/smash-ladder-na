@@ -3,6 +3,7 @@ import { Coffee, Heart } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 import { getSupporterCount } from "@/lib/public-stats";
 import { GOLD_SUPPORTER_MIN_AMOUNT_USD } from "@/lib/supporters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -39,20 +40,25 @@ export default async function SupportersPage() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
         <Heart className="size-6 text-primary" />
-        {lang === "es" ? "Colaboradores" : "Supporters"}
+        {tr(lang, { en: "Supporters", es: "Colaboradores", ja: "サポーター" })}
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Hosting y dominio se pagan de nuestro bolsillo — estas son las personas que ayudan a cubrirlo."
-          : "Hosting and domain costs come out of pocket — these are the people who help cover that."}
+        {tr(lang, {
+          en: "Hosting and domain costs come out of pocket — these are the people who help cover that.",
+          es: "Hosting y dominio se pagan de nuestro bolsillo — estas son las personas que ayudan a cubrirlo.",
+          ja: "サーバー代やドメイン代は運営の自腹でまかなっています。その費用を支えてくださっている方々です。",
+        })}
       </p>
       {supporterCount > 0 && (
         <p className="mt-1 text-sm font-medium text-foreground">
-          {lang === "es"
-            ? supporterCount === 1
-              ? "1 persona ha colaborado hasta ahora."
-              : `${supporterCount} personas han colaborado hasta ahora.`
-            : `${supporterCount} ${supporterCount === 1 ? "person has" : "people have"} chipped in so far.`}
+          {tr(lang, {
+            en: `${supporterCount} ${supporterCount === 1 ? "person has" : "people have"} chipped in so far.`,
+            es:
+              supporterCount === 1
+                ? "1 persona ha colaborado hasta ahora."
+                : `${supporterCount} personas han colaborado hasta ahora.`,
+            ja: `これまでに${supporterCount}人の方が支援してくださいました。`,
+          })}
         </p>
       )}
 
@@ -60,11 +66,13 @@ export default async function SupportersPage() {
         <Card className="transition-colors hover:border-foreground/30">
           <CardHeader>
             <Coffee className="size-5 text-muted-foreground" />
-            <CardTitle className="text-base">{lang === "es" ? "Apóyanos en Ko-fi" : "Support us on Ko-fi"}</CardTitle>
+            <CardTitle className="text-base">{tr(lang, { en: "Support us on Ko-fi", es: "Apóyanos en Ko-fi", ja: "Ko-fi で支援する" })}</CardTitle>
             <CardDescription>
-              {lang === "es"
-                ? "Pega tu código de colaborador (en Ajustes) en el mensaje de la donación para quitar los anuncios y obtener la insignia de colaborador."
-                : "Paste your supporter code (in Settings) into the donation message to remove ads and get the supporter badge."}
+              {tr(lang, {
+                en: "Paste your supporter code (in Settings) into the donation message to remove ads and get the supporter badge.",
+                es: "Pega tu código de colaborador (en Ajustes) en el mensaje de la donación para quitar los anuncios y obtener la insignia de colaborador.",
+                ja: "寄付メッセージにサポーターコード（設定ページにあります）を貼り付けると、広告が消えてサポーターのバッジが付きます。",
+              })}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -73,7 +81,11 @@ export default async function SupportersPage() {
       <div className="mt-8">
         {donations.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {lang === "es" ? "Todavía no hay colaboradores públicos que mostrar." : "No public supporters to show yet."}
+            {tr(lang, {
+              en: "No public supporters to show yet.",
+              es: "Todavía no hay colaboradores públicos que mostrar.",
+              ja: "公開中のサポーターはまだいません。",
+            })}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -106,7 +118,7 @@ export default async function SupportersPage() {
         <Button asChild variant="outline" size="sm">
           <a href={KOFI_URL} target="_blank" rel="noreferrer">
             <Coffee className="size-3.5" />
-            {lang === "es" ? "Ir a Ko-fi" : "Go to Ko-fi"}
+            {tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi", ja: "Ko-fi へ" })}
           </a>
         </Button>
       </div>

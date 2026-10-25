@@ -1,5 +1,6 @@
 import type { WinRateRow } from "@/lib/player-analytics";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Minimum sample size before a win rate is shown on its own bar — a 1-0
 // record reading as "100%" is noise, not signal. Rows below this still
@@ -30,9 +31,11 @@ export function WinRateBars({ rows, lang, emptyMessage }: { rows: WinRateRow[]; 
             <span className="w-24 shrink-0 text-right tabular-nums text-muted-foreground">
               {enoughSample
                 ? `${Math.round(row.winRate * 100)}% (${row.wins}-${row.losses})`
-                : lang === "es"
-                  ? `${row.wins}-${row.losses} (pocas)`
-                  : `${row.wins}-${row.losses} (few)`}
+                : tr(lang, {
+                    en: `${row.wins}-${row.losses} (few)`,
+                    es: `${row.wins}-${row.losses} (pocas)`,
+                    ja: `${row.wins}-${row.losses}（少数）`,
+                  })}
             </span>
           </li>
         );

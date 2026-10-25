@@ -5,6 +5,7 @@ import { getActiveSeason, listPastSeasons } from "@/lib/seasons";
 import { getPlayerSeasonRecords } from "@/lib/profile-stats";
 import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const PLACEMENT_MEDALS = ["🥇", "🥈", "🥉"] as const;
 
@@ -17,7 +18,7 @@ const PLACEMENT_MEDALS = ["🥇", "🥈", "🥉"] as const;
 // have a season record, and vice versa for someone who never played ranked
 // sets that season (only rollover top-ups write standings rows).
 export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: Lang }) {
-  const dateLocale = lang === "es" ? "es-MX" : "en-US";
+  const dateLocale = tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" });
   const [activeSeason, pastSeasons, standings, seasonRecords] = await Promise.all([
     getActiveSeason(),
     listPastSeasons(),
@@ -39,8 +40,11 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
             <p className="text-sm font-medium">{activeSeason.name}</p>
             <p className="text-xs text-muted-foreground">
-              {lang === "es" ? "En curso desde " : "In progress since "}
-              {activeSeason.startsAt.toLocaleDateString(dateLocale)}
+              {tr(lang, {
+                en: `In progress since ${activeSeason.startsAt.toLocaleDateString(dateLocale)}`,
+                es: `En curso desde ${activeSeason.startsAt.toLocaleDateString(dateLocale)}`,
+                ja: `${activeSeason.startsAt.toLocaleDateString(dateLocale)}から開催中`,
+              })}
             </p>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
@@ -49,7 +53,7 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
                 {activeRecord ? `${activeRecord.wins}W–${activeRecord.losses}L` : "0W–0L"}
               </span>
               <span className="text-xs text-muted-foreground">
-                {lang === "es" ? "récord de temporada" : "season record"}
+                {tr(lang, { en: "season record", es: "récord de temporada", ja: "シーズン戦績" })}
               </span>
             </p>
             <Link
@@ -57,7 +61,7 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
               prefetch={false}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
-              {lang === "es" ? "Tabla actual →" : "Current leaderboard →"}
+              {tr(lang, { en: "Current leaderboard →", es: "Tabla actual →", ja: "現在のランキング →" })}
             </Link>
           </div>
         </Card>
@@ -86,26 +90,22 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
                   <>
                     <span aria-hidden>{PLACEMENT_MEDALS[standing.rank - 1]}</span>
                     <span>
-                      {lang === "es"
-                        ? standing.rank === 1
-                          ? "Campeón"
-                          : standing.rank === 2
-                            ? "Subcampeón"
-                            : "3er lugar"
-                        : standing.rank === 1
-                          ? "Champion"
-                          : standing.rank === 2
-                            ? "Runner-up"
-                            : "3rd Place"}
+                      {standing.rank === 1
+                        ? tr(lang, { en: "Champion", es: "Campeón", ja: "優勝" })
+                        : standing.rank === 2
+                          ? tr(lang, { en: "Runner-up", es: "Subcampeón", ja: "準優勝" })
+                          : tr(lang, { en: "3rd Place", es: "3er lugar", ja: "3位" })}
                     </span>
                     <span className="font-normal text-muted-foreground tabular-nums">
-                      — {formatRating(standing.finalRating)} {lang === "es" ? "de clasificación" : "rating"}
+                      — {formatRating(standing.finalRating)} {tr(lang, { en: "rating", es: "de clasificación", ja: "レート" })}
                     </span>
                   </>
-                ) : lang === "es" ? (
-                  `Finalizó en el #${standing.rank} con ${formatRating(standing.finalRating)} de clasificación`
                 ) : (
-                  `Finished #${standing.rank} with ${formatRating(standing.finalRating)} rating`
+                  tr(lang, {
+                    en: `Finished #${standing.rank} with ${formatRating(standing.finalRating)} rating`,
+                    es: `Finalizó en el #${standing.rank} con ${formatRating(standing.finalRating)} de clasificación`,
+                    ja: `最終${standing.rank}位（レート ${formatRating(standing.finalRating)}）`,
+                  })
                 )}
               </p>
             )}
@@ -115,7 +115,7 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
                   {record.wins}W–{record.losses}L
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {lang === "es" ? "récord de temporada" : "season record"}
+                  {tr(lang, { en: "season record", es: "récord de temporada", ja: "シーズン戦績" })}
                 </span>
               </p>
             )}
@@ -125,7 +125,7 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
                 prefetch={false}
                 className="text-muted-foreground hover:text-foreground hover:underline"
               >
-                {lang === "es" ? "Ver clasificación final →" : "View final standings →"}
+                {tr(lang, { en: "View final standings →", es: "Ver clasificación final →", ja: "最終順位を見る →" })}
               </Link>
             </div>
           </Card>
@@ -134,7 +134,7 @@ export async function ProfileSeasonsSection({ id, lang }: { id: string; lang: La
 
       {participatedPast.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? "Aún no hay historial de temporadas anteriores." : "No past-season history yet."}
+          {tr(lang, { en: "No past-season history yet.", es: "Aún no hay historial de temporadas anteriores.", ja: "過去シーズンの記録がまだありません。" })}
         </p>
       )}
     </div>
