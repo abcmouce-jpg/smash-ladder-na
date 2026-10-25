@@ -33,9 +33,10 @@ describe("the Japanese instance's launch rules", () => {
     expect(site.HAS_PRIZE_POOL).toBe(false);
   });
 
-  it("rates on Elo, not Glicko-2", async () => {
+  it("rates on Smashmate's system, not Glicko-2", async () => {
     const { site } = await load("jp");
-    expect(site.RATING_SYSTEM).toBe("elo");
+    expect(site.RATING_SYSTEM).toBe("smashmate");
+    expect(site.RATING_SYSTEM_LABEL.ja).toBe("スマメイト式のレート");
   });
 
   it("shows dates on Tokyo time", async () => {

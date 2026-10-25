@@ -106,7 +106,12 @@ export const SEASON_MANAGER_USER_ID = process.env.SEASON_MANAGER_USER_ID?.trim()
 // that's already running keeps whatever its own `algorithm` column says, so
 // this never rewrites the current season. Flip back to ELO to make the next
 // rollover produce an Elo season again.
-export const NEXT_SEASON_ALGORITHM = RATING_SYSTEM === "elo" ? RatingAlgorithm.ELO : RatingAlgorithm.GLICKO2;
+export const NEXT_SEASON_ALGORITHM =
+  RATING_SYSTEM === "smashmate"
+    ? RatingAlgorithm.SMASHMATE
+    : RATING_SYSTEM === "elo"
+      ? RatingAlgorithm.ELO
+      : RatingAlgorithm.GLICKO2;
 
 export async function getActiveSeason() {
   return prisma.season.findFirst({
@@ -116,11 +121,13 @@ export async function getActiveSeason() {
 }
 
 // Used at match-confirm time; creates Season 1 on first use so the app
-// doesn't need a manual setup step before matches can be rated.
+// doesn't need a manual setup step before matches can be rated. The algorithm
+// is passed explicitly: Season.algorithm's column default is ELO, which is
+// not what any instance configured today actually wants.
 export async function ensureActiveSeason() {
   const existing = await getActiveSeason();
   if (existing) return existing;
-  return prisma.season.create({ data: { name: "Season 1" } });
+  return prisma.season.create({ data: { name: "Season 1", algorithm: NEXT_SEASON_ALGORITHM } });
 }
 
 export async function listPastSeasons() {

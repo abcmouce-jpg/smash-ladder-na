@@ -124,6 +124,7 @@ enum ConfirmationMethod {
 enum RatingAlgorithm {
   ELO
   GLICKO2
+  SMASHMATE
 }
 
 enum PostStatus {

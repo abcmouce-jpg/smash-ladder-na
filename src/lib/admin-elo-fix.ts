@@ -9,7 +9,7 @@
 // matches.ts), because normal admin edits are only allowed on a player's
 // most-recent CONFIRMED match precisely to avoid needing this.
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
+import { MatchStatus, ConfirmationMethod, RatingAlgorithm } from "@/generated/prisma/enums";
 import { eloDelta, expectedScore } from "@/lib/matches";
 
 export async function findAffectedChain(tx: Prisma.TransactionClient, targetMatchId: string) {
@@ -71,6 +71,17 @@ export async function applyEloChainFix(
   const { target, matches } = await findAffectedChain(tx, matchId);
   if (winnerId !== target.player1Id && winnerId !== target.player2Id) {
     throw new Error("winnerId must be a participant in the target match");
+  }
+  // Everything below recomputes with eloDelta's tapering K. A Glicko-2 season
+  // needs rd/volatility to replay at all, and a Smashmate season runs a flat
+  // K — recomputing either with this would quietly write wrong ratings over
+  // real ones, so the tool refuses instead of guessing.
+  const seasonAlgorithm = target.seasonId
+    ? ((await tx.season.findUnique({ where: { id: target.seasonId }, select: { algorithm: true } }))?.algorithm ??
+      RatingAlgorithm.ELO)
+    : RatingAlgorithm.ELO;
+  if (seasonAlgorithm !== RatingAlgorithm.ELO) {
+    throw new Error(`This tool only recomputes ELO seasons; the target match is in a ${seasonAlgorithm} season`);
   }
 
   // gamesPlayed-before-cutoff, per affected user, counted only over their

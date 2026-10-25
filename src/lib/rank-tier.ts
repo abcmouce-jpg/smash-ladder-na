@@ -148,15 +148,19 @@ export const LEGACY_RANK_TIERS: readonly RankTier[] = [
 ];
 
 // Which ladder a set of ratings should be read against, mirrored from
-// Season.algorithm. The Elo preseason used the legacy floors above; every
-// Glicko-2 season (Season 1 on) uses the current RANK_TIERS. Kept as plain
-// string literals rather than the generated Prisma enum so this module stays
-// dependency-free — the two are structurally identical, so a caller can pass
-// Season.algorithm straight in.
-export type SeasonAlgorithm = "ELO" | "GLICKO2";
+// Season.algorithm. Kept as plain string literals rather than the generated
+// Prisma enum so this module stays dependency-free — the two are structurally
+// identical, so a caller can pass Season.algorithm straight in.
+export type SeasonAlgorithm = "ELO" | "GLICKO2" | "SMASHMATE";
 
+// Only Glicko-2 reads against the current RANK_TIERS. Both Elo ladders — the
+// NA preseason's tapering K and Smashmate's flat 32 — centre on 1500 with a
+// far tighter spread (Smashmate's own published simulation put the standard
+// deviation near 200 and the #1 player at 1938), so RANK_TIERS' Legend floor
+// of 2200 would never be reached on either. They share the floors that were
+// calibrated against an Elo distribution in the first place.
 export function rankTiersFor(algorithm: SeasonAlgorithm): readonly RankTier[] {
-  return algorithm === "ELO" ? LEGACY_RANK_TIERS : RANK_TIERS;
+  return algorithm === "GLICKO2" ? RANK_TIERS : LEGACY_RANK_TIERS;
 }
 
 // Tiers a Free Battle post can be restricted to — a deliberate subset of

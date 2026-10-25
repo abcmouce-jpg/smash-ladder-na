@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { eloDelta, expectedScore, getRoomHostId, kFactor, MAX_RATING_DELTA } from "@/lib/matches";
+import {
+  eloDelta,
+  expectedScore,
+  getRoomHostId,
+  kFactor,
+  MAX_RATING_DELTA,
+  smashmateDelta,
+  SMASHMATE_K_FACTOR,
+} from "@/lib/matches";
 
 describe("Elo helpers", () => {
   describe("kFactor", () => {
@@ -95,6 +103,57 @@ describe("Elo helpers", () => {
       const underdogExpected = expectedScore(1200, 2200); // near-zero chance of winning
       expect(Math.abs(eloDelta(30, 0, underdogExpected))).toBeLessThan(1);
     });
+  });
+});
+
+// The numbers a Smashmate player already knows, pinned against the curve a
+// flat K of 32 produces: 16 on a win between equal ratings, and one point
+// less (or one more, on the upset) for every 25 points of rating gap. These
+// came from Smashmate's own rating simulation write-up, and they are the
+// reason this is a separate algorithm rather than a kFactor tweak.
+describe("smashmateDelta", () => {
+  // [gap, what the higher-rated player gains by winning, what the lower-rated
+  // player gains by winning]
+  const TABLE: readonly [number, number, number][] = [
+    [0, 16, 16],
+    [25, 15, 17],
+    [50, 14, 18],
+    [75, 13, 19],
+    [100, 12, 20],
+  ];
+
+  for (const [gap, favored, upset] of TABLE) {
+    it(`moves ${favored}/${upset} at a ${gap}-point gap`, () => {
+      const high = 1500 + gap;
+      const low = 1500;
+      expect(Math.round(smashmateDelta(1, expectedScore(high, low)))).toBe(favored);
+      expect(Math.round(smashmateDelta(1, expectedScore(low, high)))).toBe(upset);
+      // A loss is the mirror of the opponent's win, so the set is zero-sum
+      // before rounding.
+      expect(smashmateDelta(1, expectedScore(high, low)) + smashmateDelta(0, expectedScore(low, high))).toBeCloseTo(0);
+    });
+  }
+
+  it("swings the same amount on a player's first set as on their four-hundredth", () => {
+    const e = expectedScore(1500, 1600);
+    // eloDelta tapers 40 -> 32 -> 24 over a player's first 30 sets; this does
+    // not depend on games played at all, which is the whole difference.
+    expect(eloDelta(0, 1, e)).not.toBeCloseTo(eloDelta(100, 1, e));
+    expect(smashmateDelta(1, e)).toBeCloseTo(SMASHMATE_K_FACTOR * (1 - e));
+  });
+
+  it("caps a single set at MAX_RATING_DELTA, as Smashmate did at 30", () => {
+    expect(MAX_RATING_DELTA).toBe(30);
+    expect(smashmateDelta(1, expectedScore(1000, 2500))).toBe(MAX_RATING_DELTA);
+    expect(smashmateDelta(0, expectedScore(2500, 1000))).toBe(-MAX_RATING_DELTA);
+  });
+
+  it("never reports a win as +0", () => {
+    // K=32 against a 1,500-point-lower opponent is worth well under half a
+    // point, which would round to +0 on the victory screen.
+    const e = expectedScore(2500, 1000);
+    expect(SMASHMATE_K_FACTOR * (1 - e)).toBeLessThan(1);
+    expect(smashmateDelta(1, e)).toBe(1);
   });
 });
 

@@ -3,6 +3,8 @@ import { getLang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
 import { SITE_NAME } from "@/lib/site";
 import { MATCH_TTL_MS } from "@/lib/match-games";
+import { MAX_RATING_DELTA, SMASHMATE_K_FACTOR } from "@/lib/matches";
+import { PROVISIONAL_MIN_GAMES } from "@/lib/rank-tier";
 
 const MATCH_TTL_HOURS = MATCH_TTL_MS / (60 * 60 * 1000);
 
@@ -385,7 +387,16 @@ function FaqPageJa() {
             同じ結果を送り直して様子を見る、ということはしないでください。報告が食い違ったままにしておけば、モデレーターが両方の報告を見て判断します。わざとだと思われる場合は、マナー違反の通報も出してください。
           </QA>
           <QA q="試合が確定したのにレートが動かない">
-            レート差がかなり離れていると、端数の処理で変動が0になることがあります。不具合ではありません。報告が一致しているのにプロフィール上の勝者がおかしい場合は、異議申立として報告してください。
+            自分よりずっと上の相手に負けたときは、変動が端数になって0と表示されることがあります。不具合ではありません。勝った側は必ず1以上上がります。報告が一致しているのにプロフィール上の勝者がおかしい場合は、異議申立として報告してください。
+          </QA>
+          <QA q="レートはどう計算される？">
+            スマメイトと同じです。全員1500から始まり、同じレートの相手との1セットで{SMASHMATE_K_FACTOR / 2}
+            動きます。レート差が25開くごとに、上の相手に勝ったときは1多く、下の相手に勝ったときは1少なくなります。1セットの上限は
+            {MAX_RATING_DELTA}、勝ったときの下限は1です。
+          </QA>
+          <QA q="試合数が少ないうちは動きが大きい？">
+            いいえ。対戦数による重みづけはしていません。1戦目でも300戦目でも、同じレート差なら同じだけ動きます。ただしレートが表示されるのは
+            {PROVISIONAL_MIN_GAMES}セットからです。
           </QA>
           <QA q="「有線接続」のバッジを付けたい">
             携帯モードなら USB-C の有線LANアダプタ、ドックならドックに LAN

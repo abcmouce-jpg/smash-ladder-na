@@ -22,6 +22,7 @@ import { sendDiscordDM } from "@/lib/discord-bot";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 import { isEffectiveGoldSupporter } from "@/lib/supporters";
+import { NEXT_SEASON_ALGORITHM } from "@/lib/seasons";
 
 // Free cancel is blocked for this long after a match is created, giving the
 // opponent a moment to actually show up before the other side can bail —
@@ -458,6 +459,16 @@ export function kFactor(gamesPlayed: number) {
   return 24;
 }
 
+// Smashmate's own K, which it never published as a number — but its ladder
+// moved a rating by 16 on a win between equal ratings, and by 15/17 at a
+// 25-point gap, 14/18 at 50, 13/19 at 75. That is exactly what a flat K of 32
+// produces through expectedScore above, so the "every 25 points of gap shifts
+// the swing by one" rule players remember is the shape of plain Elo rather
+// than a step table. Flat is the point: a brand-new account and a veteran move
+// by the same amount, which is what made a Smashmate rating legible at a
+// glance (see smashmateDelta, and the lack of a provisional tier there).
+export const SMASHMATE_K_FACTOR = 32;
+
 export function expectedScore(ratingSelf: number, ratingOpp: number) {
   return 1 / (1 + 10 ** ((ratingOpp - ratingSelf) / 400));
 }
@@ -466,18 +477,29 @@ export function expectedScore(ratingSelf: number, ratingOpp: number) {
 // (the massive underdog wins, or the heavy favorite loses) swings close to
 // the full kFactor regardless of how lopsided the gap actually was — capped
 // here so no single set can move a rating by more than this no matter how
-// wide the gap or how few games either side has played.
+// wide the gap or how few games either side has played. Smashmate capped a
+// single set at 30 too, so this is shared by both.
 export const MAX_RATING_DELTA = 30;
 
-export function eloDelta(games: number, score: number, expected: number): number {
-  const raw = kFactor(games) * (score - expected);
+function clampDelta(raw: number, score: 0 | 1 | number): number {
   const clamped = Math.max(-MAX_RATING_DELTA, Math.min(MAX_RATING_DELTA, raw));
   // A win against a much lower-rated opponent can have `raw` round all the
   // way down to +0 — mathematically correct, but the victory screen ends up
   // announcing "+0 rating" on a win, which reads as broken. score is always
   // exactly 1 (win) or 0 (loss), never a draw, so this only ever floors the
-  // winning side; a loss is left exactly as computed.
+  // winning side; a loss is left exactly as computed. Smashmate floored a
+  // win at 1 as well.
   return score === 1 ? Math.max(1, clamped) : clamped;
+}
+
+export function eloDelta(games: number, score: number, expected: number): number {
+  return clampDelta(kFactor(games) * (score - expected), score);
+}
+
+// No `games` parameter, and that is the whole difference from eloDelta: a
+// Smashmate rating swung by the same amount on set 1 as on set 400.
+export function smashmateDelta(score: number, expected: number): number {
+  return clampDelta(SMASHMATE_K_FACTOR * (score - expected), score);
 }
 
 // A player's full rating state at one moment: the number shown everywhere
@@ -502,17 +524,12 @@ function nextRatingStates(
   }
 
   const expected1 = expectedScore(p1.rating, p2.rating);
+  const flat = algorithm === RatingAlgorithm.SMASHMATE;
+  const delta1 = flat ? smashmateDelta(p1Score, expected1) : eloDelta(p1Games, p1Score, expected1);
+  const delta2 = flat ? smashmateDelta(1 - p1Score, 1 - expected1) : eloDelta(p2Games, 1 - p1Score, 1 - expected1);
   return {
-    p1: {
-      rating: Math.round(p1.rating + eloDelta(p1Games, p1Score, expected1)),
-      rd: p1.rd,
-      volatility: p1.volatility,
-    },
-    p2: {
-      rating: Math.round(p2.rating + eloDelta(p2Games, 1 - p1Score, 1 - expected1)),
-      rd: p2.rd,
-      volatility: p2.volatility,
-    },
+    p1: { rating: Math.round(p1.rating + delta1), rd: p1.rd, volatility: p1.volatility },
+    p2: { rating: Math.round(p2.rating + delta2), rd: p2.rd, volatility: p2.volatility },
   };
 }
 
@@ -589,7 +606,8 @@ export async function applyEloAndConfirm(
   });
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
-  const seasonId = season?.id ?? (await tx.season.create({ data: { name: "Season 1" } })).id;
+  const seasonId =
+    season?.id ?? (await tx.season.create({ data: { name: "Season 1", algorithm: NEXT_SEASON_ALGORITHM } })).id;
   // Which math this match is rated with (see nextRatingStates). A season with
   // no algorithm can only be one that predates the column — treat it as Elo,
   // exactly the behavior such a season already had.

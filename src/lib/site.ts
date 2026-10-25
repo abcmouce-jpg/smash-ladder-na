@@ -138,7 +138,29 @@ export const ALLOWS_LATENCY_MODS = REGION_SET !== "jp";
  * スマメイト trained the Japanese scene on the latter, so Japan starts there.
  * Both are implemented and chosen per season — see NEXT_SEASON_ALGORITHM.
  */
-export const RATING_SYSTEM: "elo" | "glicko2" = REGION_SET === "jp" ? "elo" : "glicko2";
+export type RatingSystem = "elo" | "glicko2" | "smashmate";
+
+export const RATING_SYSTEM: RatingSystem = REGION_SET === "jp" ? "smashmate" : "glicko2";
+
+/**
+ * What to call the rating in prose. "Smashmate-style" rather than "Elo",
+ * because the name is the useful part of the answer for a player who already
+ * knows what a Smashmate rating felt like — see SMASHMATE_K_FACTOR in
+ * lib/matches.ts for why it is Elo underneath.
+ */
+// Every system, not just the two an instance can select today: a season can
+// still be ended onto ELO from the admin tools.
+const RATING_SYSTEM_LABELS: Record<RatingSystem, Record<Lang, string>> = {
+  smashmate: {
+    en: "a Smashmate-style rating",
+    es: "una clasificación estilo Smashmate",
+    ja: "スマメイト式のレート",
+  },
+  elo: { en: "an Elo rating", es: "una clasificación Elo", ja: "Elo レート" },
+  glicko2: { en: "a Glicko-2 rating", es: "una clasificación Glicko-2", ja: "Glicko-2 レート" },
+};
+
+export const RATING_SYSTEM_LABEL: Record<Lang, string> = RATING_SYSTEM_LABELS[RATING_SYSTEM];
 
 /**
  * Whether this instance uses regions at all.

@@ -1,7 +1,7 @@
 import { X_ACCOUNT_URL, DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { getCurrentGoldSupporters } from "@/lib/supporters";
-import { HAS_KOFI, HAS_DISCORD_SERVER, RATING_SYSTEM, SCENE_LABEL, SITE_NAME } from "@/lib/site";
+import { HAS_KOFI, HAS_DISCORD_SERVER, RATING_SYSTEM_LABEL, SCENE_LABEL, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata = { title: `About — ${SITE_NAME}` };
@@ -148,8 +148,8 @@ const copy = {
       <>
         競技としてのスマブラには大会のための仕組み（start.gg など）が揃っている一方で、日常の部分 —
         大会の外で、本気の相手を見つけること — を支えるものは多くありません。ここはその隙間を埋めるためのものです。
-        {RATING_SYSTEM === "elo" ? "Elo" : "Glicko-2"}
-        レート、シーズンごとのランキング、気軽な対戦のためのフリー対戦を用意しています。
+        {RATING_SYSTEM_LABEL.ja}
+        、シーズンごとのランキング、気軽な対戦のためのフリー対戦を用意しています。
       </>
     ),
     whoTitle: "誰が運営しているか",

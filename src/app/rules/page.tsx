@@ -1,9 +1,10 @@
-import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
+import { LEADERBOARD_MIN_GAMES, PROVISIONAL_MIN_GAMES } from "@/lib/rank-tier";
 import { SEASON_PRIZE_POOL_USD, PRIZE_AMOUNTS_USD, approxMxn } from "@/lib/prizes";
 import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { getLang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
-import { ALLOWS_LATENCY_MODS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL, SITE_NAME } from "@/lib/site";
+import { ALLOWS_LATENCY_MODS, DISPLAY_TIME_ZONE, HAS_PRIZE_POOL, RATING_SYSTEM, SITE_NAME } from "@/lib/site";
+import { MAX_RATING_DELTA, SMASHMATE_K_FACTOR } from "@/lib/matches";
 import { STRIKING_STAGES } from "@/lib/stages";
 import { GAMES_TO_WIN } from "@/lib/match-games";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
@@ -612,6 +613,24 @@ function RulesPageJa() {
             です。ステージギミックはオフ、ストック数と時間は標準設定です。
           </p>
         </Section>
+
+        {RATING_SYSTEM === "smashmate" && (
+          <Section title="レート">
+            <p>
+              スマメイトと同じ計算です。全員1500から始まり、同じレートの相手に勝つと{SMASHMATE_K_FACTOR / 2}
+              、負けると{SMASHMATE_K_FACTOR / 2}
+              動きます。レート差が25開くごとに、上の相手に勝ったときの上がり幅が1増え、下の相手に勝ったときは1減ります。
+            </p>
+            <p>
+              1セットで動く上限は{MAX_RATING_DELTA}
+              です。どれだけ差があっても、勝って下がることはありません（最低でも1上がります）。対戦数による重みづけはしません。1戦目でも300戦目でも、同じ条件なら同じだけ動きます。
+            </p>
+            <p>
+              レートが公開されるのは{PROVISIONAL_MIN_GAMES}
+              セットからです。それまでは数字が安定しないため、自分にも相手にも表示されません。
+            </p>
+          </Section>
+        )}
 
         {HAS_PRIZE_POOL ? (
           <Section title="シーズン賞金">

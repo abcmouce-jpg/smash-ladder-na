@@ -1043,6 +1043,57 @@ describe("surrenderMatch", () => {
   });
 });
 
+// The third branch of nextRatingStates: a Smashmate season, which is Elo with
+// a flat K rather than the tapering one the ELO branch uses.
+describe("applyEloAndConfirm — Smashmate season", () => {
+  async function startSmashmateSeason() {
+    return prisma.season.create({ data: { name: "1期", algorithm: RatingAlgorithm.SMASHMATE } });
+  }
+
+  async function rateOneSet(winnerRating: number, loserRating: number, gamesPlayed: number) {
+    const winner = await createTestUser({ rating: winnerRating, gamesPlayed });
+    const loser = await createTestUser({ rating: loserRating, gamesPlayed });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: winner.id, player2Id: loser.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, winner.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: winner.id,
+        reporterId: winner.id,
+      }),
+    );
+    return prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+  }
+
+  it("moves exactly 16 between two 1500s, the number Smashmate players know", async () => {
+    await startSmashmateSeason();
+    const rated = await rateOneSet(1500, 1500, 20);
+    expect(rated.player1RatingAfter).toBe(1516);
+    expect(rated.player2RatingAfter).toBe(1484);
+  });
+
+  it("moves the same 16 for a player on their very first set", async () => {
+    await startSmashmateSeason();
+    // An ELO season would give this player K=40 and a swing of 20.
+    const rated = await rateOneSet(1500, 1500, 0);
+    expect(rated.player1RatingAfter).toBe(1516);
+    expect(rated.player2RatingAfter).toBe(1484);
+  });
+
+  it("keeps ratings whole, unlike Glicko-2", async () => {
+    await startSmashmateSeason();
+    const rated = await rateOneSet(1537, 1491, 12);
+    expect(rated.player1RatingAfter! % 1).toBe(0);
+    expect(rated.player2RatingAfter! % 1).toBe(0);
+  });
+
+  it("caps a huge upset at 30, where Glicko-2 would not", async () => {
+    await startSmashmateSeason();
+    const rated = await rateOneSet(1000, 2500, 0);
+    expect(rated.player1RatingAfter! - rated.player1RatingBefore!).toBe(30);
+  });
+});
+
 describe("requestMutualCancel", () => {
   it("does nothing when only one side has requested", async () => {
     const p1 = await createTestUser();
