@@ -478,9 +478,11 @@ export async function joinLobbyAndTryPair(
   // ghosted opponent's time with zero consequence for the one who dodged.
   if (me.queueCooldownUntil && me.queueCooldownUntil > now) {
     const minutesLeft = Math.ceil((me.queueCooldownUntil.getTime() - now.getTime()) / (60 * 1000));
-    throw new Error(
-      `You timed out of your last match — you can queue again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
-    );
+    throw new LocalizedError({
+      en: `You timed out of your last match — you can queue again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
+      es: `Se te acabó el tiempo en tu última partida — puedes volver a la cola en ${minutesLeft} minuto${minutesLeft === 1 ? "" : "s"}.`,
+      ja: `前のセットで時間切れになりました。あと${minutesLeft}分で再び待機列に入れます。`,
+    });
   }
 
   // Where matching is same-or-nearby-region, a region has to be set first so
@@ -490,9 +492,11 @@ export async function joinLobbyAndTryPair(
   // join — demanding one would be asking for a value nothing then reads.
   const myRegion = me.region;
   if (DISTANCE_MATCHMAKING && !myRegion) {
-    throw new Error(
-      "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
-    );
+    throw new LocalizedError({
+      en: "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
+      es: "Elige tu región antes de entrar a la cola — solo te emparejaremos con jugadores dentro de la distancia que elijas.",
+      ja: "待機列に入る前に地域を設定してください。設定した対戦距離の範囲内の相手とだけマッチングします。",
+    });
   }
   let newEntry: Awaited<ReturnType<typeof prisma.ratingLobbyEntry.create>>;
   try {

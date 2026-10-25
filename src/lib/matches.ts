@@ -208,9 +208,11 @@ export async function cancelMatch(userId: string, matchId: string) {
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
   if (await hasOpponentEngaged(matchId, opponentId)) {
-    throw new Error(
-      "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
-    );
+    throw new LocalizedError({
+      en: "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
+      es: "Tu rival ya empezó esta partida, así que cancelar ya no es gratis — usa Abandonar si quieres retirarte (cuenta como derrota).",
+      ja: "相手がすでにこのセットを始めているため、無償での中止はできません。抜けるなら降参を使ってください（敗北として扱われます）。",
+    });
   }
 
   const cancelReadyAt = match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000;
@@ -1055,9 +1057,11 @@ async function assertCorrectable(
     });
   }
   if (!(await isMostRecentConfirmedMatch(tx, match))) {
-    throw new Error(
-      "Can't change this match — either a newer match has been confirmed since, or the season has ended.",
-    );
+    throw new LocalizedError({
+      en: "Can't change this match — either a newer match has been confirmed since, or the season has ended.",
+      es: "No se puede cambiar esta partida — o se confirmó una más reciente, o la temporada terminó.",
+      ja: "このセットは変更できません。その後に新しいセットが確定しているか、シーズンが終了しています。",
+    });
   }
 }
 

@@ -155,9 +155,11 @@ export async function actionReport(
     });
     const threshold = ACTION_THRESHOLDS[newStatus];
     if (totalReports < threshold) {
-      throw new Error(
-        `This player has only been reported ${totalReports} time${totalReports === 1 ? "" : "s"} — ${newStatus.toLowerCase()} requires at least ${threshold} (or use Insta).`,
-      );
+      throw new LocalizedError({
+        en: `This player has only been reported ${totalReports} time${totalReports === 1 ? "" : "s"} — ${newStatus.toLowerCase()} requires at least ${threshold} (or use Insta).`,
+        es: `Este jugador solo ha sido reportado ${totalReports} ${totalReports === 1 ? "vez" : "veces"} — ${newStatus.toLowerCase()} requiere al menos ${threshold} (o usa Insta).`,
+        ja: `このプレイヤーの通報は${totalReports}件しかありません。${newStatus.toLowerCase()}には最低${threshold}件必要です（または Insta を使用）。`,
+      });
     }
   }
 

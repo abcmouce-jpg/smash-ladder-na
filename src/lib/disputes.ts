@@ -346,10 +346,11 @@ export async function adminSetGameWinner(matchId: string, gameNumber: number, wi
 
       if (reopeningConfirmed) {
         if (!setWinnerId) {
-          throw new Error(
-            "This edit would leave the match without a clear winner — pick a result that keeps someone at " +
-              `${GAMES_TO_WIN} game wins`,
-          );
+          throw new LocalizedError({
+            en: `This edit would leave the match without a clear winner — pick a result that keeps someone at ${GAMES_TO_WIN} game wins`,
+            es: `Esta edición dejaría la partida sin un ganador claro — elige un resultado que deje a alguien con ${GAMES_TO_WIN} juegos ganados`,
+            ja: `この編集ではセットの勝者が決まりません。どちらかが${GAMES_TO_WIN}勝になる結果を選んでください`,
+          });
         }
         await tx.ratingMatch.update({
           where: { id: matchId },

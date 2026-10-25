@@ -6,7 +6,7 @@
     "dev": "next dev",
     "dev:base": "node scripts/dev-base.mjs",
     "postinstall": "prisma generate",
-    "prebuild": "prisma migrate deploy",
+    "prebuild": "node scripts/prebuild-migrate.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

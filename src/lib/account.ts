@@ -17,9 +17,11 @@ const LAUNCH_REGION_LOCK = process.env.LAUNCH_REGION_LOCK?.trim() || null;
 
 function requireRegionUnlocked(region: string | null) {
   if (LAUNCH_REGION_LOCK && region !== LAUNCH_REGION_LOCK) {
-    throw new Error(
-      `${SITE_NAME} is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
-    );
+    throw new LocalizedError({
+      en: `${SITE_NAME} is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
+      es: `${SITE_NAME} es solo para ${LAUNCH_REGION_LOCK} mientras arrancamos — elige ${LAUNCH_REGION_LOCK} como tu región en la Sala para participar.`,
+      ja: `${SITE_NAME}は立ち上げ期のため${LAUNCH_REGION_LOCK}限定です。ロビーで地域を${LAUNCH_REGION_LOCK}に設定すると参加できます。`,
+    });
   }
 }
 
@@ -82,9 +84,11 @@ export async function requireActiveUser(userId: string) {
   }
   const status = await liftExpiredSuspension(userId, user);
   if (status === UserStatus.SUSPENDED) {
-    throw new Error(
-      "Your account is suspended — posting on Friendlies and reporting are unavailable, but ranked play still works.",
-    );
+    throw new LocalizedError({
+      en: "Your account is suspended — posting on Friendlies and reporting are unavailable, but ranked play still works.",
+      es: "Tu cuenta está suspendida — no puedes publicar en Amistosos ni reportar, pero el juego clasificatorio sigue disponible.",
+      ja: "アカウントが一時停止中です。フリー対戦への投稿と通報はできませんが、ランク戦は通常どおり利用できます。",
+    });
   }
   requireRegionUnlocked(user.region);
 }
@@ -325,14 +329,18 @@ export async function setWiredConnection(userId: string, wired: boolean) {
       select: { cancelCount: true, gamesPlayed: true, _count: { select: { connectionReportsReceived: true } } },
     });
     if (isWiredClaimUntrustworthy(user.cancelCount, user.gamesPlayed)) {
-      throw new Error(
-        `Too many cancelled matches relative to games played (${user.cancelCount} cancelled, ${user.gamesPlayed} played) to self-declare a wired connection.`,
-      );
+      throw new LocalizedError({
+        en: `Too many cancelled matches relative to games played (${user.cancelCount} cancelled, ${user.gamesPlayed} played) to self-declare a wired connection.`,
+        es: `Demasiadas partidas canceladas en relación con las jugadas (${user.cancelCount} canceladas, ${user.gamesPlayed} jugadas) para declarar una conexión por cable.`,
+        ja: `対戦数に対して中止が多すぎるため（中止${user.cancelCount}件／対戦${user.gamesPlayed}件）、有線接続の自己申告はできません。`,
+      });
     }
     if (isWiredClaimDisputedByOpponents(user._count.connectionReportsReceived, user.gamesPlayed)) {
-      throw new Error(
-        `Too many opponents have reported connection issues with you (${user._count.connectionReportsReceived} reports, ${user.gamesPlayed} games played) to self-declare a wired connection.`,
-      );
+      throw new LocalizedError({
+        en: `Too many opponents have reported connection issues with you (${user._count.connectionReportsReceived} reports, ${user.gamesPlayed} games played) to self-declare a wired connection.`,
+        es: `Demasiados rivales han reportado problemas de conexión contigo (${user._count.connectionReportsReceived} reportes, ${user.gamesPlayed} partidas) para declarar una conexión por cable.`,
+        ja: `接続不安定の通報が多すぎるため（通報${user._count.connectionReportsReceived}件／対戦${user.gamesPlayed}件）、有線接続の自己申告はできません。`,
+      });
     }
   }
   await prisma.user.update({ where: { id: userId }, data: { wiredConnection: wired } });
