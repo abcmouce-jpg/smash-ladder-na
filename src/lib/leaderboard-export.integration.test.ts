@@ -82,3 +82,52 @@ describe("getRankingsForExport", () => {
     expect(players[1].startgg).toBeNull();
   });
 });
+
+// Seeding joins on start.gg ids, and a player who never connected the account
+// carries none — so the consumer needs to know up front how much of the board
+// it can match rather than discovering it a page at a time.
+describe("start.gg join coverage", () => {
+  beforeEach(async () => {
+    await prisma.user.deleteMany({});
+  });
+
+  it("counts only the eligible players who connected start.gg", async () => {
+    await createTestUser({ rating: 1800, gamesPlayed: 20, startggSlug: "user/aaa" });
+    await createTestUser({ rating: 1700, gamesPlayed: 20, startggSlug: "user/bbb" });
+    await createTestUser({ rating: 1600, gamesPlayed: 20 });
+
+    const { totalCount, startggLinkedCount } = await getRankingsForExport(50, 0);
+
+    expect(totalCount).toBe(3);
+    expect(startggLinkedCount).toBe(2);
+  });
+
+  it("counts the whole board, not just the page asked for", async () => {
+    for (let i = 0; i < 4; i++) {
+      await createTestUser({ rating: 1900 - i, gamesPlayed: 20, startggSlug: `user/${i}` });
+    }
+
+    const { players, startggLinkedCount } = await getRankingsForExport(2, 0);
+
+    expect(players).toHaveLength(2);
+    expect(startggLinkedCount).toBe(4);
+  });
+
+  it("leaves out players the export itself leaves out", async () => {
+    await createTestUser({ rating: 1800, gamesPlayed: 20, startggSlug: "user/ranked" });
+    // Each of these carries a start.gg link and still must not be counted.
+    await createTestUser({ rating: 1800, gamesPlayed: LEADERBOARD_MIN_GAMES - 1, startggSlug: "user/unranked" });
+    await createTestUser({ rating: 1800, gamesPlayed: 20, status: UserStatus.BANNED, startggSlug: "user/banned" });
+    await createTestUser({ rating: 1800, gamesPlayed: 20, username: DELETED_USERNAME, startggSlug: "user/gone" });
+
+    const { totalCount, startggLinkedCount } = await getRankingsForExport(50, 0);
+
+    expect(totalCount).toBe(1);
+    expect(startggLinkedCount).toBe(1);
+  });
+
+  it("is zero on a board nobody has connected an account to", async () => {
+    await createTestUser({ rating: 1800, gamesPlayed: 20 });
+    expect((await getRankingsForExport(50, 0)).startggLinkedCount).toBe(0);
+  });
+});

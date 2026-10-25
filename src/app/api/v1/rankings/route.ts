@@ -53,7 +53,10 @@ export async function GET(request: Request) {
   const limit = clampInt(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
   const offset = clampInt(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
 
-  const [season, { players, totalCount }] = await Promise.all([getActiveSeason(), getRankingsForExport(limit, offset)]);
+  const [season, { players, totalCount, startggLinkedCount }] = await Promise.all([
+    getActiveSeason(),
+    getRankingsForExport(limit, offset),
+  ]);
 
   return NextResponse.json({
     site: SITE_NAME,
@@ -67,6 +70,9 @@ export async function GET(request: Request) {
     // absent, and doesn't treat an unranked player as rating 0.
     minimumSetsToRank: LEADERBOARD_MIN_GAMES,
     totalCount,
+    // Of totalCount, how many carry a `startgg` object — i.e. how much of the
+    // board can be joined to a bracket by id rather than by gamer tag.
+    startggLinkedCount,
     limit,
     offset,
     players,

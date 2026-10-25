@@ -199,6 +199,13 @@ export async function getRankingsForExport(take: number, skip: number) {
     LIMIT ${take} OFFSET ${skip}
   `;
   const totalCount = await prisma.user.count({ where: leaderboardEligibility() });
+  // How much of the ladder a start.gg-keyed consumer can actually join
+  // against. Without it they'd have to page the whole export to find out that
+  // a chunk of it carries no start.gg link at all, and can't be matched to a
+  // bracket entrant by anything but a gamer tag — which two people can share.
+  const startggLinkedCount = await prisma.user.count({
+    where: { ...leaderboardEligibility(), startggSlug: { not: null } },
+  });
 
   const players = rows.map((u) => ({
     rank: Number(u.rank),
@@ -218,5 +225,5 @@ export async function getRankingsForExport(take: number, skip: number) {
       : null,
   }));
 
-  return { players, totalCount };
+  return { players, totalCount, startggLinkedCount };
 }

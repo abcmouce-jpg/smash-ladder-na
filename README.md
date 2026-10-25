@@ -32,6 +32,8 @@ and the moderation policies that govern ranked play are transparent rather than 
 - **Moderation** — conduct reports with threshold-based suspend/ban actions, and a disputed-game
   resolution queue for admins/mods.
 - **Region-aware matchmaking**, with an optional launch-region lock for a staged rollout.
+- **Public ranking export** — a read-only, unauthenticated endpoint so a tournament can seed a
+  bracket from the ladder, keyed on start.gg ids. See [docs/api.md](docs/api.md).
 
 ## Tech stack
 
