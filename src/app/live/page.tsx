@@ -43,9 +43,9 @@ export default async function SetsFeedPage() {
         icon={Radio}
         title={tr(lang, { en: "Live", es: "En vivo", ja: "配信" })}
         description={tr(lang, {
-          en: "Current and recently-finished sets across the ladder. Sets with a live Twitch stream are pinned to the top.",
-          es: "Partidas en curso y recién terminadas en todo el ladder. Las partidas con un stream en vivo de Twitch se fijan arriba.",
-          ja: "進行中および直近で終了したセットの一覧です。Twitch で配信中のセットは上に固定されます。",
+          en: "Current and recently-finished sets across the ladder. Sets with a live stream are pinned to the top.",
+          es: "Partidas en curso y recién terminadas en todo el ladder. Las partidas con un stream en vivo se fijan arriba.",
+          ja: "進行中・直近で終わったセットの一覧です。配信中のセットは上に出ます。",
         })}
       />
 

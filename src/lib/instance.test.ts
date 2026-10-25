@@ -43,6 +43,11 @@ describe("the Japanese instance's launch rules", () => {
     const { site } = await load("jp");
     expect(site.DISPLAY_TIME_ZONE).toBe("Asia/Tokyo");
   });
+
+  it("keeps private matchup notes but runs no community guides", async () => {
+    const { site } = await load("jp");
+    expect(site.HAS_COMMUNITY_GUIDES).toBe(false);
+  });
 });
 
 describe("North America keeps every one of them", () => {
@@ -53,6 +58,7 @@ describe("North America keeps every one of them", () => {
     expect(site.HAS_PRIZE_POOL).toBe(true);
     expect(site.RATING_SYSTEM).toBe("glicko2");
     expect(site.DISPLAY_TIME_ZONE).toBe("America/New_York");
+    expect(site.HAS_COMMUNITY_GUIDES).toBe(true);
   });
 });
 

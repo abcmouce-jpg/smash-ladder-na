@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { HAS_COMMUNITY_GUIDES } from "@/lib/site";
 import { useActionState } from "react";
 import { Bell, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
@@ -221,7 +222,7 @@ function MatchupNoteRow({
               {!expanded && note && <p className="truncate text-xs text-muted-foreground">{note}</p>}
             </div>
           </button>
-          {userId && (
+          {userId && HAS_COMMUNITY_GUIDES && (
             <button
               type="button"
               onClick={handleToggleSubscription}
@@ -293,7 +294,7 @@ function MatchupNoteRow({
             </div>
           </form>
         )}
-        {expanded && (
+        {expanded && HAS_COMMUNITY_GUIDES && (
           <CharacterGuideSection
             character={character}
             guides={guides}

@@ -41,7 +41,7 @@ import {
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
-import { HAS_KOFI, SITE_LANGS } from "@/lib/site";
+import { HAS_COMMUNITY_GUIDES, HAS_KOFI, SITE_LANGS } from "@/lib/site";
 import { LIVE_DECLARATION_TTL_MS } from "@/lib/stream-links";
 
 const LIVE_DECLARATION_HOURS = LIVE_DECLARATION_TTL_MS / (60 * 60 * 1000);
@@ -608,8 +608,12 @@ function NotificationsTab({
     notifyQueueOpportunities,
     notifyQueueOpportunitiesDm,
   };
-  const pushTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "push");
-  const dmTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "discord");
+  // The key stays in NOTIFICATION_DEFS — stored preferences still reference it,
+  // and isNotificationEnabled still has to answer for them — but an instance
+  // with no community guides shouldn't offer a switch for their notifications.
+  const availableTypes = NOTIFICATION_DEFS.filter((def) => HAS_COMMUNITY_GUIDES || def.key !== "DM_CHARACTER_GUIDE");
+  const pushTypes = availableTypes.filter((def) => def.channel === "push");
+  const dmTypes = availableTypes.filter((def) => def.channel === "discord");
 
   return (
     <div className="mt-6 flex flex-col gap-4">

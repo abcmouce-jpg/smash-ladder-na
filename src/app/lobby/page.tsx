@@ -328,7 +328,7 @@ export default async function LobbyPage() {
                       {tr(lang, {
                         en: "Wait feeling long? Invite a friend to get matched faster.",
                         es: "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido.",
-                        ja: "待ち時間が長いですか？友達を誘うと早くマッチします。",
+                        ja: "なかなかマッチしませんか？友達を誘うと早く当たります。",
                       })}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
@@ -1928,7 +1928,7 @@ function MatchActionBanner({
       detail = tr(lang, {
         en: "Nothing to do for now. We'll notify you when it's resolved.",
         es: "No hay nada que hacer por ahora. Te avisaremos cuando se resuelva.",
-        ja: "今はすることはありません。解決したらお知らせします。",
+        ja: "いまは待つだけで大丈夫です。解決したらお知らせします。",
       });
       break;
     }
@@ -2575,7 +2575,7 @@ async function CharacterPickSection({
             {tr(lang, {
               en: "Characters — you: ",
               es: "Personajes — tú: ",
-              ja: "使用キャラ — あなた：",
+              ja: "あなたの使用キャラ：",
             })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
@@ -3281,7 +3281,7 @@ function RoomCodeSection({
             {tr(lang, {
               en: "Set by your opponent — join with this.",
               es: "Definido por tu rival — únete con este.",
-              ja: "相手が設定しました。これで参加してください。",
+              ja: "相手が設定した番号です。これで部屋に入ってください。",
             })}
           </p>
         )}
@@ -3305,7 +3305,7 @@ function RoomCodeSection({
         {tr(lang, {
           en: "You're creating the room.",
           es: "Te toca crear la sala.",
-          ja: "あなたが部屋を作成します。",
+          ja: "あなたが部屋を立てます。",
         })}
       </p>
       <RoomCodeForm initialValue={initialValue} action={submitRoomCode.bind(null, matchId)} lang={lang} />

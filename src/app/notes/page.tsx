@@ -20,7 +20,7 @@ import {
   updateMatchupNoteAction,
   voteOnGuideAction,
 } from "./actions";
-import { PUBLISHES_SPANISH, SITE_NAME } from "@/lib/site";
+import { HAS_COMMUNITY_GUIDES, PUBLISHES_SPANISH, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata: Metadata = {
@@ -54,7 +54,13 @@ export default async function NotesPage({
   // tab sat one query param away. Default to whichever tab has something to
   // show for this visitor; an explicit ?tab= still wins either way.
   const defaultTab: NotesTab = userId ? "matchups" : "guides";
-  const tab: NotesTab = VALID_TABS.includes((tabParam ?? "") as NotesTab) ? (tabParam as NotesTab) : defaultTab;
+  const requestedTab: NotesTab = VALID_TABS.includes((tabParam ?? "") as NotesTab)
+    ? (tabParam as NotesTab)
+    : defaultTab;
+  // An instance without community guides has one tab, so a ?tab=guides URL —
+  // an old link, or a crawler that saw one — lands on the notes rather than on
+  // an empty view of a feature that isn't there.
+  const tab: NotesTab = HAS_COMMUNITY_GUIDES ? requestedTab : "matchups";
 
   // The Guides tab can be deep-linked to one character — that's how a My Notes
   // row's "Show more guides" link lands on the full list for it. Folding echoes
@@ -69,11 +75,17 @@ export default async function NotesPage({
   // does it — the two views need different framing.
   const description =
     tab === "matchups"
-      ? tr(lang, {
-          en: "Only you can see your private notes. They pop up automatically in your matches once your opponent's character is locked in. Community guides are public — anyone can write one. Echo fighters share an entry with their base fighter.",
-          es: "Solo tú puedes ver tus notas privadas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Las guías de la comunidad son públicas — cualquiera puede escribir una. Los personajes echo comparten entrada con su personaje base.",
-          ja: "自分用メモは自分だけが見られます。対戦で相手のキャラが確定すると自動的に表示されます。コミュニティ攻略は公開で、誰でも書けます。ダッシュファイターは元のファイターと同じ項目になります。",
-        })
+      ? HAS_COMMUNITY_GUIDES
+        ? tr(lang, {
+            en: "Only you can see your private notes. They pop up automatically in your matches once your opponent's character is locked in. Community guides are public — anyone can write one. Echo fighters share an entry with their base fighter.",
+            es: "Solo tú puedes ver tus notas privadas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Las guías de la comunidad son públicas — cualquiera puede escribir una. Los personajes echo comparten entrada con su personaje base.",
+            ja: "自分だけが見られるメモです。対戦で相手のキャラが決まると、その相手のメモが自動で出ます。コミュニティ攻略のほうは公開で、誰でも書けます。ダッシュファイターは元のファイターと同じ扱いです。",
+          })
+        : tr(lang, {
+            en: "Only you can see these. They pop up automatically in your matches once your opponent's character is locked in. Echo fighters share an entry with their base fighter.",
+            es: "Solo tú puedes verlas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Los personajes echo comparten entrada con su personaje base.",
+            ja: "自分だけが見られるメモです。対戦で相手のキャラが決まると、その相手のメモが自動で出ます。ダッシュファイターは元のファイターと同じ扱いです。",
+          })
       : tr(lang, {
           en: "Every community guide in one list, tagged by character. Filter by tag or search to find matchup advice. Echo fighters share a tag with their base fighter.",
           es: "Todas las guías de la comunidad en una sola lista, etiquetadas por personaje. Filtra por etiqueta o busca para encontrar consejos de matchup. Los personajes echo comparten etiqueta con su personaje base.",
@@ -84,24 +96,28 @@ export default async function NotesPage({
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
       <PageHeading
         icon={NotebookPen}
-        title={tr(lang, { en: "Notes", es: "Notas", ja: "ノート" })}
+        title={tr(lang, { en: "Notes", es: "Notas", ja: "対策メモ" })}
         description={description}
       />
-      <SectionTabs
-        className="mt-8"
-        items={[
-          {
-            href: "?tab=matchups",
-            label: tr(lang, { en: "My Notes", es: "Mis notas", ja: "自分用メモ" }),
-            active: tab === "matchups",
-          },
-          {
-            href: "?tab=guides",
-            label: tr(lang, { en: "Guides", es: "Guías", ja: "コミュニティ攻略" }),
-            active: tab === "guides",
-          },
-        ]}
-      />
+      {/* One tab is not a tab bar — without community guides this is just the
+          notes, so the row would be a control with nothing to switch to. */}
+      {HAS_COMMUNITY_GUIDES && (
+        <SectionTabs
+          className="mt-8"
+          items={[
+            {
+              href: "?tab=matchups",
+              label: tr(lang, { en: "My Notes", es: "Mis notas", ja: "自分用メモ" }),
+              active: tab === "matchups",
+            },
+            {
+              href: "?tab=guides",
+              label: tr(lang, { en: "Guides", es: "Guías", ja: "コミュニティ攻略" }),
+              active: tab === "guides",
+            },
+          ]}
+        />
+      )}
       <div className="mt-6">
         {tab === "matchups" ? (
           <MatchupsTab userId={userId} lang={lang} />

@@ -191,4 +191,14 @@ export const HAS_DISCORD_SERVER = REGION_SET !== "jp";
  * permanently out of reach for everyone. Where this is off, those gates open
  * instead of locking a feature nobody can unlock.
  */
+/**
+ * Whether players can write guides for each other.
+ *
+ * Japan doesn't: the private matchup notes stay — they are the half a player
+ * keeps to themselves and the half that shows up mid-match — but nothing on
+ * that instance is written for the community to share. Without this the
+ * Notes page would offer a public tab nobody was asked to fill.
+ */
+export const HAS_COMMUNITY_GUIDES = REGION_SET !== "jp";
+
 export const HAS_KOFI = REGION_SET !== "jp";

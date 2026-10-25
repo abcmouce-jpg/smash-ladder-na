@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
-import { USES_REGIONS } from "@/lib/site";
+import { HAS_DISCORD_SERVER, USES_REGIONS } from "@/lib/site";
 
 export default async function FriendliesPage() {
   const [session, lang, posts] = await Promise.all([auth(), getLang(), getFriendliesPosts(20)]);
@@ -189,11 +189,17 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
                 ))}
               </select>
               <span className="text-xs text-muted-foreground">
-                {tr(lang, {
-                  en: "Everyone sees the post, but only players who've reached that rank can join — and it announces in that rank's Discord channel instead of the general one.",
-                  es: "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse — y se anuncia en el canal de Discord de ese rango en vez del general.",
-                  ja: "募集は全員に表示されますが、参加できるのはそのランクに到達したプレイヤーだけです。告知も全体チャンネルではなく、そのランクの Discord チャンネルに流れます。",
-                })}
+                {HAS_DISCORD_SERVER
+                  ? tr(lang, {
+                      en: "Everyone sees the post, but only players who've reached that rank can join — and it announces in that rank's Discord channel instead of the general one.",
+                      es: "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse — y se anuncia en el canal de Discord de ese rango en vez del general.",
+                      ja: "募集は全員に表示されますが、参加できるのはそのランクに到達したプレイヤーだけです。告知も全体チャンネルではなく、そのランクの Discord チャンネルに流れます。",
+                    })
+                  : tr(lang, {
+                      en: "Everyone sees the post, but only players who've reached that rank can join.",
+                      es: "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse.",
+                      ja: "募集は全員に表示されますが、参加できるのはそのランクに到達したプレイヤーだけです。",
+                    })}
               </span>
             </label>
           )}
@@ -275,11 +281,17 @@ async function OwnPostCard({
           </div>
         )}
         <p className="mt-2 text-xs text-muted-foreground">
-          {tr(lang, {
-            en: "Reach out to them on Discord to set up your room code — this page doesn't track the game itself.",
-            es: "Contáctalo por Discord para acordar el código de sala — esta página no lleva registro de la partida en sí.",
-            ja: "Discord で相手に連絡して、部屋の番号を決めてください。このページでは試合そのものは記録されません。",
-          })}
+          {HAS_DISCORD_SERVER
+            ? tr(lang, {
+                en: "Reach out to them on Discord to set up your room code — this page doesn't track the game itself.",
+                es: "Contáctalos en Discord para acordar el código de sala — esta página no registra la partida.",
+                ja: "Discord で相手に連絡して、部屋の番号を決めてください。このページでは試合そのものは記録されません。",
+              })
+            : tr(lang, {
+                en: "Their Discord handle is on their profile — message them there to set up your room. This page doesn't track the game itself.",
+                es: "Su usuario de Discord está en su perfil — escríbele ahí para montar la sala. Esta página no registra la partida.",
+                ja: "相手のプロフィールに Discord のユーザー名があります。そこから連絡して部屋を決めてください。このページでは試合そのものは記録されません。",
+              })}
         </p>
         <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
           <Button type="submit" variant="outline" size="sm">
