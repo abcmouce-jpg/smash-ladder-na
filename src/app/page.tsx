@@ -163,7 +163,7 @@ export default async function Home() {
                 ),
                 ja: (
                   <>
-                    レートは{PROVISIONAL_GAMES_THRESHOLD}セットから表示されます（いま{" "}
+                    レートは{PROVISIONAL_GAMES_THRESHOLD}セットから表示されます（いま
                     <span className="font-medium text-foreground">
                       {me.gamesPlayed}/{PROVISIONAL_GAMES_THRESHOLD}
                     </span>
@@ -202,64 +202,70 @@ export default async function Home() {
               <span className="live-pulse absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            {trNode(lang, {
-              en: (
-                <>
-                  <span className="font-medium text-foreground">{stats.playingNow}</span> playing now
-                </>
-              ),
-              es: (
-                <>
-                  <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
-                </>
-              ),
-              ja: (
-                <>
-                  <span className="font-medium text-foreground">{stats.playingNow}</span>人が対戦中
-                </>
-              ),
-            })}
+            <span>
+              {trNode(lang, {
+                en: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.playingNow}</span> playing now
+                  </>
+                ),
+                es: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
+                  </>
+                ),
+                ja: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.playingNow}</span>人が対戦中
+                  </>
+                ),
+              })}
+            </span>
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
-          {trNode(lang, {
-            en: (
-              <>
-                <span className="font-medium text-foreground">{stats.totalPlayers}</span> players
-              </>
-            ),
-            es: (
-              <>
-                <span className="font-medium text-foreground">{stats.totalPlayers}</span> jugadores
-              </>
-            ),
-            ja: (
-              <>
-                プレイヤー<span className="font-medium text-foreground">{stats.totalPlayers}</span>人
-              </>
-            ),
-          })}
+          <span>
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{stats.totalPlayers}</span> players
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{stats.totalPlayers}</span> jugadores
+                </>
+              ),
+              ja: (
+                <>
+                  プレイヤー<span className="font-medium text-foreground">{stats.totalPlayers}</span>人
+                </>
+              ),
+            })}
+          </span>
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          {trNode(lang, {
-            en: (
-              <>
-                <span className="font-medium text-foreground">{stats.matchesToday}</span> matches today
-              </>
-            ),
-            es: (
-              <>
-                <span className="font-medium text-foreground">{stats.matchesToday}</span> partidas hoy
-              </>
-            ),
-            ja: (
-              <>
-                今日の試合<span className="font-medium text-foreground">{stats.matchesToday}</span>件
-              </>
-            ),
-          })}
+          <span>
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{stats.matchesToday}</span> matches today
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{stats.matchesToday}</span> partidas hoy
+                </>
+              ),
+              ja: (
+                <>
+                  今日の試合<span className="font-medium text-foreground">{stats.matchesToday}</span>件
+                </>
+              ),
+            })}
+          </span>
         </span>
       </div>
 

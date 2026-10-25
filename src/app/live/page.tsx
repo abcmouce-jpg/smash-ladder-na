@@ -57,23 +57,25 @@ export default async function SetsFeedPage() {
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          {trNode(lang, {
-            en: (
-              <>
-                <span className="font-medium text-foreground">{matchesToday}</span> matches today
-              </>
-            ),
-            es: (
-              <>
-                <span className="font-medium text-foreground">{matchesToday}</span> partidas hoy
-              </>
-            ),
-            ja: (
-              <>
-                今日の試合<span className="font-medium text-foreground">{matchesToday}</span>件
-              </>
-            ),
-          })}
+          <span>
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{matchesToday}</span> matches today
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{matchesToday}</span> partidas hoy
+                </>
+              ),
+              ja: (
+                <>
+                  今日の試合<span className="font-medium text-foreground">{matchesToday}</span>件
+                </>
+              ),
+            })}
+          </span>
         </span>
       </div>
 
