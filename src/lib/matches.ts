@@ -431,7 +431,7 @@ export async function requestRematch(userId: string, matchId: string) {
     throw new LocalizedError({
       en: "You've left this match",
       es: "Dejaste esta partida",
-      ja: "あなたはこのセットから退出しています",
+      ja: "このセットからは退出済みです",
     });
   }
   if (isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt) return;

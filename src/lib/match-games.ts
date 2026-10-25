@@ -741,7 +741,7 @@ export async function strikeGameStage(userId: string, matchId: string, gameNumbe
     throw new LocalizedError({
       en: "Not your turn to strike",
       es: "No es tu turno de vetar",
-      ja: "今はあなたが拒否する番ではありません",
+      ja: "いまは拒否する番ではありません",
     });
   if (!bothCharactersLocked(game))
     throw new LocalizedError({
@@ -833,7 +833,7 @@ export async function strikeSameBans(userId: string, matchId: string, gameNumber
     throw new LocalizedError({
       en: "Not your turn to strike",
       es: "No es tu turno de vetar",
-      ja: "今はあなたが拒否する番ではありません",
+      ja: "いまは拒否する番ではありません",
     });
   if (!bothCharactersLocked(game))
     throw new LocalizedError({
@@ -901,7 +901,7 @@ export async function pickGameStage(userId: string, matchId: string, gameNumber:
     throw new LocalizedError({
       en: "Not your turn to pick",
       es: "No es tu turno de elegir",
-      ja: "今はあなたが選ぶ番ではありません",
+      ja: "いまは選ぶ番ではありません",
     });
   if (!bothCharactersLocked(game))
     throw new LocalizedError({
@@ -946,7 +946,7 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
     throw new LocalizedError({
       en: "Not your turn to pick",
       es: "No es tu turno de elegir",
-      ja: "今はあなたが選ぶ番ではありません",
+      ja: "いまは選ぶ番ではありません",
     });
   if (!bothCharactersLocked(game))
     throw new LocalizedError({

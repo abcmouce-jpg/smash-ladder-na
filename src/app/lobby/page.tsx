@@ -514,7 +514,7 @@ function ActivityLine({
           ),
           ja: (
             <>
-              <span className="font-medium text-foreground">{inMatch}</span> 人が対戦中
+              <span className="font-medium text-foreground">{inMatch}</span>人が対戦中
             </>
           ),
         })}
@@ -2662,7 +2662,7 @@ async function CharacterPickSection({
                 ? tr(lang, {
                     en: "The deadline passed. This should resolve in your favor soon.",
                     es: "Pasó el plazo. Esto debería resolverse a tu favor pronto.",
-                    ja: "期限を過ぎました。まもなくあなたに有利な形で処理されます。",
+                    ja: "期限を過ぎました。まもなく自動で処理され、あなたの勝ちになります。",
                   })
                 : tr(lang, {
                     en: "The deadline passed. This should resolve shortly.",
@@ -2719,7 +2719,7 @@ async function CharacterPickSection({
           tr(lang, {
             en: "Pick your character. You go first.",
             es: "Elige tu personaje. Vas primero.",
-            ja: "使用キャラを選んでください。あなたが先です。",
+            ja: "使用キャラを選んでください。先に選ぶのはあなたです。",
           })
         )}{" "}
         {secondsLeft > 0 ? (
@@ -2831,7 +2831,7 @@ function ReportGameSection({
           : tr(lang, {
               en: "The deadline passed. This should resolve in your favor soon.",
               es: "Pasó el plazo. Esto debería resolverse a tu favor pronto.",
-              ja: "期限を過ぎました。まもなくあなたに有利な形で処理されます。",
+              ja: "期限を過ぎました。まもなく自動で処理され、あなたの勝ちになります。",
             })}
       </>
     );
@@ -3308,7 +3308,7 @@ function RoomCodeSection({
         {tr(lang, {
           en: "You're creating the room.",
           es: "Te toca crear la sala.",
-          ja: "あなたが部屋を立てます。",
+          ja: "部屋はあなたが立てます。",
         })}
       </p>
       <RoomCodeForm initialValue={initialValue} action={submitRoomCode.bind(null, matchId)} lang={lang} />

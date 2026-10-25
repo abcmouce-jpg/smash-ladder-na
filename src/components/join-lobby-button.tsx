@@ -87,7 +87,7 @@ export function JoinLobbyForm({
           {tr(lang, {
             en: "Already have a room set up? (optional)",
             es: "¿Ya tienes una sala lista? (opcional)",
-            ja: "部屋をもう立ててありますか？（任意）",
+            ja: "部屋はもう立ててありますか？（任意）",
           })}
         </summary>
         <label className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
