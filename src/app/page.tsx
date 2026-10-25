@@ -314,11 +314,17 @@ export default async function Home() {
             rel="noreferrer"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            {tr(lang, {
-              en: "Join our Discord to find games",
-              es: "Únete a nuestro Discord para encontrar partidas",
-              ja: "Discord に参加して対戦相手を見つける",
-            })}
+            {HAS_DISCORD_SERVER
+              ? tr(lang, {
+                  en: "Join our Discord to find games",
+                  es: "Únete a nuestro Discord para encontrar partidas",
+                  ja: "Discord に参加して対戦相手を見つける",
+                })
+              : tr(lang, {
+                  en: "Follow us on X for match-finding posts",
+                  es: "Síguenos en X para encontrar partidas",
+                  ja: "X をフォローして対戦相手を見つける",
+                })}
           </a>
         )}
       </div>
