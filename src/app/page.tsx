@@ -23,9 +23,9 @@ import { LiveStreamProvider } from "@/components/live-streams/selection";
 import { LiveStreamStage } from "@/components/live-streams/stage";
 import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
 import { prisma } from "@/lib/db";
-import { DISCORD_SERVER_URL } from "@/lib/links";
+import { X_ACCOUNT_URL, DISCORD_SERVER_URL } from "@/lib/links";
 import { tr, trNode } from "@/lib/lang";
-import { SCENE_LABEL, SITE_NAME_PARTS } from "@/lib/site";
+import { HAS_DISCORD_SERVER, SCENE_LABEL, SITE_NAME_PARTS } from "@/lib/site";
 
 export const metadata: Metadata = {
   alternates: { languages: { "es-MX": "/es" } },
@@ -94,16 +94,18 @@ export default async function Home() {
                 })}
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg">
-              <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
-                <DiscordIcon className="size-4" />
-                {tr(lang, {
-                  en: "Join Our Discord Server",
-                  es: "Únete a nuestro servidor de Discord",
-                  ja: "Discord サーバーに参加",
-                })}
-              </a>
-            </Button>
+            {HAS_DISCORD_SERVER && (
+              <Button asChild variant="outline" size="lg">
+                <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
+                  <DiscordIcon className="size-4" />
+                  {tr(lang, {
+                    en: "Join Our Discord Server",
+                    es: "Únete a nuestro servidor de Discord",
+                    ja: "Discord サーバーに参加",
+                  })}
+                </a>
+              </Button>
+            )}
           </>
         ) : (
           <>
@@ -122,16 +124,18 @@ export default async function Home() {
                 })}
               </Button>
             </form>
-            <Button asChild variant="outline" size="lg">
-              <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
-                <DiscordIcon className="size-4" />
-                {tr(lang, {
-                  en: "Join Our Discord Server",
-                  es: "Únete a nuestro servidor de Discord",
-                  ja: "Discord サーバーに参加",
-                })}
-              </a>
-            </Button>
+            {HAS_DISCORD_SERVER && (
+              <Button asChild variant="outline" size="lg">
+                <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
+                  <DiscordIcon className="size-4" />
+                  {tr(lang, {
+                    en: "Join Our Discord Server",
+                    es: "Únete a nuestro servidor de Discord",
+                    ja: "Discord サーバーに参加",
+                  })}
+                </a>
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -305,7 +309,7 @@ export default async function Home() {
           </Link>
         ) : (
           <a
-            href={DISCORD_SERVER_URL}
+            href={HAS_DISCORD_SERVER ? DISCORD_SERVER_URL : X_ACCOUNT_URL}
             target="_blank"
             rel="noreferrer"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"

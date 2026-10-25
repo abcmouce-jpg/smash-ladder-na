@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SITE_LANGS, SITE_NAME_PARTS } from "@/lib/site";
+import { HAS_DISCORD_SERVER, SITE_LANGS, SITE_NAME_PARTS } from "@/lib/site";
 
 export async function SiteHeader() {
   const session = await auth();
@@ -61,18 +61,20 @@ export async function SiteHeader() {
           </Link>
 
           <div className="flex shrink-0 items-center gap-1.5">
-            <Button
-              asChild
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-foreground"
-              title={tr(lang, { en: "Discord server", es: "Servidor de Discord", ja: "Discord サーバー" })}
-              aria-label={tr(lang, { en: "Discord server", es: "Servidor de Discord", ja: "Discord サーバー" })}
-            >
-              <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
-                <DiscordIcon className="size-[15px]" />
-              </a>
-            </Button>
+            {HAS_DISCORD_SERVER && (
+              <Button
+                asChild
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground"
+                title={tr(lang, { en: "Discord server", es: "Servidor de Discord", ja: "Discord サーバー" })}
+                aria-label={tr(lang, { en: "Discord server", es: "Servidor de Discord", ja: "Discord サーバー" })}
+              >
+                <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
+                  <DiscordIcon className="size-[15px]" />
+                </a>
+              </Button>
+            )}
             <Button
               asChild
               variant="ghost"

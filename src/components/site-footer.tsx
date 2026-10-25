@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Coffee } from "lucide-react";
-import { DISCORD_SERVER_URL } from "@/lib/links";
+import { X_ACCOUNT_URL, DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { getSupporterCount } from "@/lib/public-stats";
-import { SITE_NAME } from "@/lib/site";
+import { HAS_DISCORD_SERVER, SITE_NAME } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export async function SiteFooter() {
@@ -36,12 +36,12 @@ export async function SiteFooter() {
             {tr(lang, { en: "Terms", es: "Términos", ja: "利用規約" })}
           </Link>
           <a
-            href={DISCORD_SERVER_URL}
+            href={HAS_DISCORD_SERVER ? DISCORD_SERVER_URL : X_ACCOUNT_URL}
             target="_blank"
             rel="noreferrer"
             className="hover:text-foreground hover:underline"
           >
-            Discord
+            {HAS_DISCORD_SERVER ? "Discord" : "X"}
           </a>
           <Link
             href="/supporters"
