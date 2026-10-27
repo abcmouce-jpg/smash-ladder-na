@@ -192,7 +192,7 @@ export const HAS_DISCORD_SERVER = REGION_SET !== "jp";
  * instead of locking a feature nobody can unlock.
  */
 /**
- * Text chosen for the instance rather than for the reader.
+ * A value chosen for the instance rather than for the reader.
  *
  * Next's `metadata` export is evaluated once at module load, so it can't ask
  * getLang() who is reading — and it doesn't need to: an instance publishes a
@@ -200,8 +200,8 @@ export const HAS_DISCORD_SERVER = REGION_SET !== "jp";
  * its page titles, its <html lang> and its og:locale should be in. Use tr()
  * everywhere a request is in hand; use this only where none is.
  */
-export function instanceText(strings: Record<Lang, string>): string {
-  return strings[DEFAULT_LANG];
+export function instanceText<T>(values: Record<Lang, T>): T {
+  return values[DEFAULT_LANG];
 }
 
 /** og:locale for DEFAULT_LANG. */

@@ -18,7 +18,8 @@ import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
 import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
-import { USES_REGIONS, SITE_NAME, SITE_URL } from "@/lib/site";
+import { USES_REGIONS, SITE_NAME } from "@/lib/site";
+import { siteOrigin } from "@/lib/site-url";
 import type { Lang } from "@/lib/i18n";
 import type { BlockState } from "../actions";
 import { tr } from "@/lib/lang";
@@ -90,7 +91,7 @@ export function PlayerProfileHeader({
           es: `${player.username} tiene ${ratingLabel} de clasificación en ${SITE_NAME}.`,
           ja: `${player.username}さんは${SITE_NAME}でレート${ratingLabel}です。`,
         });
-  const profileUrl = `${SITE_URL}/players/${player.id}`;
+  const profileUrl = `${siteOrigin()}/players/${player.id}`;
 
   return (
     <>
