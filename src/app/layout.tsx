@@ -44,9 +44,8 @@ export const metadata: Metadata = {
     icon: "/smash_ladder_icon.png",
     apple: "/smash_ladder_icon.png",
   },
-  // No og:image here — the opengraph-image.tsx file convention (sibling to
-  // this layout) generates and injects it automatically, and duplicating a
-  // static one here would just fight it.
+  // No og:image at all: the generated card was removed deliberately. A shared
+  // link shows its title and description and nothing else.
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
@@ -56,7 +55,7 @@ export const metadata: Metadata = {
     locale: OG_LOCALE,
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: TITLE,
     description: DESCRIPTION,
   },
