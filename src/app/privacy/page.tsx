@@ -13,7 +13,7 @@ export default async function PrivacyPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">プライバシーポリシー</h1>
-        <p className="mt-1 text-sm text-muted-foreground">最終更新 2026-07-19</p>
+        <p className="mt-1 text-sm text-muted-foreground">最終更新 2026-10-27</p>
 
         <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
           <section>
@@ -25,6 +25,10 @@ export default async function PrivacyPage() {
             </p>
             <p className="mt-2">
               そのほかに、サイトの利用によって生じたものを保存します。レート対戦とその結果、フリー対戦の募集、試合のコメント、大会への参加登録、ご自身が提出または受け取った通報、そして設定で保存した内容です。
+            </p>
+            <p className="mt-2">
+              あわせて、ログイン時の IP
+              アドレスを記録します。用途は不正対策です（同じ回線から新しいアカウントを作られると、利用停止が意味を持たなくなるため）。閲覧できるのはモデレーターだけで、対応中のプレイヤーのプロフィール上でのみ表示されます。
             </p>
           </section>
 
@@ -101,7 +105,7 @@ export default async function PrivacyPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Política de privacidad</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Última actualización: 2026-07-19.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Última actualización: 2026-10-27.</p>
 
         <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
           <section>
@@ -116,6 +120,11 @@ export default async function PrivacyPage() {
               publicaciones de Amistosos, comentarios de chat de partidas, inscripciones a torneos, reportes de conducta
               que envías o recibes, y cualquier dato autodeclarado (región, estado de conexión por cable, personaje
               principal).
+            </p>
+            <p className="mt-2">
+              También registramos la dirección IP desde la que inicias sesión. Se guarda para la gestión de abusos — un
+              baneo sirve de poco si la siguiente cuenta desde la misma conexión empieza limpia — y solo la ven los
+              moderadores, en el perfil de alguien a quien están revisando.
             </p>
           </section>
 
@@ -191,7 +200,7 @@ export default async function PrivacyPage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Privacy Policy</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Last updated 2026-07-19.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Last updated 2026-10-27.</p>
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <section>
@@ -205,6 +214,11 @@ export default async function PrivacyPage() {
             Beyond that, we store what you generate by using the site: ranked matches and results, Friendlies posts,
             match comments, tournament sign-ups, conduct reports you file or receive, and anything you self-declare
             (region, wired-connection status, main character).
+          </p>
+          <p className="mt-2">
+            We also record the IP address you signed in from. It is kept for abuse handling — a ban is worth little if
+            the next account from the same connection starts clean — and it is visible only to moderators, on the
+            profile of someone they are reviewing.
           </p>
         </section>
 
