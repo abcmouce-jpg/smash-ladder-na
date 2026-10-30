@@ -42,9 +42,8 @@ export function LiveStreamStage({
     <div>
       <LiveStreamEmbed
         key={`${entry.id}:${player.id}`}
-        link={link}
+        embedUrl={link.embedUrl(parentHost)}
         title={`${player.twitchDisplayName ?? player.username}`}
-        parentHost={parentHost}
         collapsible={false}
       />
 

@@ -3,32 +3,37 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Radio } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import type { StreamLink } from "@/lib/stream-links";
 
 // Was TwitchLiveEmbed. Both platforms are an <iframe>, they just build their
 // src differently — Twitch needs the embedding hostname in a `parent` param
 // (production, a preview deployment and localhost all differ), YouTube does
 // not — so the URL is built by the StreamLink and this only renders it.
 //
+// Takes the finished `embedUrl` string rather than the StreamLink, because
+// StreamLink.embedUrl is a function and a Server Component cannot hand a
+// function across the boundary to a Client Component. One of the two callers
+// is a server one (players/[id]/profile-header.tsx), so passing the link
+// itself threw on exactly the profiles that had a stream to show — a player's
+// own page 500'd while they were live, which is when people visit it. Keeping
+// the prop a string makes that a compile error instead of a runtime one.
+//
 // Collapsed by default: the match feed can stack several live entries, and
 // mounting a full-size video player for each one at once was overwhelming
 // the page. Pass `collapsible={false}` to skip the toggle card and render
 // the player directly, for callers that only ever show one at a time.
 export function LiveStreamEmbed({
-  link,
+  embedUrl,
   title,
-  parentHost,
   collapsible = true,
 }: {
-  link: StreamLink;
+  embedUrl: string;
   title: string;
-  parentHost: string;
   collapsible?: boolean;
 }) {
   const [expanded, setExpanded] = useState(!collapsible);
   const player = (
     <div className="aspect-video w-full overflow-hidden rounded-lg">
-      <iframe src={link.embedUrl(parentHost)} allowFullScreen className="h-full w-full" title={title} />
+      <iframe src={embedUrl} allowFullScreen className="h-full w-full" title={title} />
     </div>
   );
 

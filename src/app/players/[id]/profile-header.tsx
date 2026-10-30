@@ -289,7 +289,7 @@ export function PlayerProfileHeader({
           // is the only way a YouTube stream can be known (see lib/stream-links.ts).
           if (!link || (link.platform === "twitch" && !isLiveOnTwitch && !player.liveStreamUrl)) return null;
           return (
-            <LiveStreamEmbed link={link} title={player.twitchDisplayName ?? player.username} parentHost={parentHost} />
+            <LiveStreamEmbed embedUrl={link.embedUrl(parentHost)} title={player.twitchDisplayName ?? player.username} />
           );
         })()}
 
