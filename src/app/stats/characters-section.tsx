@@ -3,7 +3,13 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus, UserStatus } from "@/generated/prisma/enums";
-import { SMASH_CHARACTERS, echoGroupCanonical, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
+import {
+  SMASH_CHARACTERS,
+  characterSlug,
+  echoGroupCanonical,
+  echoGroupLabel,
+  type SmashCharacter,
+} from "@/lib/characters";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getActiveSeason } from "@/lib/seasons";
 import { DELETED_USERNAME } from "@/lib/account";
@@ -325,7 +331,7 @@ export async function StatsCharactersSection({ lang, sort, dir }: { lang: Lang; 
                 <tr key={row.character} className="border-b border-border/60 last:border-0">
                   <td className="py-2 pl-4">
                     <Link
-                      href={`/leaderboard?character=${encodeURIComponent(row.character)}`}
+                      href={`/characters/${characterSlug(row.character as SmashCharacter)}`}
                       className="flex items-center gap-3 hover:underline"
                     >
                       <CharacterIcon name={row.character} />

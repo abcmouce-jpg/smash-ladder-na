@@ -2,7 +2,8 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { siteOrigin } from "@/lib/site-url";
-import { PUBLISHES_SPANISH, HAS_KOFI } from "@/lib/site";
+import { PUBLISHES_SPANISH, HAS_KOFI, HAS_COMMUNITY_GUIDES } from "@/lib/site";
+import { characterSlug, echoGroupCanonical, type SmashCharacter } from "@/lib/characters";
 
 // Profiles are the only part of the site with a search-shaped question
 // behind it ("who is <player>") — the rest is either a utility page or a
@@ -31,6 +32,36 @@ async function playerEntries(siteUrl: string): Promise<MetadataRoute.Sitemap> {
   }));
 }
 
+/**
+ * One entry per fighter that someone has actually written about.
+ *
+ * Not the whole roster: a page for a fighter with no write-ups is its usage
+ * numbers and nothing else, and eighty-odd of those is the templated bulk
+ * that got this site refused by AdSense in the first place. A character earns
+ * a sitemap entry once there is prose on it, and loses nothing by waiting —
+ * the page still exists and is still linked from the stats table.
+ */
+async function characterEntries(siteUrl: string): Promise<MetadataRoute.Sitemap> {
+  if (!HAS_COMMUNITY_GUIDES) return [];
+  const written = await prisma.characterGuide.findMany({
+    where: { hiddenAt: null },
+    select: { character: true, updatedAt: true },
+  });
+  // Echoes fold into their base, matching what /characters/[name] serves.
+  const latestByGroup = new Map<string, Date>();
+  for (const guide of written) {
+    const group = echoGroupCanonical(guide.character as SmashCharacter);
+    const seen = latestByGroup.get(group);
+    if (!seen || seen < guide.updatedAt) latestByGroup.set(group, guide.updatedAt);
+  }
+  return [...latestByGroup].map(([character, lastModified]) => ({
+    url: `${siteUrl}/characters/${characterSlug(character as SmashCharacter)}`,
+    lastModified,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Resolved per request rather than hardcoded: a sitemap that names a
   // different origin than the one serving it is treated as cross-domain and
@@ -52,6 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Worth crawling despite the private-notes half: the Guides tab is public
     // and community-authored, so there's real content behind it signed out.
     { url: `${SITE_URL}/notes`, lastModified: now, changeFrequency: "daily", priority: 0.5 },
+    ...(await characterEntries(SITE_URL)),
     { url: `${SITE_URL}/rules`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     ...(HAS_KOFI

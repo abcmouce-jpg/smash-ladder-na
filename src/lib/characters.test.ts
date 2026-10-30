@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  characterFromSlug,
+  characterSlug,
   ECHO_FIGHTER_GROUPS,
   echoGroupCanonical,
   characterLabel,
@@ -184,5 +186,39 @@ describe("echoGroupLabel in Japanese", () => {
 
   it("is just the name for a fighter with no echo", () => {
     expect(echoGroupLabel("Kirby", "ja")).toBe("カービィ");
+  });
+});
+
+describe("characterSlug", () => {
+  it("gives every fighter a distinct slug", () => {
+    const slugs = SMASH_CHARACTERS.map(characterSlug);
+    expect(new Set(slugs).size).toBe(SMASH_CHARACTERS.length);
+  });
+
+  it("produces only URL-safe segments", () => {
+    for (const character of SMASH_CHARACTERS) {
+      expect(characterSlug(character)).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    }
+  });
+
+  it("round-trips every fighter", () => {
+    for (const character of SMASH_CHARACTERS) {
+      expect(characterFromSlug(characterSlug(character))).toBe(character);
+    }
+  });
+
+  it("handles the names a path segment cannot carry as-is", () => {
+    expect(characterSlug("Pyra/Mythra")).toBe("pyra-mythra");
+    expect(characterSlug("Mr. Game & Watch")).toBe("mr-game-watch");
+    expect(characterSlug("Pokémon Trainer")).toBe("pokemon-trainer");
+    expect(characterSlug("R.O.B.")).toBe("r-o-b");
+    expect(characterSlug("Pac-Man")).toBe("pac-man");
+  });
+
+  it("accepts a slug whatever its case, and refuses one that names no fighter", () => {
+    expect(characterFromSlug("BOWSER")).toBe("Bowser");
+    expect(characterFromSlug("  bowser  ")).toBe("Bowser");
+    expect(characterFromSlug("goku")).toBeNull();
+    expect(characterFromSlug("")).toBeNull();
   });
 });

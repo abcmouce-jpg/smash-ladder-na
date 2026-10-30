@@ -271,3 +271,39 @@ export function isMiiCharacter(character: string): boolean {
 // A Mii's custom moveset: 4 special moves, each customized to one of 4
 // variants, entered as a 4-digit string like "1221".
 export const MOVESET_PATTERN = /^[1-4]{4}$/;
+
+/**
+ * A character's URL segment.
+ *
+ * The roster has names a path segment cannot carry as-is — "Pyra/Mythra" has
+ * a slash, "Mr. Game & Watch" an ampersand, "Pokémon Trainer" an accent — so
+ * the canonical English name (the stored value everywhere else) is reduced to
+ * ASCII words joined by hyphens. Accents are decomposed and their marks
+ * dropped rather than transliterated, which keeps é → e without a lookup
+ * table. characters.test.ts asserts the whole roster still maps to distinct
+ * slugs, so adding a fighter whose slug collides with an existing one fails
+ * there rather than silently serving one character's page for two names.
+ */
+export function characterSlug(character: SmashCharacter): string {
+  return character
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+const CHARACTER_BY_SLUG: ReadonlyMap<string, SmashCharacter> = new Map(
+  SMASH_CHARACTERS.map((character) => [characterSlug(character), character]),
+);
+
+/**
+ * The character a URL segment names, or null for one that matches no fighter.
+ *
+ * Case-insensitive so a hand-typed or link-shortened URL still lands, but
+ * nothing is guessed: an unknown slug is a 404 rather than a nearest match,
+ * because a wrong character page reads as real data about the wrong fighter.
+ */
+export function characterFromSlug(slug: string): SmashCharacter | null {
+  return CHARACTER_BY_SLUG.get(slug.trim().toLowerCase()) ?? null;
+}
