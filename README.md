@@ -82,6 +82,21 @@ you want to use a remote database or real Discord OAuth instead, copy `.env.exam
 `.env.local` and fill in the values — it's the highest-precedence file, and Prisma's config reads
 the env files in the same order Next.js does (see `prisma.config.ts`), so migrations follow it too.
 
+Once `.env.local` holds a deployed environment's values, put your local overrides in
+`.env.development.local` (gitignored, read before `.env.local`) so `npm run dev` keeps pointing
+at the local database and the local instance.
+
+**`next build` and `next start` do not read `.env.development.local`** — both run in production
+mode, where Next.js reads `.env.production.local` → `.env.local` → `.env.production` → `.env`.
+So building and serving a production build locally picks up the deployed database and the
+deployed `NEXT_PUBLIC_*` values baked in at build time. Use these instead, which load the
+development files first and refuse to start if `DATABASE_URL` is not on localhost:
+
+```bash
+npm run build:local
+npm run start:local -- -p 3100
+```
+
 ### Working with realistic data locally
 
 A fresh local DB only has a handful of seeded test accounts — not enough to build or sanity-check
