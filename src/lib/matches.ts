@@ -1277,3 +1277,127 @@ export async function listDisputedCorrections() {
     include: matchWithPlayers,
   });
 }
+
+/**
+ * Whether a CANCELLED match can still be turned into a result.
+ *
+ * Only if neither player has had a rated match since. Every rating after this
+ * point was computed from numbers that did not include this set, so inserting
+ * it later would need the whole forward chain recomputed — which nothing here
+ * does, and which the rest of the admin surface avoids by only ever touching a
+ * player's most recent match (see isMostRecentConfirmedMatch). This keeps the
+ * same promise for a different starting state: a cancel is reversible right up
+ * until either player queues again, and not after.
+ *
+ * Also requires the set to belong to the season that is running now. A season
+ * stamps matches at confirm time, so a cancelled set from a finished season
+ * would otherwise be confirmed into the current one and rate players for
+ * games they played under different numbers.
+ */
+export async function cancelledMatchIsConvertible(
+  tx: Prisma.TransactionClient,
+  match: { id: string; player1Id: string; player2Id: string; status: MatchStatus; createdAt: Date },
+): Promise<boolean> {
+  if (match.status !== MatchStatus.CANCELLED) return false;
+  const activeSeason = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  if (!activeSeason || match.createdAt < activeSeason.startsAt) return false;
+  const newer = await tx.ratingMatch.findFirst({
+    where: {
+      id: { not: match.id },
+      status: MatchStatus.CONFIRMED,
+      confirmedAt: { gte: match.createdAt },
+      OR: [
+        { player1Id: match.player1Id },
+        { player2Id: match.player1Id },
+        { player1Id: match.player2Id },
+        { player2Id: match.player2Id },
+      ],
+    },
+    select: { id: true },
+  });
+  return newer === null;
+}
+
+/**
+ * Turns a cancelled set into a win, for the case a mod can actually vouch
+ * for: the opponent left and the reporter hit cancel instead of reporting it.
+ *
+ * This is the one gap the rest of the admin surface left open —
+ * adminForceConfirmMatch refuses a CANCELLED match outright, so until now
+ * every one of these had to be done by hand against the database, and the
+ * owner was the only person who could. Mods have the context; they just had
+ * no button.
+ *
+ * Rating, deviation, volatility, games played, the history row, the season
+ * standing and the streaks all come from applyEloAndConfirm, the same path a
+ * normal confirmation takes — doing any of it in SQL is how a match ends up
+ * rated correctly but still showing as a loss on the winner's own profile
+ * (see the reportedWinnerId note in adminForceConfirmMatch).
+ */
+export async function adminConfirmCancelledMatch(matchId: string, winnerId: string) {
+  await prisma.$transaction(async (tx) => {
+    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+    if (!match)
+      throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+    if (match.status !== MatchStatus.CANCELLED) {
+      throw new LocalizedError({
+        en: "This match was not cancelled",
+        es: "Esta partida no fue cancelada",
+        ja: "このセットはキャンセルされたものではありません",
+      });
+    }
+    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+      throw new LocalizedError({
+        en: "Winner must be one of the two players",
+        es: "El ganador debe ser uno de los dos jugadores",
+        ja: "勝者は対戦した2人のどちらかである必要があります",
+      });
+    }
+    // Re-checked inside the transaction, not just when the page was drawn:
+    // the window closes the moment either player's next set confirms, and a
+    // mod can be looking at a list that went stale while they read it.
+    if (!(await cancelledMatchIsConvertible(tx, match))) {
+      throw new LocalizedError({
+        en: "Too late — one of these players has played a rated set since, so changing this would mean recomputing every rating after it.",
+        es: "Demasiado tarde: uno de estos jugadores ya jugó una partida clasificatoria, así que cambiar esto exigiría recalcular todas las puntuaciones posteriores.",
+        ja: "もう変更できません。どちらかがこのあとレート対戦をしているため、変更するとそれ以降の全レートを再計算する必要があります。",
+      });
+    }
+    // Same fields a report would have set, so the win/loss badge and the
+    // rivals record read right — applyEloAndConfirm does not set these.
+    await tx.ratingMatch.update({
+      where: { id: matchId },
+      data: { reportedWinnerId: winnerId, reportedById: winnerId, reportedAt: new Date() },
+    });
+    await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.ADMIN_RESOLVED, null);
+  });
+}
+
+/**
+ * Recent cancelled sets a mod could still convert, newest first.
+ *
+ * Deliberately only lists the convertible ones: a cancel that can no longer
+ * be undone is not something to offer and then refuse, and the list would
+ * otherwise fill with thousands of ordinary cancels nobody will ever touch.
+ */
+export async function listConvertibleCancelledMatches(take = 40) {
+  const activeSeason = await prisma.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  if (!activeSeason) return [];
+  const candidates = await prisma.ratingMatch.findMany({
+    where: { status: MatchStatus.CANCELLED, createdAt: { gte: activeSeason.startsAt } },
+    orderBy: { createdAt: "desc" },
+    // A generous read before filtering: most recent cancels have a later set
+    // behind them, so the convertible ones are a thin slice off the top.
+    take: take * 25,
+    include: {
+      player1: { select: { id: true, username: true, rating: true } },
+      player2: { select: { id: true, username: true, rating: true } },
+    },
+  });
+  const out: typeof candidates = [];
+  for (const m of candidates) {
+    if (out.length >= take) break;
+    if (await cancelledMatchIsConvertible(prisma, m)) out.push(m);
+  }
+  return out;
+}

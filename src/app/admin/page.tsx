@@ -93,6 +93,9 @@ export default async function AdminOverviewPage() {
         <Link href="/admin/disputes" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Disputes →
         </Link>
+        <Link href="/admin/cancelled" className="text-muted-foreground hover:text-foreground hover:underline">
+          Go to Cancelled sets →
+        </Link>
         <Link href="/admin/reports" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Reports →
         </Link>
