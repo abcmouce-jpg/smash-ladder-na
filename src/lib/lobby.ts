@@ -285,22 +285,16 @@ async function attemptPairing(params: {
           ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user, Date.now() - c.joinedAt.getTime())) &&
           rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
           wiredRequirementAllows(me, c.user) &&
-          // Randitto rates onto the practice track (see joinLobbyAndTryPair),
-          // which would otherwise make "don't match me with people who are
-          // practicing" exclude every randitto opponent — leaving anyone with
-          // that setting unable to use the mode at all. Inside randitto both
-          // sides opted into the same thing, so the preference does not apply.
-          (myEntry.mode === MatchMode.RANDITTO ||
-            practiceMatchAllowed(
-              {
-                isPracticing: myEntry.isPracticing,
-                avoidPracticeOpponents: me.avoidPracticeOpponents,
-              },
-              {
-                isPracticing: c.isPracticing,
-                avoidPracticeOpponents: c.user.avoidPracticeOpponents,
-              },
-            )),
+          practiceMatchAllowed(
+            {
+              isPracticing: myEntry.isPracticing,
+              avoidPracticeOpponents: me.avoidPracticeOpponents,
+            },
+            {
+              isPracticing: c.isPracticing,
+              avoidPracticeOpponents: c.user.avoidPracticeOpponents,
+            },
+          ),
       );
       // No one to pair with this tick — release the self-claim above so
       // this entry goes back to WAITING instead of getting stuck PAIRED
@@ -433,12 +427,10 @@ export async function joinLobbyAndTryPair(
   existingRoomCode: string | null = null,
   mode: MatchMode = MatchMode.STANDARD,
 ) {
-  // Randitto always rates onto the practice track. A set played on a fighter
-  // you were handed says nothing about your ladder standing, and routing it
-  // through the track that already exists for exactly that ("recorded, but
-  // the main rating does not move") avoids inventing a third rating column
-  // for a mode that may not survive its first week.
-  const isPracticing = mode === MatchMode.RANDITTO ? true : isPracticingArg;
+  // Randitto has its own rating track (see trackFor), so the practice flag
+  // has nothing to express on it — forced off rather than carried, to keep a
+  // fourth "practising at randitto" ladder from existing by accident.
+  const isPracticing = mode === MatchMode.RANDITTO ? false : isPracticingArg;
   const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({
       where: { userId, status: LobbyEntryStatus.WAITING },

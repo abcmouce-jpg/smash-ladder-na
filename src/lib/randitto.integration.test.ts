@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import { createTestUser } from "@/test/factories";
-import { LobbyEntryStatus, MatchMode } from "@/generated/prisma/enums";
+import { LobbyEntryStatus, MatchMode, RatingAlgorithm } from "@/generated/prisma/enums";
 import { joinLobbyAndTryPair } from "@/lib/lobby";
 import { startFirstGame } from "@/lib/match-games";
+import { adminForceConfirmMatch } from "@/lib/matches";
 import { MII_CHARACTERS, MOVESET_PATTERN } from "@/lib/characters";
 
 // Region is required to queue (see joinLobbyAndTryPair), and a wide rating gap
@@ -46,26 +47,23 @@ describe("randitto queue", () => {
     for (const e of entries) expect(e.status).toBe(LobbyEntryStatus.WAITING);
   });
 
-  // A set played on a fighter you were handed says nothing about ladder
-  // standing, so it goes to the practice track and the main rating is left
-  // alone. Forced regardless of what the caller passed.
-  it("always rates onto the practice track", async () => {
+  // Randitto has its own track, so the practice flag has nothing to express
+  // on it — forced off even if the caller asked for it, so that a fourth
+  // "practising at randitto" ladder cannot come into existence.
+  it("never carries the practice flag", async () => {
     const a = await queuer();
     const b = await queuer();
-    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
-    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(a.id, true, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, true, null, MatchMode.RANDITTO);
 
     const match = await prisma.ratingMatch.findFirstOrThrow({
       where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
     });
-    expect(match.player1IsPracticing).toBe(true);
-    expect(match.player2IsPracticing).toBe(true);
+    expect(match.player1IsPracticing).toBe(false);
+    expect(match.player2IsPracticing).toBe(false);
   });
 
-  // Somebody who set "don't match me with people who are practicing" would
-  // otherwise be unable to use randitto at all, since randitto forces the
-  // practice flag on both sides.
-  it("still pairs players who avoid practice opponents", async () => {
+  it("pairs players who avoid practice opponents", async () => {
     const a = await queuer({ avoidPracticeOpponents: true });
     const b = await queuer({ avoidPracticeOpponents: true });
     await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
@@ -123,5 +121,74 @@ describe("randitto queue", () => {
     expect(match.mode).toBe(MatchMode.STANDARD);
     expect(game.actorACharacter).toBeNull();
     expect(game.actorBCharacter).toBeNull();
+  });
+});
+
+// The point of the separate track: three ladders that cannot bleed into each
+// other. A randitto result moving `rating` would silently rate people on
+// fighters they were handed; one moving `practiceRating` would make the
+// practice number mean two different things at once.
+describe("the randitto rating track", () => {
+  async function playedRandittoSet() {
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
+    const a = await queuer({ rating: 1500, gamesPlayed: 20 });
+    const b = await queuer({ rating: 1500, gamesPlayed: 20 });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    await adminForceConfirmMatch(match.id, a.id);
+    const [after, loser] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: a.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: b.id } }),
+    ]);
+    return { after, loser, match };
+  }
+
+  it("moves randittoRating and leaves the main ladder untouched", async () => {
+    const { after, loser } = await playedRandittoSet();
+    expect(after.randittoRating).toBeGreaterThan(1500);
+    expect(loser.randittoRating).toBeLessThan(1500);
+    expect(after.randittoGamesPlayed).toBe(1);
+    expect(loser.randittoGamesPlayed).toBe(1);
+
+    expect(after.rating).toBe(1500);
+    expect(loser.rating).toBe(1500);
+    expect(after.gamesPlayed).toBe(20);
+    expect(loser.gamesPlayed).toBe(20);
+  });
+
+  it("leaves the practice track untouched too", async () => {
+    const { after, loser } = await playedRandittoSet();
+    for (const u of [after, loser]) {
+      expect(u.practiceRating).toBe(1500);
+      expect(u.practiceGamesPlayed).toBe(0);
+    }
+  });
+
+  // RatingHistory backs the rating-over-time chart and the peak-rating stat.
+  it("writes no row to the main rating history", async () => {
+    const { match } = await playedRandittoSet();
+    const rows = await prisma.ratingHistory.count({ where: { matchId: match.id } });
+    expect(rows).toBe(0);
+  });
+
+  it("rates a standard set onto the main ladder, as before", async () => {
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
+    const a = await queuer({ rating: 1500, gamesPlayed: 20 });
+    const b = await queuer({ rating: 1500, gamesPlayed: 20 });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    await adminForceConfirmMatch(match.id, a.id);
+
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: a.id } });
+    expect(after.rating).toBeGreaterThan(1500);
+    expect(after.gamesPlayed).toBe(21);
+    expect(after.randittoRating).toBe(1500);
+    expect(after.randittoGamesPlayed).toBe(0);
   });
 });

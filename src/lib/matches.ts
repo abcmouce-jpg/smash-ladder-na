@@ -2,6 +2,7 @@ import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import {
   LobbyEntryStatus,
+  MatchMode,
   MatchStatus,
   ConfirmationMethod,
   PairingMethod,
@@ -14,6 +15,7 @@ import {
   isCancelWarningThreshold,
   isWiredClaimUntrustworthy,
 } from "@/lib/account";
+import { isMainTrack, readTrack, trackFor, writeTrack, type RatingTrack } from "@/lib/rating-track";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
@@ -579,18 +581,29 @@ function nextRatingStates(
 async function lastRatedAt(
   tx: Prisma.TransactionClient,
   userId: string,
-  isPracticing: boolean,
+  track: RatingTrack,
   excludeMatchId: string,
 ): Promise<Date | null> {
+  // Each track ages on its own clock: a randitto set says nothing about how
+  // stale the main rating is, and vice versa. Randitto is decided by the
+  // match's mode, the other two by this side's practising flag on a standard
+  // one.
+  const scope: Prisma.RatingMatchWhereInput =
+    track === "randitto"
+      ? { mode: MatchMode.RANDITTO, OR: [{ player1Id: userId }, { player2Id: userId }] }
+      : {
+          mode: MatchMode.STANDARD,
+          OR: [
+            { player1Id: userId, player1IsPracticing: track === "practice" },
+            { player2Id: userId, player2IsPracticing: track === "practice" },
+          ],
+        };
   const row = await tx.ratingMatch.findFirst({
     where: {
       id: { not: excludeMatchId },
       status: MatchStatus.CONFIRMED,
       confirmedAt: { not: null },
-      OR: [
-        { player1Id: userId, player1IsPracticing: isPracticing },
-        { player2Id: userId, player2IsPracticing: isPracticing },
-      ],
+      ...scope,
     },
     orderBy: { confirmedAt: "desc" },
     select: { confirmedAt: true },
@@ -605,7 +618,7 @@ async function lastRatedAt(
 async function ageForGlicko2Inactivity(
   tx: Prisma.TransactionClient,
   userId: string,
-  isPracticing: boolean,
+  track: RatingTrack,
   excludeMatchId: string,
   state: RatingState,
   seasonStartsAt: Date | null,
@@ -615,7 +628,7 @@ async function ageForGlicko2Inactivity(
   // a rollover resets everyone's RD to maximum uncertainty, so a match from a
   // previous season says nothing about how stale this season's rating is (and
   // would otherwise over-age someone who simply sat out last season).
-  const lastMatchAt = await lastRatedAt(tx, userId, isPracticing, excludeMatchId);
+  const lastMatchAt = await lastRatedAt(tx, userId, track, excludeMatchId);
   const from = seasonStartsAt && (!lastMatchAt || seasonStartsAt > lastMatchAt) ? seasonStartsAt : lastMatchAt;
   if (!from) return state;
   const periods = glicko2InactivityPeriods(now.getTime() - from.getTime());
@@ -640,7 +653,7 @@ export async function applyEloAndConfirm(
   const season = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
   const matchRow = await tx.ratingMatch.findUniqueOrThrow({
     where: { id: match.id },
-    select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true },
+    select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true, mode: true },
   });
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
@@ -657,35 +670,27 @@ export async function applyEloAndConfirm(
   // same 1500-baseline scale, so comparing one side's practiceRating against
   // the other's main rating is valid math, not a units mismatch. Same split
   // applies to the Glicko-2 rd/volatility parameters.
-  let p1State: RatingState = matchRow.player1IsPracticing
-    ? { rating: p1.practiceRating, rd: p1.practiceRatingDeviation, volatility: p1.practiceRatingVolatility }
-    : { rating: p1.rating, rd: p1.ratingDeviation, volatility: p1.ratingVolatility };
-  let p2State: RatingState = matchRow.player2IsPracticing
-    ? { rating: p2.practiceRating, rd: p2.practiceRatingDeviation, volatility: p2.practiceRatingVolatility }
-    : { rating: p2.rating, rd: p2.ratingDeviation, volatility: p2.ratingVolatility };
-  const p1Games = matchRow.player1IsPracticing ? p1.practiceGamesPlayed : p1.gamesPlayed;
-  const p2Games = matchRow.player2IsPracticing ? p2.practiceGamesPlayed : p2.gamesPlayed;
+  const p1Track = trackFor(matchRow.mode, matchRow.player1IsPracticing);
+  const p2Track = trackFor(matchRow.mode, matchRow.player2IsPracticing);
+  const p1Columns = readTrack(p1, p1Track);
+  const p2Columns = readTrack(p2, p2Track);
+  let p1State: RatingState = {
+    rating: p1Columns.rating,
+    rd: p1Columns.ratingDeviation,
+    volatility: p1Columns.ratingVolatility,
+  };
+  let p2State: RatingState = {
+    rating: p2Columns.rating,
+    rd: p2Columns.ratingDeviation,
+    volatility: p2Columns.ratingVolatility,
+  };
+  const p1Games = p1Columns.gamesPlayed;
+  const p2Games = p2Columns.gamesPlayed;
 
   const now = new Date();
   if (algorithm === RatingAlgorithm.GLICKO2) {
-    p1State = await ageForGlicko2Inactivity(
-      tx,
-      p1.id,
-      matchRow.player1IsPracticing,
-      match.id,
-      p1State,
-      season?.startsAt ?? null,
-      now,
-    );
-    p2State = await ageForGlicko2Inactivity(
-      tx,
-      p2.id,
-      matchRow.player2IsPracticing,
-      match.id,
-      p2State,
-      season?.startsAt ?? null,
-      now,
-    );
+    p1State = await ageForGlicko2Inactivity(tx, p1.id, p1Track, match.id, p1State, season?.startsAt ?? null, now);
+    p2State = await ageForGlicko2Inactivity(tx, p2.id, p2Track, match.id, p2State, season?.startsAt ?? null, now);
   }
 
   const p1Won = winnerId === p1.id;
@@ -718,44 +723,14 @@ export async function applyEloAndConfirm(
     },
   });
 
-  await tx.user.update({
-    where: { id: p1.id },
-    data: matchRow.player1IsPracticing
-      ? {
-          practiceRating: p1Next.rating,
-          practiceRatingDeviation: p1Next.rd,
-          practiceRatingVolatility: p1Next.volatility,
-          practiceGamesPlayed: { increment: 1 },
-        }
-      : {
-          rating: p1Next.rating,
-          ratingDeviation: p1Next.rd,
-          ratingVolatility: p1Next.volatility,
-          gamesPlayed: { increment: 1 },
-        },
-  });
-  await tx.user.update({
-    where: { id: p2.id },
-    data: matchRow.player2IsPracticing
-      ? {
-          practiceRating: p2Next.rating,
-          practiceRatingDeviation: p2Next.rd,
-          practiceRatingVolatility: p2Next.volatility,
-          practiceGamesPlayed: { increment: 1 },
-        }
-      : {
-          rating: p2Next.rating,
-          ratingDeviation: p2Next.rd,
-          ratingVolatility: p2Next.volatility,
-          gamesPlayed: { increment: 1 },
-        },
-  });
+  await tx.user.update({ where: { id: p1.id }, data: writeTrack(p1Track, p1Next) });
+  await tx.user.update({ where: { id: p2.id }, data: writeTrack(p2Track, p2Next) });
 
   // RatingHistory backs the main "rating over time" chart and peak-rating
-  // stat — a practicing side's numbers have no business in there, so it
-  // just doesn't get a row this match (no practice-rating chart exists yet).
+  // stat, so only the main track writes to it — a practice or randitto
+  // number in there would read as the player's ladder rating having moved.
   const historyRows = [
-    ...(matchRow.player1IsPracticing
+    ...(!isMainTrack(p1Track)
       ? []
       : [
           {
@@ -766,7 +741,7 @@ export async function applyEloAndConfirm(
             delta: p1Next.rating - p1State.rating,
           },
         ]),
-    ...(matchRow.player2IsPracticing
+    ...(!isMainTrack(p2Track)
       ? []
       : [
           {
@@ -793,15 +768,16 @@ export async function applyEloAndConfirm(
   // deferred via after() to run once this transaction has actually
   // committed, never awaited inline here. Practicing sides are skipped:
   // practiceRating/practiceGamesPlayed never move the tier shown anywhere
-  // (see the practice-rating comment above), so there's nothing to sync.
+  // (see the practice-rating comment above), so there's nothing to sync —
+  // and the same goes for randitto, which has its own ladder and no tiers.
   // computeTierChange itself is pure/cheap — fine to call before the
   // transaction has committed, only the Discord side needs to wait.
-  if (!matchRow.player1IsPracticing) {
+  if (isMainTrack(p1Track)) {
     deferTierChange(
       computeTierChange(p1.id, p1.discordId, p1.username, match.id, p1State.rating, p1Next.rating, p1Games),
     );
   }
-  if (!matchRow.player2IsPracticing) {
+  if (isMainTrack(p2Track)) {
     deferTierChange(
       computeTierChange(p2.id, p2.discordId, p2.username, match.id, p2State.rating, p2Next.rating, p2Games),
     );

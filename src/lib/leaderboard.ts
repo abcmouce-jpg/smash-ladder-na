@@ -227,3 +227,33 @@ export async function getRankingsForExport(take: number, skip: number) {
 
   return { players, totalCount, startggLinkedCount };
 }
+
+/**
+ * The randitto board.
+ *
+ * Its own query rather than a filter on the main one, because it ranks a
+ * different column (`randittoRating`) against a different games floor
+ * (`randittoGamesPlayed`) — the same reason the track is separate columns.
+ * Deliberately lean: no character filter, no regions, no pagination. The mode
+ * is an experiment, and a board that duplicates the whole main leaderboard
+ * before anyone has played twenty sets on it is work spent on a page that may
+ * be deleted.
+ */
+export async function getRandittoLeaderboard(take = 100) {
+  const where = {
+    randittoGamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
+    status: { not: UserStatus.BANNED },
+    username: { not: DELETED_USERNAME },
+  };
+  const [totalCount, players] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      // Same stable tiebreaker as the main board — see the note there.
+      orderBy: [{ randittoRating: "desc" }, { id: "asc" }],
+      take,
+      select: { id: true, username: true, randittoRating: true, randittoGamesPlayed: true },
+    }),
+  ]);
+  return { totalCount, players };
+}

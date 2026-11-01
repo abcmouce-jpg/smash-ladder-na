@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Trophy } from "lucide-react";
+import { CalendarClock, Dices, Trophy } from "lucide-react";
 import { auth } from "@/auth";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import {
@@ -120,6 +120,10 @@ export default async function LeaderboardPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
+      {/* Randitto is a separate board, not a filter on this one: a rating
+          earned on fighters you were handed is not comparable with one
+          earned on the fighter you chose. Linked rather than merged so the
+          two never share a table. */}
       <PageHeading
         icon={Trophy}
         title={tr(lang, {
@@ -150,6 +154,16 @@ export default async function LeaderboardPage({
         }
         action={<InfoPopup lang={lang} />}
       />
+
+      <p className="mt-3 text-sm">
+        <Link
+          href="/leaderboard/randitto"
+          className="inline-flex items-center gap-1.5 text-muted-foreground underline hover:text-foreground hover:no-underline"
+        >
+          <Dices className="size-3.5" />
+          {tr(lang, { en: "Randitto has its own board", es: "Randitto tiene su propia tabla" })}
+        </Link>
+      </p>
 
       <Card className="mt-6">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
