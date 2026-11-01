@@ -15,7 +15,8 @@ import {
   isCancelWarningThreshold,
   isWiredClaimUntrustworthy,
 } from "@/lib/account";
-import { isMainTrack, readTrack, trackFor, writeTrack, type RatingTrack } from "@/lib/rating-track";
+import { isMainTrack, meanOfTrack, readTrack, trackFor, writeTrack, type RatingTrack } from "@/lib/rating-track";
+import { matchParticipantIds, participantWhere, sideMemberIds, sideOf } from "@/lib/match-sides";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
@@ -82,7 +83,7 @@ export const matchWithPlayers = {
 export async function getUnresolvedMatchForUser(userId: string) {
   return prisma.ratingMatch.findFirst({
     where: {
-      OR: [{ player1Id: userId }, { player2Id: userId }],
+      ...participantWhere(userId),
       status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
     },
     orderBy: { createdAt: "desc" },
@@ -95,7 +96,7 @@ export async function getUnresolvedMatchForUser(userId: string) {
 
 export async function getLatestMatchForUser(userId: string) {
   return prisma.ratingMatch.findFirst({
-    where: { OR: [{ player1Id: userId }, { player2Id: userId }] },
+    where: participantWhere(userId),
     orderBy: { createdAt: "desc" },
     include: {
       ...matchWithPlayers,
@@ -654,7 +655,14 @@ export async function applyEloAndConfirm(
   const season = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
   const matchRow = await tx.ratingMatch.findUniqueOrThrow({
     where: { id: match.id },
-    select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true, mode: true },
+    select: {
+      createdAt: true,
+      player1IsPracticing: true,
+      player2IsPracticing: true,
+      mode: true,
+      player1PartnerId: true,
+      player2PartnerId: true,
+    },
   });
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
@@ -673,8 +681,19 @@ export async function applyEloAndConfirm(
   // applies to the Glicko-2 rd/volatility parameters.
   const p1Track = trackFor(matchRow.mode, matchRow.player1IsPracticing);
   const p2Track = trackFor(matchRow.mode, matchRow.player2IsPracticing);
-  const p1Columns = readTrack(p1, p1Track);
-  const p2Columns = readTrack(p2, p2Track);
+  // Doubles: a side is two people, so it is rated as one and the change is
+  // handed to both. The side's state is the mean of its members — the
+  // standard way to rate a team without inventing a team entity to hang a
+  // rating on, and the only one that keeps a 2v2 result comparable with the
+  // 1v1 scale both sides' numbers are already on.
+  const p1Partner = matchRow.player1PartnerId
+    ? await tx.user.findUniqueOrThrow({ where: { id: matchRow.player1PartnerId } })
+    : null;
+  const p2Partner = matchRow.player2PartnerId
+    ? await tx.user.findUniqueOrThrow({ where: { id: matchRow.player2PartnerId } })
+    : null;
+  const p1Columns = meanOfTrack([p1, p1Partner], p1Track);
+  const p2Columns = meanOfTrack([p2, p2Partner], p2Track);
   let p1State: RatingState = {
     rating: p1Columns.rating,
     rd: p1Columns.ratingDeviation,
@@ -724,8 +743,34 @@ export async function applyEloAndConfirm(
     },
   });
 
-  await tx.user.update({ where: { id: p1.id }, data: writeTrack(p1Track, p1Next) });
-  await tx.user.update({ where: { id: p2.id }, data: writeTrack(p2Track, p2Next) });
+  // Applied as a delta rather than an absolute, so two teammates who came in
+  // on different ratings stay apart afterwards instead of both being flattened
+  // onto their team's mean.
+  //
+  // Rounded only where the algorithm itself rounds. nextRatingStates keeps
+  // Glicko-2 fractional on purpose and rounds Elo; re-rounding here would
+  // quietly take that precision away from every 1v1 Glicko-2 set, not just
+  // the doubles this exists for.
+  const roundsRatings = algorithm !== RatingAlgorithm.GLICKO2;
+  const settle = (value: number) => (roundsRatings ? Math.round(value) : value);
+  const applySide = async (
+    members: (typeof p1 | null)[],
+    track: RatingTrack,
+    before: RatingState,
+    after: RatingState,
+  ) => {
+    const delta = after.rating - before.rating;
+    for (const member of members) {
+      if (!member) continue;
+      const own = readTrack(member, track);
+      await tx.user.update({
+        where: { id: member.id },
+        data: writeTrack(track, { rating: settle(own.rating + delta), rd: after.rd, volatility: after.volatility }),
+      });
+    }
+  };
+  await applySide([p1, p1Partner], p1Track, p1State, p1Next);
+  await applySide([p2, p2Partner], p2Track, p2State, p2Next);
 
   // RatingHistory backs the main "rating over time" chart and peak-rating
   // stat, so only the main track writes to it — a practice or randitto

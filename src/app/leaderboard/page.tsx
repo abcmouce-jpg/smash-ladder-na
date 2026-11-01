@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Dices, Trophy } from "lucide-react";
+import { CalendarClock, Dices, Trophy, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import {
@@ -162,6 +162,14 @@ export default async function LeaderboardPage({
         >
           <Dices className="size-3.5" />
           {tr(lang, { en: "Randitto has its own board", es: "Randitto tiene su propia tabla" })}
+        </Link>
+        {" · "}
+        <Link
+          href="/leaderboard/randubs"
+          className="inline-flex items-center gap-1.5 text-muted-foreground underline hover:text-foreground hover:no-underline"
+        >
+          <Users className="size-3.5" />
+          {tr(lang, { en: "so does Randubs", es: "y Randubs también" })}
         </Link>
       </p>
 

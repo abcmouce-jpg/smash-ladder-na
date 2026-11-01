@@ -217,6 +217,25 @@ export default async function Home() {
             </span>
           </span>
         )}
+        {stats.randubsPlayingNow > 0 && (
+          <span className="flex items-center gap-1.5 tabular-nums">
+            <Users className="size-3.5" />
+            <span>
+              {trNode(lang, {
+                en: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.randubsPlayingNow}</span> in randubs
+                  </>
+                ),
+                es: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.randubsPlayingNow}</span> en randubs
+                  </>
+                ),
+              })}
+            </span>
+          </span>
+        )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
           <span>

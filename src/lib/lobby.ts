@@ -6,6 +6,7 @@ import { LobbyEntryStatus, MatchMode, MatchStatus, PairingMethod, UserStatus } f
 import { getLatestMatchForUser, getRoomHostId, getUnresolvedMatchForUser } from "@/lib/matches";
 import { regionReachAllows, regionReachFilter } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
+import { assignRandubsTeams, pickMutuallyEligible, RANDUBS_PLAYERS } from "@/lib/randubs";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
 import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
 import { notifyMatchFoundToUsers, notifyQueueOpportunitySubscribers } from "@/lib/push-server";
@@ -123,21 +124,28 @@ export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
  */
 export async function getLobbyActivityStats() {
   const liveStatuses = { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] };
-  const [waiting, randittoWaiting, inMatch, randittoInMatch] = await Promise.all([
+  const [waiting, randittoWaiting, randubsWaiting, inMatch, randittoInMatch, randubsInMatch] = await Promise.all([
     prisma.ratingLobbyEntry.count({
       where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() }, mode: MatchMode.STANDARD },
     }),
     prisma.ratingLobbyEntry.count({
       where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() }, mode: MatchMode.RANDITTO },
     }),
+    prisma.ratingLobbyEntry.count({
+      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() }, mode: MatchMode.RANDUBS },
+    }),
     prisma.ratingMatch.count({ where: { status: liveStatuses, mode: MatchMode.STANDARD } }),
     prisma.ratingMatch.count({ where: { status: liveStatuses, mode: MatchMode.RANDITTO } }),
+    prisma.ratingMatch.count({ where: { status: liveStatuses, mode: MatchMode.RANDUBS } }),
   ]);
   return {
     waiting,
     inMatch: inMatch * 2,
     randittoWaiting,
     randittoInMatch: randittoInMatch * 2,
+    randubsWaiting,
+    // Four to a match, not two.
+    randubsInMatch: randubsInMatch * 4,
   };
 }
 
@@ -291,7 +299,7 @@ async function attemptPairing(params: {
           },
         },
       });
-      const candidate = candidates.find(
+      const eligible = candidates.filter(
         (c) =>
           regionReachAllows(c.user.region, c.user.maxMatchDistanceKm, myRegion) &&
           ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user, Date.now() - c.joinedAt.getTime())) &&
@@ -308,10 +316,17 @@ async function attemptPairing(params: {
             },
           ),
       );
+      // Doubles needs three others, not one. Everything above is a pairwise
+      // test against the joiner, so the extra members are also checked
+      // against each other below — a block between two candidates would
+      // otherwise put people who blocked each other on the same match.
+      const needed = myEntry.mode === MatchMode.RANDUBS ? RANDUBS_PLAYERS - 1 : 1;
+      const picked = pickMutuallyEligible(eligible, needed, await getAllBlockedPairKeys(), blockPairKey);
+      const candidate = picked[0];
       // No one to pair with this tick — release the self-claim above so
       // this entry goes back to WAITING instead of getting stuck PAIRED
       // with no match to show for it.
-      if (!candidate) {
+      if (picked.length < needed) {
         await tx.ratingLobbyEntry.update({
           where: { id: myEntry.id },
           data: {
@@ -322,18 +337,19 @@ async function attemptPairing(params: {
         return null;
       }
 
-      // Atomically claim the candidate the same way — if someone else
-      // (another concurrent attemptPairing call, from any user) claimed it
+      // Atomically claim every picked entry the same way — if someone else
+      // (another concurrent attemptPairing call, from any user) claimed one
       // first, release our own self-claim and bail rather than leaving
-      // myEntry stuck PAIRED with nothing to show for it.
+      // myEntry stuck PAIRED with nothing to show for it. updateMany over
+      // the whole set, so a doubles match is all four or none.
       const claim = await tx.ratingLobbyEntry.updateMany({
-        where: { id: candidate.id, status: LobbyEntryStatus.WAITING },
+        where: { id: { in: picked.map((c) => c.id) }, status: LobbyEntryStatus.WAITING },
         data: {
           status: LobbyEntryStatus.PAIRED,
           pairingMethod: PairingMethod.AUTO,
         },
       });
-      if (claim.count === 0) {
+      if (claim.count !== picked.length) {
         await tx.ratingLobbyEntry.update({
           where: { id: myEntry.id },
           data: {
@@ -344,6 +360,16 @@ async function attemptPairing(params: {
         return null;
       }
 
+      // Teams are drawn here rather than being the join order: randubs is
+      // random doubles, so who partners whom has to be chance, not whoever
+      // happened to queue next to you.
+      const teams =
+        myEntry.mode === MatchMode.RANDUBS
+          ? assignRandubsTeams(
+              userId,
+              picked.map((c) => c.userId),
+            )
+          : null;
       const match = await tx.ratingMatch.create({
         data: {
           player1Id: candidate.userId,
@@ -354,6 +380,7 @@ async function attemptPairing(params: {
           player1IsPracticing: candidate.isPracticing,
           player2IsPracticing: myEntry.isPracticing,
           mode: myEntry.mode,
+          ...(teams ?? {}),
           ...resolvePrefilledRoom(candidate, myEntry),
         },
       });
@@ -896,6 +923,12 @@ export async function sweepLobbyPairing(maxPairs = 50) {
         // runs for anyone still waiting after it, which is exactly the people
         // a thinly-used new mode consists of.
         a.mode !== b.mode ||
+        // Doubles needs four, and this loop pairs two. Rather than teach it
+        // to gather a whole side, randubs is left to join-time pairing and
+        // the waiting-poll retry, both of which already collect four — a
+        // half-built four-way here would produce two-player "doubles"
+        // matches, which is worse than waiting for the next joiner.
+        a.mode === MatchMode.RANDUBS ||
         blockedPairs.has(pairKey) ||
         !canMatch(a.user, b.user, recentMatchPairs.get(pairKey), {
           a: sweepNow - a.joinedAt.getTime(),

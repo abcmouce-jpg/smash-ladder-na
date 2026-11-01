@@ -145,6 +145,7 @@ export default async function LobbyPage() {
         <ActivityLine
           inMatch={activity.inMatch}
           randittoInMatch={activity.randittoInMatch}
+          randubsInMatch={activity.randubsInMatch}
           matched={false}
           isWaiting={false}
           poll={false}
@@ -244,6 +245,7 @@ export default async function LobbyPage() {
       <ActivityLine
         inMatch={activity.inMatch}
         randittoInMatch={activity.randittoInMatch}
+        randubsInMatch={activity.randubsInMatch}
         matched={!!isInActiveMatch}
         isWaiting={isWaiting}
         poll={shouldPollLobby({
@@ -461,6 +463,7 @@ export default async function LobbyPage() {
 function ActivityLine({
   inMatch,
   randittoInMatch,
+  randubsInMatch,
   matched,
   isWaiting,
   poll,
@@ -471,6 +474,7 @@ function ActivityLine({
 }: {
   inMatch: number;
   randittoInMatch: number;
+  randubsInMatch: number;
   matched: boolean;
   isWaiting: boolean;
   poll: boolean;
@@ -499,6 +503,25 @@ function ActivityLine({
       {/* Counted apart, because the two queues cannot pair with each other:
           a number that merges them tells someone deciding between them
           nothing about either. */}
+      {randubsInMatch > 0 && (
+        <span className="flex items-center gap-1.5 tabular-nums">
+          <Users className="size-3.5" />
+          <span>
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{randubsInMatch}</span> in randubs
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{randubsInMatch}</span> en randubs
+                </>
+              ),
+            })}
+          </span>
+        </span>
+      )}
       {randittoInMatch > 0 && (
         <span className="flex items-center gap-1.5 tabular-nums">
           <Dices className="size-3.5" />

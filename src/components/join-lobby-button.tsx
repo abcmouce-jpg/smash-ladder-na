@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Dices, Loader2, Swords } from "lucide-react";
+import { Dices, Loader2, Swords, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { JoinLobbyState } from "@/app/lobby/actions";
 import type { Lang } from "@/lib/i18n";
@@ -141,11 +141,23 @@ export function JoinLobbyForm({
           <Dices className="size-4" />
           {tr(lang, { en: "Randitto", es: "Randitto" })}
         </Button>
+        <Button
+          type="submit"
+          name="mode"
+          value="RANDUBS"
+          size="lg"
+          variant="outline"
+          className="h-11 w-full gap-2 px-6 text-base sm:w-auto"
+          disabled={isPending || !hasRegion}
+        >
+          <Users className="size-4" />
+          {tr(lang, { en: "Randubs", es: "Randubs" })}
+        </Button>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
         {tr(lang, {
-          en: "Randitto is its own queue: you and your opponent are each handed a random fighter, re-drawn every game. It always rates onto the practice track, so the checkbox above doesn't matter for it.",
-          es: "Randitto es su propia cola: a ti y a tu rival se os asigna un personaje aleatorio, re-sorteado cada juego. Siempre cuenta para la clasificación de práctica, así que la casilla de arriba no le afecta.",
+          en: "Randitto and Randubs are their own queues, each with its own rating that leaves your ladder rating alone. Randitto hands you and your opponent a random fighter, re-drawn every game. Randubs waits for four and splits you into random teams of two — pick whatever you like, the site doesn't track it. Both play on Pokémon Stadium 2.",
+          es: "Randitto y Randubs son colas aparte, cada una con su propia clasificación que no toca la del ladder. Randitto os asigna un personaje aleatorio a ti y a tu rival, re-sorteado cada juego. Randubs espera a cuatro y os divide en equipos aleatorios de dos — elegid lo que queráis, el sitio no lo registra. Ambos se juegan en Pokémon Stadium 2.",
         })}
       </p>
       {state.error && <p className="mt-2 text-sm text-destructive">{state.error}</p>}

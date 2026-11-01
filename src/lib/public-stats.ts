@@ -46,38 +46,44 @@ export async function getSupporterCount() {
 // Deliberately narrower than admin-stats.ts — no dispute/report/ban counts
 // here, since this feeds the public homepage, not the mod dashboard.
 export async function getPublicStats() {
-  const [totalPlayers, matchesToday, topPlayers, activeMatchCount, randittoMatchCount] = await Promise.all([
-    prisma.user.count(),
-    getMatchesTodayCount(),
-    prisma.user.findMany({
-      where: { gamesPlayed: { gte: LEADERBOARD_MIN_GAMES } },
-      orderBy: { rating: "desc" },
-      take: 3,
-      select: { id: true, username: true, avatarUrl: true, rating: true, gamesPlayed: true },
-    }),
-    // "currently in a match" is counted through RatingMatch.status, not
-    // RatingLobbyEntry — PAIRED lobby entries never get cleaned up once a
-    // match resolves (they just sit there forever), so counting those would
-    // wildly overcount. Same definition as getLobbyActivityStats' inMatch —
-    // this used to also add in queued-but-not-yet-matched players, which
-    // inflated "playing now" with people who weren't actually playing yet
-    // and made it disagree with the Lobby page's own "currently playing"
-    // count for the same real-time state.
-    prisma.ratingMatch.count({
-      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] }, mode: MatchMode.STANDARD },
-    }),
-    // Counted apart from the ladder, for the same reason the queues are
-    // separate: folding randitto into one figure would make the homepage
-    // claim activity in a queue a visitor cannot actually join from it.
-    prisma.ratingMatch.count({
-      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] }, mode: MatchMode.RANDITTO },
-    }),
-  ]);
+  const [totalPlayers, matchesToday, topPlayers, activeMatchCount, randittoMatchCount, randubsMatchCount] =
+    await Promise.all([
+      prisma.user.count(),
+      getMatchesTodayCount(),
+      prisma.user.findMany({
+        where: { gamesPlayed: { gte: LEADERBOARD_MIN_GAMES } },
+        orderBy: { rating: "desc" },
+        take: 3,
+        select: { id: true, username: true, avatarUrl: true, rating: true, gamesPlayed: true },
+      }),
+      // "currently in a match" is counted through RatingMatch.status, not
+      // RatingLobbyEntry — PAIRED lobby entries never get cleaned up once a
+      // match resolves (they just sit there forever), so counting those would
+      // wildly overcount. Same definition as getLobbyActivityStats' inMatch —
+      // this used to also add in queued-but-not-yet-matched players, which
+      // inflated "playing now" with people who weren't actually playing yet
+      // and made it disagree with the Lobby page's own "currently playing"
+      // count for the same real-time state.
+      prisma.ratingMatch.count({
+        where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] }, mode: MatchMode.STANDARD },
+      }),
+      // Counted apart from the ladder, for the same reason the queues are
+      // separate: folding randitto into one figure would make the homepage
+      // claim activity in a queue a visitor cannot actually join from it.
+      prisma.ratingMatch.count({
+        where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] }, mode: MatchMode.RANDITTO },
+      }),
+      prisma.ratingMatch.count({
+        where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] }, mode: MatchMode.RANDUBS },
+      }),
+    ]);
 
   const playingNow = activeMatchCount * 2;
   const randittoPlayingNow = randittoMatchCount * 2;
+  // Four to a doubles match.
+  const randubsPlayingNow = randubsMatchCount * 4;
 
-  return { totalPlayers, matchesToday, topPlayers, playingNow, randittoPlayingNow };
+  return { totalPlayers, matchesToday, topPlayers, playingNow, randittoPlayingNow, randubsPlayingNow };
 }
 
 // Volume side of the homepage's "make status visible" rows — top players by

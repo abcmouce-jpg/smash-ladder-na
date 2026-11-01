@@ -4,6 +4,7 @@ import { ConfirmationMethod, MatchMode, MatchStatus, UserRole } from "@/generate
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES, STRIKING_STAGES } from "@/lib/stages";
 import { drawRandittoPair, RANDITTO_STAGE } from "@/lib/randitto";
+import { isMatchParticipant, type MatchSides } from "@/lib/match-sides";
 import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
@@ -20,8 +21,8 @@ export function secondsUntil(deadline: Date) {
   return Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 1000));
 }
 
-function requireParticipant(match: { player1Id: string; player2Id: string }, userId: string) {
-  if (match.player1Id !== userId && match.player2Id !== userId) {
+function requireParticipant(match: MatchSides, userId: string) {
+  if (!isMatchParticipant(match, userId)) {
     throw new LocalizedError({
       en: "Not a participant in this match",
       es: "No participas en esta partida",
@@ -499,7 +500,16 @@ function turnPassesToNextActor(
 // game 1) while the other side still hasn't picked at all, letting the
 // strike-timeout clock tick down against someone who hasn't even reached
 // the character screen yet.
-export function bothCharactersLocked(game: { actorACharacter: string | null; actorBCharacter: string | null }) {
+export function bothCharactersLocked(game: {
+  actorACharacter: string | null;
+  actorBCharacter: string | null;
+  match?: { mode: MatchMode } | null;
+}) {
+  // Randubs does not record characters at all — four players to one pair of
+  // columns does not fit, and the mode is about the teams rather than the
+  // picks. There is nothing to wait for, so the set is treated as locked in
+  // from the start rather than stalling on a phase it never runs.
+  if (game.match?.mode === MatchMode.RANDUBS) return true;
   return game.actorACharacter !== null && game.actorBCharacter !== null;
 }
 
@@ -1611,6 +1621,13 @@ export async function realignNextGameActors(
  * instead of each of them needing a `mode` branch.
  */
 function randittoSeats(mode: MatchMode) {
+  // Randubs skips the pick phase too, but records nothing: four players do
+  // not fit two character columns, and the mode is about who you are teamed
+  // with rather than what anyone played. bothCharactersLocked knows to treat
+  // a randubs game as settled, so leaving these null does not stall it.
+  if (mode === MatchMode.RANDUBS) {
+    return { finalStage: RANDITTO_STAGE, actorAStrikes: 0, actorBStrikes: 0, turnStartedAt: new Date() };
+  }
   if (mode !== MatchMode.RANDITTO) return {};
   const { actorA, actorB } = drawRandittoPair();
   return {

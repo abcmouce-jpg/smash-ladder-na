@@ -141,6 +141,12 @@ export default async function HomeEs() {
             <span className="font-medium text-foreground">{stats.randittoPlayingNow}</span> en randitto
           </span>
         )}
+        {stats.randubsPlayingNow > 0 && (
+          <span className="flex items-center gap-1.5 tabular-nums">
+            <Users className="size-3.5" />
+            <span className="font-medium text-foreground">{stats.randubsPlayingNow}</span> en randubs
+          </span>
+        )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
           <span className="font-medium text-foreground">{stats.totalPlayers}</span> jugadores

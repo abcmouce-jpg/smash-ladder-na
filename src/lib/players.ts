@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { participantWhere } from "@/lib/match-sides";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { liftExpiredSuspension, isDeletedAccountUsername } from "@/lib/account";
@@ -157,7 +158,7 @@ export async function getPlayerProfile(userId: string, viewerIsModerator = false
 export async function isCurrentlyInMatch(userId: string) {
   const match = await prisma.ratingMatch.findFirst({
     where: {
-      OR: [{ player1Id: userId }, { player2Id: userId }],
+      ...participantWhere(userId),
       status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
     },
     select: { id: true },

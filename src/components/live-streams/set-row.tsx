@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Dices, MapPin, Radio } from "lucide-react";
+import { Check, ChevronDown, Dices, MapPin, Radio, Users } from "lucide-react";
 import type { MatchFeedEntry } from "@/lib/match-feed";
 import type { Lang } from "@/lib/i18n";
 import { CharacterIcon } from "@/components/character-icon";
@@ -124,6 +124,12 @@ export function SetRow({
               <Badge variant="outline" className="flex shrink-0 items-center gap-1 px-1.5 py-0 text-[10px]">
                 <Dices className="size-2.5" />
                 Randitto
+              </Badge>
+            )}
+            {entry.mode === "RANDUBS" && (
+              <Badge variant="outline" className="flex shrink-0 items-center gap-1 px-1.5 py-0 text-[10px]">
+                <Users className="size-2.5" />
+                Randubs
               </Badge>
             )}
             {entry.hasLiveStreamer && (

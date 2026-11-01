@@ -239,6 +239,24 @@ export async function getRankingsForExport(take: number, skip: number) {
  * before anyone has played twenty sets on it is work spent on a page that may
  * be deleted.
  */
+export async function getRandubsLeaderboard(take = 100) {
+  const where = {
+    randubsGamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
+    status: { not: UserStatus.BANNED },
+    username: { not: DELETED_USERNAME },
+  };
+  const [totalCount, players] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy: [{ randubsRating: "desc" }, { id: "asc" }],
+      take,
+      select: { id: true, username: true, randubsRating: true, randubsGamesPlayed: true },
+    }),
+  ]);
+  return { totalCount, players };
+}
+
 export async function getRandittoLeaderboard(take = 100) {
   const where = {
     randittoGamesPlayed: { gte: LEADERBOARD_MIN_GAMES },

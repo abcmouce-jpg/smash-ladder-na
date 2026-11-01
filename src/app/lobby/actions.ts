@@ -97,7 +97,9 @@ export async function joinLobby(_prevState: JoinLobbyState, formData: FormData):
   // Randitto is its own queue, and forces the practice track on both sides
   // (see joinLobbyAndTryPair) — so the practice checkbox is irrelevant here
   // rather than contradictory.
-  const mode = formData.get("mode") === "RANDITTO" ? MatchMode.RANDITTO : MatchMode.STANDARD;
+  const submitted = String(formData.get("mode") ?? "");
+  const mode =
+    submitted === "RANDITTO" ? MatchMode.RANDITTO : submitted === "RANDUBS" ? MatchMode.RANDUBS : MatchMode.STANDARD;
   const existingRoomCode = String(formData.get("existingRoomCode") ?? "").trim() || null;
   let error: string | null = null;
   try {

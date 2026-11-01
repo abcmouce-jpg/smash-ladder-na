@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Dices, Radio } from "lucide-react";
+import { Dices, Radio, Users } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
 import { LiveStreamEmbed } from "@/components/live-stream-embed";
 import { playerStreamLink } from "@/lib/stream-links";
@@ -45,6 +45,15 @@ export function LiveStreamStage({
           into a randitto set sees two fighters neither player would have
           picked and a rating that does not move, and without being told what
           they are watching that reads as the site being broken. */}
+      {entry.mode === "RANDUBS" && (
+        <div className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+          <Users className="size-4" />
+          {tr(lang, {
+            en: "Randubs — four players, random teams of two",
+            es: "Randubs — cuatro jugadores, equipos aleatorios de dos",
+          })}
+        </div>
+      )}
       {entry.mode === "RANDITTO" && (
         <div className="mb-2 flex items-center gap-1.5 text-sm font-medium">
           <Dices className="size-4" />
