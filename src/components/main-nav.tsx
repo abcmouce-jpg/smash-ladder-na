@@ -32,32 +32,32 @@ const PRIMARY_LINKS: readonly {
 }[] = [
   {
     href: "/lobby",
-    label: { en: "Lobby", es: "Sala", ja: "ロビー" },
+    label: { en: "Lobby", es: "Sala" },
     Icon: Swords,
   },
   {
     href: "/live",
-    label: { en: "Live", es: "En vivo", ja: "配信" },
+    label: { en: "Live", es: "En vivo" },
     Icon: Radio,
   },
   {
     href: "/friendlies",
-    label: { en: "Friendlies", es: "Amistosos", ja: "フリー対戦" },
+    label: { en: "Friendlies", es: "Amistosos" },
     Icon: Users,
   },
   {
     href: "/leaderboard",
-    label: { en: "Leaderboard", es: "Clasificación", ja: "ランキング" },
+    label: { en: "Leaderboard", es: "Clasificación" },
     Icon: Trophy,
   },
   {
     href: "/stats",
-    label: { en: "Stats", es: "Estadísticas", ja: "統計" },
+    label: { en: "Stats", es: "Estadísticas" },
     Icon: BarChart3,
   },
   {
     href: "/notes",
-    label: { en: "Notes", es: "Notas", ja: "対策メモ" },
+    label: { en: "Notes", es: "Notas" },
     Icon: NotebookPen,
   },
 ];

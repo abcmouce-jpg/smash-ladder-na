@@ -34,12 +34,12 @@ export function SettingsSaveForm({
         ) : state.saved ? (
           <p className="mr-auto flex items-center gap-1.5 text-xs text-muted-foreground">
             <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-            {tr(lang, { en: "Saved", es: "Guardado", ja: "保存しました" })}
+            {tr(lang, { en: "Saved", es: "Guardado" })}
           </p>
         ) : null}
         <Button type="submit" size="sm" disabled={isPending}>
           {isPending && <Loader2 className="size-4 animate-spin" />}
-          {tr(lang, { en: "Save", es: "Guardar", ja: "保存" })}
+          {tr(lang, { en: "Save", es: "Guardar" })}
         </Button>
       </div>
     </form>

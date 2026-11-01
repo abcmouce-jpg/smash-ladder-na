@@ -44,18 +44,16 @@ export function SupporterBanner({ supporterCount, lang }: { supporterCount: numb
                 supporterCount === 1
                   ? "El hosting lo financia 1 colaborador — ayuda a mantenerlo en pie."
                   : `El hosting lo financian ${supporterCount} colaboradores — ayuda a mantenerlo en pie.`,
-              ja: `サーバー代は${supporterCount}人の支援で賄われています。継続のための支援をお願いします。`,
             })
           : tr(lang, {
               en: "Hosting costs come out of pocket — help keep it running.",
               es: "El hosting sale de nuestro bolsillo — ayuda a mantenerlo en pie.",
-              ja: "サーバー代は自腹で出しています。継続のための支援をお願いします。",
             })}
       </a>
       <button
         type="button"
         onClick={dismiss}
-        aria-label={tr(lang, { en: "Dismiss", es: "Cerrar", ja: "閉じる" })}
+        aria-label={tr(lang, { en: "Dismiss", es: "Cerrar" })}
         className="shrink-0 text-muted-foreground hover:text-foreground"
       >
         <X className="size-4" />

@@ -44,13 +44,12 @@ export default async function SupportersPage() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
         <Heart className="size-6 text-primary" />
-        {tr(lang, { en: "Supporters", es: "Colaboradores", ja: "サポーター" })}
+        {tr(lang, { en: "Supporters", es: "Colaboradores" })}
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {tr(lang, {
           en: "Hosting and domain costs come out of pocket — these are the people who help cover that.",
           es: "Hosting y dominio se pagan de nuestro bolsillo — estas son las personas que ayudan a cubrirlo.",
-          ja: "サーバー代とドメイン代は自腹です。それを助けてくれている方々です。",
         })}
       </p>
       {supporterCount > 0 && (
@@ -61,7 +60,6 @@ export default async function SupportersPage() {
               supporterCount === 1
                 ? "1 persona ha colaborado hasta ahora."
                 : `${supporterCount} personas han colaborado hasta ahora.`,
-            ja: `これまでに${supporterCount}人が支援してくれました。`,
           })}
         </p>
       )}
@@ -71,13 +69,12 @@ export default async function SupportersPage() {
           <CardHeader>
             <Coffee className="size-5 text-muted-foreground" />
             <CardTitle className="text-base">
-              {tr(lang, { en: "Support us on Ko-fi", es: "Apóyanos en Ko-fi", ja: "Ko-fi で支援する" })}
+              {tr(lang, { en: "Support us on Ko-fi", es: "Apóyanos en Ko-fi" })}
             </CardTitle>
             <CardDescription>
               {tr(lang, {
                 en: "Paste your supporter code (in Settings) into the donation message to remove ads and get the supporter badge.",
                 es: "Pega tu código de colaborador (en Ajustes) en el mensaje de la donación para quitar los anuncios y obtener la insignia de colaborador.",
-                ja: "設定にあるサポーターコードを寄付メッセージに貼り付けると、広告が消えてサポーターのバッジが付きます。",
               })}
             </CardDescription>
           </CardHeader>
@@ -90,7 +87,6 @@ export default async function SupportersPage() {
             {tr(lang, {
               en: "No public supporters to show yet.",
               es: "Todavía no hay colaboradores públicos que mostrar.",
-              ja: "公開中のサポーターはまだいません。",
             })}
           </p>
         ) : (
@@ -124,7 +120,7 @@ export default async function SupportersPage() {
         <Button asChild variant="outline" size="sm">
           <a href={KOFI_URL} target="_blank" rel="noreferrer">
             <Coffee className="size-3.5" />
-            {tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi", ja: "Ko-fi へ" })}
+            {tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi" })}
           </a>
         </Button>
       </div>

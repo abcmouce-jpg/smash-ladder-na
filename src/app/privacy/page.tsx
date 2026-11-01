@@ -3,103 +3,11 @@ import { SITE_NAME, instanceText } from "@/lib/site";
 import { X_ACCOUNT_URL } from "@/lib/links";
 
 export const metadata = {
-  title: `${instanceText({ en: "Privacy Policy", es: "Política de privacidad", ja: "プライバシーポリシー" })} — ${SITE_NAME}`,
+  title: `${instanceText({ en: "Privacy Policy", es: "Política de privacidad" })} — ${SITE_NAME}`,
 };
 
 export default async function PrivacyPage() {
   const lang = await getLang();
-
-  if (lang === "ja") {
-    return (
-      <main className="mx-auto w-full max-w-3xl px-6 py-16">
-        <h1 className="text-2xl font-semibold tracking-tight">プライバシーポリシー</h1>
-        <p className="mt-1 text-sm text-muted-foreground">最終更新 2026-10-27</p>
-
-        <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
-          <section>
-            <h2 className="text-sm font-medium text-foreground">取得する情報</h2>
-            <p className="mt-2">
-              Discord でログインすると、Discord
-              のユーザーID、ユーザー名、アイコン、および（公開設定にしている場合は）メールアドレスを受け取ります。Discord
-              のパスワードや、Discord の同意画面に表示されていないものは一切取得しません。
-            </p>
-            <p className="mt-2">
-              そのほかに、サイトの利用によって生じたものを保存します。レート対戦とその結果、フリー対戦の募集、試合のコメント、大会への参加登録、ご自身が提出または受け取った通報、そして設定で保存した内容です。
-            </p>
-            <p className="mt-2">
-              あわせて、ログイン時の IP
-              アドレスを記録します。用途は不正対策です（同じ回線から新しいアカウントを作られると、利用停止が意味を持たなくなるため）。閲覧できるのはモデレーターだけで、対応中のプレイヤーのプロフィール上でのみ表示されます。
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-sm font-medium text-foreground">利用目的</h2>
-            <p className="mt-2">
-              ラダーの運営のためです。マッチング、レートの計算、ランキング、対戦履歴、そして運営上の対応（通報、異議申立、アカウントの状態）に使います。
-            </p>
-            <p className="mt-2">
-              Discord の bot トークンが設定されている場合は、対戦や大会の連絡を DM でお送りします。これは bot
-              と同じサーバーに参加している場合にのみ機能します（Discord 側の制限です）。
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-sm font-medium text-foreground">第三者への提供</h2>
-            <p className="mt-2">
-              Discord（ログインと、任意で DM 通知のため）と
-              Neon（データベースの提供元）が、私たちに代わってデータを処理します。データを販売することはありません。
-            </p>
-            <p className="mt-2">
-              閲覧のみのページ（ランキング、統計、大会、フリー対戦）では、Google AdSense
-              による広告が表示されることがあります。
-            </p>
-            <p className="mt-2">
-              AdSense は独自の Cookie
-              を設定し、本サイトや他サイトへの訪問データを広告の配信と効果測定に利用することがあります。私たちが取得・管理しているデータではありません。パーソナライズ広告は
-              Google の広告設定から無効にできます。
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-sm font-medium text-foreground">Cookie</h2>
-            <p className="mt-2">
-              使っているのは2つだけです。ログイン状態を保つためのセッション Cookie と、表示言語の選択を記憶するための
-              Cookie です。
-            </p>
-            <p className="mt-2">
-              広告が表示されるページでは、前項のとおり Google AdSense が独自の Cookie
-              を設定することがあります。それ以外に、追跡や広告のための Cookie は設定していません。
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-sm font-medium text-foreground">アカウントの削除</h2>
-            <p className="mt-2">
-              プロフィールページからいつでもアカウントを削除できます。ユーザー名、アイコン、メールアドレスは即座に削除されます。対戦結果は匿名化したうえでラダーに残ります。これはほかのプレイヤーの正当な戦績にも関わるため消去しませんが、そこからご自身を特定できる情報は残りません。
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-sm font-medium text-foreground">年齢について</h2>
-            <p className="mt-2">
-              本サイトの利用には Discord アカウントが必要なため、利用者は Discord
-              自身の年齢要件（13歳以上）をすでに満たしていることになります。それより下の年齢の方から、意図してデータを取得することはありません。
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-sm font-medium text-foreground">お問い合わせ</h2>
-            <p className="mt-2">
-              <a href={X_ACCOUNT_URL} target="_blank" rel="noreferrer" className="underline">
-                公式 X アカウント
-              </a>
-              までご連絡ください。
-            </p>
-          </section>
-        </div>
-      </main>
-    );
-  }
 
   if (lang === "es") {
     return (

@@ -26,7 +26,6 @@ export default async function FriendliesPage() {
         title={tr(lang, {
           en: "Friendlies",
           es: "Amistosos",
-          ja: "フリー対戦",
         })}
         description={trNode(lang, {
           en: (
@@ -48,15 +47,6 @@ export default async function FriendliesPage() {
                 Sala
               </Link>
               : tú publicas lo que buscas y quien lo vea en Discord te contacta directamente.
-            </>
-          ),
-          ja: (
-            <>
-              探している対戦を投稿して、レートのかからない気軽なフリー対戦を組みましょう。レートは動かず、自動マッチングもありません。
-              <Link href="/lobby" className="underline hover:text-foreground">
-                ロビー
-              </Link>
-              のレート対戦とは逆で、自分で希望を投稿し、Discord で見た人が直接連絡してくる形です。
             </>
           ),
         })}
@@ -81,14 +71,6 @@ export default async function FriendliesPage() {
                 </li>
               </>
             ),
-            ja: (
-              <>
-                <li>1. 探している対戦を投稿する（対面したいキャラ、対戦できる時間帯など）。</li>
-                <li>2. 投稿がコミュニティの Discord に告知される。</li>
-                <li>3. 興味を持った人が Discord で連絡してくる。このページは紹介までを担います。</li>
-                <li>4. 投稿は24時間で自動的に期限切れになります。いつでも閉じて再投稿できます。</li>
-              </>
-            ),
           })}
         </ol>
       </PageHeading>
@@ -100,7 +82,6 @@ export default async function FriendliesPage() {
               {tr(lang, {
                 en: "Sign in with Discord (top right) to post or join a post.",
                 es: "Inicia sesión con Discord (arriba a la derecha) para publicar o unirte a un post.",
-                ja: "右上の Discord でログインすると、募集を投稿したり参加したりできます。",
               })}
             </p>
           </CardContent>
@@ -114,7 +95,6 @@ export default async function FriendliesPage() {
           label={tr(lang, {
             en: "Open posts",
             es: "Publicaciones abiertas",
-            ja: "募集中",
           })}
         />
         <FriendliesPosts posts={posts} lang={lang} />
@@ -155,7 +135,6 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
             {tr(lang, {
               en: "What are you looking for?",
               es: "¿Qué estás buscando?",
-              ja: "どんな対戦を探していますか？",
             })}
             <textarea
               name="comment"
@@ -164,7 +143,6 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
               placeholder={tr(lang, {
                 en: "e.g. Looking for friendlies, Fox/Falco, EST evenings",
                 es: "p. ej. Busco amistosos, Fox/Falco, tardes hora del centro",
-                ja: "例：フリー対戦募集、フォックス/ファルコ、平日の夜",
               })}
               className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
             />
@@ -174,14 +152,13 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
               {tr(lang, {
                 en: "Who can join?",
                 es: "¿Quién puede unirse?",
-                ja: "参加できる人",
               })}
               <select
                 name="minTier"
                 defaultValue=""
                 className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
               >
-                <option value="">{tr(lang, { en: "Anyone", es: "Cualquiera", ja: "誰でも" })}</option>
+                <option value="">{tr(lang, { en: "Anyone", es: "Cualquiera" })}</option>
                 {selectableTiers.map((tier) => (
                   <option key={tier} value={tier}>
                     {tier}+
@@ -193,12 +170,10 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
                   ? tr(lang, {
                       en: "Everyone sees the post, but only players who've reached that rank can join — and it announces in that rank's Discord channel instead of the general one.",
                       es: "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse — y se anuncia en el canal de Discord de ese rango en vez del general.",
-                      ja: "募集は全員に表示されますが、参加できるのはそのランクに到達したプレイヤーだけです。告知も全体チャンネルではなく、そのランクの Discord チャンネルに流れます。",
                     })
                   : tr(lang, {
                       en: "Everyone sees the post, but only players who've reached that rank can join.",
                       es: "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse.",
-                      ja: "募集は全員に表示されますが、参加できるのはそのランクに到達したプレイヤーだけです。",
                     })}
               </span>
             </label>
@@ -208,12 +183,11 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
               {tr(lang, {
                 en: "Region is pulled from your profile — set it on the Lobby page.",
                 es: "La región se toma de tu perfil — configúrala en la página de Sala.",
-                ja: "地域はプロフィールから読み込まれます。ロビーのページで設定してください。",
               })}
             </p>
           )}
           <Button type="submit" className="self-start">
-            {tr(lang, { en: "Post", es: "Publicar", ja: "投稿する" })}
+            {tr(lang, { en: "Post", es: "Publicar" })}
           </Button>
         </form>
       </CardContent>
@@ -236,7 +210,6 @@ async function OwnPostCard({
             {tr(lang, {
               en: "Your post is live. Waiting for someone to join…",
               es: "Tu publicación está activa. Esperando a que alguien se una…",
-              ja: "募集を公開しました。参加者を待っています…",
             })}
             {post.minTier && <Badge>{post.minTier}+</Badge>}
           </p>
@@ -245,7 +218,6 @@ async function OwnPostCard({
               {tr(lang, {
                 en: "Close post",
                 es: "Cerrar publicación",
-                ja: "募集を閉じる",
               })}
             </Button>
           </form>
@@ -263,7 +235,6 @@ async function OwnPostCard({
           {tr(lang, {
             en: "Matched!",
             es: "¡Emparejado!",
-            ja: "マッチしました！",
           })}
         </Badge>
         {matchedWith && (
@@ -285,12 +256,10 @@ async function OwnPostCard({
             ? tr(lang, {
                 en: "Reach out to them on Discord to set up your room code — this page doesn't track the game itself.",
                 es: "Contáctalos en Discord para acordar el código de sala — esta página no registra la partida.",
-                ja: "Discord で相手に連絡して、部屋の番号を決めてください。このページでは試合そのものは記録されません。",
               })
             : tr(lang, {
                 en: "Their Discord handle is on their profile — message them there to set up your room. This page doesn't track the game itself.",
                 es: "Su usuario de Discord está en su perfil — escríbele ahí para montar la sala. Esta página no registra la partida.",
-                ja: "相手のプロフィールに Discord のユーザー名があります。そこから連絡して部屋を決めてください。このページでは試合そのものは記録されません。",
               })}
         </p>
         <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
@@ -298,7 +267,6 @@ async function OwnPostCard({
             {tr(lang, {
               en: "Done — post again",
               es: "Listo — publicar de nuevo",
-              ja: "完了 — もう一度募集する",
             })}
           </Button>
         </form>

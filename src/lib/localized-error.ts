@@ -32,7 +32,6 @@ export class LocalizedError extends Error {
 export const GENERIC_ERROR: Record<Lang, string> = {
   en: "Something went wrong — try again.",
   es: "Algo salió mal — inténtalo de nuevo.",
-  ja: "問題が発生しました。もう一度お試しください。",
 };
 
 /**

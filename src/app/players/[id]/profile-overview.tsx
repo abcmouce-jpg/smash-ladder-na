@@ -44,48 +44,6 @@ const RECENT_MATCH_HISTORY_LIMIT = 10;
 // computed English description instead of re-importing minRatingFor.
 type AchievementText = { label: string; description: string };
 
-const ACHIEVEMENTS_JA: Record<string, AchievementText> = {
-  "first-win": { label: "初勝利", description: "レート対戦で初めて勝つ。" },
-  "ten-wins": { label: "10勝", description: "レート対戦で10勝する。" },
-  "fifty-wins": { label: "50勝", description: "レート対戦で50勝する。" },
-  veteran: {
-    label: "3シーズン以上参加",
-    description: "3シーズン以上プレイする。",
-  },
-  competitor: {
-    label: "大会に参加",
-    description: "サイト経由で大会にエントリーする。",
-  },
-  "jack-of-trades": {
-    label: "器用貧乏",
-    description: "1セットの中で毎試合違うキャラを使って勝つ。",
-  },
-  "mirror-match": {
-    label: "ミラーマッチ",
-    description: "自分と相手が全試合まったく同じキャラを使ったセットに勝つ。",
-  },
-  "risky-business": {
-    label: "大博打",
-    description: "1セットの第1〜4試合を同じキャラで戦い、第5試合で別のキャラに変えて勝つ。",
-  },
-  globetrotter: {
-    label: "全ステージ制覇",
-    description: "使用可能な全ステージで1試合以上勝つ。",
-  },
-  "grudge-match": {
-    label: "リベンジ",
-    description: "前回対戦して負けた相手に勝つ。",
-  },
-  "beginners-luck": {
-    label: "初戦勝ち",
-    description: "その日の最初のセットに勝つ。",
-  },
-  "bounce-back": {
-    label: "巻き返し",
-    description: "その日の最初のセットに負け、その次のセットに勝つ。",
-  },
-};
-
 const ACHIEVEMENTS_ES: Record<string, AchievementText> = {
   "first-win": {
     label: "Primera victoria",
@@ -140,7 +98,7 @@ const ACHIEVEMENTS_ES: Record<string, AchievementText> = {
 
 function localizeAchievement(a: { id: string; label: string; description: string }, lang: Lang): AchievementText {
   if (lang === "en") return a;
-  const table = lang === "ja" ? ACHIEVEMENTS_JA : ACHIEVEMENTS_ES;
+  const table = ACHIEVEMENTS_ES;
   const hit = table[a.id];
   if (hit) return hit;
   // Reached Elite/Master/Grandmaster/Legend — the rank names stay in English
@@ -148,12 +106,10 @@ function localizeAchievement(a: { id: string; label: string; description: string
   // threshold back out of the English description rather than re-deriving it.
   const rating = a.description.match(/\d+/)?.[0] ?? "";
   const tier = a.label.replace("Reached ", "");
-  return lang === "ja"
-    ? { label: `${tier}到達`, description: `レート${rating}に到達する。` }
-    : {
-        label: `Alcanzó ${tier}`,
-        description: `Alcanza una clasificación de ${rating}.`,
-      };
+  return {
+    label: `Alcanzó ${tier}`,
+    description: `Alcanza una clasificación de ${rating}.`,
+  };
 }
 
 // The default tab: rating chart, season/career summary cards, rivals,
@@ -252,7 +208,6 @@ export async function ProfileOverviewSection({
               {tr(lang, {
                 en: "Current season",
                 es: "Temporada actual",
-                ja: "今シーズン",
               })}
               {seasonStats.seasonName && ` · ${seasonStats.seasonName}`}
             </p>
@@ -260,7 +215,6 @@ export async function ProfileOverviewSection({
               {tr(lang, {
                 en: "Resets when the season ends.",
                 es: "Se reinicia al terminar la temporada.",
-                ja: "シーズン終了時にリセットされます。",
               })}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -276,7 +230,6 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Rating",
                     es: "Clasificación",
-                    ja: "レート",
                   })}
                 </p>
               </div>
@@ -295,7 +248,6 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Leaderboard rank",
                     es: "Posición en el ladder",
-                    ja: "ランキング順位",
                   })}
                 </p>
               </div>
@@ -305,7 +257,6 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Sets played",
                     es: "Partidas jugadas",
-                    ja: "セット数",
                   })}
                 </p>
               </div>
@@ -317,7 +268,6 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Season record",
                     es: "Récord de temporada",
-                    ja: "シーズン戦績",
                   })}
                 </p>
               </div>
@@ -329,7 +279,6 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Season peak rating",
                     es: "Clasificación máxima de temporada",
-                    ja: "シーズン最高レート",
                   })}
                 </p>
               </div>
@@ -339,7 +288,6 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Season best win streak",
                     es: "Mejor racha de temporada",
-                    ja: "シーズン最多連勝",
                   })}
                 </p>
               </div>
@@ -355,7 +303,6 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Practice rating",
                     es: "Clasificación de práctica",
-                    ja: "練習レート",
                   })}
                 </p>
               </div>
@@ -365,7 +312,6 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Practice sets",
                     es: "Partidas de práctica",
-                    ja: "練習セット数",
                   })}
                 </p>
               </div>
@@ -382,7 +328,6 @@ export async function ProfileOverviewSection({
                 {tr(lang, {
                   en: "Rating over time",
                   es: "Clasificación en el tiempo",
-                  ja: "レート推移",
                 })}
               </p>
               <div className="flex gap-2">
@@ -391,7 +336,6 @@ export async function ProfileOverviewSection({
                     {tr(lang, {
                       en: `${winRate}% win rate`,
                       es: `${winRate}% de victorias`,
-                      ja: `勝率${winRate}%`,
                     })}
                   </Badge>
                 )}
@@ -400,7 +344,6 @@ export async function ProfileOverviewSection({
                     {tr(lang, {
                       en: `${streak} win streak`,
                       es: `${streak} victorias seguidas`,
-                      ja: `${streak}連勝中`,
                     })}
                   </Badge>
                 )}
@@ -419,12 +362,11 @@ export async function ProfileOverviewSection({
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <p className="text-sm font-medium">{tr(lang, { en: "Career", es: "Carrera", ja: "通算" })}</p>
+          <p className="text-sm font-medium">{tr(lang, { en: "Career", es: "Carrera" })}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {tr(lang, {
               en: "Doesn't reset between seasons.",
               es: "No se reinicia entre temporadas.",
-              ja: "シーズンをまたいでもリセットされません。",
             })}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -436,7 +378,6 @@ export async function ProfileOverviewSection({
                 {tr(lang, {
                   en: "Lifetime record",
                   es: "Récord de por vida",
-                  ja: "通算戦績",
                 })}
               </p>
             </div>
@@ -448,7 +389,6 @@ export async function ProfileOverviewSection({
                 {tr(lang, {
                   en: "Peak rating",
                   es: "Clasificación máxima",
-                  ja: "最高レート",
                 })}
               </p>
             </div>
@@ -458,7 +398,6 @@ export async function ProfileOverviewSection({
                 {tr(lang, {
                   en: "Best win streak",
                   es: "Mejor racha de victorias",
-                  ja: "最多連勝",
                 })}
               </p>
             </div>
@@ -468,13 +407,12 @@ export async function ProfileOverviewSection({
                 {tr(lang, {
                   en: "Seasons played",
                   es: "Temporadas jugadas",
-                  ja: "参加シーズン数",
                 })}
               </p>
             </div>
           </div>
 
-          <p className="mt-5 text-sm font-medium">{tr(lang, { en: "Achievements", es: "Logros", ja: "実績" })}</p>
+          <p className="mt-5 text-sm font-medium">{tr(lang, { en: "Achievements", es: "Logros" })}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {achievements.map((a, i) => {
               const display = localizeAchievement(a, lang);
@@ -506,7 +444,6 @@ export async function ProfileOverviewSection({
                 {tr(lang, {
                   en: "Head 2 Heads",
                   es: "Cara a Cara",
-                  ja: "対戦相手別の戦績",
                 })}
               </p>
               <Link
@@ -517,7 +454,6 @@ export async function ProfileOverviewSection({
                 {tr(lang, {
                   en: "View more →",
                   es: "Ver más →",
-                  ja: "もっと見る →",
                 })}
               </Link>
             </div>
@@ -537,7 +473,6 @@ export async function ProfileOverviewSection({
             {tr(lang, {
               en: "View details →",
               es: "Ver detalles →",
-              ja: "詳細を見る →",
             })}
           </Link>
         </p>
@@ -550,7 +485,6 @@ export async function ProfileOverviewSection({
               {tr(lang, {
                 en: "Match history",
                 es: "Historial de partidas",
-                ja: "対戦履歴",
               })}
             </h2>
             {totalMatchCount > 0 && (
@@ -558,7 +492,6 @@ export async function ProfileOverviewSection({
                 {tr(lang, {
                   en: `${totalMatchCount} confirmed match${totalMatchCount === 1 ? "" : "es"}`,
                   es: `${totalMatchCount} ${totalMatchCount === 1 ? "partida confirmada" : "partidas confirmadas"}`,
-                  ja: `確定した試合${totalMatchCount}件`,
                 })}
               </Badge>
             )}
@@ -572,7 +505,6 @@ export async function ProfileOverviewSection({
               {tr(lang, {
                 en: "View more →",
                 es: "Ver más →",
-                ja: "もっと見る →",
               })}
             </Link>
           )}
@@ -583,7 +515,6 @@ export async function ProfileOverviewSection({
             {tr(lang, {
               en: "No confirmed matches yet.",
               es: "Aún no hay partidas confirmadas.",
-              ja: "確定した試合がまだありません。",
             })}
           </p>
         )}

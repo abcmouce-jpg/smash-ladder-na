@@ -47,7 +47,6 @@ export function MatchesByHourChart({
         {tr(lang, {
           en: `Not enough confirmed matches in the last ${windowDays} days yet.`,
           es: `Aún no hay suficientes partidas confirmadas en los últimos ${windowDays} días.`,
-          ja: `直近${windowDays}日間に確定した試合が足りません。`,
         })}
       </p>
     );
@@ -59,7 +58,7 @@ export function MatchesByHourChart({
     return `${display}${period}`;
   };
 
-  const perDaySuffix = tr(lang, { en: "/day", es: "/día", ja: "/日" });
+  const perDaySuffix = tr(lang, { en: "/day", es: "/día" });
 
   return (
     <div>
@@ -68,7 +67,6 @@ export function MatchesByHourChart({
         aria-label={tr(lang, {
           en: "Average matches by hour",
           es: "Partidas promedio por hora",
-          ja: "時間帯別の平均試合数",
         })}
       >
         <div className="flex h-40 items-end gap-[3px]">
@@ -103,7 +101,6 @@ export function MatchesByHourChart({
         {tr(lang, {
           en: `${total} confirmed matches over ${windowDays} days — ${dailyAverage} per day on average (${shortTimeZoneName(tz)})`,
           es: `${total} partidas confirmadas en ${windowDays} días — ${dailyAverage} por día en promedio (${shortTimeZoneName(tz)})`,
-          ja: `${windowDays}日間で確定した試合 ${total}件 — 1日平均${dailyAverage}件（${shortTimeZoneName(tz)}）`,
         })}
       </p>
     </div>

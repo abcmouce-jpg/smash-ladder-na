@@ -239,7 +239,7 @@ export default async function StreamOverlayPage({
         <div className="absolute left-8 top-8">
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {tr(lang, { en: "Rating", es: "Clas.", ja: "レート" })}
+              {tr(lang, { en: "Rating", es: "Clas." })}
             </span>
             <RankBadge
               rating={user.rating}
@@ -259,14 +259,13 @@ export default async function StreamOverlayPage({
                   {tr(lang, {
                     en: `Rank #${rank}/${totalPlayers}`,
                     es: `Rango #${rank}/${totalPlayers}`,
-                    ja: `${totalPlayers}人中 ${rank}位`,
                   })}
                 </span>
               )}
             </div>
 
             <div className="text-white mt-1.5 flex items-center gap-5 text-xl">
-              {tr(lang, { en: "Today:", es: "Hoy:", ja: "今日：" })}
+              {tr(lang, { en: "Today:", es: "Hoy:" })}
               <span className="text-emerald-400 font-semibold">{dailyStats.totalWins}W</span>
               <span className="text-red-400 font-semibold">{dailyStats.totalLosses}L</span>
             </div>
@@ -292,7 +291,7 @@ export default async function StreamOverlayPage({
           <>
             {/* Best of 5 label */}
             <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
-              {tr(lang, { en: "Best of 5", es: "Mejor de 5", ja: "2本先取" })}
+              {tr(lang, { en: "Best of 5", es: "Mejor de 5" })}
             </span>
 
             {/* Scoreboard */}
@@ -363,12 +362,12 @@ export default async function StreamOverlayPage({
         <div className="absolute right-8" style={{ top: "calc(2.5rem + 96px)" }}>
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {tr(lang, { en: "Recent matches", es: "Partidas recientes", ja: "最近の試合" })}
+              {tr(lang, { en: "Recent matches", es: "Partidas recientes" })}
             </span>
             <div className="mt-3 flex flex-col gap-2">
               {recentMatches.length === 0 ? (
                 <span className="text-lg text-white/40">
-                  {tr(lang, { en: "No matches yet", es: "Aún no hay partidas", ja: "試合がまだありません" })}
+                  {tr(lang, { en: "No matches yet", es: "Aún no hay partidas" })}
                 </span>
               ) : (
                 recentMatches.map((match) => (
@@ -378,7 +377,7 @@ export default async function StreamOverlayPage({
                         match.won ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
-                      {match.won ? tr(lang, { en: "W", es: "V", ja: "勝" }) : tr(lang, { en: "L", es: "D", ja: "敗" })}
+                      {match.won ? tr(lang, { en: "W", es: "V" }) : tr(lang, { en: "L", es: "D" })}
                     </span>
                     <span className="min-w-0 max-w-48 truncate text-white/80">{match.opponent.username}</span>
                     <span
@@ -414,7 +413,6 @@ export default async function StreamOverlayPage({
                 {tr(lang, {
                   en: `Game ${currentGame.gameNumber} — ${pickedStage ? "Stage picked" : "Stage pick/ban"}`,
                   es: `Juego ${currentGame.gameNumber} — ${pickedStage ? "Escenario elegido" : "Elección de escenario"}`,
-                  ja: `第${currentGame.gameNumber}試合 — ${pickedStage ? "ステージ決定" : "ステージ選択中"}`,
                 })}
               </span>
               <div className="mt-3 flex gap-2">
@@ -440,7 +438,7 @@ export default async function StreamOverlayPage({
                       )}
                       {picked && (
                         <span className="absolute inset-x-0 top-0 z-30 bg-emerald-500/90 px-1 py-0.5 text-center text-[10px] font-bold tracking-wider text-white uppercase">
-                          {tr(lang, { en: "Picked", es: "Elegido", ja: "決定" })}
+                          {tr(lang, { en: "Picked", es: "Elegido" })}
                         </span>
                       )}
                       {owner && (

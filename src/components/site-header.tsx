@@ -67,8 +67,8 @@ export async function SiteHeader() {
                 variant="ghost"
                 size="icon-sm"
                 className="text-muted-foreground hover:text-foreground"
-                title={tr(lang, { en: "Discord server", es: "Servidor de Discord", ja: "Discord サーバー" })}
-                aria-label={tr(lang, { en: "Discord server", es: "Servidor de Discord", ja: "Discord サーバー" })}
+                title={tr(lang, { en: "Discord server", es: "Servidor de Discord" })}
+                aria-label={tr(lang, { en: "Discord server", es: "Servidor de Discord" })}
               >
                 <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
                   <DiscordIcon className="size-[15px]" />
@@ -81,8 +81,8 @@ export async function SiteHeader() {
                 variant="ghost"
                 size="icon-sm"
                 className="text-muted-foreground hover:text-foreground"
-                title={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi", ja: "Ko-fi で支援する" })}
-                aria-label={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi", ja: "Ko-fi で支援する" })}
+                title={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi" })}
+                aria-label={tr(lang, { en: "Support us on Ko-fi", es: "Apóyenos en Ko-fi" })}
               >
                 <a href={KOFI_URL} target="_blank" rel="noreferrer">
                   <Coffee className="size-[15px]" />
@@ -117,14 +117,14 @@ export async function SiteHeader() {
                     <DropdownMenuItem asChild>
                       <Link href={`/players/${user.id}`} prefetch={false}>
                         <UserRound className="size-3.5" />
-                        {tr(lang, { en: "View profile", es: "Ver perfil", ja: "プロフィールを見る" })}
+                        {tr(lang, { en: "View profile", es: "Ver perfil" })}
                       </Link>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem asChild>
                     <Link href="/settings" prefetch={false}>
                       <Settings className="size-3.5" />
-                      {tr(lang, { en: "Settings", es: "Ajustes", ja: "設定" })}
+                      {tr(lang, { en: "Settings", es: "Ajustes" })}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -137,7 +137,7 @@ export async function SiteHeader() {
                     <DropdownMenuItem asChild>
                       <button type="submit">
                         <LogOut className="size-3.5" />
-                        {tr(lang, { en: "Sign out", es: "Cerrar sesión", ja: "ログアウト" })}
+                        {tr(lang, { en: "Sign out", es: "Cerrar sesión" })}
                       </button>
                     </DropdownMenuItem>
                   </form>
@@ -155,7 +155,7 @@ export async function SiteHeader() {
                 }}
               >
                 <Button type="submit" size="sm">
-                  {tr(lang, { en: "Sign in", es: "Iniciar sesión", ja: "ログイン" })}
+                  {tr(lang, { en: "Sign in", es: "Iniciar sesión" })}
                 </Button>
               </form>
             )}

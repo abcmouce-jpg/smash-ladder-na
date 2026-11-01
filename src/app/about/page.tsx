@@ -5,7 +5,7 @@ import { HAS_KOFI, HAS_DISCORD_SERVER, RATING_SYSTEM_LABEL, SCENE_LABEL, SITE_NA
 import { tr } from "@/lib/lang";
 
 export const metadata = {
-  title: `${instanceText({ en: "About", es: "Acerca de", ja: "このサイトについて" })} — ${SITE_NAME}`,
+  title: `${instanceText({ en: "About", es: "Acerca de" })} — ${SITE_NAME}`,
 };
 
 const copy = {
@@ -135,66 +135,6 @@ const copy = {
     communityDiscord: "servidor de Discord de la comunidad",
     rules: "Reglas",
   },
-  ja: {
-    heading: "このサイトについて",
-    subtitle: `${SITE_NAME}を誰が、何のために運営しているか。`,
-    whatTitle: "これは何か",
-    what: (
-      <>
-        {SITE_NAME}は、{SCENE_LABEL.ja}スマブラSPコミュニティ向けの、レート対戦とマッチングのサイトです。Discord
-        でログインし、対戦設定を決めると、近い実力の相手と自動でマッチングします。ブラケットも参加受付の締切もなく、待機して対戦するだけです。
-      </>
-    ),
-    whyTitle: "なぜ作ったか",
-    why: (
-      <>
-        競技としてのスマブラには大会のための仕組み（start.gg など）が揃っている一方で、日常の部分 —
-        大会の外で、本気の相手を見つけること — を支えるものは多くありません。ここはその隙間を埋めるためのものです。
-        {RATING_SYSTEM_LABEL.ja}
-        、シーズンごとのランキング、気軽な対戦のためのフリー対戦を用意しています。
-      </>
-    ),
-    whoTitle: "誰が運営しているか",
-    who: (faqLink: React.ReactNode) => (
-      <>
-        有志による独立した企画で、任天堂、start.gg、既存のラダーやマッチングサービスとは一切関係ありません。運営はコミュニティから集まった少人数のモデレーターと管理者が担っています。体制については
-        {faqLink}をご覧ください。
-      </>
-    ),
-    qaPage: "Q&Aページ",
-    contributeTitle: "手伝うには",
-    contribute: (githubLink: React.ReactNode, discordLink: React.ReactNode) => (
-      <>
-        ソースコードは{githubLink}で公開しています。不具合の報告や機能の提案は issue
-        で歓迎していますし、プルリクエストも確認しています — このサイトの機能のいくつかは、コミュニティからの PR
-        で実装されたものです。コードを書かない方でも{discordLink}
-        でも同じくらい役に立ちます。不具合の報告、改善の提案、モデレーターとしての協力、どれも助かります。
-      </>
-    ),
-    discordServer: "X",
-    supportTitle: "支援する",
-    support: (kofiLink: React.ReactNode) => (
-      <>
-        サーバー代とドメイン代は自腹で出しています。負担を分けてもいいという方のために{kofiLink}
-        を用意しています（任意です）。$3 以上で広告が消え、サポーターのバッジが付きます。$15 以上でゴールドバッジと、
-        <a href="/supporters" className="underline">
-          サポーターページ
-        </a>
-        での上位掲載が付きます。
-      </>
-    ),
-    kofiPage: "Ko-fi のページ",
-    contactTitle: "連絡先",
-    contact: (discordLink: React.ReactNode, rulesLink: React.ReactNode, faqLink: React.ReactNode) => (
-      <>
-        連絡は{discordLink}
-        までお願いします。不具合の報告、機能の提案、利用停止への異議、一般的な質問はすべてこちらです。ラダー自体の仕組みについては
-        {rulesLink}と{faqLink}をご覧ください。
-      </>
-    ),
-    communityDiscord: "公式 X アカウント",
-    rules: "ルール",
-  },
 };
 
 export default async function AboutPage() {
@@ -272,7 +212,7 @@ export default async function AboutPage() {
         {goldSupporters.length > 0 && (
           <section>
             <h2 className="text-sm font-medium text-foreground">
-              🏆 {tr(lang, { en: "Gold Supporters", es: "Colaboradores Gold", ja: "ゴールドサポーター" })}
+              🏆 {tr(lang, { en: "Gold Supporters", es: "Colaboradores Gold" })}
             </h2>
             <p className="mt-2 flex flex-wrap gap-x-1.5 gap-y-1">
               {goldSupporters.map((s, i) => (

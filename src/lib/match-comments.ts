@@ -11,13 +11,11 @@ export async function listMatchComments(userId: string, matchId: string) {
     where: { id: matchId },
     select: { player1Id: true, player2Id: true },
   });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
     throw new LocalizedError({
       en: "Not a participant in this match",
       es: "No participas en esta partida",
-      ja: "このセットの参加者ではありません",
     });
   }
 
@@ -83,20 +81,17 @@ export async function postMatchComment(userId: string, matchId: string, body: st
     throw new LocalizedError({
       en: "Comment can't be empty",
       es: "El comentario no puede estar vacío",
-      ja: "コメントが空のままです",
     });
 
   const match = await prisma.ratingMatch.findUnique({
     where: { id: matchId },
     select: { player1Id: true, player2Id: true },
   });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
     throw new LocalizedError({
       en: "Not a participant in this match",
       es: "No participas en esta partida",
-      ja: "このセットの参加者ではありません",
     });
   }
 
@@ -140,11 +135,9 @@ export async function postMatchCommentAsMod(modUserId: string, matchId: string, 
     throw new LocalizedError({
       en: "Comment can't be empty",
       es: "El comentario no puede estar vacío",
-      ja: "コメントが空のままです",
     });
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId }, select: { id: true } });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   await prisma.matchComment.create({
     data: { matchId, authorId: modUserId, body: `[Mod] ${trimmed}` },
   });

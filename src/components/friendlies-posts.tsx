@@ -35,7 +35,6 @@ export function FriendliesPosts({
             {tr(lang, {
               en: "No one's looking for a game right now — be the first to post.",
               es: "Nadie está buscando partida ahora mismo — sé el primero en publicar.",
-              ja: "今は誰も対戦相手を探していません。最初に投稿してみませんか。",
             })}
           </p>
           {emptyAction}

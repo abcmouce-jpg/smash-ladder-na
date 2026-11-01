@@ -81,7 +81,6 @@ export default async function StreamLeaderboardPage({
           {tr(lang, {
             en: "No ranked players yet.",
             es: "Aún no hay jugadores rankeados.",
-            ja: "ランク対象のプレイヤーがまだいません。",
           })}
         </p>
       )}

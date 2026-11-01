@@ -24,7 +24,7 @@ import { HAS_COMMUNITY_GUIDES, PUBLISHES_SPANISH, SITE_NAME, instanceText } from
 import { tr } from "@/lib/lang";
 
 export const metadata: Metadata = {
-  title: `${instanceText({ en: "Notes", es: "Notas", ja: "対策メモ" })} — ${SITE_NAME}`,
+  title: `${instanceText({ en: "Notes", es: "Notas" })} — ${SITE_NAME}`,
   description: "Your private matchup notes and every public community character guide.",
   alternates: PUBLISHES_SPANISH ? { languages: { "es-MX": "/es" } } : undefined,
 };
@@ -79,26 +79,19 @@ export default async function NotesPage({
         ? tr(lang, {
             en: "Only you can see your private notes. They pop up automatically in your matches once your opponent's character is locked in. Community guides are public — anyone can write one. Echo fighters share an entry with their base fighter.",
             es: "Solo tú puedes ver tus notas privadas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Las guías de la comunidad son públicas — cualquiera puede escribir una. Los personajes echo comparten entrada con su personaje base.",
-            ja: "自分だけが見られるメモです。対戦で相手のキャラが決まると、その相手のメモが自動で出ます。コミュニティ攻略のほうは公開で、誰でも書けます。ダッシュファイターは元のファイターと同じ扱いです。",
           })
         : tr(lang, {
             en: "Only you can see these. They pop up automatically in your matches once your opponent's character is locked in. Echo fighters share an entry with their base fighter.",
             es: "Solo tú puedes verlas. Se muestran automáticamente en tus partidas una vez que el personaje de tu rival está confirmado. Los personajes echo comparten entrada con su personaje base.",
-            ja: "自分だけが見られるメモです。対戦で相手のキャラが決まると、その相手のメモが自動で出ます。ダッシュファイターは元のファイターと同じ扱いです。",
           })
       : tr(lang, {
           en: "Every community guide in one list, tagged by character. Filter by tag or search to find matchup advice. Echo fighters share a tag with their base fighter.",
           es: "Todas las guías de la comunidad en una sola lista, etiquetadas por personaje. Filtra por etiqueta o busca para encontrar consejos de matchup. Los personajes echo comparten etiqueta con su personaje base.",
-          ja: "コミュニティ攻略を1つのリストにまとめ、キャラクター別のタグを付けています。タグで絞り込むか検索すると、対面のアドバイスが見つかります。ダッシュファイターは元のファイターと同じタグになります。",
         });
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
-      <PageHeading
-        icon={NotebookPen}
-        title={tr(lang, { en: "Notes", es: "Notas", ja: "対策メモ" })}
-        description={description}
-      />
+      <PageHeading icon={NotebookPen} title={tr(lang, { en: "Notes", es: "Notas" })} description={description} />
       {/* One tab is not a tab bar — without community guides this is just the
           notes, so the row would be a control with nothing to switch to. */}
       {HAS_COMMUNITY_GUIDES && (
@@ -107,12 +100,12 @@ export default async function NotesPage({
           items={[
             {
               href: "?tab=matchups",
-              label: tr(lang, { en: "My Notes", es: "Mis notas", ja: "自分用メモ" }),
+              label: tr(lang, { en: "My Notes", es: "Mis notas" }),
               active: tab === "matchups",
             },
             {
               href: "?tab=guides",
-              label: tr(lang, { en: "Guides", es: "Guías", ja: "コミュニティ攻略" }),
+              label: tr(lang, { en: "Guides", es: "Guías" }),
               active: tab === "guides",
             },
           ]}
@@ -136,7 +129,6 @@ async function MatchupsTab({ userId, lang }: { userId: string | null; lang: Lang
         {tr(lang, {
           en: "Sign in with Discord (top right) to view your notes.",
           es: "Inicia sesión con Discord (arriba a la derecha) para ver tus notas.",
-          ja: "右上の Discord でログインすると、自分のメモを見られます。",
         })}
       </p>
     );

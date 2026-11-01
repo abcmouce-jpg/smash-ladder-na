@@ -16,7 +16,7 @@ import { STRIKING_STAGES } from "@/lib/stages";
 import { GAMES_TO_WIN } from "@/lib/match-games";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 
-export const metadata = { title: `${instanceText({ en: "Rules", es: "Reglas", ja: "ルール" })} — ${SITE_NAME}` };
+export const metadata = { title: `${instanceText({ en: "Rules", es: "Reglas" })} — ${SITE_NAME}` };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -29,7 +29,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default async function RulesPage() {
   const lang = await getLang();
-  if (lang === "ja") return <RulesPageJa />;
   if (lang === "es") return <RulesPageEs />;
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -40,10 +39,7 @@ export default async function RulesPage() {
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <Section title="Format">
-          <p>
-            All ranked matches are best-of-{GAMES_TO_WIN === 2 ? "3" : "5"}. Stage hazards off. Standard stock/time
-            settings.
-          </p>
+          <p>All ranked matches are best-of-{GAMES_TO_WIN * 2 - 1}. Stage hazards off. Standard stock/time settings.</p>
         </Section>
 
         {HAS_PRIZE_POOL ? (
@@ -331,8 +327,8 @@ function RulesPageEs() {
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <Section title="Formato">
           <p>
-            Todas las partidas rankeadas son al mejor de {GAMES_TO_WIN === 2 ? "3" : "5"}. Hazards de escenario
-            desactivados. Configuración estándar de stocks/tiempo.
+            Todas las partidas rankeadas son al mejor de {GAMES_TO_WIN * 2 - 1}. Hazards de escenario desactivados.
+            Configuración estándar de stocks/tiempo.
           </p>
         </Section>
 
@@ -593,238 +589,6 @@ function RulesPageEs() {
             Como Afiliado de Amazon, ganamos por compras que califican — son enlaces normales de búsqueda en Amazon, no
             recomendaciones de un producto específico.
           </p>
-        </Section>
-      </div>
-    </main>
-  );
-}
-
-function RulesPageJa() {
-  const lang = "ja" as const;
-  const endDate = PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("ja-JP", {
-    timeZone: DISPLAY_TIME_ZONE,
-    dateStyle: "long",
-  });
-
-  return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-16">
-      <h1 className="text-2xl font-semibold tracking-tight">ルール</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        レート対戦についてのルールです。フリー対戦と start.gg の大会は別で、ページ下部に補足があります。
-      </p>
-
-      <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
-        <Section title="形式">
-          <p>
-            レート対戦はすべて{GAMES_TO_WIN === 2 ? "2本先取（3戦制）" : "3本先取（5戦制）"}
-            です。ステージギミックはオフ、ストック数と時間は標準設定です。
-          </p>
-        </Section>
-
-        {RATING_SYSTEM === "smashmate" && (
-          <Section title="レート">
-            <p>
-              スマメイトと同じ計算です。全員1500から始まり、同じレートの相手に勝つと{SMASHMATE_K_FACTOR / 2}
-              、負けると{SMASHMATE_K_FACTOR / 2}
-              動きます。レート差が25開くごとに、上の相手に勝ったときの上がり幅が1増え、下の相手に勝ったときは1減ります。
-            </p>
-            <p>
-              1セットで動く上限は{MAX_RATING_DELTA}
-              です。どれだけ差があっても、勝って下がることはありません（最低でも1上がります）。対戦数による重みづけはしません。1戦目でも300戦目でも、同じ条件なら同じだけ動きます。
-            </p>
-            <p>
-              レートが公開されるのは{PROVISIONAL_MIN_GAMES}
-              セットからです。それまでは数字が安定しないため、自分にも相手にも表示されません。
-            </p>
-          </Section>
-        )}
-
-        {HAS_PRIZE_POOL ? (
-          <Section title="シーズン賞金">
-            <p>
-              シーズン終了時点のランキング上位3名で、${SEASON_PRIZE_POOL_USD} USD の賞金を分配します。1位が$
-              {PRIZE_AMOUNTS_USD[0]}、2位が${PRIZE_AMOUNTS_USD[1]}、3位が${PRIZE_AMOUNTS_USD[2]}
-              です。ランキングに載るには
-              {LEADERBOARD_MIN_GAMES}セット以上プレイしている必要があります。
-            </p>
-            <p>
-              現在のプレシーズンは{PRE_SEASON_DURATION_MONTHS}ヶ月の固定期間で、{endDate}
-              頃の終了を見込んでいます。シーズンが終わると全員のレートがリセットされます。
-            </p>
-          </Section>
-        ) : (
-          <Section title="シーズン">
-            <p>
-              シーズンは順位をつけるための期間であって、賞金を懸けたイベントではありません。このラダーに賞金はありません。ランキングに載るには
-              {LEADERBOARD_MIN_GAMES}
-              セット以上プレイしている必要があり、シーズンが終わると全員のレートがリセットされます。
-            </p>
-          </Section>
-        )}
-
-        {!ALLOWS_LATENCY_MODS && (
-          <Section title="改造・Mod">
-            <p>低遅延Mod（ディレイMod）の使用は禁止します。改造していない本体でプレイしてください。</p>
-            <p>
-              回線を良くしたい場合は有線LANアダプタを使ってください。対戦設定で「有線接続の相手のみとマッチする」を選べば、有線の相手だけと当たるようにもできます。
-            </p>
-          </Section>
-        )}
-
-        {STRIKING_STAGES ? (
-          <>
-            <Section title="ステージ選択 — 1戦目">
-              <p>
-                1戦目は5ステージから選びます。戦場、小戦場、ポケモンスタジアム2、すま村、村と町。ランダムに選ばれた側が1つBANし、相手が2つBANして、最初にBANした側が残り2つから選びます。
-              </p>
-            </Section>
-            <Section title="ステージ選択 — 2戦目以降">
-              <p>
-                カウンターピックとして終点、ホロウバスティオン、カロスポケモンリーグが加わり、計8ステージになります。前の試合の勝者が3つBANし、敗者が残りから選びます。
-              </p>
-            </Section>
-          </>
-        ) : (
-          <>
-            <Section title="ステージ — 1戦目">
-              <p>
-                BANはありません。お互いがゲーム内で戦いたいステージを選び、抽選の結果に従います。
-                <strong className="text-foreground">「おまかせ」は選ばないでください。</strong>
-              </p>
-              <p>1戦目は6つから選べます。終点、戦場、ポケモンスタジアム2、小戦場、ホロウバスティオン、村と町。</p>
-            </Section>
-            <Section title="ステージ — 2・3戦目">
-              <p>
-                直前の敗者がステージを選び、勝者はゲーム内で「おまかせ」を選択します。2戦目からは
-                <strong className="text-foreground">すま村</strong>が加わって7つになります。
-              </p>
-              <p>「終点」「戦場」は、終点化・戦場化したステージとしても選べます。</p>
-            </Section>
-          </>
-        )}
-
-        <Section title="部屋番号">
-          <p>
-            部屋番号は片方だけが設定します。一度設定するとその人に固定されるため、準備中に黙って差し替えられることはありません。
-          </p>
-          <p>
-            ゲーム内のパスワードは全員 <span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>{" "}
-            が既定です。共通にしておけば、部屋番号とは別にパスワードを伝える手間がなくなります。配信する場合は、設定から自分用のパスワードに変えられます（既定値は公開されている前提のものなので）。相手のロビーには、その時点で実際に有効なパスワードが表示されます。
-          </p>
-        </Section>
-
-        <Section title="結果の報告">
-          <p>セットが終わったら、両者が勝者を報告します。報告が一致すればその場で確定します。</p>
-          <p>
-            食い違った場合は、その試合だけが異議申立になります。セットの残りは止まりません。どちらかがロビーから「相手の報告に同意する」を選べば、その場で解決します。合意できなければモデレーターが確認します。
-          </p>
-          <p>
-            片方だけが報告して、もう一方が3時間応答しない場合は、その報告がそのまま確定します。応答しなかった側には不参加がつきます。相手が報告した時点で
-            Discord に通知が届くので、時間が動き出したことは分かります。
-          </p>
-          <p>
-            自分が1-0か2-0でリードしていて、相手が完全に沈黙した場合（次の試合のキャラも選ばない場合）は、セット全体が不戦勝になります。
-          </p>
-          <p>
-            勝者を間違えて報告したときは、プロフィールページの直近の試合にある「結果が違いますか？」から訂正を申請できます。両者の訂正が揃えばその場で反映され、レートを計算し直します。食い違えばモデレーターが確認します。
-          </p>
-          <p>使えるのは、その試合が両者にとって最新の確定試合である間だけです。シーズンをまたぐと使えません。</p>
-        </Section>
-
-        <Section title="試合の中止">
-          <p>
-            中止ボタンはレートに影響しません。ただし使えるのは、相手がまだ本当に来ていない間だけです。チャットもキャラ選択もステージ選択も部屋番号の入力もない状態を指します。
-          </p>
-          <p>
-            相手がそのどれか1つでも行うと、同じボタンは「降参」に変わります。そこから抜けると敗北扱いになり、セットを落としたときと同じだけレートが動きます。意図的にそうしています。
-          </p>
-          <p>
-            相手が来ていない場合の中止でも、記録は残ります。割合が一定を超えると Discord
-            に自動で警告が届き、さらに重ねると24時間の利用制限がかかります。制限中もレート対戦はできますが、フリー対戦への投稿と新しい通報はできません。
-          </p>
-          <p>降参はこの集計に入りません。すでにレートで代償を払っているためです。</p>
-          <p>
-            中止が多いと、自己申告の有線バッジも外れます。警告や制限より低い基準です。中止回数が「中止＋試合数」の4分の1を超え、かつ3回以上中止していると自動で外れます。
-          </p>
-          <p>
-            比率が下がるまで再申告はできません。中止が多すぎること自体が、回線の自己申告を信用しにくくするためです。
-          </p>
-          <p>
-            1試合でも勝者が決まるか、どちらかが結果を報告すると、無償の中止は使えなくなります。以降はどちらから抜けても降参です。
-          </p>
-          <p>
-            セットの途中で相手が沈黙しても、基本的に何もしなくて大丈夫です。ステージ選択で止まれば数分後に自動で処理されます。キャラ選択で止まった場合は、1戦目なら相手のセット負け、2戦目以降は前の試合のキャラがそのまま使われます。
-          </p>
-        </Section>
-
-        <Section title="練習モード">
-          <p>
-            待機するときに「練習」を選ぶと、そのセットは通常のレートに影響しません。勝敗は別の練習レートに記録され、通常のレートとセット数は動きません。
-          </p>
-          <p>練習レートも1500から始まり、計算方法は同じです。ただし完全に独立した記録です。</p>
-          <p>
-            練習かどうかはプレイヤー単位で、試合単位ではありません。練習でない相手に練習として挑むこともできますし、その逆もあります。練習中の相手と当たりたくない場合は、設定で「練習中の相手とはマッチしない」をオンにしてください。
-          </p>
-          <p>
-            練習中にメインキャラを使うのは禁止です。練習モードでは自分のレートが動きません。その状態でメインを出すと、相手だけがレートを賭けていることになります。
-          </p>
-          <p>
-            自動では検出していないので、見かけたら通報してください。モデレーターが確認し、必要なら利用停止にします。
-          </p>
-        </Section>
-
-        <Section title="使用キャラの報告">
-          <p>
-            試合後、相手はあなたが使ったキャラクターを任意で報告できます。これがキャラクター別ランキングの元になります。自己申告ではなく、直前に対戦した相手からの報告にしているのは、そのほうが操作しにくいためです。
-          </p>
-        </Section>
-
-        <Section title="マナーと通報">
-          <p>
-            相手が来なかった、わざと時間を使った、意図的に切断した、暴言があったといった場合は通報してください。通報はモデレーターが確認します。通報そのものには何の効力もなく、悪意ある通報は逆に通報の対象になります。通報は1時間あたり5件までです。
-          </p>
-          <p>
-            措置が及ぶのは、通報を受けてモデレーターが判断した場合だけです。通報した事実だけでは何も起きません。内容次第では1件で利用停止や永久停止になることもありますし、通報がなくてもモデレーターが直接動くこともあります。
-          </p>
-          <p>
-            利用停止中もレート対戦はできます。できなくなるのはフリー対戦への投稿と新しい通報で、これは報復を防ぐためです。期限付き（自動解除）と無期限の両方があります。
-          </p>
-        </Section>
-
-        <Section title="マッチング">
-          <p>
-            マッチングは全国一律です。距離や地域で相手を絞ることはしません。調整できるのはレート差と再戦の間隔だけで、どちらも対戦設定から自分で決められます。
-          </p>
-          <p>
-            レート対戦の待機に入ると、マッチするか自分で抜けるまで待機が続きます。サイトを開いたままにしている限り待機は維持され、10分間まったく動きがないと解除されます。待機への参加は1分あたり5回までです。
-          </p>
-        </Section>
-
-        <Section title="フリー対戦と大会">
-          <p>
-            フリー対戦の募集はレートに影響しません。先着で成立し、24時間で期限切れになります。レートを動かさずに練習や気軽な対戦をしたいときに向いています。
-          </p>
-          <p>
-            コミュニティ大会は start.gg
-            で行います。参加受付はこのサイトですが、ブラケット規則や揉め事の扱いは、その大会の主催者が決めます。
-          </p>
-        </Section>
-
-        <Section title="有線でプレイするための機材">
-          <p>
-            実際に有線接続にするには（上記のバッジのためにも）、携帯モードなら USB-C
-            の有線LANアダプタ、ドックを使うならドックに LAN
-            ケーブルを挿すのが一般的です。ゲームキューブコントローラーも、競技勢がよく行うもう一つの改善です。
-          </p>
-          <ul className="list-inside list-disc">
-            {GEAR_RECOMMENDATIONS.map((item) => (
-              <li key={item.url}>
-                <a href={item.url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
-                  {item.label[lang]}
-                </a>
-              </li>
-            ))}
-          </ul>
         </Section>
       </div>
     </main>

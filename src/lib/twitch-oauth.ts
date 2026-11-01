@@ -22,7 +22,6 @@ function requireClientCredentials() {
     throw new LocalizedError({
       en: "Twitch OAuth isn't configured on this deployment",
       es: "Twitch OAuth no está configurado en este despliegue",
-      ja: "この環境では Twitch 連携が設定されていません",
     });
   }
   return { clientId, clientSecret };
@@ -57,7 +56,6 @@ async function exchangeCodeForToken(code: string, redirectUri: string): Promise<
     throw new LocalizedError({
       en: "Twitch rejected the authorization code",
       es: "Twitch rechazó el código de autorización",
-      ja: "Twitch が認可コードを受け付けませんでした",
     });
 
   const json = (await res.json()) as { access_token?: string };
@@ -65,7 +63,6 @@ async function exchangeCodeForToken(code: string, redirectUri: string): Promise<
     throw new LocalizedError({
       en: "Twitch didn't return an access token",
       es: "Twitch no devolvió un token de acceso",
-      ja: "Twitch からアクセストークンが返ってきませんでした",
     });
   return json.access_token;
 }
@@ -89,7 +86,6 @@ async function fetchCurrentTwitchUser(accessToken: string): Promise<TwitchIdenti
     throw new LocalizedError({
       en: "Couldn't reach Twitch's API",
       es: "No se pudo contactar la API de Twitch",
-      ja: "Twitch の API に接続できませんでした",
     });
 
   const json = (await res.json()) as {
@@ -105,7 +101,6 @@ async function fetchCurrentTwitchUser(accessToken: string): Promise<TwitchIdenti
     throw new LocalizedError({
       en: "Twitch didn't return a user",
       es: "Twitch no devolvió un usuario",
-      ja: "Twitch からユーザー情報が返ってきませんでした",
     });
 
   return {
@@ -126,7 +121,6 @@ export async function connectTwitchAccount(userId: string, code: string, redirec
     throw new LocalizedError({
       en: "That Twitch account is already linked to a different ladder account",
       es: "Esa cuenta de Twitch ya está vinculada a otra cuenta",
-      ja: "その Twitch アカウントは別のアカウントに連携済みです",
     });
   }
 
@@ -146,7 +140,6 @@ export async function connectTwitchAccount(userId: string, code: string, redirec
       throw new LocalizedError({
         en: "That Twitch account is already linked to a different ladder account",
         es: "Esa cuenta de Twitch ya está vinculada a otra cuenta",
-        ja: "その Twitch アカウントは別のアカウントに連携済みです",
       });
     }
     throw err;

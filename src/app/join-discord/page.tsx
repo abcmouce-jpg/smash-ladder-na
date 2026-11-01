@@ -9,7 +9,7 @@ import { SITE_NAME, instanceText } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata = {
-  title: `${instanceText({ en: "Join our Discord", es: "Únete a nuestro Discord", ja: "Discord に参加" })} — ${SITE_NAME}`,
+  title: `${instanceText({ en: "Join our Discord", es: "Únete a nuestro Discord" })} — ${SITE_NAME}`,
 };
 
 // Landed on by auth.ts's signIn callback returning this path instead of
@@ -28,19 +28,17 @@ export default async function JoinDiscordPage() {
             {tr(lang, {
               en: "Join our Discord first",
               es: "Primero únete a nuestro Discord",
-              ja: "まず Discord サーバーに参加してください",
             })}
           </h1>
           <p className="text-sm text-muted-foreground">
             {tr(lang, {
               en: `You need to be in our Discord server to use ${SITE_NAME} — it's how staff can actually reach you if something goes wrong with a match or an account.`,
               es: `Para usar ${SITE_NAME} necesitas estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta.`,
-              ja: `${SITE_NAME}を利用するには Discord サーバーへの参加が必要です。対戦やアカウントで問題が起きたときに、運営から連絡を取れるようにするためです。`,
             })}
           </p>
           <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="w-full">
             <Button className="w-full gap-2">
-              {tr(lang, { en: "Join the Discord", es: "Unirse al Discord", ja: "Discord に参加する" })}
+              {tr(lang, { en: "Join the Discord", es: "Unirse al Discord" })}
               <ExternalLink className="size-4" />
             </Button>
           </a>
@@ -56,7 +54,6 @@ export default async function JoinDiscordPage() {
                 {tr(lang, {
                   en: "I've joined — try again",
                   es: "Ya me uní — intentar de nuevo",
-                  ja: "参加しました — もう一度試す",
                 })}
               </Button>
             </form>

@@ -64,12 +64,10 @@ export function CancelOrSurrenderButton({
       ? tr(lang, {
           en: "Surrender this match? It counts as a loss and affects your rating. This can't be undone.",
           es: "¿Rendirte? Cuenta como derrota y afecta tu clasificación. No se puede deshacer.",
-          ja: "このセットを降参しますか？敗北として扱われ、レートに影響します。取り消せません。",
         })
       : tr(lang, {
           en: "Cancel this match? This can't be undone.",
           es: "¿Cancelar esta partida? No se puede deshacer.",
-          ja: "このセットを中止しますか？取り消せません。",
         });
 
   return (
@@ -86,7 +84,7 @@ export function CancelOrSurrenderButton({
           // out a SyntheticEvent's currentTarget once the synchronous handler
           // dispatch finishes, and confirm() resolves asynchronously.
           const form = e.currentTarget;
-          confirm(confirmMessage, { cancelLabel: tr(lang, { en: "Go back", es: "Volver", ja: "戻る" }) }).then((ok) => {
+          confirm(confirmMessage, { cancelLabel: tr(lang, { en: "Go back", es: "Volver" }) }).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
               form.requestSubmit();
@@ -100,17 +98,15 @@ export function CancelOrSurrenderButton({
               {tr(lang, {
                 en: `Cancel in ${secondsLeft}s`,
                 es: `Cancelar en ${secondsLeft}s`,
-                ja: `${secondsLeft}秒後に中止`,
               })}
             </span>
           ) : mode === "surrender" ? (
             tr(lang, {
               en: "Surrender (counts as a loss)",
               es: "Rendirse (cuenta como derrota)",
-              ja: "降参する（敗北扱い）",
             })
           ) : (
-            tr(lang, { en: "Cancel match", es: "Cancelar partida", ja: "セットを中止する" })
+            tr(lang, { en: "Cancel match", es: "Cancelar partida" })
           )}
         </Button>
       </form>

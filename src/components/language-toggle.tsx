@@ -13,11 +13,10 @@ import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 
 // Every language the site has, each named in itself — a picker that labels
-// Japanese as "Japanese" is no use to the person who needs it.
+// Each language is named in itself — "Español", not "Spanish".
 const LANGUAGES = [
   { value: "en", label: "English", short: "EN" },
   { value: "es", label: "Español", short: "ES" },
-  { value: "ja", label: "日本語", short: "JA" },
 ] as const;
 
 // Language picker for the header. Was a segmented EN/ES toggle; it's a
@@ -36,8 +35,8 @@ export function LanguageToggle({ lang, actions }: { lang: Lang; actions: Record<
           variant="ghost"
           size="sm"
           className="group text-muted-foreground hover:text-foreground"
-          aria-label={tr(lang, { en: "Language", es: "Idioma", ja: "言語" })}
-          title={tr(lang, { en: "Language", es: "Idioma", ja: "言語" })}
+          aria-label={tr(lang, { en: "Language", es: "Idioma" })}
+          title={tr(lang, { en: "Language", es: "Idioma" })}
         >
           {current.short}
           <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />

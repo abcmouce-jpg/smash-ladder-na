@@ -53,7 +53,6 @@ const MATCH_FOUND_MESSAGES: Record<Lang, PushCopy> = {
     body: "You've been paired — head to the Lobby.",
   },
   es: { title: "¡Partida encontrada!", body: "Te emparejaron — ve a la Sala." },
-  ja: { title: "対戦相手が見つかりました！", body: "マッチングしました。ロビーへ移動してください。" },
 };
 
 const QUEUE_OPPORTUNITY_MESSAGES: Record<Lang, PushCopy> = {
@@ -65,16 +64,11 @@ const QUEUE_OPPORTUNITY_MESSAGES: Record<Lang, PushCopy> = {
     title: "Un rival en tu rango acaba de entrar a la cola",
     body: "Entra ahora mientras sigue esperando.",
   },
-  ja: {
-    title: "レートの近い相手が待機列に入りました",
-    body: "相手が待っているうちに入りましょう。",
-  },
 };
 
 const QUEUE_OPPORTUNITY_DM: Record<Lang, (link: string) => string> = {
   en: (link: string) => `👀 Someone in your range just queued — jump in while they're still waiting: ${link}`,
   es: (link: string) => `👀 Alguien en tu rango acaba de entrar a la cola — entra mientras sigue esperando: ${link}`,
-  ja: (link: string) => `👀 レートの近い相手が待機列に入りました。待っているうちに入りましょう: ${link}`,
 };
 
 const TEST_MESSAGES: Record<Lang, PushCopy> = {
@@ -85,10 +79,6 @@ const TEST_MESSAGES: Record<Lang, PushCopy> = {
   es: {
     title: "Notificación de prueba",
     body: "Las notificaciones push funcionan — te avisaremos aquí cuando te emparejen.",
-  },
-  ja: {
-    title: "テスト通知",
-    body: "プッシュ通知は正常に動いています。マッチングしたらここに通知が届きます。",
   },
 };
 
@@ -303,7 +293,6 @@ export async function sendTestPushToUser(userId: string, lang: Lang = "en"): Pro
       error: tr(lang, {
         en: "Push notifications aren't set up on this site yet.",
         es: "Las notificaciones push aún no están configuradas en este sitio.",
-        ja: "このサイトではプッシュ通知がまだ設定されていません。",
       }),
     };
   }
@@ -322,7 +311,6 @@ export async function sendTestPushToUser(userId: string, lang: Lang = "en"): Pro
       error: tr(lang, {
         en: "No push subscriptions on this account — toggle notifications off and on again.",
         es: "Esta cuenta no tiene suscripciones push — apaga y vuelve a encender las notificaciones.",
-        ja: "このアカウントに通知の登録がありません。通知をいったんオフにして、もう一度オンにしてください。",
       }),
     };
   }
@@ -342,7 +330,6 @@ export async function sendTestPushToUser(userId: string, lang: Lang = "en"): Pro
       error: tr(lang, {
         en: "Couldn't deliver a test notification — toggle notifications off and on again.",
         es: "No se pudo entregar una notificación de prueba — apaga y vuelve a encender las notificaciones.",
-        ja: "テスト通知を配信できませんでした。通知をいったんオフにして、もう一度オンにしてください。",
       }),
     };
   }

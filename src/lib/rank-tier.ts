@@ -23,15 +23,15 @@ export type RankTier = {
 // regions.ts. Any future change MUST ship with a migration for existing
 // stored values.
 export const MATCH_RATING_GAP_PRESETS: readonly { label: Record<Lang, string>; gap: number | null }[] = [
-  { label: { en: "Within 25", es: "Dentro de 25", ja: "±25以内" }, gap: 25 },
-  { label: { en: "Within 50", es: "Dentro de 50", ja: "±50以内" }, gap: 50 },
-  { label: { en: "Within 75", es: "Dentro de 75", ja: "±75以内" }, gap: 75 },
-  { label: { en: "Within 100", es: "Dentro de 100", ja: "±100以内" }, gap: 100 },
-  { label: { en: "Within 150", es: "Dentro de 150", ja: "±150以内" }, gap: 150 },
-  { label: { en: "Within 200", es: "Dentro de 200", ja: "±200以内" }, gap: 200 },
-  { label: { en: "Within 300", es: "Dentro de 300", ja: "±300以内" }, gap: 300 },
-  { label: { en: "Within 500", es: "Dentro de 500", ja: "±500以内" }, gap: 500 },
-  { label: { en: "Any rating", es: "Cualquier clasificación", ja: "制限なし" }, gap: null },
+  { label: { en: "Within 25", es: "Dentro de 25" }, gap: 25 },
+  { label: { en: "Within 50", es: "Dentro de 50" }, gap: 50 },
+  { label: { en: "Within 75", es: "Dentro de 75" }, gap: 75 },
+  { label: { en: "Within 100", es: "Dentro de 100" }, gap: 100 },
+  { label: { en: "Within 150", es: "Dentro de 150" }, gap: 150 },
+  { label: { en: "Within 200", es: "Dentro de 200" }, gap: 200 },
+  { label: { en: "Within 300", es: "Dentro de 300" }, gap: 300 },
+  { label: { en: "Within 500", es: "Dentro de 500" }, gap: 500 },
+  { label: { en: "Any rating", es: "Cualquier clasificación" }, gap: null },
 ];
 
 // Ordered highest to lowest; the first tier whose floor the rating clears

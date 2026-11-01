@@ -29,7 +29,6 @@ function assertValidCharacter(character: string) {
     throw new LocalizedError({
       en: "Not a valid character",
       es: "Personaje no válido",
-      ja: "そのキャラクターは選べません",
     });
 }
 
@@ -124,7 +123,6 @@ export async function getAllGuides(viewerId: string | null): Promise<GuideView[]
 const GUIDE_DM: Record<Lang, (label: string, link: string) => string> = {
   en: (label: string, link: string) => `📖 New community guide for ${label} — check it out: ${link}`,
   es: (label: string, link: string) => `📖 Nueva guía de la comunidad para ${label} — mírala: ${link}`,
-  ja: (label: string, link: string) => `📖 ${label}の新しいコミュニティ攻略が投稿されました: ${link}`,
 };
 
 // DMs everyone subscribed to a character's bell (the follow button on /notes),
@@ -145,7 +143,7 @@ export async function notifyCharacterGuideSubscribers(character: string, authorI
   });
 
   const link = `${siteOrigin()}/notes`;
-  const buckets: Record<Lang, { discordId: string }[]> = { en: [], es: [], ja: [] };
+  const buckets: Record<Lang, { discordId: string }[]> = { en: [], es: [] };
   for (const subscriber of subscribers) {
     if (!isNotificationEnabled(subscriber, "DM_CHARACTER_GUIDE")) continue;
     buckets[asLang(subscriber.preferredLanguage) ?? DEFAULT_LANG].push({ discordId: subscriber.discordId });
@@ -179,13 +177,11 @@ export async function createCharacterGuide(authorId: string, character: string, 
     throw new LocalizedError({
       en: "Guide can't be empty",
       es: "El aporte no puede estar vacío",
-      ja: "攻略が空のままです",
     });
   if (trimmed.length > MAX_GUIDE_LENGTH)
     throw new LocalizedError({
       en: `Guide is too long (max ${MAX_GUIDE_LENGTH} characters)`,
       es: `El aporte es demasiado largo (máx. ${MAX_GUIDE_LENGTH} caracteres)`,
-      ja: `攻略が長すぎます（${MAX_GUIDE_LENGTH}文字以内）`,
     });
 
   // Filed under the echo group's canonical character so Samus/Dark Samus (and
@@ -202,23 +198,19 @@ export async function updateCharacterGuide(authorId: string, guideId: string, co
     throw new LocalizedError({
       en: "Guide can't be empty",
       es: "El aporte no puede estar vacío",
-      ja: "攻略が空のままです",
     });
   if (trimmed.length > MAX_GUIDE_LENGTH)
     throw new LocalizedError({
       en: `Guide is too long (max ${MAX_GUIDE_LENGTH} characters)`,
       es: `El aporte es demasiado largo (máx. ${MAX_GUIDE_LENGTH} caracteres)`,
-      ja: `攻略が長すぎます（${MAX_GUIDE_LENGTH}文字以内）`,
     });
 
   const guide = await prisma.characterGuide.findUnique({ where: { id: guideId } });
-  if (!guide)
-    throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado", ja: "攻略が見つかりません" });
+  if (!guide) throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado" });
   if (guide.authorId !== authorId)
     throw new LocalizedError({
       en: "Only the author can edit this guide",
       es: "Solo el autor puede editar este aporte",
-      ja: "この攻略を編集できるのは投稿者だけです",
     });
 
   await prisma.characterGuide.update({ where: { id: guideId }, data: { content: trimmed } });
@@ -231,7 +223,6 @@ export async function deleteCharacterGuide(authorId: string, guideId: string) {
     throw new LocalizedError({
       en: "Only the author can delete this guide",
       es: "Solo el autor puede borrar este aporte",
-      ja: "この攻略を削除できるのは投稿者だけです",
     });
 
   await prisma.characterGuide.delete({ where: { id: guideId } });
@@ -244,13 +235,11 @@ export async function deleteCharacterGuide(authorId: string, guideId: string) {
 export async function voteOnGuide(userId: string, guideId: string, value: 1 | -1) {
   await prisma.$transaction(async (tx) => {
     const guide = await tx.characterGuide.findUnique({ where: { id: guideId }, select: { authorId: true } });
-    if (!guide)
-      throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado", ja: "攻略が見つかりません" });
+    if (!guide) throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado" });
     if (guide.authorId === userId)
       throw new LocalizedError({
         en: "You can't vote on your own guide",
         es: "No puedes votar tu propio aporte",
-        ja: "自分の攻略には投票できません",
       });
 
     const existing = await tx.characterGuideVote.findUnique({
@@ -278,13 +267,11 @@ export async function voteOnGuide(userId: string, guideId: string, value: 1 | -1
 export async function flagGuide(userId: string, guideId: string) {
   await prisma.$transaction(async (tx) => {
     const guide = await tx.characterGuide.findUnique({ where: { id: guideId }, select: { authorId: true } });
-    if (!guide)
-      throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado", ja: "攻略が見つかりません" });
+    if (!guide) throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado" });
     if (guide.authorId === userId)
       throw new LocalizedError({
         en: "You can't flag your own guide",
         es: "No puedes reportar tu propio aporte",
-        ja: "自分の攻略は通報できません",
       });
 
     const existing = await tx.characterGuideFlag.findUnique({

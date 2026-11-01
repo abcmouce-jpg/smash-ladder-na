@@ -16,7 +16,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 const TOP_FINISHERS = 5;
 
 export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
-  const dateLocale = tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" });
+  const dateLocale = tr(lang, { en: "en-US", es: "es-MX" });
   const active = await getActiveSeason();
 
   const [pastSeasons, podiums] = await Promise.all([
@@ -51,7 +51,7 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
     <div className="flex flex-col gap-8">
       {active && (
         <section>
-          <SectionHeading label={tr(lang, { en: "Current season", es: "Temporada actual", ja: "今シーズン" })} />
+          <SectionHeading label={tr(lang, { en: "Current season", es: "Temporada actual" })} />
           <Card className="mt-3">
             <CardContent className="pt-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -59,10 +59,10 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                   <Trophy className="size-4 text-primary" />
                   <p className="text-sm font-semibold">{active.name}</p>
                   <Badge variant="outline" className="text-xs">
-                    {tr(lang, { en: "In progress", es: "En curso", ja: "開催中" })}
+                    {tr(lang, { en: "In progress", es: "En curso" })}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {tr(lang, { en: "since ", es: "desde el ", ja: "開始 " })}
+                    {tr(lang, { en: "since ", es: "desde el " })}
                     {active.startsAt.toLocaleDateString(dateLocale)}
                   </span>
                 </div>
@@ -70,7 +70,7 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                   href="/leaderboard"
                   className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  {tr(lang, { en: "Current leaderboard", es: "Clasificación actual", ja: "現在のランキング" })}
+                  {tr(lang, { en: "Current leaderboard", es: "Clasificación actual" })}
                   <ArrowRight className="size-3" />
                 </Link>
               </div>
@@ -81,7 +81,7 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
 
       <section>
         <SectionHeading
-          label={tr(lang, { en: "Past champions", es: "Campeones anteriores", ja: "歴代王者" })}
+          label={tr(lang, { en: "Past champions", es: "Campeones anteriores" })}
           action={pastSeasons.length > 0 && <span className="text-xs text-muted-foreground">{pastSeasons.length}</span>}
         />
         {pastSeasons.length === 0 ? (
@@ -89,7 +89,6 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
             {tr(lang, {
               en: "No seasons have ended yet — check back once this one wraps up.",
               es: "Todavía no ha terminado ninguna temporada — vuelve cuando esta termine.",
-              ja: "まだ終了したシーズンがありません。今シーズンが終わったら表示されます。",
             })}
           </p>
         ) : (
@@ -112,7 +111,6 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                     aria-label={tr(lang, {
                       en: `View the full standings for ${season.name}`,
                       es: `Ver la clasificación completa de ${season.name}`,
-                      ja: `${season.name}の最終順位を見る`,
                     })}
                     className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
@@ -156,7 +154,6 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                           {tr(lang, {
                             en: `${playerCount} player${playerCount === 1 ? "" : "s"} in the final standings`,
                             es: `${playerCount} ${playerCount === 1 ? "jugador" : "jugadores"} en la clasificación final`,
-                            ja: `最終順位に${playerCount}人`,
                           })}
                         </span>
                       ) : (
@@ -164,12 +161,11 @@ export async function StatsSeasonsSection({ lang }: { lang: Lang }) {
                           {tr(lang, {
                             en: "No standings recorded",
                             es: "Sin clasificación registrada",
-                            ja: "順位の記録がありません",
                           })}
                         </span>
                       )}
                       <span className="ml-auto flex items-center gap-1 font-medium text-muted-foreground transition-colors group-hover:text-foreground">
-                        {tr(lang, { en: "Full standings", es: "Ver clasificación completa", ja: "最終順位" })}
+                        {tr(lang, { en: "Full standings", es: "Ver clasificación completa" })}
                         <ArrowRight className="size-3" />
                       </span>
                     </p>

@@ -20,7 +20,6 @@ function requireRegionUnlocked(region: string | null) {
     throw new LocalizedError({
       en: `${SITE_NAME} is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
       es: `${SITE_NAME} es solo para ${LAUNCH_REGION_LOCK} mientras arrancamos — elige ${LAUNCH_REGION_LOCK} como tu región en la Sala para participar.`,
-      ja: `${SITE_NAME}は立ち上げ期のため${LAUNCH_REGION_LOCK}限定です。ロビーで地域を${LAUNCH_REGION_LOCK}に設定すると参加できます。`,
     });
   }
 }
@@ -64,7 +63,6 @@ export async function requireNotBanned(userId: string) {
     throw new LocalizedError({
       en: "Your account has been banned.",
       es: "Tu cuenta ha sido baneada.",
-      ja: "このアカウントは利用禁止になっています。",
     });
   }
   requireRegionUnlocked(user.region);
@@ -79,7 +77,6 @@ export async function requireActiveUser(userId: string) {
     throw new LocalizedError({
       en: "Your account has been banned.",
       es: "Tu cuenta ha sido baneada.",
-      ja: "このアカウントは利用禁止になっています。",
     });
   }
   const status = await liftExpiredSuspension(userId, user);
@@ -87,7 +84,6 @@ export async function requireActiveUser(userId: string) {
     throw new LocalizedError({
       en: "Your account is suspended — posting on Friendlies and reporting are unavailable, but ranked play still works.",
       es: "Tu cuenta está suspendida — no puedes publicar en Amistosos ni reportar, pero el juego clasificatorio sigue disponible.",
-      ja: "アカウントが一時停止中です。フリー対戦への投稿と通報はできませんが、ランク戦は通常どおり利用できます。",
     });
   }
   requireRegionUnlocked(user.region);
@@ -104,13 +100,11 @@ export async function setUsername(userId: string, username: string) {
     throw new LocalizedError({
       en: "Username is required",
       es: "El nombre de usuario es obligatorio",
-      ja: "ユーザー名を入力してください",
     });
   if (trimmed.length > USERNAME_MAX_LENGTH) {
     throw new LocalizedError({
       en: `Username must be ${USERNAME_MAX_LENGTH} characters or fewer`,
       es: `El nombre de usuario debe tener ${USERNAME_MAX_LENGTH} caracteres o menos`,
-      ja: `ユーザー名は${USERNAME_MAX_LENGTH}文字以内で入力してください`,
     });
   }
 
@@ -122,7 +116,6 @@ export async function setUserRegion(userId: string, region: string | null) {
     throw new LocalizedError({
       en: "Not a recognized region",
       es: "Región no reconocida",
-      ja: "その地域は登録されていません",
     });
   }
   await prisma.user.update({ where: { id: userId }, data: { region } });
@@ -137,7 +130,6 @@ export async function setMaxMatchDistance(userId: string, maxMatchDistanceKm: nu
     throw new LocalizedError({
       en: "Not a recognized match distance",
       es: "Formato de partida no reconocido",
-      ja: "その試合形式は登録されていません",
     });
   }
   await prisma.user.update({ where: { id: userId }, data: { maxMatchDistanceKm } });
@@ -151,7 +143,6 @@ export async function setMaxRatingGap(userId: string, maxRatingGap: number | nul
     throw new LocalizedError({
       en: "Not a recognized rating gap",
       es: "Diferencia de clasificación no reconocida",
-      ja: "そのレート差の設定は登録されていません",
     });
   }
   await prisma.user.update({ where: { id: userId }, data: { maxRatingGap } });
@@ -165,7 +156,6 @@ export async function setRematchCooldown(userId: string, rematchCooldownHours: n
     throw new LocalizedError({
       en: "Not a recognized rematch cooldown",
       es: "Espera de revancha no reconocida",
-      ja: "その再戦制限の設定は登録されていません",
     });
   }
   await prisma.user.update({ where: { id: userId }, data: { rematchCooldownHours } });
@@ -257,7 +247,6 @@ export async function setQuickMessages(userId: string, messages: string[]) {
     throw new LocalizedError({
       en: `Each quick message can't be longer than ${MAX_QUICK_MESSAGE_LENGTH} characters`,
       es: `Cada mensaje rápido no puede pasar de ${MAX_QUICK_MESSAGE_LENGTH} caracteres`,
-      ja: `定型文は1つあたり${MAX_QUICK_MESSAGE_LENGTH}文字以内です`,
     });
   }
   const allBlank = trimmed.every((m) => m.length === 0);
@@ -332,14 +321,12 @@ export async function setWiredConnection(userId: string, wired: boolean) {
       throw new LocalizedError({
         en: `Too many cancelled matches relative to games played (${user.cancelCount} cancelled, ${user.gamesPlayed} played) to self-declare a wired connection.`,
         es: `Demasiadas partidas canceladas en relación con las jugadas (${user.cancelCount} canceladas, ${user.gamesPlayed} jugadas) para declarar una conexión por cable.`,
-        ja: `対戦数に対して中止が多すぎるため（中止${user.cancelCount}件／対戦${user.gamesPlayed}件）、有線接続の自己申告はできません。`,
       });
     }
     if (isWiredClaimDisputedByOpponents(user._count.connectionReportsReceived, user.gamesPlayed)) {
       throw new LocalizedError({
         en: `Too many opponents have reported connection issues with you (${user._count.connectionReportsReceived} reports, ${user.gamesPlayed} games played) to self-declare a wired connection.`,
         es: `Demasiados rivales han reportado problemas de conexión contigo (${user._count.connectionReportsReceived} reportes, ${user.gamesPlayed} partidas) para declarar una conexión por cable.`,
-        ja: `接続不安定の通報が多すぎるため（通報${user._count.connectionReportsReceived}件／対戦${user.gamesPlayed}件）、有線接続の自己申告はできません。`,
       });
     }
   }

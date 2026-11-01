@@ -8,7 +8,7 @@ import { PROVISIONAL_MIN_GAMES } from "@/lib/rank-tier";
 
 const MATCH_TTL_HOURS = MATCH_TTL_MS / (60 * 60 * 1000);
 
-export const metadata = { title: `${instanceText({ en: "Q&A", es: "Preguntas", ja: "Q&A" })} — ${SITE_NAME}` };
+export const metadata = { title: `${instanceText({ en: "Q&A", es: "Preguntas" })} — ${SITE_NAME}` };
 
 function QA({ q, children }: { q: string; children: React.ReactNode }) {
   return (
@@ -30,7 +30,6 @@ function Category({ title, children }: { title: string; children: React.ReactNod
 
 export default async function FaqPage() {
   const lang = await getLang();
-  if (lang === "ja") return <FaqPageJa />;
   if (lang === "es") return <FaqPageEs />;
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -351,144 +350,6 @@ function FaqPageEs() {
             Sí. Gran parte del código, corrección de bugs, y mantenimiento del día a día (despliegues, herramientas de
             moderación, esta misma entrada del FAQ incluida) se hace con ayuda de IA. No lo ocultamos — si tienes
             curiosidad de cómo se construyó algo en específico, pregunta en el servidor de Discord de arriba.
-          </QA>
-        </Category>
-      </div>
-    </main>
-  );
-}
-
-function FaqPageJa() {
-  const lang = "ja" as const;
-  return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-16">
-      <h1 className="text-2xl font-semibold tracking-tight">Q&amp;A</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        対戦ルールそのものは{" "}
-        <a href="/rules" className="underline">
-          ルールページ
-        </a>{" "}
-        にまとめています。
-      </p>
-
-      <div className="mt-8 flex flex-col gap-8">
-        <Category title="レート対戦">
-          <QA q="マッチングしたのに相手が反応しない">
-            中止ボタンを押して次に進んでください。こういうときのためのボタンです。同じ相手で何度も続くようなら通報してください。
-          </QA>
-          <QA q="自分だけ報告して、相手が報告しない">
-            それでも成立します。試合開始から{MATCH_TTL_HOURS}
-            時間で自分の報告がそのまま確定し、相手には不参加がつきます。両者とも報告しなかった場合は、レートが動かないまま終了します。
-          </QA>
-          <QA q="勝者を間違えて報告した">
-            相手が報告する前なら、正しい結果でもう一度報告すれば直ります。二人の報告が揃えば確定します。すでに食い違っている場合は、モデレーターが確認します。
-          </QA>
-          <QA q="相手が実際と違う勝者を報告した">
-            同じ結果を送り直して様子を見る、ということはしないでください。報告が食い違ったままにしておけば、モデレーターが両方の報告を見て判断します。わざとだと思われる場合は、マナー違反の通報も出してください。
-          </QA>
-          <QA q="試合が確定したのにレートが動かない">
-            自分よりずっと上の相手に負けたときは、変動が端数になって0と表示されることがあります。不具合ではありません。勝った側は必ず1以上上がります。報告が一致しているのにプロフィール上の勝者がおかしい場合は、異議申立として報告してください。
-          </QA>
-          <QA q="レートはどう計算される？">
-            スマメイトと同じです。全員1500から始まり、同じレートの相手との1セットで{SMASHMATE_K_FACTOR / 2}
-            動きます。レート差が25開くごとに、上の相手に勝ったときは1多く、下の相手に勝ったときは1少なくなります。1セットの上限は
-            {MAX_RATING_DELTA}、勝ったときの下限は1です。
-          </QA>
-          <QA q="試合数が少ないうちは動きが大きい？">
-            いいえ。対戦数による重みづけはしていません。1戦目でも300戦目でも、同じレート差なら同じだけ動きます。ただしレートが表示されるのは
-            {PROVISIONAL_MIN_GAMES}セットからです。
-          </QA>
-          <QA q="「有線接続」のバッジを付けたい">
-            携帯モードなら USB-C の有線LANアダプタ、ドックならドックに LAN
-            ケーブルを挿せば大丈夫です。機材の例はこちらです。{" "}
-            {GEAR_RECOMMENDATIONS.map((item, i) => (
-              <span key={item.url}>
-                {i > 0 && " · "}
-                <a href={item.url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
-                  {item.label[lang]}
-                </a>
-              </span>
-            ))}
-            （Amazon アソシエイトとして、適格販売により収入を得ています）
-          </QA>
-        </Category>
-
-        <Category title="練習モード">
-          <QA q="練習モードの試合はレートに影響する？">
-            しません。勝っても負けても練習レートだけが動きます。通常のレートとセット数はそのままです。
-          </QA>
-          <QA q="練習のチェックを外し忘れた。途中で解除できる？">
-            できません。マッチングした時点で、その試合については確定します。まだ早い段階なら試合を中止するか、試合画面から相手に中止をお願いしてください。そのあとチェックを外して待機し直せます。
-          </QA>
-          <QA q="練習中にメインキャラを使っていい？">
-            使わないでください。練習モードでは自分のレートが動きません。その状態でメインを出すと、相手だけがレートを賭けていることになります。自動では止めていないので、見かけたら通報してください。
-          </QA>
-        </Category>
-
-        <Category title="使用キャラの報告">
-          <QA q="プロフィールに使用キャラが出ない">
-            相手が試合後に報告してくれたときだけ表示されます。自分で設定することはできません。試合直後なら少し待ってみてください。
-          </QA>
-          <QA q="違うキャラを報告された">
-            1件くらいなら全体には響きません。キャラクター別ランキングは報告をまとめて見ています。わざと繰り返されているようなら、そのプレイヤーを通報してください。
-          </QA>
-        </Category>
-
-        <Category title="マナー・通報・アカウント">
-          <QA q="試合の外で絡まれた（DM、配信のコメントなど）">
-            通報で扱えるのは、このサイトでのレート対戦に関わる範囲です。サイトの外のことは、相手をブロックしてください。悪質な場合は
-            Discord に直接通報できます。
-          </QA>
-          <QA q="通報した人がどうなったか知りたい">
-            個別の処分はお伝えしていません。通報した人が特定されて、仕返しを受けるのを防ぐためです。結果が見えなくても通報には意味があります。1件で処分に至ることは少ないですが、積み重なれば判断材料になります。
-          </QA>
-          <QA q="アカウントが停止された。理由を知りたい／異議を申し立てたい">
-            根拠になった通報の中身は、上と同じ理由で公開していません。心当たりがない場合は、
-            <a href={X_ACCOUNT_URL} target="_blank" rel="noreferrer" className="underline">
-              公式 X アカウント
-            </a>
-            までご連絡ください。異議はそちらで受け付けています。
-          </QA>
-          <QA q="利用停止と永久停止の違いは？">
-            利用停止（レベル1）ならレート対戦は続けられます。結果がおかしいときは異議申立で直せるので、そこは止めていません。できなくなるのは、フリー対戦への投稿と新しい通報です。通報した相手に仕返しできないようにするためです。永久停止（レベル2）はすべて利用できません。
-          </QA>
-        </Category>
-
-        <Category title="アカウント">
-          <QA q="アカウントを消したい">
-            プロフィールページの「アカウントの削除」から消せます。ユーザー名・アイコン・メールアドレスはすぐに消えます。何が残るかはプライバシーポリシーに書いています。
-          </QA>
-          <QA q="削除を取り消せる？別のアカウントにまとめられる？">
-            同じ Discord
-            でログインし直すと、元のアカウントが戻ります。レートも対戦履歴もそのままです。ただしユーザー名・アイコン・メールアドレスは、自分で入れ直すまで空のままです。別々のアカウントを1つにまとめることはできません。
-          </QA>
-          <QA q="地域でマッチングが変わる？">
-            変わりません。全国どこからでも同じプールでマッチングします。レート差と再戦の間隔だけ、ロビーの対戦設定で調整できます。
-          </QA>
-        </Category>
-
-        <Category title="シーズン">
-          <QA q="シーズンが終わるとレートはどうなる？">
-            順位が記録として残り、次のシーズンの開始時にレートとセット数が全員リセットされます。一部だけ戻すのではなく完全に初期化するので、どのシーズンも同じ条件から始まります。
-          </QA>
-        </Category>
-
-        <Category title="運営について">
-          <QA q="運営への連絡先は？">
-            <a href={X_ACCOUNT_URL} target="_blank" rel="noreferrer" className="underline">
-              公式 X アカウント
-            </a>
-            です。不具合の報告、利用停止への異議、その他の問い合わせはすべてこちらへお願いします。
-          </QA>
-          <QA q="運営は何人？">
-            モデレーターと管理者を合わせて数名、全員が有志です。手伝ってもいいという方は X でご連絡ください。
-          </QA>
-          <QA q="スマメイトの後継サービス？">
-            いいえ。有志が独立して作っているサービスで、スマメイト運営からソースコードを引き継いだわけでもありません。長くオンライン対戦の場を支えてきたスマメイトには敬意を持っていますが、運営上のつながりはありません。
-          </QA>
-          <QA q="開発に AI を使っている？">
-            使っています。コード、不具合の修正、日々の運用（デプロイや運営ツール、この項目も含めて）の多くは AI
-            と一緒に進めています。隠していないので、気になることがあれば X で聞いてください。
           </QA>
         </Category>
       </div>

@@ -24,15 +24,15 @@ export function MatchFoundSoundPicker({ defaultValue, lang }: { defaultValue: Ma
         onChange={(v) => setValue(v as MatchFoundSound)}
         className="w-48"
         options={[
-          { value: "CHIME", label: tr(lang, { en: "Original chime", es: "Tono original", ja: "元のチャイム" }) },
+          { value: "CHIME", label: tr(lang, { en: "Original chime", es: "Tono original" }) },
           {
             value: "ANNOUNCER",
-            label: tr(lang, { en: "Announcer voice clip", es: "Anuncio de voz", ja: "アナウンス音声" }),
+            label: tr(lang, { en: "Announcer voice clip", es: "Anuncio de voz" }),
           },
         ]}
       />
       <Button type="button" size="sm" variant="outline" onClick={() => playMatchFoundSound(value)}>
-        {tr(lang, { en: "Preview", es: "Probar", ja: "試聴" })}
+        {tr(lang, { en: "Preview", es: "Probar" })}
       </Button>
     </div>
   );

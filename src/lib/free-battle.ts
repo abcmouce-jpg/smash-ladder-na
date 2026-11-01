@@ -31,7 +31,6 @@ async function requireReachedTier(userId: string, minTier: FreeBattleTier) {
     throw new LocalizedError({
       en: `You need to have reached ${minTier} at least once to post this`,
       es: `Necesitas haber alcanzado ${minTier} al menos una vez para publicar esto`,
-      ja: `この条件で募集を出すには、${minTier}に一度でも到達している必要があります`,
     });
   }
 }
@@ -169,7 +168,6 @@ export async function createPost(userId: string, comment: string, minTier: FreeB
     throw new LocalizedError({
       en: "You already have an active post",
       es: "Ya tienes una publicación activa",
-      ja: "すでに募集を出しています",
     });
 
   const trimmed = comment.trim();
@@ -177,14 +175,12 @@ export async function createPost(userId: string, comment: string, minTier: FreeB
     throw new LocalizedError({
       en: "Comment is required",
       es: "El comentario es obligatorio",
-      ja: "ひとことを入力してください",
     });
 
   if (minTier && !FREE_BATTLE_TIERS.includes(minTier))
     throw new LocalizedError({
       en: "Invalid rank restriction",
       es: "Restricción de rango inválida",
-      ja: "ランク条件の指定が正しくありません",
     });
   if (minTier) await requireReachedTier(userId, minTier);
 
@@ -276,13 +272,11 @@ export async function claimPost(userId: string, postId: string) {
   const post = await prisma.freeBattlePost.findUnique({
     where: { id: postId },
   });
-  if (!post)
-    throw new LocalizedError({ en: "Post not found", es: "Publicación no encontrada", ja: "募集が見つかりません" });
+  if (!post) throw new LocalizedError({ en: "Post not found", es: "Publicación no encontrada" });
   if (post.authorId === userId)
     throw new LocalizedError({
       en: "You can't claim your own post",
       es: "No puedes tomar tu propia publicación",
-      ja: "自分の募集には応募できません",
     });
   // Belt-and-suspenders alongside the disabled "I'm in" button in the UI —
   // that's just a display hint, this is the actual gate.
@@ -301,7 +295,6 @@ export async function claimPost(userId: string, postId: string) {
     throw new LocalizedError({
       en: "This post was just claimed by someone else",
       es: "Alguien más acaba de tomar esta publicación",
-      ja: "この募集はちょうど他の人が受けました",
     });
 
   await deletePostAnnouncement(post.discordMessageId, post.minTier as FreeBattleTier | null);

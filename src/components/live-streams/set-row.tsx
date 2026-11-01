@@ -120,7 +120,7 @@ export function SetRow({
             {entry.hasLiveStreamer && (
               <span className="flex shrink-0 items-center gap-1 font-medium text-red-500">
                 <Radio className="size-3" />
-                {tr(lang, { en: "Live", es: "En vivo", ja: "配信中" })}
+                {tr(lang, { en: "Live", es: "En vivo" })}
               </span>
             )}
           </span>
@@ -158,7 +158,6 @@ export function SetRow({
               {tr(lang, {
                 en: "No games played yet — this set hasn't started.",
                 es: "Aún no se ha jugado ningún juego — esta partida no ha empezado.",
-                ja: "まだ1試合も行われていません。このセットは未開始です。",
               })}
             </p>
           )}
@@ -177,13 +176,11 @@ function unfinishedGameLabel({ gameNumber, inProgress }: UnfinishedGame, lang: L
     return tr(lang, {
       en: `Game ${gameNumber} in progress…`,
       es: `Juego ${gameNumber} en curso…`,
-      ja: `第${gameNumber}試合 進行中…`,
     });
   }
   return tr(lang, {
     en: `Game ${gameNumber} — not finished`,
     es: `Juego ${gameNumber} — sin terminar`,
-    ja: `第${gameNumber}試合 — 未完了`,
   });
 }
 
@@ -207,7 +204,7 @@ function OpenStreamButton({ player, matchId, lang }: { player: FeedPlayer; match
       }}
       onKeyDown={(event) => event.stopPropagation()}
       aria-pressed={selected}
-      aria-label={`${tr(lang, { en: "Open stream", es: "Abrir stream", ja: "配信を開く" })}: ${name}`}
+      aria-label={`${tr(lang, { en: "Open stream", es: "Abrir stream" })}: ${name}`}
       className={cn(
         "inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
         selected
@@ -314,7 +311,7 @@ function GameLine({
     <div className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm sm:gap-3 sm:px-3">
       <span className="flex w-14 shrink-0 flex-col sm:w-24">
         <span className="text-xs tabular-nums text-muted-foreground">
-          {tr(lang, { en: `Game ${game.gameNumber}`, es: `Juego ${game.gameNumber}`, ja: `第${game.gameNumber}試合` })}
+          {tr(lang, { en: `Game ${game.gameNumber}`, es: `Juego ${game.gameNumber}` })}
         </span>
         {game.finalStage && (
           <span title={game.finalStage} className="truncate text-[10px] leading-4 text-muted-foreground/60">

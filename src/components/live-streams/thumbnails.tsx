@@ -50,7 +50,7 @@ export function LiveStreamThumbnails({ entries, lang }: { entries: SerializedSet
           href="/live"
           className="flex w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border px-2 py-3 text-center text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
         >
-          {tr(lang, { en: "Show more", es: "Ver más", ja: "もっと見る" })}
+          {tr(lang, { en: "Show more", es: "Ver más" })}
           <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       )}

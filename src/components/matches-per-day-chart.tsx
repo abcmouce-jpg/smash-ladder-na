@@ -22,7 +22,6 @@ const DAY_MS = 86_400_000;
 const MONTHS: Record<Lang, readonly string[]> = {
   en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
   es: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
-  ja: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
 };
 
 export function MatchesPerDayChart({
@@ -74,14 +73,12 @@ export function MatchesPerDayChart({
     return tr(lang, {
       en: `${months[month - 1]} ${day}, ${year}`,
       es: `${day} ${months[month - 1]} ${year}`,
-      ja: `${year}年${month}月${day}日`,
     });
   };
   const countLabel = (count: number) =>
     tr(lang, {
       en: `${count} ${count === 1 ? "match" : "matches"}`,
       es: `${count} ${count === 1 ? "partida" : "partidas"}`,
-      ja: `${count}試合`,
     });
 
   if (total === 0) {
@@ -90,7 +87,6 @@ export function MatchesPerDayChart({
         {tr(lang, {
           en: `No confirmed matches in the last ${days} days yet.`,
           es: `Aún no hay partidas confirmadas en los últimos ${days} días.`,
-          ja: `直近${days}日間に確定した試合はまだありません。`,
         })}
       </p>
     );
@@ -131,7 +127,6 @@ export function MatchesPerDayChart({
         aria-label={tr(lang, {
           en: `Matches per day over the last ${days} days`,
           es: `Partidas por día en los últimos ${days} días`,
-          ja: `直近${days}日間の1日あたりの試合数`,
         })}
       >
         {gridLines.map((g) => (
@@ -211,7 +206,6 @@ export function MatchesPerDayChart({
               {tr(lang, {
                 en: `${months[month - 1]} ${day}`,
                 es: `${day} ${months[month - 1]}`,
-                ja: `${month}月${day}日`,
               })}
             </text>
           );
@@ -224,7 +218,6 @@ export function MatchesPerDayChart({
           : tr(lang, {
               en: `${total} confirmed matches in the last ${days} days`,
               es: `${total} partidas confirmadas en los últimos ${days} días`,
-              ja: `直近${days}日間で確定した試合 ${total}件`,
             })}
       </div>
 
@@ -232,15 +225,15 @@ export function MatchesPerDayChart({
           rating chart's table fallback is for too. */}
       <details className="mt-2 text-xs">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          {tr(lang, { en: "View as table", es: "Ver como tabla", ja: "表で見る" })}
+          {tr(lang, { en: "View as table", es: "Ver como tabla" })}
         </summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="text-muted-foreground">
-                <th className="py-1 font-medium">{tr(lang, { en: "Date", es: "Fecha", ja: "日付" })}</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Date", es: "Fecha" })}</th>
                 <th className="py-1 text-right font-medium tabular-nums">
-                  {tr(lang, { en: "Matches", es: "Partidas", ja: "試合数" })}
+                  {tr(lang, { en: "Matches", es: "Partidas" })}
                 </th>
               </tr>
             </thead>

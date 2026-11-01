@@ -51,7 +51,6 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     description: tr(lang, {
       en: `${label} on ${SITE_NAME}: community write-ups, this season's win rate and games played, and the highest-rated players using the fighter.`,
       es: `${label} en ${SITE_NAME}: guías de la comunidad, la tasa de victorias y partidas de esta temporada, y los jugadores mejor clasificados que lo usan.`,
-      ja: `${SITE_NAME}の${label}：コミュニティの対策メモ、今シーズンの勝率と試合数、このキャラを使う上位プレイヤー。`,
     }),
     alternates: { canonical: `/characters/${characterSlug(character)}` },
   };
@@ -86,7 +85,6 @@ export default async function CharacterPage({ params }: { params: Promise<Params
               {tr(lang, {
                 en: `Counted together with ${echoes.map((c) => characterLabel(c, lang)).join(", ")}.`,
                 es: `Contado junto con ${echoes.map((c) => characterLabel(c, lang)).join(", ")}.`,
-                ja: `${echoes.map((c) => characterLabel(c, lang)).join("・")}と合算しています。`,
               })}
             </p>
           )}
@@ -101,12 +99,10 @@ export default async function CharacterPage({ params }: { params: Promise<Params
           ? tr(lang, {
               en: `${usage.players} ranked ${usage.players === 1 ? "player" : "players"} on ${SITE_NAME} play ${label}, ${usage.mains} of them as their main. They have played ${usage.games.toLocaleString("en-US")} ranked games with the fighter this season and won ${usage.winRate}% of them${usage.avgRating ? `, at an average rating of ${usage.avgRating}` : ""}.`,
               es: `${usage.players} ${usage.players === 1 ? "jugador clasificado" : "jugadores clasificados"} de ${SITE_NAME} usan ${label}, ${usage.mains} como personaje principal. Han jugado ${usage.games.toLocaleString("es-ES")} partidas clasificatorias con el personaje esta temporada y ganaron el ${usage.winRate}%${usage.avgRating ? `, con una clasificación media de ${usage.avgRating}` : ""}.`,
-              ja: `${SITE_NAME}でランク対象のプレイヤー${usage.players}人が${label}を使っていて、うち${usage.mains}人がメインにしています。今シーズンはこのキャラで${usage.games.toLocaleString("ja-JP")}試合を戦い、勝率は${usage.winRate}%です${usage.avgRating ? `（平均レート${usage.avgRating}）` : ""}。`,
             })
           : tr(lang, {
               en: `No ranked games have been played on ${label} this season yet, so there is no win rate for the fighter to report.`,
               es: `Todavía no se han jugado partidas clasificatorias con ${label} esta temporada, así que no hay tasa de victorias que mostrar.`,
-              ja: `今シーズンはまだ${label}でのランク対戦がないため、勝率は出ていません。`,
             })}
       </p>
 
@@ -116,7 +112,6 @@ export default async function CharacterPage({ params }: { params: Promise<Params
             {tr(lang, {
               en: `How players beat ${label}`,
               es: `Cómo los jugadores vencen a ${label}`,
-              ja: `${label}対策`,
             })}
           </h2>
           {guides.length === 0 ? (
@@ -124,10 +119,9 @@ export default async function CharacterPage({ params }: { params: Promise<Params
               {tr(lang, {
                 en: `Nobody has written about ${label} yet.`,
                 es: `Nadie ha escrito sobre ${label} todavía.`,
-                ja: `${label}についてはまだ誰も書いていません。`,
               })}{" "}
               <Link href="/notes?tab=guides" className="underline hover:no-underline">
-                {tr(lang, { en: "Write the first one", es: "Escribe la primera", ja: "最初に書く" })}
+                {tr(lang, { en: "Write the first one", es: "Escribe la primera" })}
               </Link>
             </p>
           ) : (
@@ -136,7 +130,6 @@ export default async function CharacterPage({ params }: { params: Promise<Params
                 {tr(lang, {
                   en: `Written by players on the ladder, ordered by how the community voted them.`,
                   es: `Escrito por jugadores de la clasificación, ordenado según los votos de la comunidad.`,
-                  ja: `ラダーのプレイヤーが書いたもので、投票順に並んでいます。`,
                 })}
               </p>
               <div className="mt-4 flex flex-col gap-3">
@@ -170,7 +163,6 @@ export default async function CharacterPage({ params }: { params: Promise<Params
                   {tr(lang, {
                     en: "Vote on these, or add your own",
                     es: "Vota estas, o añade la tuya",
-                    ja: "投票する・自分のを書く",
                   })}
                 </Link>
               </p>
@@ -185,7 +177,6 @@ export default async function CharacterPage({ params }: { params: Promise<Params
             {tr(lang, {
               en: `Highest-rated ${label} players`,
               es: `Jugadores de ${label} mejor clasificados`,
-              ja: `${label}使いの上位プレイヤー`,
             })}
           </h2>
           <div className="mt-3 flex flex-col divide-y divide-border">
@@ -203,7 +194,6 @@ export default async function CharacterPage({ params }: { params: Promise<Params
                     {tr(lang, {
                       en: `· ${player.gamesPlayed} sets`,
                       es: `· ${player.gamesPlayed} sets`,
-                      ja: `· ${player.gamesPlayed}セット`,
                     })}
                   </span>
                 </span>
@@ -218,7 +208,6 @@ export default async function CharacterPage({ params }: { params: Promise<Params
               {tr(lang, {
                 en: `See the full ${label} leaderboard`,
                 es: `Ver la clasificación completa de ${label}`,
-                ja: `${label}のランキング全体を見る`,
               })}
             </Link>
           </p>
@@ -230,7 +219,6 @@ export default async function CharacterPage({ params }: { params: Promise<Params
           {tr(lang, {
             en: "Every fighter, side by side",
             es: "Todos los personajes, uno al lado del otro",
-            ja: "全キャラの一覧を見る",
           })}
         </Link>
       </p>

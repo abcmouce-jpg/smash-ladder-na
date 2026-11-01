@@ -20,7 +20,6 @@ const STATUS_VARIANT = {
 const STATUS_LABELS: Record<Lang, Record<string, string> | null> = {
   en: null,
   es: { SIGNUPS: "inscripciones", IN_PROGRESS: "en curso", COMPLETED: "completado", CANCELLED: "cancelado" },
-  ja: { SIGNUPS: "受付中", IN_PROGRESS: "進行中", COMPLETED: "終了", CANCELLED: "中止" },
 };
 
 export function tournamentStatusLabel(status: string, lang: Lang): string {
@@ -35,15 +34,12 @@ export default async function TournamentsPage() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {tr(lang, { en: "Tournaments", es: "Torneos", ja: "大会" })}
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{tr(lang, { en: "Tournaments", es: "Torneos" })}</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {tr(lang, {
           en: "Casual, unrated community events — double elimination on start.gg by convention.",
           es: "Eventos casuales de la comunidad que no afectan la clasificación — doble eliminación en start.gg por convención.",
-          ja: "レートのかからない、気軽なコミュニティ大会です。慣例として start.gg のダブルイリミネーションで行います。",
         })}
       </p>
 
@@ -63,12 +59,10 @@ export default async function TournamentsPage() {
                 <div>
                   <p className="text-sm font-medium">{t.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {tr(lang, { en: "Hosted by", es: "Organizado por", ja: "主催" })} {t.host.username} ·{" "}
-                    {t._count.entries}{" "}
+                    {tr(lang, { en: "Hosted by", es: "Organizado por" })} {t.host.username} · {t._count.entries}{" "}
                     {tr(lang, {
                       en: t._count.entries === 1 ? "entrant" : "entrants",
                       es: t._count.entries === 1 ? "participante" : "participantes",
-                      ja: "人参加",
                     })}
                   </p>
                 </div>
@@ -82,7 +76,6 @@ export default async function TournamentsPage() {
             {tr(lang, {
               en: "No tournaments yet — host one above.",
               es: "Aún no hay torneos — organiza uno arriba.",
-              ja: "まだ大会がありません。上から立ててみてください。",
             })}
           </p>
         )}

@@ -15,10 +15,9 @@ import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireModerator() {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   if (session.user.role !== "MOD" && session.user.role !== "ADMIN") {
-    throw new LocalizedError({ en: "Not authorized", es: "No autorizado", ja: "権限がありません" });
+    throw new LocalizedError({ en: "Not authorized", es: "No autorizado" });
   }
   return session.user.id;
 }
@@ -34,8 +33,7 @@ function parseSuspensionHours(customRaw: FormDataEntryValue | null, presetRaw: F
 
 export async function deleteAccountAction() {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   await deleteMyAccount(session.user.id);
   await signOut({ redirectTo: "/" });
 }
@@ -53,8 +51,7 @@ export async function blockUserAction(
   _formData: FormData,
 ): Promise<BlockState> {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   try {
     await blockUser(session.user.id, blockedId);
   } catch (err) {
@@ -73,8 +70,7 @@ export async function requestCorrectionAction(
   formData: FormData,
 ): Promise<CorrectionState> {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   const winnerId = String(formData.get("winnerId") ?? "");
   try {
     const result = await requestResultCorrection(session.user.id, matchId, winnerId);
@@ -85,7 +81,6 @@ export async function requestCorrectionAction(
         message: tr(await getLang(), {
           en: "Correction applied — ratings updated.",
           es: "Corrección aplicada — clasificaciones actualizadas.",
-          ja: "訂正を反映しました。レートを更新しました。",
         }),
       };
     }
@@ -95,7 +90,6 @@ export async function requestCorrectionAction(
         message: tr(await getLang(), {
           en: "Your correction doesn't match what your opponent submitted — a mod will review it.",
           es: "Tu corrección no coincide con la de tu rival — un moderador lo revisará.",
-          ja: "あなたの訂正内容が相手の申告と食い違っています。モデレーターが確認します。",
         }),
       };
     }
@@ -104,7 +98,6 @@ export async function requestCorrectionAction(
       message: tr(await getLang(), {
         en: "Submitted — waiting for your opponent to agree.",
         es: "Enviado — esperando que tu rival esté de acuerdo.",
-        ja: "送信しました。相手の同意を待っています。",
       }),
     };
   } catch (err) {
@@ -260,8 +253,7 @@ function serializeComments(
 // needed here beyond being signed in.
 export async function getMatchChatLogAction(matchId: string) {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   const comments = await listMatchComments(session.user.id, matchId);
   return serializeComments(comments);
 }

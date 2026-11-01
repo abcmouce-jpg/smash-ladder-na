@@ -40,7 +40,6 @@ export function MovesetDialog({
         tr(lang, {
           en: "Enter 4 digits, each 1-4 (e.g. 1221).",
           es: "Ingresa 4 dígitos, cada uno del 1 al 4 (ej: 1221).",
-          ja: "1〜4の数字を4桁で入力してください（例：1221）。",
         }),
       );
       return;
@@ -60,14 +59,12 @@ export function MovesetDialog({
           {tr(lang, {
             en: `${character ?? ""} moveset`,
             es: `Moveset de ${character ?? ""}`,
-            ja: `${character ?? ""}の必殺ワザ設定`,
           })}
         </DialogTitle>
         <DialogDescription className="mt-1">
           {tr(lang, {
             en: "Enter the custom moveset as 4 digits, each 1-4 (e.g. 1221). Your opponent will see it next to the character name.",
             es: "Ingresa el moveset personalizado como 4 dígitos, cada uno del 1 al 4 (ej: 1221). Tu rival lo verá junto al nombre del personaje.",
-            ja: "必殺ワザの組み合わせを1〜4の数字4桁で入力してください（例：1221）。相手にはキャラクター名の横に表示されます。",
           })}
         </DialogDescription>
         <input
@@ -80,10 +77,10 @@ export function MovesetDialog({
         {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-            {tr(lang, { en: "Cancel", es: "Cancelar", ja: "キャンセル" })}
+            {tr(lang, { en: "Cancel", es: "Cancelar" })}
           </Button>
           <Button type="button" size="sm" onClick={handleConfirm}>
-            {tr(lang, { en: "Confirm", es: "Confirmar", ja: "確定" })}
+            {tr(lang, { en: "Confirm", es: "Confirmar" })}
           </Button>
         </div>
       </DialogContent>

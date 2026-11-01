@@ -140,13 +140,12 @@ export default async function LobbyPage() {
   if (!session?.user?.id) {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
-        <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala", ja: "ロビー" })} />
+        <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
         <ActivityLine inMatch={activity.inMatch} matched={false} isWaiting={false} poll={false} lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
           {tr(lang, {
             en: "Sign in with Discord (top right) to join the matchmaking lobby.",
             es: "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento.",
-            ja: "右上の Discord でログインすると、マッチングロビーに参加できます。",
           })}
         </p>
       </main>
@@ -161,12 +160,11 @@ export default async function LobbyPage() {
   if (restriction?.status === "BANNED") {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
-        <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala", ja: "ロビー" })} />
+        <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
         <p className="mt-2 text-sm text-muted-foreground">
           {tr(lang, {
             en: "Your account has been banned, so the lobby isn't available. See the notice above for details.",
             es: "Tu cuenta está suspendida permanentemente, así que la sala no está disponible. Mira el aviso de arriba para más detalles.",
-            ja: "アカウントが利用停止のため、ロビーは使えません。詳細は上の通知を確認してください。",
           })}
         </p>
       </main>
@@ -234,7 +232,7 @@ export default async function LobbyPage() {
 
   return (
     <main className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}>
-      <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala", ja: "ロビー" })} />
+      <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
       <ActivityLine
         inMatch={activity.inMatch}
         matched={!!isInActiveMatch}
@@ -272,14 +270,12 @@ export default async function LobbyPage() {
                       {tr(lang, {
                         en: "Searching for an opponent…",
                         es: "Buscando rival…",
-                        ja: "対戦相手を探しています…",
                       })}
                     </CardTitle>
                     <CardDescription className="mt-0.5">
                       {tr(lang, {
                         en: "Turn on notifications in ",
                         es: "Activa las notificaciones en ",
-                        ja: "マッチを見逃さないよう、",
                       })}
                       <Link
                         href="/settings?tab=notifications#push-notifications"
@@ -288,19 +284,17 @@ export default async function LobbyPage() {
                         {tr(lang, {
                           en: "Settings",
                           es: "Ajustes",
-                          ja: "設定",
                         })}
                       </Link>
                       {tr(lang, {
                         en: " so you don't miss the match.",
                         es: " para no perderte la partida.",
-                        ja: "で通知をオンにしてください。",
                       })}
                     </CardDescription>
                   </div>
                   <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Clock className="size-3.5" />
-                    {tr(lang, { en: "In queue", es: "En cola", ja: "待機中" })}
+                    {tr(lang, { en: "In queue", es: "En cola" })}
                     <span className="font-medium tabular-nums text-foreground">
                       <QueueTimer joinedAt={entry.joinedAt.toISOString()} />
                     </span>
@@ -313,7 +307,6 @@ export default async function LobbyPage() {
                     {tr(lang, {
                       en: "Cancel search",
                       es: "Cancelar búsqueda",
-                      ja: "待機をやめる",
                     })}
                   </Button>
                 </form>
@@ -328,7 +321,6 @@ export default async function LobbyPage() {
                       {tr(lang, {
                         en: "Wait feeling long? Invite a friend to get matched faster.",
                         es: "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido.",
-                        ja: "なかなかマッチしませんか？友達を誘うと早く当たります。",
                       })}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
@@ -354,12 +346,10 @@ export default async function LobbyPage() {
                         ? tr(lang, {
                             en: "Ready for another match?",
                             es: "¿Listo para otra partida?",
-                            ja: "続けて対戦する",
                           })
                         : tr(lang, {
                             en: "Ready to play?",
                             es: "¿Listo para jugar?",
-                            ja: "対戦を始める",
                           })}
                     </CardTitle>
                     <CardDescription className="mt-0.5">
@@ -370,9 +360,6 @@ export default async function LobbyPage() {
                         es: DISTANCE_MATCHMAKING
                           ? "Entra en la cola y te emparejaremos con un rival cercano."
                           : "Entra en la cola y te emparejaremos con un rival.",
-                        ja: DISTANCE_MATCHMAKING
-                          ? "待機すると、近くの相手が見つかり次第そのまま対戦に入ります。"
-                          : "待機すると、相手が見つかり次第そのまま対戦に入ります。",
                       })}
                     </CardDescription>
                   </div>
@@ -408,19 +395,6 @@ export default async function LobbyPage() {
                             </a>
                           </>
                         ),
-                        ja: (
-                          <>
-                            下の設定で
-                            <span className="font-medium text-foreground">対戦地域</span>
-                            を選ぶと、対戦相手を探せます。{" "}
-                            <a
-                              href="#match-settings"
-                              className="font-medium text-foreground underline underline-offset-2"
-                            >
-                              地域を設定する ↓
-                            </a>
-                          </>
-                        ),
                       })}
                     </p>
                   </div>
@@ -443,14 +417,12 @@ export default async function LobbyPage() {
                     {tr(lang, {
                       en: "Match settings",
                       es: "Ajustes de partida",
-                      ja: "対戦設定",
                     })}
                   </CardTitle>
                   <CardDescription className="mt-0.5">
                     {tr(lang, {
                       en: "Who you match with, and how.",
                       es: "Con quién te emparejamos y cómo.",
-                      ja: "マッチする相手の条件を決めます。",
                     })}
                   </CardDescription>
                 </div>
@@ -460,7 +432,6 @@ export default async function LobbyPage() {
                     {tr(lang, {
                       en: "Locked",
                       es: "Bloqueados",
-                      ja: "変更不可",
                     })}
                   </Badge>
                 )}
@@ -510,11 +481,6 @@ function ActivityLine({
           es: (
             <>
               <span className="font-medium text-foreground">{inMatch}</span> jugando ahora
-            </>
-          ),
-          ja: (
-            <>
-              <span className="font-medium text-foreground">{inMatch}</span>人が対戦中
             </>
           ),
         })}
@@ -594,7 +560,6 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
           {tr(lang, {
             en: "You're in the queue, so these settings are locked — cancel your search to change them.",
             es: "Estás en la cola, así que estos ajustes están bloqueados — cancela la búsqueda para cambiarlos.",
-            ja: "待機中は設定を変更できません。変えるには待機をやめてください。",
           })}
         </p>
       )}
@@ -606,11 +571,8 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
               {tr(lang, {
                 en: "Match region",
                 es: "Región de partida",
-                ja: "対戦地域",
               })}
-              {missingRegion && (
-                <Badge variant="warning">{tr(lang, { en: "Required", es: "Requerido", ja: "必須" })}</Badge>
-              )}
+              {missingRegion && <Badge variant="warning">{tr(lang, { en: "Required", es: "Requerido" })}</Badge>}
             </span>
             <OptionSelect
               key={me?.region ?? ""}
@@ -619,12 +581,10 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
               placeholder={tr(lang, {
                 en: "Not set",
                 es: "Sin definir",
-                ja: "未設定",
               })}
               clearLabel={tr(lang, {
                 en: "Not set",
                 es: "Sin definir",
-                ja: "未設定",
               })}
               className="w-full"
               searchable
@@ -632,7 +592,6 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
               searchPlaceholder={tr(lang, {
                 en: "Search regions…",
                 es: "Buscar regiones…",
-                ja: "地域を検索…",
               })}
               disabled={disabled}
               options={REGION_OPTIONS}
@@ -646,7 +605,6 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
             label={tr(lang, {
               en: "Match distance",
               es: "Distancia de partida",
-              ja: "対戦距離",
             })}
             defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
             resetKey={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
@@ -663,7 +621,6 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
           label={tr(lang, {
             en: "Rating gap",
             es: "Diferencia de clasificación",
-            ja: "レート差",
           })}
           defaultValue={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           resetKey={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
@@ -679,7 +636,6 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
           label={tr(lang, {
             en: "Rematch cooldown",
             es: "Espera de revancha",
-            ja: "再戦の間隔",
           })}
           defaultValue={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
           resetKey={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
@@ -705,7 +661,6 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
             {tr(lang, {
               en: "On a wired (LAN) connection",
               es: "En una conexión por cable (LAN)",
-              ja: "有線（LAN）接続",
             })}
           </label>
           {/* Kept outside the label so clicking the link doesn't toggle the box. */}
@@ -731,15 +686,6 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
                   .
                 </>
               ),
-              ja: (
-                <>
-                  有線でプレイしていることを自己申告します。キャンセルが多すぎる場合や、回線の問題を相手から何度も報告された場合は自動で外れます。詳しくは
-                  <Link href="/rules" className="text-foreground underline underline-offset-2">
-                    ルール
-                  </Link>
-                  をご覧ください。
-                </>
-              ),
             })}
           </p>
         </div>
@@ -750,7 +696,6 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
           label={tr(lang, {
             en: "Only match with wired opponents",
             es: "Solo rivales por cable",
-            ja: "有線接続の相手のみとマッチする",
           })}
           disabled={disabled}
         />
@@ -760,18 +705,16 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
           label={tr(lang, {
             en: "Don't match me with opponents who are practicing",
             es: "Evitar rivales que están practicando",
-            ja: "練習中の相手とはマッチしない",
           })}
           disabled={disabled}
         />
         <MatchSettingToggle
           name="zenMode"
           checked={me?.zenMode ?? false}
-          label={tr(lang, { en: "Zen Mode", es: "Modo Zen", ja: "ゼンモード（レート非表示）" })}
+          label={tr(lang, { en: "Zen Mode", es: "Modo Zen" })}
           hint={tr(lang, {
             en: "Hide both ratings while you're in a match.",
             es: "Oculta ambas clasificaciones mientras estás en una partida.",
-            ja: "対戦中、お互いのレートを隠します。",
           })}
           disabled={disabled}
         />
@@ -925,7 +868,7 @@ async function PairedView({
               />
               <form action={leaveMatchAction.bind(null, match.id)} className="ml-auto">
                 <Button type="submit" variant="outline" size="sm">
-                  {tr(lang, { en: "Leave", es: "Salir", ja: "退出" })}
+                  {tr(lang, { en: "Leave", es: "Salir" })}
                 </Button>
               </form>
             </CardContent>
@@ -939,7 +882,6 @@ async function PairedView({
               {tr(lang, {
                 en: "View full match details on your profile →",
                 es: "Ver todos los detalles de la partida en tu perfil →",
-                ja: "プロフィールで試合の詳細を見る →",
               })}
             </Link>
           </CardContent>
@@ -1027,7 +969,6 @@ async function PairedView({
                     {tr(lang, {
                       en: `⚠️ Game ${g.gameNumber} is disputed and awaiting mod review. The set can continue.`,
                       es: `⚠️ El juego ${g.gameNumber} está en disputa y espera revisión de un mod. La partida puede continuar.`,
-                      ja: `⚠️ 第${g.gameNumber}試合は異議申立中で、モデレーターの確認待ちです。セットは続行できます。`,
                     })}
                   </p>
                   <DisputeResolutionForm
@@ -1049,7 +990,6 @@ async function PairedView({
                   {tr(lang, {
                     en: `⚠️ You and ${displayName} reported different results for Game ${g.gameNumber}. Re-report to confirm, or dispute it for a mod to review.`,
                     es: `⚠️ Tú y ${displayName} reportaron resultados distintos en el juego ${g.gameNumber}. Vuelve a reportar para confirmar, o disputa para que un mod lo revise.`,
-                    ja: `⚠️ 第${g.gameNumber}試合について、あなたと${displayName}の報告が食い違っています。もう一度報告して確定するか、異議を出してモデレーターに確認してもらってください。`,
                   })}
                 </p>
                 <div className="mt-2 flex gap-2">
@@ -1058,24 +998,22 @@ async function PairedView({
                     confirmMessage={tr(lang, {
                       en: `Confirm that you won game ${g.gameNumber}?`,
                       es: `¿Confirmar que ganaste el juego ${g.gameNumber}?`,
-                      ja: `第${g.gameNumber}試合に勝ったとして確定しますか？`,
                     })}
                     variant="success"
                     lang={lang}
                   >
-                    {tr(lang, { en: "I Won", es: "Gané", ja: "勝った" })}
+                    {tr(lang, { en: "I Won", es: "Gané" })}
                   </ConfirmSubmitButton>
                   <ConfirmSubmitButton
                     action={reportGame.bind(null, match.id, g.gameNumber, false)}
                     confirmMessage={tr(lang, {
                       en: `Confirm that you lost game ${g.gameNumber}?`,
                       es: `¿Confirmar que perdiste el juego ${g.gameNumber}?`,
-                      ja: `第${g.gameNumber}試合に負けたとして確定しますか？`,
                     })}
                     variant="destructive"
                     lang={lang}
                   >
-                    {tr(lang, { en: "I Lost", es: "Perdí", ja: "負けた" })}
+                    {tr(lang, { en: "I Lost", es: "Perdí" })}
                   </ConfirmSubmitButton>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -1084,27 +1022,23 @@ async function PairedView({
                       return tr(lang, {
                         en: "You both confirmed. A mod will review this game.",
                         es: "Ambos confirmaron. Un mod revisará este juego.",
-                        ja: "両者が確定しました。この試合はモデレーターが確認します。",
                       });
                     }
                     if (myConfirmed) {
                       return tr(lang, {
                         en: `You confirmed. Waiting for ${displayName}.`,
                         es: `Confirmaste. Esperando a ${displayName}.`,
-                        ja: `あなたは確定しました。${displayName}を待っています。`,
                       });
                     }
                     if (oppConfirmed) {
                       return tr(lang, {
                         en: `${displayName} confirmed. Confirm yours to finish.`,
                         es: `${displayName} confirmó. Confirma el tuyo para terminar.`,
-                        ja: `${displayName}が確定しました。あなたも確定すると終了します。`,
                       });
                     }
                     return tr(lang, {
                       en: "Reporting the opposite result gives your opponent the game.",
                       es: "Reportar el resultado opuesto le da el juego a tu rival.",
-                      ja: "逆の結果を報告すると、この試合は相手の勝ちになります。",
                     });
                   })()}
                 </p>
@@ -1113,7 +1047,6 @@ async function PairedView({
                     {tr(lang, {
                       en: "Dispute this game",
                       es: "Disputar este juego",
-                      ja: "この試合に異議を出す",
                     })}
                   </Button>
                 </form>
@@ -1132,7 +1065,6 @@ async function PairedView({
                 {tr(lang, {
                   en: `You and ${displayName} reported different results. A mod will review this match.`,
                   es: `Tú y ${displayName} reportaron resultados distintos. Un mod revisará esta partida.`,
-                  ja: `あなたと${displayName}の報告が食い違っています。この試合はモデレーターが確認します。`,
                 })}
               </p>
             </CardContent>
@@ -1223,18 +1155,15 @@ function MatchFooterActions({
             ? tr(lang, {
                 en: "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character and stage from the previous game.",
                 es: "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje y escenario del juego anterior.",
-                ja: "すでに1試合の結果が出ているため、ここで退出すると降参（敗北）として扱われます。相手が応答しなくなった場合、降参する必要はありません。数分で相手が手番を失います。第1試合で選択が止まった場合は相手のセット負け、第2試合以降は前の試合のキャラとステージがそのまま使われます。",
               })
             : opponentEngaged
               ? tr(lang, {
                   en: "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel.",
                   es: "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis.",
-                  ja: "相手はすでにこのセットを始めています。ここで退出すると無償のキャンセルではなく、降参（敗北）になります。",
                 })
               : tr(lang, {
                   en: "Your opponent hasn't shown up yet. Cancelling now is free.",
                   es: "Tu rival aún no se presenta. Cancelar ahora es gratis.",
-                  ja: "相手はまだ来ていません。今ならキャンセルしても不利になりません。",
                 })}
         </p>
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
@@ -1253,7 +1182,6 @@ function MatchFooterActions({
           {tr(lang, {
             en: "Can't finish? Both players can agree to cancel. No rating impact.",
             es: "¿No pueden terminar? Ambos pueden acordar cancelar. Sin afectar la clasificación.",
-            ja: "続けられませんか？両者が合意すればセットを中止できます。レートには影響しません。",
           })}
         </p>
         <MutualCancelSection
@@ -1270,7 +1198,6 @@ function MatchFooterActions({
           {tr(lang, {
             en: "Lag or disconnects?",
             es: "¿Lag o desconexiones?",
-            ja: "ラグや切断がありましたか？",
           })}
         </p>
         {alreadyReportedConnection ? (
@@ -1279,7 +1206,6 @@ function MatchFooterActions({
             {tr(lang, {
               en: "Connection reported",
               es: "Conexión reportada",
-              ja: "回線を報告しました",
             })}
           </Button>
         ) : (
@@ -1288,7 +1214,6 @@ function MatchFooterActions({
               {tr(lang, {
                 en: "Report connection",
                 es: "Reportar conexión",
-                ja: "回線を報告",
               })}
             </Button>
           </form>
@@ -1511,23 +1436,19 @@ function MatchScoreboard({
         ? tr(lang, {
             en: `Game ${gameNumber} — you won`,
             es: `Juego ${gameNumber} — lo ganaste`,
-            ja: `第${gameNumber}試合 — 勝利`,
           })
         : tr(lang, {
             en: `Game ${gameNumber} — you lost`,
             es: `Juego ${gameNumber} — lo perdiste`,
-            ja: `第${gameNumber}試合 — 敗北`,
           })
       : inProgress
         ? tr(lang, {
             en: `Game ${gameNumber} — in progress`,
             es: `Juego ${gameNumber} — en curso`,
-            ja: `第${gameNumber}試合 — 進行中`,
           })
         : tr(lang, {
             en: `Game ${gameNumber} — upcoming`,
             es: `Juego ${gameNumber} — pendiente`,
-            ja: `第${gameNumber}試合 — これから`,
           });
     labels.push(label);
     return (
@@ -1555,13 +1476,12 @@ function MatchScoreboard({
           )}
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-1.5 font-medium">
-              <span className="truncate">{tr(lang, { en: "You", es: "Tú", ja: "あなた" })}</span>
+              <span className="truncate">{tr(lang, { en: "You", es: "Tú" })}</span>
               {myIsPracticing && (
                 <Badge variant="outline">
                   {tr(lang, {
                     en: "🧪 Practice Mode",
                     es: "🧪 Modo práctica",
-                    ja: "🧪 練習モード",
                   })}
                 </Badge>
               )}
@@ -1575,13 +1495,11 @@ function MatchScoreboard({
                         {tr(lang, {
                           en: `${formatRating(myRating ?? 0)}`,
                           es: `${formatRating(myRating ?? 0)}`,
-                          ja: `${formatRating(myRating ?? 0)}`,
                         })}
                         {myIsPracticing &&
                           tr(lang, {
                             en: " (practice)",
                             es: " (práctica)",
-                            ja: "（練習）",
                           })}
                       </>
                     ) : (
@@ -1603,7 +1521,6 @@ function MatchScoreboard({
                   {tr(lang, {
                     en: "Most played characters",
                     es: "Personajes más usados",
-                    ja: "よく使うキャラ",
                   })}
                 </span>
                 {myTopCharacters.map((character) => (
@@ -1638,7 +1555,6 @@ function MatchScoreboard({
                   {tr(lang, {
                     en: `${opponentStreak} win streak`,
                     es: `${opponentStreak} victorias seguidas`,
-                    ja: `${opponentStreak}連勝中`,
                   })}
                 </Badge>
               )}
@@ -1647,7 +1563,6 @@ function MatchScoreboard({
                   {tr(lang, {
                     en: "🧘 Zen Mode",
                     es: "🧘 Modo Zen",
-                    ja: "🧘 ゼンモード",
                   })}
                 </Badge>
               )}
@@ -1656,7 +1571,6 @@ function MatchScoreboard({
                   {tr(lang, {
                     en: "Practicing",
                     es: "Practicando",
-                    ja: "練習中",
                   })}
                 </Badge>
               )}
@@ -1670,13 +1584,11 @@ function MatchScoreboard({
                         {tr(lang, {
                           en: `${formatRating(opponentRating)}`,
                           es: `${formatRating(opponentRating)}`,
-                          ja: `${formatRating(opponentRating)}`,
                         })}
                         {opponentIsPracticing &&
                           tr(lang, {
                             en: " (practice)",
                             es: " (práctica)",
-                            ja: "（練習）",
                           })}
                       </>
                     ) : (
@@ -1698,7 +1610,6 @@ function MatchScoreboard({
                   {tr(lang, {
                     en: "Most played characters",
                     es: "Personajes más usados",
-                    ja: "よく使うキャラ",
                   })}
                 </span>
                 {topCharacters.map((character) => (
@@ -1727,17 +1638,15 @@ function MatchScoreboard({
               {tr(lang, {
                 en: "Your record: ",
                 es: "Tu récord: ",
-                ja: "あなたの戦績：",
               })}
               {headToHead.wins}
-              {tr(lang, { en: "W", es: "V", ja: "勝" })}–{headToHead.losses}
-              {tr(lang, { en: "L", es: "D", ja: "敗" })}
+              {tr(lang, { en: "W", es: "V" })}–{headToHead.losses}
+              {tr(lang, { en: "L", es: "D" })}
             </>
           ) : (
             tr(lang, {
               en: "First time opponent",
               es: "Primera vez que se enfrentan",
-              ja: "初めて当たる相手です",
             })
           )}
         </p>
@@ -1768,16 +1677,14 @@ function MatchActionBanner({
   switch (summary.kind) {
     case "start-game": {
       tone = "action";
-      kicker = tr(lang, { en: "Your turn", es: "Tu turno", ja: "あなたの番" });
+      kicker = tr(lang, { en: "Your turn", es: "Tu turno" });
       title = tr(lang, {
         en: `Start Game ${summary.gameNumber}`,
         es: `Empieza el juego ${summary.gameNumber}`,
-        ja: `第${summary.gameNumber}試合を始める`,
       });
       detail = tr(lang, {
         en: "Press the button below to start.",
         es: "Presiona el botón de abajo para empezar.",
-        ja: "下のボタンを押して始めてください。",
       });
       break;
     }
@@ -1787,17 +1694,14 @@ function MatchActionBanner({
         kicker = tr(lang, {
           en: "Your turn",
           es: "Tu turno",
-          ja: "あなたの番",
         });
         title = tr(lang, {
           en: `Pick your character for Game ${summary.gameNumber}`,
           es: `Elige tu personaje para el juego ${summary.gameNumber}`,
-          ja: `第${summary.gameNumber}試合の使用キャラを選ぶ`,
         });
         detail = tr(lang, {
           en: "Both players pick a character first, then the stage.",
           es: "Ambos eligen personaje primero, luego el escenario.",
-          ja: "まず両者がキャラを選び、その後ステージを決めます。",
         });
         deadlineIso = summary.deadlineIso;
         largeCountdown = true;
@@ -1806,14 +1710,12 @@ function MatchActionBanner({
         title = tr(lang, {
           en: `Waiting for ${opponentName} to pick a character…`,
           es: `Esperando a que ${opponentName} elija personaje…`,
-          ja: `${opponentName}のキャラ選択を待っています…`,
         });
         deadlineIso = summary.deadlineIso;
         if (!deadlineIso) {
           detail = tr(lang, {
             en: "You'll pick after they lock in.",
             es: "Elegirás después de que elija.",
-            ja: "相手が確定したら、あなたが選びます。",
           });
         }
       }
@@ -1825,24 +1727,20 @@ function MatchActionBanner({
         kicker = tr(lang, {
           en: "Your turn",
           es: "Tu turno",
-          ja: "あなたの番",
         });
         title =
           summary.phase === "striking"
             ? tr(lang, {
                 en: `Strike ${summary.strikeCount} ${summary.strikeCount === 1 ? "stage" : "stages"} for Game ${summary.gameNumber}`,
                 es: `Descarta ${summary.strikeCount} ${summary.strikeCount === 1 ? "escenario" : "escenarios"} para el juego ${summary.gameNumber}`,
-                ja: `第${summary.gameNumber}試合のステージを${summary.strikeCount}個BANする`,
               })
             : tr(lang, {
                 en: `Pick the stage for Game ${summary.gameNumber}`,
                 es: `Elige el escenario del juego ${summary.gameNumber}`,
-                ja: `第${summary.gameNumber}試合のステージを選ぶ`,
               });
         detail = tr(lang, {
           en: "If time runs out, it picks for you.",
           es: "Si el tiempo se agota, se elige solo.",
-          ja: "時間切れになると自動で選ばれます。",
         });
         deadlineIso = summary.deadlineIso;
         largeCountdown = true;
@@ -1853,12 +1751,10 @@ function MatchActionBanner({
             ? tr(lang, {
                 en: `Waiting for ${opponentName} to strike for Game ${summary.gameNumber}…`,
                 es: `Esperando a que ${opponentName} descarte para el juego ${summary.gameNumber}…`,
-                ja: `${opponentName}が第${summary.gameNumber}試合のステージBANをするのを待っています…`,
               })
             : tr(lang, {
                 en: `Waiting for ${opponentName} to pick the stage for Game ${summary.gameNumber}…`,
                 es: `Esperando a que ${opponentName} elija el escenario del juego ${summary.gameNumber}…`,
-                ja: `${opponentName}が第${summary.gameNumber}試合のステージを選ぶのを待っています…`,
               });
         deadlineIso = summary.deadlineIso;
       }
@@ -1870,24 +1766,20 @@ function MatchActionBanner({
         kicker = tr(lang, {
           en: "Your turn",
           es: "Tu turno",
-          ja: "あなたの番",
         });
         if (summary.deadlineIso) {
           title = tr(lang, {
             en: `${opponentName} reported Game ${summary.gameNumber} — confirm or dispute it.`,
             es: `${opponentName} reportó el juego ${summary.gameNumber} — confírmalo o dispútalo.`,
-            ja: `${opponentName}が第${summary.gameNumber}試合の結果を報告しました。確定するか、異議を出してください。`,
           });
         } else {
           title = tr(lang, {
             en: `Report Game ${summary.gameNumber}'s result`,
             es: `Reporta el resultado del juego ${summary.gameNumber}`,
-            ja: `第${summary.gameNumber}試合の結果を報告する`,
           });
           detail = tr(lang, {
             en: "Each player reports their own result.",
             es: "Cada quien reporta su propio resultado.",
-            ja: "各自が自分の結果を報告します。",
           });
         }
         deadlineIso = summary.deadlineIso;
@@ -1897,7 +1789,6 @@ function MatchActionBanner({
         title = tr(lang, {
           en: `Waiting for ${opponentName} to confirm the result…`,
           es: `Esperando a que ${opponentName} confirme el resultado…`,
-          ja: `${opponentName}の結果確定を待っています…`,
         });
         deadlineIso = summary.deadlineIso;
       }
@@ -1909,12 +1800,10 @@ function MatchActionBanner({
         ? tr(lang, {
             en: `A mod is reviewing Game ${summary.gameNumber}.`,
             es: `Un mod está revisando el juego ${summary.gameNumber}.`,
-            ja: `モデレーターが第${summary.gameNumber}試合を確認しています。`,
           })
         : tr(lang, {
             en: `Game ${summary.gameNumber}'s result is disputed. Resolve it below.`,
             es: `El resultado del juego ${summary.gameNumber} está en disputa. Resuélvelo abajo.`,
-            ja: `第${summary.gameNumber}試合の結果に異議が出ています。下で解決してください。`,
           });
       break;
     }
@@ -1923,12 +1812,10 @@ function MatchActionBanner({
       title = tr(lang, {
         en: "A mod is reviewing this match.",
         es: "Un mod está revisando esta partida.",
-        ja: "モデレーターがこの試合を確認しています。",
       });
       detail = tr(lang, {
         en: "Nothing to do for now. We'll notify you when it's resolved.",
         es: "No hay nada que hacer por ahora. Te avisaremos cuando se resuelva.",
-        ja: "いまは待つだけで大丈夫です。解決したらお知らせします。",
       });
       break;
     }
@@ -1937,7 +1824,6 @@ function MatchActionBanner({
       title = tr(lang, {
         en: "Waiting on your opponent…",
         es: "Esperando a tu rival…",
-        ja: "相手を待っています…",
       });
       break;
     }
@@ -1973,7 +1859,6 @@ function MatchActionBanner({
               {tr(lang, {
                 en: "time left",
                 es: "tiempo restante",
-                ja: "残り時間",
               })}
             </p>
           </div>
@@ -2023,18 +1908,15 @@ function GameSection({
                 ? tr(lang, {
                     en: `Game ${lastGame.gameNumber} is disputed. A mod will resolve it.`,
                     es: `El juego ${lastGame.gameNumber} está en disputa. Un mod lo resolverá.`,
-                    ja: `第${lastGame.gameNumber}試合は異議申立中です。モデレーターが解決します。`,
                   })
                 : tr(lang, {
                     en: `You and your opponent reported different results for Game ${lastGame.gameNumber}. Confirm or dispute it below.`,
                     es: `Tú y tu rival reportaron resultados distintos en el juego ${lastGame.gameNumber}. Confírmalo o dispútalo abajo.`,
-                    ja: `第${lastGame.gameNumber}試合について、あなたと相手の報告が食い違っています。下で確定するか、異議を出してください。`,
                   })}
               {lastGame.finalStage &&
                 tr(lang, {
                   en: ` Stage: ${stageLabel(lastGame.finalStage, "en")}.`,
                   es: ` Escenario: ${stageLabel(lastGame.finalStage, "es")}.`,
-                  ja: ` ステージ：${stageLabel(lastGame.finalStage, "ja")}。`,
                 })}
             </>
           </p>
@@ -2055,30 +1937,25 @@ function GameSection({
               ? tr(lang, {
                   en: "Ready to pick a stage",
                   es: "Listo para elegir escenario",
-                  ja: "ステージを選びます",
                 })
               : tr(lang, {
                   en: "Ready to start game 1",
                   es: "Listo para empezar el juego 1",
-                  ja: "第1試合を始めます",
                 })
             : STRIKING_STAGES
               ? tr(lang, {
                   en: `Game ${gameNumber} — the last game's winner strikes first`,
                   es: `Juego ${gameNumber} — quien ganó el último juego descarta primero`,
-                  ja: `第${gameNumber}試合 — 前の試合に勝った側が先にBANします`,
                 })
               : tr(lang, {
                   en: `Game ${gameNumber} — the last game's loser picks the stage`,
                   es: `Juego ${gameNumber} — quien perdió el último juego elige escenario`,
-                  ja: `第${gameNumber}試合 — 前の試合に負けた側がステージを選びます`,
                 })}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {tr(lang, {
             en: `Press the button below to start with ${opponentName}. The site walks you through each turn.`,
             es: `Presiona el botón de abajo para empezar con ${opponentName}. El sitio te guía turno por turno.`,
-            ja: `下のボタンを押して${opponentName}との対戦を始めてください。進行は画面が案内します。`,
           })}
         </p>
         <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
@@ -2086,7 +1963,6 @@ function GameSection({
             {tr(lang, {
               en: `Start Game ${gameNumber} →`,
               es: `Empezar el juego ${gameNumber} →`,
-              ja: `第${gameNumber}試合を始める →`,
             })}
           </Button>
         </form>
@@ -2121,7 +1997,7 @@ function GameSection({
       <>
         {characterSection}
         <CardContent className="border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground">{tr(lang, { en: "Stage", es: "Escenario", ja: "ステージ" })}</p>
+          <p className="text-sm text-muted-foreground">{tr(lang, { en: "Stage", es: "Escenario" })}</p>
           {current.finalStage &&
             (() => {
               const imgPath = stageImagePath(current.finalStage!);
@@ -2154,9 +2030,7 @@ function GameSection({
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
   const verbLocalized =
-    turn.phase === "striking"
-      ? tr(lang, { en: "strike", es: "descartar", ja: "BANする" })
-      : tr(lang, { en: "pick", es: "elegir", ja: "選ぶ" });
+    turn.phase === "striking" ? tr(lang, { en: "strike", es: "descartar" }) : tr(lang, { en: "pick", es: "elegir" });
 
   // Strikes happen actorA's-share-then-actorB's-share, in order, so the
   // count already struck tells us how many the current actor still owes
@@ -2174,12 +2048,10 @@ function GameSection({
       ? tr(lang, {
           en: `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`,
           es: `descartar ${remainingStrikes} escenario${remainingStrikes === 1 ? "" : "s"}`,
-          ja: `ステージを${remainingStrikes}個BANする`,
         })
       : tr(lang, {
           en: `${verb} a stage`,
           es: "elegir un escenario",
-          ja: "ステージを選ぶ",
         });
 
   // Only shown once both characters are locked in (see the !bothLocked
@@ -2214,13 +2086,11 @@ function GameSection({
           {tr(lang, {
             en: `Game ${current.gameNumber} — `,
             es: `Juego ${current.gameNumber} — `,
-            ja: `第${current.gameNumber}試合 — `,
           })}
           {!bothLocked
             ? tr(lang, {
                 en: "Stage selection starts once you both pick a character.",
                 es: "La selección de escenario empieza cuando ambos elijan personaje.",
-                ja: "ステージ選択は、両者がキャラを選んでから始まります。",
               })
             : !STRIKING_STAGES && current.gameNumber === 1
               ? // Game 1 is settled by the in-game lottery, so the site records
@@ -2228,13 +2098,11 @@ function GameSection({
                 tr(lang, {
                   en: "Both players choose the stage they want in game and take whatever the lottery gives — do not pick Random. Record the stage it landed on below.",
                   es: "Ambos eligen el escenario que quieren dentro del juego y aceptan lo que salga — no elijan Aleatorio. Registren abajo el escenario que tocó.",
-                  ja: "お互いにゲーム内で戦いたいステージを選び、抽選の結果に従ってください（「おまかせ」は選ばないでください）。決まったステージを下で記録してください。",
                 })
               : !STRIKING_STAGES
                 ? tr(lang, {
                     en: "The last game's loser picks the stage; the winner selects Random in game.",
                     es: "Quien perdió el último juego elige el escenario; el ganador elige Aleatorio en el juego.",
-                    ja: "前の試合に負けた側がステージを選びます。勝った側はゲーム内で「おまかせ」を選んでください。",
                   })
                 : !myTurn
                   ? trNode(lang, {
@@ -2250,14 +2118,6 @@ function GameSection({
                           <Countdown deadline={deadline} />s restantes)
                         </>
                       ),
-                      ja: (
-                        <>
-                          {opponentName}がステージを{verbLocalized}
-                          のを待っています…（残り
-                          <Countdown deadline={deadline} />
-                          秒）
-                        </>
-                      ),
                     })
                   : trNode(lang, {
                       en: (
@@ -2270,13 +2130,6 @@ function GameSection({
                         <>
                           Tu turno — {turnDescription} (
                           <Countdown deadline={deadline} />s restantes, o se elige solo).
-                        </>
-                      ),
-                      ja: (
-                        <>
-                          あなたの番 — {turnDescription}（残り
-                          <Countdown deadline={deadline} />
-                          秒。過ぎると自動で選ばれます）。
                         </>
                       ),
                     })}
@@ -2306,7 +2159,6 @@ function GameSection({
                 {tr(lang, {
                   en: `Run it back (${runItBackStage})`,
                   es: `Repetir escenario (${runItBackStage})`,
-                  ja: `同じステージでもう一戦（${runItBackStage}）`,
                 })}
               </Button>
             </form>
@@ -2362,7 +2214,6 @@ function GameSection({
               {tr(lang, {
                 en: "Undo my last strike",
                 es: "Deshacer mi último descarte",
-                ja: "直前のBANを取り消す",
               })}
             </Button>
           </form>
@@ -2378,8 +2229,8 @@ function GameSection({
 // collapsed, so these two can be one click instead of two. The labels are the
 // shorthand players already type at each other in chat.
 const PROPOSAL_SHORTCUTS = [
-  { stage: "Small Battlefield", short: { en: "Small?", es: "Small?", ja: "小戦場？" } },
-  { stage: "Pokémon Stadium 2", short: { en: "PS2?", es: "PS2?", ja: "PS2？" } },
+  { stage: "Small Battlefield", short: { en: "Small?", es: "Small?" } },
+  { stage: "Pokémon Stadium 2", short: { en: "PS2?", es: "PS2?" } },
 ] as const;
 
 // "Small?" — the mutual-agreement shortcut: either player can propose any
@@ -2415,30 +2266,28 @@ function StageProposalSection({
             ? tr(lang, {
                 en: `You proposed ${game.proposedStage} — waiting on ${opponentName}.`,
                 es: `Propusiste ${game.proposedStage} — esperando a ${opponentName}.`,
-                ja: `${game.proposedStage}を提案しました。${opponentName}の返答を待っています。`,
               })
             : tr(lang, {
                 en: `${opponentName} proposed ${game.proposedStage}.`,
                 es: `${opponentName} propuso ${game.proposedStage}.`,
-                ja: `${opponentName}が${game.proposedStage}を提案しました。`,
               })}
         </p>
         {proposedByMe ? (
           <form action={withdrawStageProposal.bind(null, matchId, game.gameNumber)}>
             <Button type="submit" size="sm" variant="outline">
-              {tr(lang, { en: "Withdraw", es: "Retirar", ja: "取り下げる" })}
+              {tr(lang, { en: "Withdraw", es: "Retirar" })}
             </Button>
           </form>
         ) : (
           <>
             <form action={acceptStageProposal.bind(null, matchId, game.gameNumber)}>
               <Button type="submit" className="h-10 px-5 text-base font-semibold">
-                {tr(lang, { en: "Accept", es: "Aceptar", ja: "承諾" })}
+                {tr(lang, { en: "Accept", es: "Aceptar" })}
               </Button>
             </form>
             <form action={declineStageProposal.bind(null, matchId, game.gameNumber)}>
               <Button type="submit" size="sm" variant="outline">
-                {tr(lang, { en: "Decline", es: "Rechazar", ja: "拒否" })}
+                {tr(lang, { en: "Decline", es: "Rechazar" })}
               </Button>
             </form>
           </>
@@ -2468,7 +2317,6 @@ function StageProposalSection({
             {tr(lang, {
               en: "Propose it and skip striking",
               es: "Propón y sáltate el descarte",
-              ja: "これを提案してBANを省略する",
             })}
           </span>
         </div>
@@ -2480,12 +2328,10 @@ function StageProposalSection({
               ? tr(lang, {
                   en: "Propose a different stage",
                   es: "Proponer otro escenario",
-                  ja: "別のステージを提案する",
                 })
               : tr(lang, {
                   en: "Propose a stage",
                   es: "Proponer un escenario",
-                  ja: "ステージを提案する",
                 })}
           </summary>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -2565,23 +2411,19 @@ async function CharacterPickSection({
     ? {
         en: "you forfeit this set",
         es: "pierdes este set por abandono",
-        ja: "このセットは不戦敗になります",
       }
     : {
         en: "your character from the last game is used",
         es: "se usa tu personaje del último juego",
-        ja: "前の試合で使ったキャラが使われます",
       };
   const expiredNote: Record<Lang, string> = isGameOne
     ? {
         en: "You're past the deadline. Pick now or you forfeit the set.",
         es: "Pasó el plazo. Elige ahora o pierdes el set por abandono.",
-        ja: "期限を過ぎています。今すぐ選ばないとセットが不戦敗になります。",
       }
     : {
         en: "You're past the deadline. Pick now or your character from the last game is used.",
         es: "Pasó el plazo. Elige ahora o se usa tu personaje del último juego.",
-        ja: "期限を過ぎています。今すぐ選ばないと、前の試合で使ったキャラが使われます。",
       };
 
   if (yourCharacter && opponentCharacter) {
@@ -2596,7 +2438,6 @@ async function CharacterPickSection({
                 {tr(lang, {
                   en: `Your note on ${opponentCharacter}`,
                   es: `Tu nota sobre ${opponentCharacter}`,
-                  ja: `${opponentCharacter}への対策メモ`,
                 })}
               </p>
               <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">{matchupNote}</p>
@@ -2608,15 +2449,14 @@ async function CharacterPickSection({
             {tr(lang, {
               en: "Characters — you: ",
               es: "Personajes — tú: ",
-              ja: "あなたの使用キャラ：",
             })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
               {pickedCharacterLabel(yourCharacter, yourMoveset, lang)}
             </span>
-            {tr(lang, { en: ", ", es: ", ", ja: "／" })}
+            {tr(lang, { en: ", ", es: ", " })}
             {opponentName}
-            {tr(lang, { en: ": ", es: ": ", ja: "：" })}
+            {tr(lang, { en: ": ", es: ": " })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
               {pickedCharacterLabel(opponentCharacter, opponentMoveset, lang)}
@@ -2635,7 +2475,6 @@ async function CharacterPickSection({
             {tr(lang, {
               en: "You picked ",
               es: "Elegiste ",
-              ja: "あなたの使用キャラ：",
             })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
@@ -2644,7 +2483,6 @@ async function CharacterPickSection({
             {tr(lang, {
               en: `. Waiting for ${opponentName} to pick… `,
               es: `. Esperando a que ${opponentName} elija… `,
-              ja: `。${opponentName}のキャラ選択を待っています… `,
             })}
             {secondsLeft > 0
               ? isGameOne
@@ -2661,13 +2499,6 @@ async function CharacterPickSection({
                         s.
                       </>
                     ),
-                    ja: (
-                      <>
-                        残り
-                        <Countdown deadline={deadline} />
-                        秒で相手が選ばなければ、あなたのセット勝ち（不戦勝）になります。
-                      </>
-                    ),
                   })
                 : trNode(lang, {
                     en: (
@@ -2682,24 +2513,15 @@ async function CharacterPickSection({
                         s, se usa su personaje del último juego.
                       </>
                     ),
-                    ja: (
-                      <>
-                        残り
-                        <Countdown deadline={deadline} />
-                        秒で相手が選ばなければ、相手が前の試合で使ったキャラが使われます。
-                      </>
-                    ),
                   })
               : isGameOne
                 ? tr(lang, {
                     en: "The deadline passed. This should resolve in your favor soon.",
                     es: "Pasó el plazo. Esto debería resolverse a tu favor pronto.",
-                    ja: "期限を過ぎました。まもなく自動で処理され、あなたの勝ちになります。",
                   })
                 : tr(lang, {
                     en: "The deadline passed. This should resolve shortly.",
                     es: "Pasó el plazo. Esto debería resolverse en breve.",
-                    ja: "期限を過ぎました。まもなく処理されます。",
                   })}
           </>
         </p>
@@ -2714,7 +2536,6 @@ async function CharacterPickSection({
           {tr(lang, {
             en: `Waiting for ${opponentName} to pick a character first.`,
             es: `Esperando a que ${opponentName} elija personaje primero.`,
-            ja: `${opponentName}が先にキャラを選ぶのを待っています。`,
           })}
         </p>
       </CardContent>
@@ -2728,14 +2549,12 @@ async function CharacterPickSection({
           tr(lang, {
             en: "Pick your character. It stays hidden until you both pick.",
             es: "Elige tu personaje. Queda oculto hasta que ambos elijan.",
-            ja: "使用キャラを選んでください。両者が選ぶまで相手には見えません。",
           })
         ) : opponentCharacter ? (
           <>
             {tr(lang, {
               en: `${opponentName} picked `,
               es: `${opponentName} eligió `,
-              ja: `${opponentName}の使用キャラ：`,
             })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
@@ -2744,14 +2563,12 @@ async function CharacterPickSection({
             {tr(lang, {
               en: ". Pick your character.",
               es: ". Elige tu personaje.",
-              ja: "。使用キャラを選んでください。",
             })}
           </>
         ) : (
           tr(lang, {
             en: "Pick your character. You go first.",
             es: "Elige tu personaje. Vas primero.",
-            ja: "使用キャラを選んでください。先に選ぶのはあなたです。",
           })
         )}{" "}
         {secondsLeft > 0 ? (
@@ -2767,15 +2584,6 @@ async function CharacterPickSection({
                   Tienes <Countdown deadline={deadline} />s para elegir o {timeoutCost.es}.
                 </>
               ),
-              ja: (
-                // 「残り…以内に選んでください」 doubles up — 残り and 以内 say
-                // the same thing, and the countdown above the card already
-                // shows the number. Just name the consequence.
-                <>
-                  <Countdown deadline={deadline} />
-                  秒以内に選ばないと{timeoutCost.ja}。
-                </>
-              ),
             })}
           </span>
         ) : (
@@ -2787,7 +2595,6 @@ async function CharacterPickSection({
           {tr(lang, {
             en: "You queued as Practicing. This set only affects your practice rating.",
             es: "Entraste en modo Práctica. Esta partida solo afecta tu clasificación de práctica.",
-            ja: "練習として待機しました。このセットは練習レートにのみ影響します。",
           })}
         </p>
       )}
@@ -2838,7 +2645,6 @@ function ReportGameSection({
         {tr(lang, {
           en: `Waiting for ${opponentName} to confirm… `,
           es: `Esperando a que ${opponentName} confirme… `,
-          ja: `${opponentName}の確定を待っています… `,
         })}
         {secondsLeft !== null && secondsLeft > 0
           ? trNode(lang, {
@@ -2854,18 +2660,10 @@ function ReportGameSection({
                   s.
                 </>
               ),
-              ja: (
-                <>
-                  残り
-                  <Countdown deadline={deadline!} />
-                  秒で自動的に確定します。
-                </>
-              ),
             })
           : tr(lang, {
               en: "The deadline passed. This should resolve in your favor soon.",
               es: "Pasó el plazo. Esto debería resolverse a tu favor pronto.",
-              ja: "期限を過ぎました。まもなく自動で処理され、あなたの勝ちになります。",
             })}
       </>
     );
@@ -2876,12 +2674,10 @@ function ReportGameSection({
           ? tr(lang, {
               en: `${opponentName} reported that you won. `,
               es: `${opponentName} reportó que ganaste. `,
-              ja: `${opponentName}が「あなたの勝ち」と報告しました。 `,
             })
           : tr(lang, {
               en: `${opponentName} reported that they won. `,
               es: `${opponentName} reportó que ganó. `,
-              ja: `${opponentName}が「自分の勝ち」と報告しました。 `,
             })}
         {secondsLeft !== null &&
           secondsLeft > 0 &&
@@ -2898,13 +2694,6 @@ function ReportGameSection({
                 s.
               </>
             ),
-            ja: (
-              <>
-                残り
-                <Countdown deadline={deadline!} />
-                秒以内に確定するか、異議を出してください。
-              </>
-            ),
           })}
       </>
     );
@@ -2916,7 +2705,6 @@ function ReportGameSection({
         {tr(lang, {
           en: `Report Game ${game.gameNumber}'s result after you play. If only one player reports, the other has ${REPORT_TIMEOUT_MS / 60_000} minutes to confirm or dispute. After that, the report stands and the other player gets a no-show.`,
           es: `Reporta el resultado del juego ${game.gameNumber} después de jugar. Si solo uno reporta, el otro tiene ${REPORT_TIMEOUT_MS / 60_000} minutos para confirmar o disputar. Pasado ese plazo, el reporte queda firme y el otro recibe un no-show.`,
-          ja: `対戦後に第${game.gameNumber}試合の結果を報告してください。片方だけが報告した場合、もう一方には確定または異議申立のために${REPORT_TIMEOUT_MS / 60_000}分あります。それを過ぎると報告がそのまま確定し、もう一方は不参加として扱われます。`,
         })}
       </p>
       <div className="mt-4 flex gap-2">
@@ -2925,24 +2713,22 @@ function ReportGameSection({
           confirmMessage={tr(lang, {
             en: `Report that you won game ${game.gameNumber}?`,
             es: `¿Reportar que ganaste el juego ${game.gameNumber}?`,
-            ja: `第${game.gameNumber}試合に勝ったと報告しますか？`,
           })}
           variant="success"
           lang={lang}
         >
-          {tr(lang, { en: "I Won", es: "Gané", ja: "勝った" })}
+          {tr(lang, { en: "I Won", es: "Gané" })}
         </ConfirmSubmitButton>
         <ConfirmSubmitButton
           action={reportGame.bind(null, match.id, game.gameNumber, false)}
           confirmMessage={tr(lang, {
             en: `Report that you lost game ${game.gameNumber}?`,
             es: `¿Reportar que perdiste el juego ${game.gameNumber}?`,
-            ja: `第${game.gameNumber}試合に負けたと報告しますか？`,
           })}
           variant="destructive"
           lang={lang}
         >
-          {tr(lang, { en: "I Lost", es: "Perdí", ja: "負けた" })}
+          {tr(lang, { en: "I Lost", es: "Perdí" })}
         </ConfirmSubmitButton>
       </div>
       {statusLine && <p className="mt-4 text-sm text-muted-foreground">{statusLine}</p>}
@@ -3008,12 +2794,10 @@ async function ConfirmedSection({
             ? tr(lang, {
                 en: "Set confirmed — you won",
                 es: "Partida confirmada — ganaste",
-                ja: "セット確定 — あなたの勝ち",
               })
             : tr(lang, {
                 en: "Set confirmed — you lost",
                 es: "Partida confirmada — perdiste",
-                ja: "セット確定 — あなたの負け",
               })}
         </p>
         {ratingVisible && ratingBefore !== null && ratingAfter !== null ? (
@@ -3060,7 +2844,6 @@ function RematchSection({
         {tr(lang, {
           en: `${opponentName} has left — rematch unavailable.`,
           es: `${opponentName} se fue — revancha no disponible.`,
-          ja: `${opponentName}が退出したため、再戦できません。`,
         })}
       </p>
     );
@@ -3073,7 +2856,6 @@ function RematchSection({
           {tr(lang, {
             en: `${opponentName} is no longer available — they've moved on to another match.`,
             es: `${opponentName} ya no está disponible — pasó a otra partida.`,
-            ja: `${opponentName}は別の対戦に移ったため、再戦できません。`,
           })}
         </p>
       );
@@ -3083,7 +2865,6 @@ function RematchSection({
         {tr(lang, {
           en: `Waiting for ${opponentName} to accept the rematch…`,
           es: `Esperando a que ${opponentName} acepte la revancha…`,
-          ja: `${opponentName}が再戦に応じるのを待っています…`,
         })}
       </p>
     );
@@ -3095,7 +2876,6 @@ function RematchSection({
         {tr(lang, {
           en: `${opponentName} is no longer available — they've moved on to another match.`,
           es: `${opponentName} ya no está disponible — pasó a otra partida.`,
-          ja: `${opponentName}は別の対戦に移ったため、再戦できません。`,
         })}
       </p>
     );
@@ -3108,7 +2888,6 @@ function RematchSection({
           {tr(lang, {
             en: `${opponentName} wants a rematch!`,
             es: `¡${opponentName} quiere revancha!`,
-            ja: `${opponentName}が再戦を希望しています！`,
           })}
         </p>
       )}
@@ -3118,12 +2897,10 @@ function RematchSection({
             ? tr(lang, {
                 en: "Accept Rematch",
                 es: "Aceptar revancha",
-                ja: "再戦を受ける",
               })
             : tr(lang, {
                 en: "Request Rematch",
                 es: "Pedir revancha",
-                ja: "再戦を申し込む",
               })}
         </Button>
       </form>
@@ -3150,7 +2927,6 @@ function MutualCancelSection({
         {tr(lang, {
           en: `Waiting for ${opponentName} to agree…`,
           es: `Esperando a que ${opponentName} esté de acuerdo…`,
-          ja: `${opponentName}の同意を待っています…`,
         })}
       </p>
     );
@@ -3163,7 +2939,6 @@ function MutualCancelSection({
           {tr(lang, {
             en: `${opponentName} wants to cancel!`,
             es: `¡${opponentName} quiere cancelar!`,
-            ja: `${opponentName}が中止を希望しています！`,
           })}
         </p>
       )}
@@ -3173,12 +2948,10 @@ function MutualCancelSection({
             ? tr(lang, {
                 en: "Agree to Cancel",
                 es: "Aceptar cancelación",
-                ja: "中止に同意する",
               })
             : tr(lang, {
                 en: "Request Cancel",
                 es: "Pedir cancelación",
-                ja: "中止を申し込む",
               })}
         </Button>
       </form>
@@ -3194,12 +2967,10 @@ function TerminatedSection({ status, lang }: { status: "CANCELLED" | "EXPIRED"; 
           ? tr(lang, {
               en: "This match was cancelled — no rating impact.",
               es: "Esta partida fue cancelada — sin afectar la clasificación.",
-              ja: "このセットは中止されました。レートには影響しません。",
             })
           : tr(lang, {
               en: "Nobody reported a result in time, so this match expired with no rating impact.",
               es: "Nadie reportó un resultado a tiempo, así que esta partida expiró sin afectar la clasificación.",
-              ja: "誰も期限内に結果を報告しなかったため、このセットは無効になりました。レートには影響しません。",
             })}
       </p>
     </CardContent>
@@ -3242,7 +3013,7 @@ async function CommentsSection({
   return (
     <Card className="flex h-full max-lg:max-h-[60vh] lg:max-h-[min(60vh,600px)] flex-col">
       <CardHeader className="pb-3">
-        <p className="text-sm font-medium text-foreground">💬 {tr(lang, { en: "Chat", es: "Chat", ja: "チャット" })}</p>
+        <p className="text-sm font-medium text-foreground">💬 {tr(lang, { en: "Chat", es: "Chat" })}</p>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-0 pt-0">
         {opponentHasLeft && (
@@ -3250,7 +3021,6 @@ async function CommentsSection({
             {tr(lang, {
               en: `${opponentName} has left the chat.`,
               es: `${opponentName} dejó el chat.`,
-              ja: `${opponentName}がチャットから退出しました。`,
             })}
           </p>
         )}
@@ -3261,7 +3031,6 @@ async function CommentsSection({
               {tr(lang, {
                 en: "No messages yet.",
                 es: "Aún no hay mensajes.",
-                ja: "まだメッセージはありません。",
               })}
             </p>
           }
@@ -3309,7 +3078,6 @@ function RoomCodeSection({
               tr(lang, {
                 en: `${opponentName} is creating the room…`,
                 es: `${opponentName} está creando la sala…`,
-                ja: `${opponentName}が部屋を立てています…`,
               })}
           </FlashOnChange>
         </p>
@@ -3318,7 +3086,6 @@ function RoomCodeSection({
             {tr(lang, {
               en: "Set by your opponent — join with this.",
               es: "Definido por tu rival — únete con este.",
-              ja: "相手が設定した番号です。これで部屋に入ってください。",
             })}
           </p>
         )}
@@ -3327,10 +3094,9 @@ function RoomCodeSection({
             {tr(lang, {
               en: "Password: ",
               es: "Contraseña: ",
-              ja: "パスワード：",
             })}
             <span className="font-medium text-foreground">{hostArenaPassword}</span>
-            {tr(lang, { en: ".", es: ".", ja: "" })}
+            {tr(lang, { en: ".", es: "." })}
           </>
         </p>
       </div>
@@ -3343,7 +3109,6 @@ function RoomCodeSection({
         {tr(lang, {
           en: "You're creating the room.",
           es: "Te toca crear la sala.",
-          ja: "部屋はあなたが立てます。",
         })}
       </p>
       <RoomCodeForm initialValue={initialValue} action={submitRoomCode.bind(null, matchId)} lang={lang} />
@@ -3367,16 +3132,6 @@ function RoomCodeSection({
                 cambiarlo en Ajustes
               </Link>
               .
-            </>
-          ),
-          ja: (
-            <>
-              パスワード：
-              <span className="font-medium text-foreground">{hostArenaPassword}</span> — これは既定値です。
-              <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
-                設定から変更できます
-              </Link>
-              。
             </>
           ),
         })}

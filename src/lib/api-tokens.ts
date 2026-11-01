@@ -17,7 +17,6 @@ export async function generateApiToken(userId: string, name: string) {
     throw new LocalizedError({
       en: "Give the token a name so you can tell it apart later.",
       es: "Ponle un nombre al token para distinguirlo después.",
-      ja: "後で見分けられるように、トークンに名前を付けてください。",
     });
 
   const rawToken = TOKEN_PREFIX + randomBytes(32).toString("base64url");

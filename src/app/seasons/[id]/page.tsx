@@ -38,7 +38,7 @@ export default async function SeasonStandingsPage({
     getSeasonStandings(id, { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     getLang(),
   ]);
-  const dateLocale = tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" });
+  const dateLocale = tr(lang, { en: "en-US", es: "es-MX" });
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   // Live/all-time usage, same as the leaderboard's — this season's standings
@@ -57,7 +57,7 @@ export default async function SeasonStandingsPage({
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {season.startsAt.toLocaleDateString(dateLocale)} –{" "}
-        {season.endsAt?.toLocaleDateString(dateLocale) ?? tr(lang, { en: "present", es: "actualidad", ja: "現在" })}
+        {season.endsAt?.toLocaleDateString(dateLocale) ?? tr(lang, { en: "present", es: "actualidad" })}
       </p>
 
       {totalCount > 0 && (
@@ -74,13 +74,13 @@ export default async function SeasonStandingsPage({
             <thead>
               <tr className="border-b border-border text-muted-foreground">
                 <th className="py-2 pl-4 font-medium">#</th>
-                <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador", ja: "プレイヤー" })}</th>
-                <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango", ja: "ランク帯" })}</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador" })}</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango" })}</th>
                 <th className="py-2 font-medium text-right tabular-nums">
-                  {tr(lang, { en: "Final rating", es: "Clasificación final", ja: "最終レート" })}
+                  {tr(lang, { en: "Final rating", es: "Clasificación final" })}
                 </th>
                 <th className="py-2 pr-4 font-medium text-right tabular-nums">
-                  {tr(lang, { en: "Sets", es: "Partidas", ja: "セット" })}
+                  {tr(lang, { en: "Sets", es: "Partidas" })}
                 </th>
               </tr>
             </thead>
@@ -114,7 +114,6 @@ export default async function SeasonStandingsPage({
             {tr(lang, {
               en: "No ranked players that season.",
               es: "Nadie jugó rankeado esa temporada.",
-              ja: "このシーズンにランク対象のプレイヤーはいません。",
             })}
           </p>
         )}
@@ -142,23 +141,21 @@ function PaginationBar({
         {tr(lang, {
           en: `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`,
           es: `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`,
-          ja: `ランク対象プレイヤー${totalCount}人`,
         })}
       </Badge>
       {totalPages > 1 && (
         <div className="flex items-center gap-2 text-sm">
           <PageLink id={id} page={page - 1} disabled={page <= 1}>
-            {tr(lang, { en: "← Previous", es: "← Anterior", ja: "← 前へ" })}
+            {tr(lang, { en: "← Previous", es: "← Anterior" })}
           </PageLink>
           <span className="text-muted-foreground tabular-nums">
             {tr(lang, {
               en: `Page ${page} of ${totalPages}`,
               es: `Página ${page} de ${totalPages}`,
-              ja: `${totalPages}ページ中${page}ページ目`,
             })}
           </span>
           <PageLink id={id} page={page + 1} disabled={page >= totalPages}>
-            {tr(lang, { en: "Next →", es: "Siguiente →", ja: "次へ →" })}
+            {tr(lang, { en: "Next →", es: "Siguiente →" })}
           </PageLink>
         </div>
       )}

@@ -39,19 +39,18 @@ export function MatchSettingsForm({
           {isPending ? (
             <>
               <Loader2 className="size-3.5 animate-spin" />
-              {tr(lang, { en: "Saving…", es: "Guardando…", ja: "保存中…" })}
+              {tr(lang, { en: "Saving…", es: "Guardando…" })}
             </>
           ) : state.saved && !state.error ? (
             <>
               <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-              {tr(lang, { en: "All changes saved", es: "Todo guardado", ja: "すべて保存しました" })}
+              {tr(lang, { en: "All changes saved", es: "Todo guardado" })}
             </>
           ) : (
             <>
               {tr(lang, {
                 en: "Changes save automatically",
                 es: "Los cambios se guardan solos",
-                ja: "変更は自動で保存されます",
               })}
             </>
           )}

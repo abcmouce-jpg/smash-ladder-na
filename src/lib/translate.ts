@@ -8,7 +8,7 @@ import type { Lang } from "@/lib/i18n";
 const AI_GATEWAY_URL = "https://ai-gateway.vercel.sh/v1/chat/completions";
 const MODEL = "openai/gpt-4.1-nano";
 
-const LANG_NAMES: Record<Lang, string> = { en: "English", es: "Spanish", ja: "Japanese" };
+const LANG_NAMES: Record<Lang, string> = { en: "English", es: "Spanish" };
 
 // Chat messages are short and casual, so a translation failure (missing key,
 // gateway hiccup, rate limit) should never break the chat itself — callers

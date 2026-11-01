@@ -64,7 +64,6 @@ export function PushNudgeBanner({ lang }: { lang: Lang }) {
         tr(lang, {
           en: "Something went wrong — try again.",
           es: "Algo salió mal — inténtalo de nuevo.",
-          ja: "問題が発生しました。もう一度お試しください。",
         }),
       );
     } finally {
@@ -82,25 +81,24 @@ export function PushNudgeBanner({ lang }: { lang: Lang }) {
           {tr(lang, {
             en: "Turn on notifications so you don't miss your match if you close this tab or lock your phone.",
             es: "Activa las notificaciones para no perderte tu emparejamiento si cierras esta pestaña o bloqueas tu teléfono.",
-            ja: "通知をオンにしておくと、このタブを閉じたりスマホをロックしても、マッチを見逃しません。",
           })}
         </p>
         {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
         <div className="mt-2 flex items-center gap-2">
           <Button type="button" size="sm" onClick={enable} disabled={busy}>
             {busy
-              ? tr(lang, { en: "Enabling…", es: "Activando…", ja: "有効にしています…" })
-              : tr(lang, { en: "Enable notifications", es: "Activar notificaciones", ja: "通知を有効にする" })}
+              ? tr(lang, { en: "Enabling…", es: "Activando…" })
+              : tr(lang, { en: "Enable notifications", es: "Activar notificaciones" })}
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={dismiss} disabled={busy}>
-            {tr(lang, { en: "Not now", es: "Ahora no", ja: "今はしない" })}
+            {tr(lang, { en: "Not now", es: "Ahora no" })}
           </Button>
         </div>
       </div>
       <button
         type="button"
         onClick={dismiss}
-        aria-label={tr(lang, { en: "Dismiss", es: "Cerrar", ja: "閉じる" })}
+        aria-label={tr(lang, { en: "Dismiss", es: "Cerrar" })}
         className="shrink-0 text-muted-foreground hover:text-foreground"
       >
         <X className="size-4" />

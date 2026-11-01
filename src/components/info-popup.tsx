@@ -17,20 +17,17 @@ export function InfoPopup({ lang }: { lang: Lang }) {
   return (
     <Dialog>
       <DialogTrigger className="text-sm text-muted-foreground hover:underline cursor-pointer">
-        {tr(lang, { en: "How do tiers work?", es: "¿Cómo funcionan los rangos?", ja: "ランク帯の仕組み" })}
+        {tr(lang, { en: "How do tiers work?", es: "¿Cómo funcionan los rangos?" })}
       </DialogTrigger>
       <DialogContent>
         <div className="flex items-center gap-2">
           <Info className="size-5 text-muted-foreground" />
-          <DialogTitle>
-            {tr(lang, { en: "How Tiers Work", es: "Cómo funcionan los rangos", ja: "ランク帯の仕組み" })}
-          </DialogTitle>
+          <DialogTitle>{tr(lang, { en: "How Tiers Work", es: "Cómo funcionan los rangos" })}</DialogTitle>
         </div>
         <DialogDescription className="mt-3">
           {tr(lang, {
             en: "Every rank a player can hold, highest first. Your rank comes from your ladder rating, which starts at 1500 and moves after every confirmed ranked set.",
             es: "Todos los rangos que puede tener un jugador, de mayor a menor. Tu rango depende de tu clasificación en la liga, que empieza en 1500 y cambia con cada partida rankeada confirmada.",
-            ja: "プレイヤーが到達しうるすべてのランク帯を、上から順に並べています。ランク帯はレートで決まり、レートは1500から始まり、確定したレート対戦ごとに変動します。",
           })}
         </DialogDescription>
 

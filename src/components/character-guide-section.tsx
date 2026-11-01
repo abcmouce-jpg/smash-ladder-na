@@ -80,14 +80,13 @@ export function CharacterGuideSection({
   return (
     <div className="mt-3 border-t border-border pt-3">
       <p className="text-xs font-medium text-muted-foreground">
-        {tr(lang, { en: "Community guides", es: "Guías de la comunidad", ja: "コミュニティ攻略" })}
+        {tr(lang, { en: "Community guides", es: "Guías de la comunidad" })}
       </p>
       {guides.length === 0 && !writing && (
         <p className="mt-1 text-xs text-muted-foreground">
           {tr(lang, {
             en: "No one's written a guide for this character yet.",
             es: "Nadie ha escrito una guía para este personaje todavía.",
-            ja: "このキャラクターの攻略はまだ投稿されていません。",
           })}
         </p>
       )}
@@ -118,14 +117,14 @@ export function CharacterGuideSection({
           href={`/notes?tab=guides&character=${encodeURIComponent(character)}`}
           className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
         >
-          {tr(lang, { en: "Show more guides", es: "Ver más guías", ja: "もっと見る" })}
+          {tr(lang, { en: "Show more guides", es: "Ver más guías" })}
           <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       )}
 
       {userId && !writing && (
         <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => setWriting(true)}>
-          {tr(lang, { en: "Write a guide", es: "Escribir una guía", ja: "攻略を書く" })}
+          {tr(lang, { en: "Write a guide", es: "Escribir una guía" })}
         </Button>
       )}
       {userId && writing && (
@@ -138,19 +137,18 @@ export function CharacterGuideSection({
             placeholder={tr(lang, {
               en: "Matchups, stage tips, anything useful for others playing against this character…",
               es: "Matchups, consejos de escenario, lo que sea útil para otros jugando contra este personaje…",
-              ja: "対面のコツ、ステージ相性など、このキャラと戦う人に役立つことを書いてください…",
             })}
             className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
-            title={tr(lang, { en: "Community guide", es: "Guía de la comunidad", ja: "コミュニティ攻略" })}
+            title={tr(lang, { en: "Community guide", es: "Guía de la comunidad" })}
           />
           <div className="flex items-center justify-between gap-2">
             {createState.error ? <p className="text-xs text-destructive">{createState.error}</p> : <span />}
             <div className="flex gap-2">
               <Button type="button" size="sm" variant="ghost" onClick={() => setWriting(false)}>
-                {tr(lang, { en: "Cancel", es: "Cancelar", ja: "キャンセル" })}
+                {tr(lang, { en: "Cancel", es: "Cancelar" })}
               </Button>
               <Button type="submit" size="sm" disabled={createPending} onClick={() => (submittedRef.current = true)}>
-                {tr(lang, { en: "Post", es: "Publicar", ja: "投稿する" })}
+                {tr(lang, { en: "Post", es: "Publicar" })}
               </Button>
             </div>
           </div>
@@ -252,9 +250,8 @@ export function GuideCard({
           tr(lang, {
             en: "This will overwrite your current private note for this character. Continue?",
             es: "Esto sobrescribirá tu nota privada actual para este personaje. ¿Continuar?",
-            ja: "このキャラクターの自分用メモが上書きされます。続けますか？",
           }),
-          { confirmLabel: tr(lang, { en: "Overwrite", es: "Sobrescribir", ja: "上書きする" }), variant: "destructive" },
+          { confirmLabel: tr(lang, { en: "Overwrite", es: "Sobrescribir" }), variant: "destructive" },
         )
       : true;
     if (!ok) return;
@@ -277,16 +274,16 @@ export function GuideCard({
             maxLength={maxLength}
             rows={8}
             className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
-            title={tr(lang, { en: "Edit guide", es: "Editar guía", ja: "攻略を編集" })}
+            title={tr(lang, { en: "Edit guide", es: "Editar guía" })}
           />
           <div className="flex items-center justify-between gap-2">
             {editState.error ? <p className="text-xs text-destructive">{editState.error}</p> : <span />}
             <div className="flex gap-2">
               <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                {tr(lang, { en: "Cancel", es: "Cancelar", ja: "キャンセル" })}
+                {tr(lang, { en: "Cancel", es: "Cancelar" })}
               </Button>
               <Button type="submit" size="sm" disabled={editPending} onClick={() => (editSubmittedRef.current = true)}>
-                {tr(lang, { en: "Save", es: "Guardar", ja: "保存" })}
+                {tr(lang, { en: "Save", es: "Guardar" })}
               </Button>
             </div>
           </div>
@@ -311,8 +308,8 @@ export function GuideCard({
               className="mt-1 block text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
               {contentExpanded
-                ? tr(lang, { en: "Show less", es: "Mostrar menos", ja: "閉じる" })
-                : tr(lang, { en: "Show more", es: "Mostrar más", ja: "続きを読む" })}
+                ? tr(lang, { en: "Show less", es: "Mostrar menos" })
+                : tr(lang, { en: "Show more", es: "Mostrar más" })}
             </button>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -325,7 +322,7 @@ export function GuideCard({
                   the SSR and hydrated output match without a LocalTime script. */}
               <span className="shrink-0 tabular-nums">
                 ·{" "}
-                {new Date(guide.createdAt).toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" }), {
+                {new Date(guide.createdAt).toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX" }), {
                   timeZone: LADDER_TIME_ZONE,
                   dateStyle: "medium",
                 })}
@@ -336,7 +333,7 @@ export function GuideCard({
                 type="button"
                 disabled={!userId || isOwn || isPending}
                 onClick={() => runAction(() => voteOnGuide(guide.id, 1))}
-                aria-label={tr(lang, { en: "Upvote", es: "Votar a favor", ja: "高評価" })}
+                aria-label={tr(lang, { en: "Upvote", es: "Votar a favor" })}
                 className={`rounded p-1 hover:bg-muted ${guide.myVote === 1 ? "text-primary" : ""}`}
               >
                 <ChevronUp className="size-3.5" />
@@ -346,7 +343,7 @@ export function GuideCard({
                 type="button"
                 disabled={!userId || isOwn || isPending}
                 onClick={() => runAction(() => voteOnGuide(guide.id, -1))}
-                aria-label={tr(lang, { en: "Downvote", es: "Votar en contra", ja: "低評価" })}
+                aria-label={tr(lang, { en: "Downvote", es: "Votar en contra" })}
                 className={`rounded p-1 hover:bg-muted ${guide.myVote === -1 ? "text-destructive" : ""}`}
               >
                 <ChevronDown className="size-3.5" />
@@ -361,7 +358,7 @@ export function GuideCard({
                 onClick={handleImport}
                 disabled={isPending}
               >
-                {tr(lang, { en: "Import to my note", es: "Importar a mi nota", ja: "自分のメモに取り込む" })}
+                {tr(lang, { en: "Import to my note", es: "Importar a mi nota" })}
               </Button>
             )}
             {isOwn ? (
@@ -369,7 +366,7 @@ export function GuideCard({
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
-                  aria-label={tr(lang, { en: "Edit", es: "Editar", ja: "編集" })}
+                  aria-label={tr(lang, { en: "Edit", es: "Editar" })}
                   className="rounded p-1 hover:bg-muted"
                 >
                   <Pencil className="size-3.5" />
@@ -378,7 +375,7 @@ export function GuideCard({
                   type="button"
                   disabled={isPending}
                   onClick={() => runAction(() => deleteGuide(guide.id))}
-                  aria-label={tr(lang, { en: "Delete", es: "Eliminar", ja: "削除" })}
+                  aria-label={tr(lang, { en: "Delete", es: "Eliminar" })}
                   className="rounded p-1 hover:bg-muted hover:text-destructive"
                 >
                   <Trash2 className="size-3.5" />
@@ -392,14 +389,10 @@ export function GuideCard({
                   onClick={() => runAction(() => flagGuideAction(guide.id))}
                   aria-label={
                     guide.myFlag
-                      ? tr(lang, { en: "Reported", es: "Reportado", ja: "報告済み" })
-                      : tr(lang, { en: "Flag", es: "Reportar", ja: "報告する" })
+                      ? tr(lang, { en: "Reported", es: "Reportado" })
+                      : tr(lang, { en: "Flag", es: "Reportar" })
                   }
-                  title={
-                    guide.myFlag
-                      ? tr(lang, { en: "Already reported", es: "Ya reportado", ja: "報告済みです" })
-                      : undefined
-                  }
+                  title={guide.myFlag ? tr(lang, { en: "Already reported", es: "Ya reportado" }) : undefined}
                   className={
                     guide.myFlag ? "rounded p-1 text-destructive" : "rounded p-1 hover:bg-muted hover:text-destructive"
                   }

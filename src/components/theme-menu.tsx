@@ -15,9 +15,9 @@ import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 
 const THEME_OPTIONS: { value: Theme; label: Record<Lang, string>; icon: typeof Sun }[] = [
-  { value: "light", label: { en: "Light", es: "Claro", ja: "ライト" }, icon: Sun },
-  { value: "dark", label: { en: "Dark", es: "Oscuro", ja: "ダーク" }, icon: Moon },
-  { value: "auto", label: { en: "Auto", es: "Automático", ja: "自動" }, icon: Monitor },
+  { value: "light", label: { en: "Light", es: "Claro" }, icon: Sun },
+  { value: "dark", label: { en: "Dark", es: "Oscuro" }, icon: Moon },
+  { value: "auto", label: { en: "Auto", es: "Automático" }, icon: Monitor },
 ];
 
 // Compact theme picker for the header. A single cycling toggle is the most
@@ -54,8 +54,8 @@ export function ThemeMenu({ lang = "en" }: { lang?: Lang }) {
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label={tr(lang, { en: "Change theme", es: "Cambiar tema", ja: "テーマを変更" })}
-          title={tr(lang, { en: "Theme", es: "Tema", ja: "テーマ" })}
+          aria-label={tr(lang, { en: "Change theme", es: "Cambiar tema" })}
+          title={tr(lang, { en: "Theme", es: "Tema" })}
           className="text-muted-foreground hover:text-foreground"
         >
           <ActiveIcon className="size-3.5" suppressHydrationWarning />

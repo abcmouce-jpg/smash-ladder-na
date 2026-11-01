@@ -8,7 +8,6 @@ export function normalizeStartggUrl(url: string) {
     throw new LocalizedError({
       en: "That doesn't look like a start.gg link",
       es: "Eso no parece un enlace de start.gg",
-      ja: "start.gg のリンクではないようです",
     });
   }
   return trimmed;

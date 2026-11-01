@@ -63,7 +63,6 @@ export function QueueRoomCodeForm({
           {tr(lang, {
             en: "Already have a room set up? (optional)",
             es: "¿Ya tienes una sala lista? (opcional)",
-            ja: "部屋をもう立ててありますか？（任意）",
           })}
           <input
             name="existingRoomCode"
@@ -76,7 +75,7 @@ export function QueueRoomCodeForm({
                   .slice(0, 5),
               )
             }
-            placeholder={tr(lang, { en: "e.g. AB123", es: "ej. AB123", ja: "例: AB123" })}
+            placeholder={tr(lang, { en: "e.g. AB123", es: "ej. AB123" })}
             maxLength={5}
             pattern="[A-Z0-9]{5}"
             autoComplete="off"
@@ -93,19 +92,14 @@ export function QueueRoomCodeForm({
         {tr(lang, {
           en: "As long as your opponent doesn't also bring one, you'll be host and they'll see this right away. Leave it empty to clear it.",
           es: "Si tu rival no trae una sala también, tú serás el anfitrión y la verá al instante. Déjalo vacío para quitarla.",
-          ja: "相手も部屋番号を持ってこない限り、あなたが部屋主になり、相手にはすぐこれが表示されます。空欄にすると取り消せます。",
         })}
       </p>
       {state.error ? (
         <p className="text-xs text-destructive">{state.error}</p>
       ) : isPending ? (
-        <p className="text-xs text-muted-foreground">{tr(lang, { en: "Saving…", es: "Guardando…", ja: "保存中…" })}</p>
+        <p className="text-xs text-muted-foreground">{tr(lang, { en: "Saving…", es: "Guardando…" })}</p>
       ) : (
-        flashing && (
-          <p className="text-xs text-muted-foreground">
-            {tr(lang, { en: "Saved!", es: "¡Guardado!", ja: "保存しました！" })}
-          </p>
-        )
+        flashing && <p className="text-xs text-muted-foreground">{tr(lang, { en: "Saved!", es: "¡Guardado!" })}</p>
       )}
     </div>
   );

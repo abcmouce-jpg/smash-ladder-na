@@ -125,7 +125,6 @@ export default async function LeaderboardPage({
         title={tr(lang, {
           en: "Leaderboard",
           es: "Tabla de clasificación",
-          ja: "ランキング",
         })}
         description={
           <span>
@@ -145,11 +144,6 @@ export default async function LeaderboardPage({
                   (placeClause ? ` en ${placeClause}` : "") +
                   (query ? ` que coinciden con "${query}"` : "") +
                   ".",
-                ja:
-                  (placeClause ? `${placeClause}の` : "") +
-                  (characterClause ? `${characterClause}をメインまたはサブで使う` : "") +
-                  (query ? `「${query}」に一致する` : "") +
-                  `${LEADERBOARD_MIN_GAMES}セット以上プレイしたランク対象プレイヤー。`,
               });
             })()}
           </span>
@@ -165,9 +159,7 @@ export default async function LeaderboardPage({
           </div>
           {seasonEndsAt && (
             <div className="flex items-center gap-2.5">
-              <span className="text-xs text-muted-foreground">
-                {tr(lang, { en: "Ends in", es: "Termina en", ja: "残り" })}
-              </span>
+              <span className="text-xs text-muted-foreground">{tr(lang, { en: "Ends in", es: "Termina en" })}</span>
               <SeasonCountdown endsAt={seasonEndsAt.toISOString()} lang={lang} />
             </div>
           )}
@@ -217,24 +209,6 @@ export default async function LeaderboardPage({
                     )}
                   </>
                 ),
-                ja: (
-                  <>
-                    🏆 <span className="font-medium">シーズン賞金 ${SEASON_PRIZE_POOL_USD} USD</span> — {season.name}
-                    終了時に上位3名で分配されます。
-                    {season.name === "Preseason" && (
-                      <>
-                        {" "}
-                        このプレシーズンは{PRE_SEASON_DURATION_MONTHS}
-                        ヶ月の固定期間で、
-                        {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("ja-JP", {
-                          timeZone: DISPLAY_TIME_ZONE,
-                          dateStyle: "long",
-                        })}
-                        頃の終了を見込んでいます。
-                      </>
-                    )}
-                  </>
-                ),
               })}
             </p>
 
@@ -246,7 +220,6 @@ export default async function LeaderboardPage({
                 {tr(lang, {
                   en: "Prize split",
                   es: "Distribución del premio",
-                  ja: "賞金の分配",
                 })}
               </p>
               <div className="mt-2 grid grid-cols-3 gap-x-4 gap-y-3">
@@ -259,7 +232,6 @@ export default async function LeaderboardPage({
                   const rankLabel = tr(lang, {
                     en: englishOrdinal,
                     es: `${place}.º`,
-                    ja: `${place}位`,
                   });
                   return (
                     <div key={place} className="flex flex-col gap-0.5">
@@ -284,7 +256,6 @@ export default async function LeaderboardPage({
           {tr(lang, {
             en: "Player name",
             es: "Nombre de jugador",
-            ja: "プレイヤー名",
           })}
           <input
             type="text"
@@ -293,7 +264,6 @@ export default async function LeaderboardPage({
             placeholder={tr(lang, {
               en: "Search by username",
               es: "Buscar por nombre de usuario",
-              ja: "ユーザー名で検索",
             })}
             maxLength={32}
             className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring md:w-32"
@@ -307,7 +277,7 @@ export default async function LeaderboardPage({
         {USES_REGIONS && (
           <>
             <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-              {tr(lang, { en: "Country", es: "País", ja: "国" })}
+              {tr(lang, { en: "Country", es: "País" })}
               <OptionSelect
                 key={isValidCountry ? country : ""}
                 name="country"
@@ -315,12 +285,10 @@ export default async function LeaderboardPage({
                 placeholder={tr(lang, {
                   en: "All countries",
                   es: "Todos los países",
-                  ja: "すべての国",
                 })}
                 clearLabel={tr(lang, {
                   en: "All countries",
                   es: "Todos los países",
-                  ja: "すべての国",
                 })}
                 className="w-full md:w-32"
                 options={COUNTRY_OPTIONS}
@@ -328,7 +296,7 @@ export default async function LeaderboardPage({
               />
             </label>
             <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-              {tr(lang, { en: "Region", es: "Región", ja: "地域" })}
+              {tr(lang, { en: "Region", es: "Región" })}
               {/* Narrowed to the chosen country's regions once one is picked
                 (see regionOptions above) — pick a country, and the list here
                 only offers regions that actually belong to it. */}
@@ -339,19 +307,16 @@ export default async function LeaderboardPage({
                 placeholder={tr(lang, {
                   en: "All regions",
                   es: "Todas las regiones",
-                  ja: "すべての地域",
                 })}
                 clearLabel={tr(lang, {
                   en: "All regions",
                   es: "Todas las regiones",
-                  ja: "すべての地域",
                 })}
                 className="w-full md:w-40"
                 searchable
                 searchPlaceholder={tr(lang, {
                   en: "Search regions…",
                   es: "Buscar regiones…",
-                  ja: "地域を検索…",
                 })}
                 options={regionOptions}
                 autoSubmit
@@ -360,7 +325,7 @@ export default async function LeaderboardPage({
           </>
         )}
         <Button type="submit" size="sm" variant="outline" className="h-8 w-full md:w-auto">
-          {tr(lang, { en: "Filter", es: "Filtrar", ja: "絞り込む" })}
+          {tr(lang, { en: "Filter", es: "Filtrar" })}
         </Button>
       </form>
 
@@ -384,17 +349,16 @@ export default async function LeaderboardPage({
             <thead>
               <tr className="border-b border-border text-muted-foreground">
                 <th className="py-2 pl-4 font-medium">#</th>
-                <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador", ja: "プレイヤー" })}</th>
-                <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango", ja: "ランク帯" })}</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador" })}</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango" })}</th>
                 <th className="py-2 font-medium text-right tabular-nums">
                   {tr(lang, {
                     en: "Rating",
                     es: "Clasificación",
-                    ja: "レート",
                   })}
                 </th>
                 <th className="py-2 pr-4 font-medium text-right tabular-nums">
-                  {tr(lang, { en: "Sets", es: "Partidas", ja: "セット" })}
+                  {tr(lang, { en: "Sets", es: "Partidas" })}
                 </th>
               </tr>
             </thead>
@@ -427,7 +391,6 @@ export default async function LeaderboardPage({
                             {tr(lang, {
                               en: `${gapToNext} to pass ${players[index - 1].username}`,
                               es: `${gapToNext} para superar a ${players[index - 1].username}`,
-                              ja: `${players[index - 1].username}を抜くまであと${gapToNext}`,
                             })}
                           </span>
                         )}
@@ -450,7 +413,6 @@ export default async function LeaderboardPage({
             {tr(lang, {
               en: "No ranked players yet.",
               es: "Aún no hay jugadores rankeados.",
-              ja: "まだランク対象のプレイヤーがいません。",
             })}
           </p>
         )}
@@ -463,14 +425,12 @@ export default async function LeaderboardPage({
               {tr(lang, {
                 en: "Getting there",
                 es: "En camino",
-                ja: "ランク入り前のプレイヤー",
               })}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {tr(lang, {
                 en: `Signed up, not yet ranked — the board starts at ${LEADERBOARD_MIN_GAMES} sets.`,
                 es: `Registrados, aún sin rango — la tabla empieza a las ${LEADERBOARD_MIN_GAMES} partidas.`,
-                ja: `参加済みで、まだランク入りしていない人です。ランキングは${LEADERBOARD_MIN_GAMES}セットから載ります。`,
               })}
             </p>
             <ul className="mt-3 flex flex-col divide-y divide-border">
@@ -520,7 +480,6 @@ function PaginationBar({
         {tr(lang, {
           en: `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`,
           es: `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`,
-          ja: `ランク対象プレイヤー${totalCount}人`,
         })}
       </Badge>
       {totalPages > 1 && (
@@ -534,13 +493,12 @@ function PaginationBar({
               country={country}
               disabled={page <= 1}
             >
-              {tr(lang, { en: "← Previous", es: "← Anterior", ja: "← 前へ" })}
+              {tr(lang, { en: "← Previous", es: "← Anterior" })}
             </PageLink>
             <span className="text-muted-foreground tabular-nums">
               {tr(lang, {
                 en: `Page ${page} of ${totalPages}`,
                 es: `Página ${page} de ${totalPages}`,
-                ja: `${totalPages}ページ中${page}ページ目`,
               })}
             </span>
             <PageLink
@@ -551,7 +509,7 @@ function PaginationBar({
               country={country}
               disabled={page >= totalPages}
             >
-              {tr(lang, { en: "Next →", es: "Siguiente →", ja: "次へ →" })}
+              {tr(lang, { en: "Next →", es: "Siguiente →" })}
             </PageLink>
           </div>
           <form method="get" className="flex items-center gap-1.5">
@@ -563,7 +521,6 @@ function PaginationBar({
               {tr(lang, {
                 en: "Jump to page",
                 es: "Ir a la página",
-                ja: "ページ移動",
               })}
             </label>
             <input
@@ -576,7 +533,7 @@ function PaginationBar({
               className="h-8 w-16 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none tabular-nums focus-visible:border-ring"
             />
             <Button type="submit" size="sm" variant="outline">
-              {tr(lang, { en: "Go", es: "Ir", ja: "移動" })}
+              {tr(lang, { en: "Go", es: "Ir" })}
             </Button>
           </form>
         </div>

@@ -15,7 +15,6 @@ export function TypingIndicator({ opponentName, lang = "en" }: { opponentName: s
         {tr(lang, {
           en: `${opponentName} is typing…`,
           es: `${opponentName} está escribiendo…`,
-          ja: `${opponentName}が入力中…`,
         })}
       </span>
     </div>

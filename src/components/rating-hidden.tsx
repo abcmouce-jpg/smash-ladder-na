@@ -26,12 +26,11 @@ export function RatingHidden({
 }) {
   const progress = `${gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD}`;
   const noun = practice
-    ? tr(lang, { en: "Practice rating", es: "Clasificación de práctica", ja: "練習レート" })
-    : tr(lang, { en: "Rating", es: "Clasificación", ja: "レート" });
+    ? tr(lang, { en: "Practice rating", es: "Clasificación de práctica" })
+    : tr(lang, { en: "Rating", es: "Clasificación" });
   const rule = tr(lang, {
     en: `${noun} is shown after ${PROVISIONAL_GAMES_THRESHOLD} sets`,
     es: `${noun} se muestra después de ${PROVISIONAL_GAMES_THRESHOLD} partidas`,
-    ja: `${noun}は${PROVISIONAL_GAMES_THRESHOLD}セット後に表示されます`,
   });
   return (
     <span className={className} title={rule}>

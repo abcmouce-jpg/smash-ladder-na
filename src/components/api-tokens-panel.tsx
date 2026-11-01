@@ -29,7 +29,6 @@ export function ApiTokensPanel({
         {tr(lang, {
           en: "For external clients (like the Switch app) that need to act on your behalf — joining the queue, etc.",
           es: "Para clientes externos (como la app de Switch) que necesitan actuar en tu nombre — unirse a la cola, etc.",
-          ja: "Switch アプリなど、あなたの代わりに操作する外部クライアント用です（待機への参加など）。",
         })}
       </p>
 
@@ -43,10 +42,9 @@ export function ApiTokensPanel({
               <div className="flex flex-col">
                 <span className="font-medium text-foreground">{token.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  {tr(lang, { en: "Created", es: "Creado", ja: "作成日" })}{" "}
-                  {new Date(token.createdAt).toLocaleDateString()}
+                  {tr(lang, { en: "Created", es: "Creado" })} {new Date(token.createdAt).toLocaleDateString()}
                   {token.lastUsedAt &&
-                    ` · ${tr(lang, { en: "Last used", es: "Usado", ja: "最終使用" })} ${new Date(token.lastUsedAt).toLocaleDateString()}`}
+                    ` · ${tr(lang, { en: "Last used", es: "Usado" })} ${new Date(token.lastUsedAt).toLocaleDateString()}`}
                 </span>
               </div>
               <Button
@@ -60,7 +58,7 @@ export function ApiTokensPanel({
                   setRevokingId(null);
                 }}
               >
-                {tr(lang, { en: "Revoke", es: "Revocar", ja: "失効させる" })}
+                {tr(lang, { en: "Revoke", es: "Revocar" })}
               </Button>
             </li>
           ))}
@@ -69,17 +67,17 @@ export function ApiTokensPanel({
 
       <form action={formAction} className="flex items-end gap-2">
         <label className="flex flex-1 flex-col gap-1 text-sm">
-          {tr(lang, { en: "Token name", es: "Nombre del token", ja: "トークン名" })}
+          {tr(lang, { en: "Token name", es: "Nombre del token" })}
           <input
             name="name"
             type="text"
             maxLength={50}
-            placeholder={tr(lang, { en: "e.g. Switch UI", es: "p. ej. Switch UI", ja: "例：Switch UI" })}
+            placeholder={tr(lang, { en: "e.g. Switch UI", es: "p. ej. Switch UI" })}
             className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
           />
         </label>
         <Button type="submit" size="sm" disabled={isPending}>
-          {tr(lang, { en: "Generate", es: "Generar", ja: "発行する" })}
+          {tr(lang, { en: "Generate", es: "Generar" })}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
@@ -89,7 +87,6 @@ export function ApiTokensPanel({
             {tr(lang, {
               en: "Copy this now — it won't be shown again:",
               es: "Copia esto ahora — no se volverá a mostrar:",
-              ja: "この場で控えてください。二度と表示されません：",
             })}
           </p>
           <code className="break-all rounded bg-background px-2 py-1 text-xs">{state.rawToken}</code>

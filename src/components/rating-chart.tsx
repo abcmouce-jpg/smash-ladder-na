@@ -67,7 +67,6 @@ export function RatingChart({ points, lang = "en" }: { points: Point[]; lang?: L
         {tr(lang, {
           en: "Not enough confirmed matches yet.",
           es: "Aún no hay suficientes partidas confirmadas.",
-          ja: "まだ確定した対戦が足りません。",
         })}
       </p>
     );
@@ -179,7 +178,6 @@ export function RatingChart({ points, lang = "en" }: { points: Point[]; lang?: L
         aria-label={tr(lang, {
           en: "Rating over recent matches",
           es: "Clasificación en las partidas recientes",
-          ja: "直近の対戦でのレート推移",
         })}
       >
         {gridLines.map((gy) => (
@@ -255,26 +253,24 @@ export function RatingChart({ points, lang = "en" }: { points: Point[]; lang?: L
           ? tr(lang, {
               en: `${formatDate(hovered.date, tz)} — ${formatRating(hovered.rating)} rating`,
               es: `${formatDate(hovered.date, tz)} — ${formatRating(hovered.rating)} de clasificación`,
-              ja: `${formatDate(hovered.date, tz)} — レート${formatRating(hovered.rating)}`,
             })
           : tr(lang, {
               en: `${formatRating(condensed[0].rating)} → ${formatRating(condensed[condensed.length - 1].rating)} over last ${condensed.length} matches`,
               es: `${formatRating(condensed[0].rating)} → ${formatRating(condensed[condensed.length - 1].rating)} en las últimas ${condensed.length} partidas`,
-              ja: `直近${condensed.length}戦で ${formatRating(condensed[0].rating)} → ${formatRating(condensed[condensed.length - 1].rating)}`,
             })}
       </div>
 
       <details className="mt-2 text-xs">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          {tr(lang, { en: "View as table", es: "Ver como tabla", ja: "表で見る" })}
+          {tr(lang, { en: "View as table", es: "Ver como tabla" })}
         </summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="text-muted-foreground">
-                <th className="py-1 font-medium">{tr(lang, { en: "Date", es: "Fecha", ja: "日付" })}</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Date", es: "Fecha" })}</th>
                 <th className="py-1 text-right font-medium tabular-nums">
-                  {tr(lang, { en: "Rating", es: "Clasificación", ja: "レート" })}
+                  {tr(lang, { en: "Rating", es: "Clasificación" })}
                 </th>
               </tr>
             </thead>

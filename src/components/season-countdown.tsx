@@ -10,7 +10,6 @@ const UNITS = ["days", "hours", "minutes", "seconds"] as const;
 const UNIT_LABELS: Record<Lang, Record<(typeof UNITS)[number], string>> = {
   en: { days: "Days", hours: "Hours", minutes: "Min", seconds: "Sec" },
   es: { days: "Días", hours: "Horas", minutes: "Min", seconds: "Seg" },
-  ja: { days: "日", hours: "時間", minutes: "分", seconds: "秒" },
 };
 
 // Ticks client-side only; the server renders whatever the first render
@@ -31,7 +30,7 @@ export function SeasonCountdown({ endsAt, lang }: { endsAt: string; lang: Lang }
   if (isSeasonTimeUp(remaining)) {
     return (
       <span className="text-xs text-muted-foreground">
-        {tr(lang, { en: "Wrapping up the season…", es: "Cerrando la temporada…", ja: "シーズンを締めています…" })}
+        {tr(lang, { en: "Wrapping up the season…", es: "Cerrando la temporada…" })}
       </span>
     );
   }

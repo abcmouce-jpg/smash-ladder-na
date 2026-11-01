@@ -51,7 +51,6 @@ export function QueueCooldownGate({
       {trNode(lang, {
         en: <>You timed out of your last match — you can queue again in {countdown}.</>,
         es: <>Perdiste tu última partida por tiempo — puedes volver a entrar a la cola en {countdown}.</>,
-        ja: <>前の試合が時間切れになりました。{countdown}後にまた待機できます。</>,
       })}
     </p>
   );

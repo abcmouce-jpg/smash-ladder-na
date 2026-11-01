@@ -28,7 +28,6 @@ export function SameBansButton({
       {tr(lang, {
         en: `Same bans as Game ${gameNumber}`,
         es: `Mismos bans que el juego ${gameNumber}`,
-        ja: `第${gameNumber}試合と同じBAN`,
       })}
     </Button>
   );

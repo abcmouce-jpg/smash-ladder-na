@@ -77,14 +77,14 @@ export function CommentForm({
         <input
           ref={inputRef}
           name="body"
-          placeholder={tr(lang, { en: "Say something…", es: "Escribe algo…", ja: "メッセージを入力…" })}
+          placeholder={tr(lang, { en: "Say something…", es: "Escribe algo…" })}
           maxLength={500}
           autoComplete="off"
           onInput={handleInput}
           className="h-8 flex-1 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
         <Button type="submit" size="sm" disabled={isPending}>
-          {tr(lang, { en: "Send", es: "Enviar", ja: "送信" })}
+          {tr(lang, { en: "Send", es: "Enviar" })}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

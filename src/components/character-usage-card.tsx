@@ -26,9 +26,7 @@ export function CharacterUsageCard({
   return (
     <details className="group mt-4 rounded-xl border border-border bg-card text-card-foreground shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 [&::-webkit-details-marker]:hidden">
-        <span className="text-sm font-medium">
-          {tr(lang, { en: "Character Usage", es: "Uso de personajes", ja: "キャラクター使用率" })}
-        </span>
+        <span className="text-sm font-medium">{tr(lang, { en: "Character Usage", es: "Uso de personajes" })}</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
       <div className="max-h-80 divide-y divide-border overflow-y-auto border-t border-border">
@@ -57,7 +55,6 @@ export function CharacterUsageCard({
                 {tr(lang, {
                   en: `${formatUsagePercent(u.usagePercent)} · ${u.games} game${u.games === 1 ? "" : "s"}`,
                   es: `${formatUsagePercent(u.usagePercent)} · ${u.games} ${u.games === 1 ? "partida" : "partidas"}`,
-                  ja: `${formatUsagePercent(u.usagePercent)} · ${u.games}試合`,
                 })}
               </div>
               <div className="mt-0.5 flex items-center justify-end gap-1">

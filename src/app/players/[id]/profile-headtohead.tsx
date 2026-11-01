@@ -22,7 +22,6 @@ export async function ProfileHeadToHeadSection({ id, page, lang }: { id: string;
         {tr(lang, {
           en: "No opponents recorded yet.",
           es: "Aún no hay oponentes registrados.",
-          ja: "対戦した相手の記録がまだありません。",
         })}
       </p>
     );
@@ -37,7 +36,6 @@ export async function ProfileHeadToHeadSection({ id, page, lang }: { id: string;
           {tr(lang, {
             en: `${total} distinct ${total === 1 ? "opponent" : "opponents"}`,
             es: `${total} ${total === 1 ? "oponente distinto" : "oponentes distintos"}`,
-            ja: `${total}人の相手`,
           })}
         </p>
         {totalPages > 1 && (
@@ -63,17 +61,16 @@ function HeadToHeadPaginationControls({
   return (
     <div className="flex items-center gap-2 text-sm">
       <HeadToHeadPageLink playerId={playerId} page={page - 1} disabled={page <= 1}>
-        {tr(lang, { en: "← Previous", es: "← Anterior", ja: "← 前へ" })}
+        {tr(lang, { en: "← Previous", es: "← Anterior" })}
       </HeadToHeadPageLink>
       <span className="text-muted-foreground tabular-nums">
         {tr(lang, {
           en: `Page ${page} of ${totalPages}`,
           es: `Página ${page} de ${totalPages}`,
-          ja: `${totalPages}ページ中${page}ページ目`,
         })}
       </span>
       <HeadToHeadPageLink playerId={playerId} page={page + 1} disabled={page >= totalPages}>
-        {tr(lang, { en: "Next →", es: "Siguiente →", ja: "次へ →" })}
+        {tr(lang, { en: "Next →", es: "Siguiente →" })}
       </HeadToHeadPageLink>
     </div>
   );

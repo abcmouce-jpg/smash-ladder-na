@@ -77,7 +77,6 @@ export default async function Home() {
         {tr(lang, {
           en: `A ranked ladder and matchmaking hub for the ${SCENE_LABEL.en} Smash community.`,
           es: `Una liga clasificatoria y emparejamiento para la comunidad de Smash ${SCENE_LABEL.es}.`,
-          ja: `${SCENE_LABEL.ja}スマブラコミュニティ向けの、レート対戦とマッチングのサイト。`,
         })}
       </p>
 
@@ -89,7 +88,6 @@ export default async function Home() {
                 {tr(lang, {
                   en: "Go to Lobby",
                   es: "Ir a la Sala",
-                  ja: "ロビーへ",
                 })}
               </Link>
             </Button>
@@ -100,7 +98,6 @@ export default async function Home() {
                   {tr(lang, {
                     en: "Join Our Discord Server",
                     es: "Únete a nuestro servidor de Discord",
-                    ja: "Discord サーバーに参加",
                   })}
                 </a>
               </Button>
@@ -119,7 +116,6 @@ export default async function Home() {
                 {tr(lang, {
                   en: "Log in with Discord",
                   es: "Inicia sesión con Discord",
-                  ja: "Discord でログイン",
                 })}
               </Button>
             </form>
@@ -130,7 +126,6 @@ export default async function Home() {
                   {tr(lang, {
                     en: "Join Our Discord Server",
                     es: "Únete a nuestro servidor de Discord",
-                    ja: "Discord サーバーに参加",
                   })}
                 </a>
               </Button>
@@ -161,15 +156,6 @@ export default async function Home() {
                     hasta ahora.
                   </>
                 ),
-                ja: (
-                  <>
-                    レートは{PROVISIONAL_GAMES_THRESHOLD}セットから表示されます（いま
-                    <span className="font-medium text-foreground">
-                      {me.gamesPlayed}/{PROVISIONAL_GAMES_THRESHOLD}
-                    </span>
-                    ）。
-                  </>
-                ),
               })
             : trNode(lang, {
                 en: (
@@ -183,12 +169,6 @@ export default async function Home() {
                     Tienes una clasificación de{" "}
                     <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en {me.gamesPlayed}{" "}
                     partidas.
-                  </>
-                ),
-                ja: (
-                  <>
-                    {me.gamesPlayed}セットを戦って、レートは{" "}
-                    <span className="font-medium text-foreground">{formatRating(me.rating)}</span> です。
                   </>
                 ),
               })}
@@ -214,11 +194,6 @@ export default async function Home() {
                     <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
                   </>
                 ),
-                ja: (
-                  <>
-                    <span className="font-medium text-foreground">{stats.playingNow}</span>人が対戦中
-                  </>
-                ),
               })}
             </span>
           </span>
@@ -235,11 +210,6 @@ export default async function Home() {
               es: (
                 <>
                   <span className="font-medium text-foreground">{stats.totalPlayers}</span> jugadores
-                </>
-              ),
-              ja: (
-                <>
-                  プレイヤー<span className="font-medium text-foreground">{stats.totalPlayers}</span>人
                 </>
               ),
             })}
@@ -259,11 +229,6 @@ export default async function Home() {
                   <span className="font-medium text-foreground">{stats.matchesToday}</span> partidas hoy
                 </>
               ),
-              ja: (
-                <>
-                  今日の試合<span className="font-medium text-foreground">{stats.matchesToday}</span>件
-                </>
-              ),
             })}
           </span>
         </span>
@@ -275,7 +240,6 @@ export default async function Home() {
             label={tr(lang, {
               en: "Live on Twitch",
               es: "En vivo en Twitch",
-              ja: "Twitch で配信中",
             })}
           />
           <LiveStreamProvider>
@@ -293,7 +257,6 @@ export default async function Home() {
             label={tr(lang, {
               en: "Top of the ladder",
               es: "Los mejores de la liga",
-              ja: "ランキング上位",
             })}
             action={
               <Link
@@ -303,7 +266,6 @@ export default async function Home() {
                 {tr(lang, {
                   en: "See all →",
                   es: "Ver todos →",
-                  ja: "すべて見る →",
                 })}
               </Link>
             }
@@ -331,7 +293,6 @@ export default async function Home() {
                           {tr(lang, {
                             en: "rating",
                             es: "de clasificación",
-                            ja: "レート",
                           })}
                         </p>
                         <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} lang={lang} />
@@ -350,7 +311,6 @@ export default async function Home() {
           label={tr(lang, {
             en: "Friendlies",
             es: "Amistosos",
-            ja: "フリー対戦",
           })}
         />
         <FriendliesPosts
@@ -362,7 +322,6 @@ export default async function Home() {
                 {tr(lang, {
                   en: "Open Friendlies",
                   es: "Abrir Amistosos",
-                  ja: "募集中のフリー対戦",
                 })}
               </Link>
             </Button>
@@ -376,7 +335,6 @@ export default async function Home() {
             {tr(lang, {
               en: "Post on Friendlies →",
               es: "Publica en Amistosos →",
-              ja: "フリー対戦に投稿する →",
             })}
           </Link>
         ) : (
@@ -390,12 +348,10 @@ export default async function Home() {
               ? tr(lang, {
                   en: "Join our Discord to find games",
                   es: "Únete a nuestro Discord para encontrar partidas",
-                  ja: "Discord に参加して対戦相手を見つける",
                 })
               : tr(lang, {
                   en: "Follow us on X for match-finding posts",
                   es: "Síguenos en X para encontrar partidas",
-                  ja: "X をフォローして対戦相手を見つける",
                 })}
           </a>
         )}
@@ -406,7 +362,6 @@ export default async function Home() {
           label={tr(lang, {
             en: "Matches per day",
             es: "Partidas por día",
-            ja: "1日あたりの試合数",
           })}
         />
         <Card className="mt-3">

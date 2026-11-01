@@ -16,7 +16,6 @@ export async function blockUser(blockerId: string, blockedId: string) {
     throw new LocalizedError({
       en: "You can't block yourself",
       es: "No puedes bloquearte a ti mismo",
-      ja: "自分をブロックすることはできません",
     });
 
   const existing = await prisma.block.findUnique({
@@ -39,7 +38,6 @@ export async function blockUser(blockerId: string, blockedId: string) {
     throw new LocalizedError({
       en: `You can only block up to ${MAX_BLOCKS_PER_USER} players.`,
       es: `Solo puedes bloquear hasta ${MAX_BLOCKS_PER_USER} jugadores.`,
-      ja: `ブロックできるのは${MAX_BLOCKS_PER_USER}人までです。`,
     });
   }
 

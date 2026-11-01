@@ -25,19 +25,17 @@ export async function DiscordJoinGate() {
             {tr(lang, {
               en: "Join our Discord to continue",
               es: "Únete a nuestro Discord para continuar",
-              ja: "続けるには Discord サーバーへの参加が必要です",
             })}
           </h1>
           <p className="text-sm text-muted-foreground">
             {tr(lang, {
               en: `${SITE_NAME} now requires being in our Discord server — it's how staff can actually reach you if something goes wrong with a match or an account.`,
               es: `${SITE_NAME} ahora requiere estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta.`,
-              ja: `${SITE_NAME}の利用には Discord サーバーへの参加が必要になりました。対戦やアカウントで問題が起きたときに、運営から連絡を取れるようにするためです。`,
             })}
           </p>
           <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="w-full">
             <Button className="w-full gap-2">
-              {tr(lang, { en: "Join the Discord", es: "Unirse al Discord", ja: "Discord に参加する" })}
+              {tr(lang, { en: "Join the Discord", es: "Unirse al Discord" })}
               <ExternalLink className="size-4" />
             </Button>
           </a>
@@ -53,7 +51,6 @@ export async function DiscordJoinGate() {
               {tr(lang, {
                 en: "I've joined — check again",
                 es: "Ya me uní — comprobar de nuevo",
-                ja: "参加しました — 再確認する",
               })}
             </Button>
           </a>
@@ -64,7 +61,7 @@ export async function DiscordJoinGate() {
             }}
           >
             <button type="submit" className="text-xs text-muted-foreground underline">
-              {tr(lang, { en: "Sign out", es: "Cerrar sesión", ja: "ログアウト" })}
+              {tr(lang, { en: "Sign out", es: "Cerrar sesión" })}
             </button>
           </form>
         </CardContent>

@@ -59,7 +59,6 @@ export async function subscribeToPush(
       error: tr(lang, {
         en: "Push notifications aren't set up on this site yet.",
         es: "Las notificaciones push aún no están configuradas en este sitio.",
-        ja: "このサイトではプッシュ通知がまだ設定されていません。",
       }),
     };
   }
@@ -72,7 +71,6 @@ export async function subscribeToPush(
           : tr(lang, {
               en: "Notification permission wasn't granted.",
               es: "No se concedió el permiso de notificaciones.",
-              ja: "通知の許可が得られませんでした。",
             }),
     };
   }
@@ -82,7 +80,6 @@ export async function subscribeToPush(
       error: tr(lang, {
         en: "Push notifications aren't supported in this browser.",
         es: "Este navegador no admite notificaciones push.",
-        ja: "このブラウザはプッシュ通知に対応していません。",
       }),
     };
   try {
@@ -135,7 +132,6 @@ function subscriptionError(err: unknown, lang: Lang): string {
         return tr(lang, {
           en: "This browser couldn't reach its push service. VPNs, ad-blockers, and privacy settings can block it — try turning those off for this site, or use Chrome, Firefox, or Safari.",
           es: "Este navegador no pudo contactar su servicio de push. Las VPN, los bloqueadores de anuncios y los ajustes de privacidad pueden bloquearlo — prueba desactivarlos para este sitio, o usa Chrome, Firefox o Safari.",
-          ja: "このブラウザからプッシュ配信サーバーに接続できませんでした。VPN・広告ブロッカー・プライバシー設定が原因になることがあります。このサイトではそれらを切るか、Chrome・Firefox・Safari をお試しください。",
         });
     }
     // Unknown failure: log the details so the next report has a console line
@@ -145,7 +141,6 @@ function subscriptionError(err: unknown, lang: Lang): string {
   return tr(lang, {
     en: "Couldn't subscribe this browser — try again in a moment.",
     es: "No se pudo suscribir este navegador — inténtalo de nuevo en un momento.",
-    ja: "このブラウザを登録できませんでした。少し待ってからもう一度お試しください。",
   });
 }
 
@@ -153,7 +148,6 @@ function subscriptionError(err: unknown, lang: Lang): string {
 const PERMISSION_BLOCKED: Record<Lang, string> = {
   en: "Notification permission is blocked — allow it in your browser's site settings, then try again.",
   es: "El permiso de notificaciones está bloqueado — permítelo en los ajustes del sitio de tu navegador y vuelve a intentarlo.",
-  ja: "通知がブロックされています。ブラウザのサイト設定で許可してから、もう一度お試しください。",
 };
 
 export async function unsubscribeFromPush(): Promise<PushSubscription | null> {

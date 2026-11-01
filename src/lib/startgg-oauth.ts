@@ -22,7 +22,6 @@ function requireClientCredentials() {
     throw new LocalizedError({
       en: "start.gg OAuth isn't configured on this deployment",
       es: "start.gg OAuth no está configurado en este despliegue",
-      ja: "この環境では start.gg 連携が設定されていません",
     });
   }
   return { clientId, clientSecret };
@@ -58,7 +57,6 @@ async function exchangeCodeForToken(code: string, redirectUri: string): Promise<
     throw new LocalizedError({
       en: "start.gg rejected the authorization code",
       es: "start.gg rechazó el código de autorización",
-      ja: "start.gg が認可コードを受け付けませんでした",
     });
 
   const json = (await res.json()) as { access_token?: string };
@@ -66,7 +64,6 @@ async function exchangeCodeForToken(code: string, redirectUri: string): Promise<
     throw new LocalizedError({
       en: "start.gg didn't return an access token",
       es: "start.gg no devolvió un token de acceso",
-      ja: "start.gg からアクセストークンが返ってきませんでした",
     });
   return json.access_token;
 }
@@ -91,7 +88,6 @@ async function fetchCurrentStartggUser(accessToken: string): Promise<StartggIden
     throw new LocalizedError({
       en: "Couldn't reach start.gg's API",
       es: "No se pudo contactar la API de start.gg",
-      ja: "start.gg の API に接続できませんでした",
     });
 
   const json = (await res.json()) as {
@@ -113,7 +109,6 @@ async function fetchCurrentStartggUser(accessToken: string): Promise<StartggIden
     throw new LocalizedError({
       en: "start.gg didn't return a user",
       es: "start.gg no devolvió un usuario",
-      ja: "start.gg からユーザー情報が返ってきませんでした",
     });
 
   const { id, slug, player } = json.data.currentUser;
@@ -136,7 +131,6 @@ export async function connectStartggAccount(userId: string, code: string, redire
     throw new LocalizedError({
       en: "That start.gg account is already linked to a different ladder account",
       es: "Esa cuenta de start.gg ya está vinculada a otra cuenta",
-      ja: "その start.gg アカウントは別のアカウントに連携済みです",
     });
   }
 
@@ -159,7 +153,6 @@ export async function connectStartggAccount(userId: string, code: string, redire
       throw new LocalizedError({
         en: "That start.gg account is already linked to a different ladder account",
         es: "Esa cuenta de start.gg ya está vinculada a otra cuenta",
-        ja: "その start.gg アカウントは別のアカウントに連携済みです",
       });
     }
     throw err;

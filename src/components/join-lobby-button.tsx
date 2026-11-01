@@ -69,14 +69,12 @@ export function JoinLobbyForm({
             {tr(lang, {
               en: "Practicing this session",
               es: "Practicando esta sesión",
-              ja: "練習モードで待機する",
             })}
           </span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
             {tr(lang, {
               en: "Results count toward a separate practice rating — your regular ladder rating and sets played don't move at all.",
               es: "Los resultados cuentan para una clasificación de práctica aparte — tu clasificación normal del ladder y tus partidas jugadas no se mueven en absoluto.",
-              ja: "勝敗は練習用のレートだけに記録されます。通常のレートとセット数は変わりません。",
             })}
           </span>
         </span>
@@ -87,7 +85,6 @@ export function JoinLobbyForm({
           {tr(lang, {
             en: "Already have a room set up? (optional)",
             es: "¿Ya tienes una sala lista? (opcional)",
-            ja: "部屋はもう立ててありますか？（任意）",
           })}
         </summary>
         <label className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
@@ -102,7 +99,7 @@ export function JoinLobbyForm({
                   .slice(0, 5),
               )
             }
-            placeholder={tr(lang, { en: "e.g. AB123", es: "ej. AB123", ja: "例: AB123" })}
+            placeholder={tr(lang, { en: "e.g. AB123", es: "ej. AB123" })}
             maxLength={5}
             pattern="[A-Z0-9]{5}"
             autoCapitalize="characters"
@@ -113,7 +110,6 @@ export function JoinLobbyForm({
             {tr(lang, {
               en: "As long as your opponent doesn't also bring one, you'll be host and they'll see this right away.",
               es: "Si tu rival no trae una sala también, tú serás el anfitrión y la verá al instante.",
-              ja: "相手も部屋番号を持ってこない限り、あなたが部屋主になり、相手にはすぐこれが表示されます。",
             })}
           </span>
         </label>
@@ -131,7 +127,7 @@ export function JoinLobbyForm({
           disabled={isPending || !hasRegion}
         >
           {isPending ? <Loader2 className="size-4 animate-spin" /> : <Swords className="size-4" />}
-          {tr(lang, { en: "Find Match", es: "Buscar partida", ja: "対戦相手を探す" })}
+          {tr(lang, { en: "Find Match", es: "Buscar partida" })}
         </Button>
         <Button
           type="submit"
@@ -143,14 +139,13 @@ export function JoinLobbyForm({
           disabled={isPending || !hasRegion}
         >
           <Dices className="size-4" />
-          {tr(lang, { en: "Randitto", es: "Randitto", ja: "ランダム対戦" })}
+          {tr(lang, { en: "Randitto", es: "Randitto" })}
         </Button>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
         {tr(lang, {
           en: "Randitto is its own queue: you and your opponent are each handed a random fighter, re-drawn every game. It always rates onto the practice track, so the checkbox above doesn't matter for it.",
           es: "Randitto es su propia cola: a ti y a tu rival se os asigna un personaje aleatorio, re-sorteado cada juego. Siempre cuenta para la clasificación de práctica, así que la casilla de arriba no le afecta.",
-          ja: "ランダム対戦は別の待機列です。お互いにランダムなキャラが割り当てられ、試合ごとに振り直されます。常に練習レートに記録されるので、上のチェックは関係ありません。",
         })}
       </p>
       {state.error && <p className="mt-2 text-sm text-destructive">{state.error}</p>}

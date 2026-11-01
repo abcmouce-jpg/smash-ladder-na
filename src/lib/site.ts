@@ -24,8 +24,12 @@ export const SITE_DESCRIPTION =
  * and the other way round — the pools are separated here rather than by
  * filtering after the fact.
  */
-export type RegionSet = "na" | "jp";
-export const REGION_SET: RegionSet = process.env.NEXT_PUBLIC_REGION_SET?.trim() === "jp" ? "jp" : "na";
+// NEXT_PUBLIC_REGION_SET used to pick between this instance and a Japanese
+// one built on the same codebase. That instance was shut down 2026-11-01 and
+// the flags below are now plain constants rather than branches on it. The
+// flags themselves are kept — they document which behaviours were ever
+// instance-specific, and collapsing them to `true` is a one-line change to
+// undo if a second instance is ever wanted again.
 
 /**
  * Languages this instance offers. North America serves an English and a
@@ -35,7 +39,7 @@ export const REGION_SET: RegionSet = process.env.NEXT_PUBLIC_REGION_SET?.trim() 
  * so a cookie or a stored preference carried over from elsewhere cannot put
  * the site into a language it does not publish.
  */
-export const SITE_LANGS: readonly Lang[] = REGION_SET === "jp" ? ["ja"] : ["en", "es"];
+export const SITE_LANGS: readonly Lang[] = ["en", "es"];
 
 /**
  * Whether /es exists. It is a crawlable Spanish landing page, with Spanish
@@ -74,7 +78,7 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://nas
  * this is only which clock to show it on, so it follows the instance rather
  * than the viewer's browser (a server-rendered date has no browser to ask).
  */
-export const DISPLAY_TIME_ZONE = REGION_SET === "jp" ? "Asia/Tokyo" : "America/New_York";
+export const DISPLAY_TIME_ZONE = "America/New_York";
 
 /**
  * Whether this instance runs the cash prize program. North America's is a
@@ -83,7 +87,7 @@ export const DISPLAY_TIME_ZONE = REGION_SET === "jp" ? "Asia/Tokyo" : "America/N
  * rather than entry fees to stay clear of 賭博罪, so the banner stays off
  * until that call is made. Flip this, not the copy, when it is.
  */
-export const HAS_PRIZE_POOL = REGION_SET !== "jp";
+export const HAS_PRIZE_POOL = true;
 
 /**
  * Which scene this instance serves, as an adjective, for the copy that names
@@ -93,10 +97,7 @@ export const HAS_PRIZE_POOL = REGION_SET !== "jp";
  * told it is the Japanese one, not shown Japanese text or, worse, told it is
  * North American.
  */
-export const SCENE_LABEL: Record<Lang, string> =
-  REGION_SET === "jp"
-    ? { en: "Japanese", es: "japonesa", ja: "日本の" }
-    : { en: "North American", es: "norteamericana", ja: "北米の" };
+export const SCENE_LABEL: Record<Lang, string> = { en: "North American", es: "norteamericana" };
 
 /**
  * SITE_NAME split for the home page's heading, which colours the last word
@@ -119,7 +120,7 @@ export const SITE_NAME_PARTS = (() => {
  * pool. Off for Japan: region stays a profile and leaderboard attribute, but
  * it does not gate matchmaking, and a player without one can still queue.
  */
-export const DISTANCE_MATCHMAKING = REGION_SET !== "jp";
+export const DISTANCE_MATCHMAKING = true;
 
 /**
  * Whether low-latency firmware mods are permitted on this instance.
@@ -129,7 +130,7 @@ export const DISTANCE_MATCHMAKING = REGION_SET !== "jp";
  * false for Japan because the Japanese community treats these mods as
  * cheating, and launching against that is not a fight worth picking.
  */
-export const ALLOWS_LATENCY_MODS = REGION_SET !== "jp";
+export const ALLOWS_LATENCY_MODS = true;
 
 /**
  * Which rating system new seasons run on. Glicko-2 carries a rating deviation
@@ -140,7 +141,7 @@ export const ALLOWS_LATENCY_MODS = REGION_SET !== "jp";
  */
 export type RatingSystem = "elo" | "glicko2" | "smashmate";
 
-export const RATING_SYSTEM: RatingSystem = REGION_SET === "jp" ? "smashmate" : "glicko2";
+export const RATING_SYSTEM: RatingSystem = "glicko2";
 
 /**
  * What to call the rating in prose. "Smashmate-style" rather than "Elo",
@@ -154,10 +155,9 @@ const RATING_SYSTEM_LABELS: Record<RatingSystem, Record<Lang, string>> = {
   smashmate: {
     en: "a Smashmate-style rating",
     es: "una clasificación estilo Smashmate",
-    ja: "スマメイト式のレート",
   },
-  elo: { en: "an Elo rating", es: "una clasificación Elo", ja: "Elo レート" },
-  glicko2: { en: "a Glicko-2 rating", es: "una clasificación Glicko-2", ja: "Glicko-2 レート" },
+  elo: { en: "an Elo rating", es: "una clasificación Elo" },
+  glicko2: { en: "a Glicko-2 rating", es: "una clasificación Glicko-2" },
 };
 
 export const RATING_SYSTEM_LABEL: Record<Lang, string> = RATING_SYSTEM_LABELS[RATING_SYSTEM];
@@ -171,7 +171,7 @@ export const RATING_SYSTEM_LABEL: Record<Lang, string> = RATING_SYSTEM_LABELS[RA
  * every player for a value no screen would ever read. Off means no picker, no
  * filters, and no region shown anywhere.
  */
-export const USES_REGIONS = REGION_SET !== "jp";
+export const USES_REGIONS = true;
 
 /**
  * Whether this instance runs a community Discord server.
@@ -180,7 +180,7 @@ export const USES_REGIONS = REGION_SET !== "jp";
  * there is a server to send people to. Japan does not run one, so its pages
  * point at the X account instead of advertising a server it has no part in.
  */
-export const HAS_DISCORD_SERVER = REGION_SET !== "jp";
+export const HAS_DISCORD_SERVER = true;
 
 /**
  * Whether this instance takes donations through Ko-fi.
@@ -205,7 +205,7 @@ export function instanceText<T>(values: Record<Lang, T>): T {
 }
 
 /** og:locale for DEFAULT_LANG. */
-export const OG_LOCALE = instanceText({ en: "en_US", es: "es_MX", ja: "ja_JP" });
+export const OG_LOCALE = instanceText({ en: "en_US", es: "es_MX" });
 
 /**
  * Whether the chat offers preset one-tap messages.
@@ -214,7 +214,7 @@ export const OG_LOCALE = instanceText({ en: "en_US", es: "es_MX", ja: "ja_JP" })
  * (glhf, ggs) and a canned-phrase row isn't how that scene opens a set.
  * The column and the settings slots stay for the instances that use them.
  */
-export const HAS_QUICK_MESSAGES = REGION_SET !== "jp";
+export const HAS_QUICK_MESSAGES = true;
 
 /**
  * Whether players can write guides for each other.
@@ -224,6 +224,6 @@ export const HAS_QUICK_MESSAGES = REGION_SET !== "jp";
  * that instance is written for the community to share. Without this the
  * Notes page would offer a public tab nobody was asked to fill.
  */
-export const HAS_COMMUNITY_GUIDES = REGION_SET !== "jp";
+export const HAS_COMMUNITY_GUIDES = true;
 
-export const HAS_KOFI = REGION_SET !== "jp";
+export const HAS_KOFI = true;

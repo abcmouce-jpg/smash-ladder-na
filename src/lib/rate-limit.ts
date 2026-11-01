@@ -9,7 +9,6 @@ export async function enforceRateLimit(opts: { count: () => Promise<number>; lim
     throw new LocalizedError({
       en: `Too many requests — please slow down (limit: ${opts.limit} per ${opts.windowLabel}).`,
       es: `Demasiadas solicitudes — ve más despacio (límite: ${opts.limit} por ${opts.windowLabel}).`,
-      ja: `操作が多すぎます。少し間を置いてください（上限: ${opts.windowLabel}あたり${opts.limit}回）。`,
     });
   }
 }

@@ -74,7 +74,7 @@ export async function QueueStatusBanner() {
   // Read last, after both early returns: a page that shows no strip shouldn't
   // pay for the language lookup.
   const lang = await getLang();
-  const lobbyLink = tr(lang, { en: "go to Lobby", es: "ir a la Sala", ja: "ロビーへ" });
+  const lobbyLink = tr(lang, { en: "go to Lobby", es: "ir a la Sala" });
 
   return (
     <div className="border-b border-border bg-primary/5">
@@ -83,7 +83,7 @@ export async function QueueStatusBanner() {
           <>
             <Swords className="size-3.5 shrink-0 text-primary" />
             <span className="text-muted-foreground">
-              {tr(lang, { en: "You're in a match —", es: "Estás en una partida —", ja: "対戦中です —" })}
+              {tr(lang, { en: "You're in a match —", es: "Estás en una partida —" })}
             </span>
             <Link href="/lobby" className="font-medium text-primary hover:underline">
               {lobbyLink}
@@ -92,9 +92,7 @@ export async function QueueStatusBanner() {
         ) : waiting ? (
           <>
             <Clock className="size-3.5 shrink-0 text-primary" />
-            <span className="text-muted-foreground">
-              {tr(lang, { en: "In queue", es: "En la cola", ja: "待機中" })}
-            </span>
+            <span className="text-muted-foreground">{tr(lang, { en: "In queue", es: "En la cola" })}</span>
             <span className="font-medium tabular-nums text-foreground">
               <QueueTimer joinedAt={waiting.joinedAt.toISOString()} />
             </span>

@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
       tr(await getLang(), {
         en: "That connection request expired or was invalid — try again.",
         es: "Esa solicitud de conexión expiró o no era válida — inténtalo de nuevo.",
-        ja: "連携のリクエストが期限切れか無効でした。もう一度お試しください。",
       }),
     );
   }

@@ -13,7 +13,7 @@ import { HAS_KOFI, SITE_NAME, instanceText } from "@/lib/site";
 import { tr } from "@/lib/lang";
 
 export const metadata = {
-  title: `${instanceText({ en: "Analytics", es: "Analíticas", ja: "アナリティクス" })} — ${SITE_NAME}`,
+  title: `${instanceText({ en: "Analytics", es: "Analíticas" })} — ${SITE_NAME}`,
 };
 
 export default async function AnalyticsPage() {
@@ -27,7 +27,6 @@ export default async function AnalyticsPage() {
           {tr(lang, {
             en: "Sign in with Discord (top right) to view your analytics.",
             es: "Inicia sesión con Discord (arriba a la derecha) para ver tus estadísticas.",
-            ja: "右上の Discord でログインすると、自分の統計を見られます。",
           })}
         </p>
       </main>
@@ -52,11 +51,10 @@ export default async function AnalyticsPage() {
           {tr(lang, {
             en: `This is Gold-supporter exclusive ($${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ on Ko-fi): your rating trend, and a win-rate breakdown by character and stage.`,
             es: `Esto es exclusivo para colaboradores Gold ($${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ en Ko-fi): tu gráfica de clasificación, y el desglose de victorias por personaje y escenario.`,
-            ja: `これはゴールドサポーター限定です（Ko-fi で $${GOLD_SUPPORTER_MIN_AMOUNT_USD} 以上）。レートの推移と、キャラ別・ステージ別の勝率を見られます。`,
           })}
         </p>
         <a href={KOFI_URL} target="_blank" rel="noreferrer" className="mt-4 block w-fit">
-          <Button type="button">{tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi", ja: "Ko-fi へ" })}</Button>
+          <Button type="button">{tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi" })}</Button>
         </a>
       </main>
     );
@@ -72,7 +70,7 @@ export default async function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              {tr(lang, { en: "Rating over time", es: "Clasificación a lo largo del tiempo", ja: "レート推移" })}
+              {tr(lang, { en: "Rating over time", es: "Clasificación a lo largo del tiempo" })}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -86,7 +84,6 @@ export default async function AnalyticsPage() {
               {tr(lang, {
                 en: "Win rate by character",
                 es: "Porcentaje de victorias por personaje",
-                ja: "キャラ別の勝率",
               })}
             </CardTitle>
           </CardHeader>
@@ -97,7 +94,6 @@ export default async function AnalyticsPage() {
               emptyMessage={tr(lang, {
                 en: "No confirmed matches yet.",
                 es: "Todavía no hay partidas confirmadas.",
-                ja: "確定した試合がまだありません。",
               })}
             />
           </CardContent>
@@ -109,7 +105,6 @@ export default async function AnalyticsPage() {
               {tr(lang, {
                 en: "Win rate by stage",
                 es: "Porcentaje de victorias por escenario",
-                ja: "ステージ別の勝率",
               })}
             </CardTitle>
           </CardHeader>
@@ -120,7 +115,6 @@ export default async function AnalyticsPage() {
               emptyMessage={tr(lang, {
                 en: "No confirmed matches yet.",
                 es: "Todavía no hay partidas confirmadas.",
-                ja: "確定した試合がまだありません。",
               })}
             />
           </CardContent>
@@ -135,19 +129,17 @@ function PageTitle({ lang }: { lang: Lang }) {
     <>
       <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
         <ChartLine className="size-6 text-primary" />
-        {tr(lang, { en: "🏆 Analytics", es: "🏆 Análisis", ja: "🏆 統計" })}
+        {tr(lang, { en: "🏆 Analytics", es: "🏆 Análisis" })}
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {HAS_KOFI
           ? tr(lang, {
               en: "Gold supporter exclusive.",
               es: "Exclusivo para colaboradores Gold.",
-              ja: "ゴールドサポーター限定",
             })
           : tr(lang, {
               en: "Your rating trend, and your win rate by character and stage.",
               es: "Tu clasificación en el tiempo, y tu porcentaje de victorias por personaje y escenario.",
-              ja: "レートの推移と、キャラ別・ステージ別の勝率。",
             })}
       </p>
     </>

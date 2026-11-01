@@ -16,24 +16,23 @@ export async function SiteFooter() {
           {tr(lang, {
             en: `${SITE_NAME} — an independent, fan-run community project. Not affiliated with Nintendo.`,
             es: `${SITE_NAME} — un proyecto comunitario independiente, hecho por fans. No afiliado a Nintendo.`,
-            ja: `${SITE_NAME} — 有志による非公式のコミュニティ企画です。任天堂とは一切関係ありません。`,
           })}
         </p>
         <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Link href="/about" prefetch={false} className="hover:text-foreground hover:underline">
-            {tr(lang, { en: "About", es: "Acerca de", ja: "このサイトについて" })}
+            {tr(lang, { en: "About", es: "Acerca de" })}
           </Link>
           <Link href="/rules" prefetch={false} className="hover:text-foreground hover:underline">
-            {tr(lang, { en: "Rules", es: "Reglas", ja: "ルール" })}
+            {tr(lang, { en: "Rules", es: "Reglas" })}
           </Link>
           <Link href="/faq" prefetch={false} className="hover:text-foreground hover:underline">
             Q&amp;A
           </Link>
           <Link href="/privacy" prefetch={false} className="hover:text-foreground hover:underline">
-            {tr(lang, { en: "Privacy", es: "Privacidad", ja: "プライバシー" })}
+            {tr(lang, { en: "Privacy", es: "Privacidad" })}
           </Link>
           <Link href="/terms" prefetch={false} className="hover:text-foreground hover:underline">
-            {tr(lang, { en: "Terms", es: "Términos", ja: "利用規約" })}
+            {tr(lang, { en: "Terms", es: "Términos" })}
           </Link>
           <a
             href={HAS_DISCORD_SERVER ? DISCORD_SERVER_URL : X_ACCOUNT_URL}
@@ -50,7 +49,7 @@ export async function SiteFooter() {
               className="flex items-center gap-1 hover:text-foreground hover:underline"
             >
               <Coffee className="size-3.5" />
-              {tr(lang, { en: "Support us", es: "Apóyanos", ja: "支援する" })}
+              {tr(lang, { en: "Support us", es: "Apóyanos" })}
               {supporterCount > 0 && ` · ${supporterCount}`}
             </Link>
           )}

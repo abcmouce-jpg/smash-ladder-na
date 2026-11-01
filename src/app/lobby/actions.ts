@@ -43,8 +43,7 @@ import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   return session.user.id;
 }
 
@@ -285,7 +284,6 @@ export async function requestDisputeResolutionAction(
         message: tr(await getLang(), {
           en: "You both agreed — the game is resolved.",
           es: "Ambos coincidieron — el juego quedó resuelto.",
-          ja: "お互いの報告が一致しました。この試合は確定です。",
         }),
       };
     }
@@ -295,7 +293,6 @@ export async function requestDisputeResolutionAction(
         message: tr(await getLang(), {
           en: "That doesn't match what your opponent picked — still waiting on a mod.",
           es: "No coincide con lo que eligió tu rival — sigue esperando a un moderador.",
-          ja: "相手が選んだ内容と食い違っています。モデレーターの対応を待っています。",
         }),
       };
     }
@@ -304,7 +301,6 @@ export async function requestDisputeResolutionAction(
       message: tr(await getLang(), {
         en: "Submitted — waiting for your opponent to agree.",
         es: "Enviado — esperando que tu rival esté de acuerdo.",
-        ja: "送信しました。相手の同意を待っています。",
       }),
     };
   } catch (err) {
@@ -436,7 +432,6 @@ export async function reportConductAction(
     message: tr(await getLang(), {
       en: "Reported — a mod will review it.",
       es: "Reportado — un moderador lo revisará.",
-      ja: "通報しました。モデレーターが確認します。",
     }),
   };
 }

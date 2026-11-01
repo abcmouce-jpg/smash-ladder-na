@@ -31,8 +31,7 @@ export async function getTournament(id: string) {
 
 export async function createTournament(hostId: string, name: string, description: string, startggUrl: string) {
   const trimmedName = name.trim().slice(0, 100);
-  if (!trimmedName)
-    throw new LocalizedError({ en: "Name is required", es: "El nombre es obligatorio", ja: "名前を入力してください" });
+  if (!trimmedName) throw new LocalizedError({ en: "Name is required", es: "El nombre es obligatorio" });
   return prisma.tournament.create({
     data: {
       hostId,
@@ -45,13 +44,11 @@ export async function createTournament(hostId: string, name: string, description
 
 async function requireHostOrMod(tournamentId: string, userId: string, role: "USER" | "MOD" | "ADMIN") {
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
-  if (!tournament)
-    throw new LocalizedError({ en: "Tournament not found", es: "Torneo no encontrado", ja: "大会が見つかりません" });
+  if (!tournament) throw new LocalizedError({ en: "Tournament not found", es: "Torneo no encontrado" });
   if (tournament.hostId !== userId && role !== "MOD" && role !== "ADMIN") {
     throw new LocalizedError({
       en: "Only the host or a moderator can do that",
       es: "Solo el anfitrión o un moderador puede hacer eso",
-      ja: "それができるのは主催者かモデレーターだけです",
     });
   }
   return tournament;
@@ -59,13 +56,11 @@ async function requireHostOrMod(tournamentId: string, userId: string, role: "USE
 
 export async function joinTournament(userId: string, tournamentId: string) {
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
-  if (!tournament)
-    throw new LocalizedError({ en: "Tournament not found", es: "Torneo no encontrado", ja: "大会が見つかりません" });
+  if (!tournament) throw new LocalizedError({ en: "Tournament not found", es: "Torneo no encontrado" });
   if (tournament.status !== TournamentStatus.SIGNUPS) {
     throw new LocalizedError({
       en: "Signups are closed for this tournament",
       es: "Las inscripciones de este torneo están cerradas",
-      ja: "この大会の参加受付は終了しています",
     });
   }
   await prisma.tournamentEntry.upsert({
@@ -77,13 +72,11 @@ export async function joinTournament(userId: string, tournamentId: string) {
 
 export async function leaveTournament(userId: string, tournamentId: string) {
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
-  if (!tournament)
-    throw new LocalizedError({ en: "Tournament not found", es: "Torneo no encontrado", ja: "大会が見つかりません" });
+  if (!tournament) throw new LocalizedError({ en: "Tournament not found", es: "Torneo no encontrado" });
   if (tournament.status !== TournamentStatus.SIGNUPS) {
     throw new LocalizedError({
       en: "Can't leave after check-in has closed",
       es: "No puedes salir después de que cerró el check-in",
-      ja: "受付終了後は参加を取り消せません",
     });
   }
   await prisma.tournamentEntry.deleteMany({ where: { tournamentId, userId } });

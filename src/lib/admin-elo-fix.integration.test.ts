@@ -31,6 +31,11 @@ async function createConfirmedMatch(winnerId: string, loserId: string) {
 
 describe("applyEloChainFix", () => {
   it("flips an isolated match's winner with no cascade when nobody played again after it", async () => {
+    // Pin the season's algorithm: these assertions are Elo arithmetic, and
+    // until the Japanese instance was removed they only held because the
+    // local environment happened to configure that instance, whose seasons
+    // ran Elo. The instance a test runs under should not decide its math.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
     const a = await createTestUser();
     const b = await createTestUser();
     const match = await createConfirmedMatch(a.id, b.id);
@@ -54,6 +59,11 @@ describe("applyEloChainFix", () => {
   });
 
   it("cascades the correction into a later match played by the same winner", async () => {
+    // Pin the season's algorithm: these assertions are Elo arithmetic, and
+    // until the Japanese instance was removed they only held because the
+    // local environment happened to configure that instance, whose seasons
+    // ran Elo. The instance a test runs under should not decide its math.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
     const a = await createTestUser();
     const b = await createTestUser();
     const c = await createTestUser();
@@ -110,6 +120,11 @@ describe("applyEloChainFix", () => {
   });
 
   it("does not cascade into an unrelated third player's own separate matches", async () => {
+    // Pin the season's algorithm: these assertions are Elo arithmetic, and
+    // until the Japanese instance was removed they only held because the
+    // local environment happened to configure that instance, whose seasons
+    // ran Elo. The instance a test runs under should not decide its math.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
     const a = await createTestUser();
     const b = await createTestUser();
     const c = await createTestUser();
@@ -130,6 +145,11 @@ describe("applyEloChainFix", () => {
   });
 
   it("dry run rolls back and leaves the database untouched", async () => {
+    // Pin the season's algorithm: these assertions are Elo arithmetic, and
+    // until the Japanese instance was removed they only held because the
+    // local environment happened to configure that instance, whose seasons
+    // ran Elo. The instance a test runs under should not decide its math.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
     const a = await createTestUser();
     const b = await createTestUser();
     const match = await createConfirmedMatch(a.id, b.id);

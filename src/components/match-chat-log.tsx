@@ -39,7 +39,7 @@ export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Co
         onClick={expand}
         className="mt-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
       >
-        {tr(lang, { en: "View chat log", es: "Ver registro de chat", ja: "チャットログを見る" })}
+        {tr(lang, { en: "View chat log", es: "Ver registro de chat" })}
       </button>
     );
   }
@@ -47,16 +47,13 @@ export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Co
   return (
     <div className="mt-1.5 rounded-lg border border-border bg-muted/30 p-2">
       {state.status === "loading" && (
-        <p className="text-xs text-muted-foreground">
-          {tr(lang, { en: "Loading…", es: "Cargando…", ja: "読み込み中…" })}
-        </p>
+        <p className="text-xs text-muted-foreground">{tr(lang, { en: "Loading…", es: "Cargando…" })}</p>
       )}
       {state.status === "error" && (
         <p className="text-xs text-destructive">
           {tr(lang, {
             en: "Couldn't load chat log — try again.",
             es: "No se pudo cargar el chat — inténtalo de nuevo.",
-            ja: "チャットログを読み込めませんでした。もう一度お試しください。",
           })}
         </p>
       )}
@@ -68,7 +65,6 @@ export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Co
               {tr(lang, {
                 en: "No messages were sent in this set.",
                 es: "No se envió ningún mensaje en esta partida.",
-                ja: "このセットではメッセージが送られていません。",
               })}
             </p>
           }

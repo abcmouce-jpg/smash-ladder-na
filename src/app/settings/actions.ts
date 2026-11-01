@@ -30,8 +30,7 @@ import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   return session.user.id;
 }
 
@@ -134,7 +133,6 @@ export async function savePushSubscriptionAction(sub: PushSubscriptionKeys) {
       error: tr(await getLang(), {
         en: "Missing subscription details.",
         es: "Faltan los datos de la suscripción.",
-        ja: "通知の登録情報が足りません。",
       }),
     };
   }
@@ -144,7 +142,6 @@ export async function savePushSubscriptionAction(sub: PushSubscriptionKeys) {
       error: tr(await getLang(), {
         en: "Invalid subscription endpoint.",
         es: "Endpoint de suscripción inválido.",
-        ja: "通知の登録先が正しくありません。",
       }),
     };
   }
@@ -228,7 +225,6 @@ export async function updateStreamLinksAction(
       error: tr(await getLang(), {
         en: "That stream link isn't a Twitch or YouTube URL we can embed.",
         es: "Ese enlace no es una URL de Twitch o YouTube que podamos insertar.",
-        ja: "その配信リンクは、埋め込みに対応している Twitch か YouTube の URL ではありません。",
       }),
       saved: false,
     };
@@ -240,7 +236,6 @@ export async function updateStreamLinksAction(
       error: tr(await getLang(), {
         en: "That channel link isn't a YouTube URL we recognise.",
         es: "Ese enlace de canal no es una URL de YouTube que reconozcamos.",
-        ja: "そのチャンネルリンクは、認識できる YouTube の URL ではありません。",
       }),
       saved: false,
     };

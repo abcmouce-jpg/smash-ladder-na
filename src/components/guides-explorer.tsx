@@ -119,13 +119,13 @@ export function GuidesExplorer({
             setSearch(e.target.value);
             setPage(1);
           }}
-          placeholder={tr(lang, { en: "Search guides…", es: "Buscar guías…", ja: "攻略を検索…" })}
+          placeholder={tr(lang, { en: "Search guides…", es: "Buscar guías…" })}
           className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
         />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           {tags.length > 0 && (
             <label className="flex w-full flex-col gap-1 text-sm sm:w-56">
-              {tr(lang, { en: "Character", es: "Personaje", ja: "キャラクター" })}
+              {tr(lang, { en: "Character", es: "Personaje" })}
               <CharacterSelect
                 value={activeTag ?? ""}
                 onChange={(value) => {
@@ -133,21 +133,21 @@ export function GuidesExplorer({
                   setPage(1);
                 }}
                 characters={tags}
-                placeholder={tr(lang, { en: "All characters", es: "Todos los personajes", ja: "すべてのキャラ" })}
-                clearLabel={tr(lang, { en: "All Characters", es: "Todos los personajes", ja: "すべてのキャラクター" })}
+                placeholder={tr(lang, { en: "All characters", es: "Todos los personajes" })}
+                clearLabel={tr(lang, { en: "All Characters", es: "Todos los personajes" })}
                 className="w-full"
                 lang={lang}
               />
             </label>
           )}
           <label className="flex w-full flex-col gap-1 text-sm sm:w-56">
-            {tr(lang, { en: "Sort by", es: "Ordenar por", ja: "並び替え" })}
+            {tr(lang, { en: "Sort by", es: "Ordenar por" })}
             <OptionSelect
               name="guide-sort"
               defaultValue="newest"
               options={[
-                { value: "newest", label: tr(lang, { en: "Newest", es: "Más recientes", ja: "新しい順" }) },
-                { value: "rating", label: tr(lang, { en: "Top rated", es: "Mejor valoradas", ja: "評価の高い順" }) },
+                { value: "newest", label: tr(lang, { en: "Newest", es: "Más recientes" }) },
+                { value: "rating", label: tr(lang, { en: "Top rated", es: "Mejor valoradas" }) },
               ]}
               onChange={(value) => {
                 setSort(value as SortKey);
@@ -163,7 +163,6 @@ export function GuidesExplorer({
           {tr(lang, {
             en: "No one's written a guide yet — be the first.",
             es: "Nadie ha escrito una guía todavía. Sé el primero.",
-            ja: "まだ攻略がありません。最初の1本を書いてみませんか。",
           })}
         </p>
       ) : filtered.length === 0 ? (
@@ -171,7 +170,6 @@ export function GuidesExplorer({
           {tr(lang, {
             en: "No guides match those filters.",
             es: "Ninguna guía coincide con esos filtros.",
-            ja: "条件に合う攻略がありません。",
           })}
         </p>
       ) : (
@@ -201,7 +199,6 @@ export function GuidesExplorer({
               {tr(lang, {
                 en: `${filtered.length} guide${filtered.length === 1 ? "" : "s"}`,
                 es: `${filtered.length} ${filtered.length === 1 ? "guía" : "guías"}`,
-                ja: `攻略${filtered.length}件`,
               })}
             </span>
             {totalPages > 1 && (
@@ -213,13 +210,12 @@ export function GuidesExplorer({
                   disabled={currentPage <= 1}
                   onClick={() => setPage(currentPage - 1)}
                 >
-                  {tr(lang, { en: "← Previous", es: "← Anterior", ja: "← 前へ" })}
+                  {tr(lang, { en: "← Previous", es: "← Anterior" })}
                 </Button>
                 <span className="text-muted-foreground tabular-nums">
                   {tr(lang, {
                     en: `Page ${currentPage} of ${totalPages}`,
                     es: `Página ${currentPage} de ${totalPages}`,
-                    ja: `${totalPages}ページ中${currentPage}ページ目`,
                   })}
                 </span>
                 <Button
@@ -229,7 +225,7 @@ export function GuidesExplorer({
                   disabled={currentPage >= totalPages}
                   onClick={() => setPage(currentPage + 1)}
                 >
-                  {tr(lang, { en: "Next →", es: "Siguiente →", ja: "次へ →" })}
+                  {tr(lang, { en: "Next →", es: "Siguiente →" })}
                 </Button>
               </div>
             )}
@@ -243,7 +239,7 @@ export function GuidesExplorer({
             <CharacterSelect
               name="character"
               characters={MATCHUP_CHARACTERS}
-              placeholder={tr(lang, { en: "Select a character", es: "Elige un personaje", ja: "キャラクターを選択" })}
+              placeholder={tr(lang, { en: "Select a character", es: "Elige un personaje" })}
               className="w-full sm:w-56"
               lang={lang}
             />
@@ -254,26 +250,25 @@ export function GuidesExplorer({
               placeholder={tr(lang, {
                 en: "Matchups, stage tips, anything useful for others…",
                 es: "Matchups, consejos de escenario, lo que sea útil para otros…",
-                ja: "対面のコツ、ステージ相性など、ほかの人に役立つことを…",
               })}
               className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
-              title={tr(lang, { en: "Community guide", es: "Guía de la comunidad", ja: "コミュニティ攻略" })}
+              title={tr(lang, { en: "Community guide", es: "Guía de la comunidad" })}
             />
             <div className="flex items-center justify-between gap-2">
               {createState.error ? <p className="text-xs text-destructive">{createState.error}</p> : <span />}
               <div className="flex gap-2">
                 <Button type="button" size="sm" variant="ghost" onClick={() => setWriting(false)}>
-                  {tr(lang, { en: "Cancel", es: "Cancelar", ja: "キャンセル" })}
+                  {tr(lang, { en: "Cancel", es: "Cancelar" })}
                 </Button>
                 <Button type="submit" size="sm" disabled={createPending} onClick={() => (submittedRef.current = true)}>
-                  {tr(lang, { en: "Post", es: "Publicar", ja: "投稿する" })}
+                  {tr(lang, { en: "Post", es: "Publicar" })}
                 </Button>
               </div>
             </div>
           </form>
         ) : (
           <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => setWriting(true)}>
-            {tr(lang, { en: "Write a guide", es: "Escribir una guía", ja: "攻略を書く" })}
+            {tr(lang, { en: "Write a guide", es: "Escribir una guía" })}
           </Button>
         ))}
     </div>

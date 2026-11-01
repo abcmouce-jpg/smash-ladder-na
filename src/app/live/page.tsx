@@ -41,11 +41,10 @@ export default async function SetsFeedPage() {
       <SetsFeedPoller />
       <PageHeading
         icon={Radio}
-        title={tr(lang, { en: "Live", es: "En vivo", ja: "配信" })}
+        title={tr(lang, { en: "Live", es: "En vivo" })}
         description={tr(lang, {
           en: "Current and recently-finished sets across the ladder. Sets with a live stream are pinned to the top.",
           es: "Partidas en curso y recién terminadas en todo el ladder. Las partidas con un stream en vivo se fijan arriba.",
-          ja: "進行中・直近で終わったセットの一覧です。配信中のセットは上に出ます。",
         })}
       />
 
@@ -53,7 +52,7 @@ export default async function SetsFeedPage() {
         <span className="flex items-center gap-1.5 tabular-nums">
           <Swords className="size-3.5 text-primary" />
           <span className="font-medium text-foreground">{inProgress}</span>{" "}
-          {tr(lang, { en: "in progress", es: "en curso", ja: "進行中" })}
+          {tr(lang, { en: "in progress", es: "en curso" })}
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
@@ -69,11 +68,6 @@ export default async function SetsFeedPage() {
                   <span className="font-medium text-foreground">{matchesToday}</span> partidas hoy
                 </>
               ),
-              ja: (
-                <>
-                  今日の試合<span className="font-medium text-foreground">{matchesToday}</span>件
-                </>
-              ),
             })}
           </span>
         </span>
@@ -85,7 +79,7 @@ export default async function SetsFeedPage() {
             <section className="mt-8 flex flex-col gap-3">
               <h2 className="flex items-center gap-1.5 text-sm font-semibold tracking-wide">
                 <Radio aria-hidden className="size-4 text-red-500" />
-                {tr(lang, { en: "Live now", es: "En vivo ahora", ja: "配信中" })}
+                {tr(lang, { en: "Live now", es: "En vivo ahora" })}
               </h2>
               <LiveStreamStage
                 entries={liveEntries}
@@ -107,7 +101,6 @@ export default async function SetsFeedPage() {
               {tr(lang, {
                 en: "No sets in progress or recently finished.",
                 es: "No hay partidas en curso ni recién terminadas.",
-                ja: "進行中または直近で終了したセットはありません。",
               })}
             </p>
           )}

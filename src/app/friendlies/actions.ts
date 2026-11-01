@@ -11,8 +11,7 @@ import { LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   return session.user.id;
 }
 

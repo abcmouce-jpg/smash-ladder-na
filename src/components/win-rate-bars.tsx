@@ -34,7 +34,6 @@ export function WinRateBars({ rows, lang, emptyMessage }: { rows: WinRateRow[]; 
                 : tr(lang, {
                     en: `${row.wins}-${row.losses} (few)`,
                     es: `${row.wins}-${row.losses} (pocas)`,
-                    ja: `${row.wins}勝${row.losses}敗（少）`,
                   })}
             </span>
           </li>

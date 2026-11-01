@@ -420,6 +420,11 @@ describe("requestResultCorrection", () => {
   });
 
   it("reverses and reapplies Elo from the original pre-match ratings when both sides agree", async () => {
+    // Pin the season's algorithm: these assertions are Elo arithmetic, and
+    // until the Japanese instance was removed they only held because the
+    // local environment happened to configure that instance, whose seasons
+    // ran Elo. The instance a test runs under should not decide its math.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
     const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const match = await createConfirmedMatch(p1.id, p2.id); // p1 (player1) wins originally
@@ -524,6 +529,11 @@ describe("resolveMatchCorrection", () => {
 
 describe("adminOverrideMatchResult", () => {
   it("changes the winner and reapplies Elo without needing a prior dispute", async () => {
+    // Pin the season's algorithm: these assertions are Elo arithmetic, and
+    // until the Japanese instance was removed they only held because the
+    // local environment happened to configure that instance, whose seasons
+    // ran Elo. The instance a test runs under should not decide its math.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
     const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const match = await createConfirmedMatch(p1.id, p2.id); // p1 confirmed as winner

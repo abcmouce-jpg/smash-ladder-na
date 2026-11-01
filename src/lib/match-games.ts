@@ -4,14 +4,13 @@ import { ConfirmationMethod, MatchMode, MatchStatus, UserRole } from "@/generate
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES, STRIKING_STAGES } from "@/lib/stages";
 import { drawRandittoPair } from "@/lib/randitto";
-import { REGION_SET } from "@/lib/site";
 import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { LocalizedError } from "@/lib/localized-error";
 
-export const GAMES_TO_WIN = REGION_SET === "jp" ? 2 : 3; // Japan best-of-3, NA best-of-5
+export const GAMES_TO_WIN = 3; // best-of-5
 const MAX_GAMES = 2 * GAMES_TO_WIN - 1;
 
 // Indirection so `Date.now()` isn't called directly in a component's render
@@ -26,7 +25,6 @@ function requireParticipant(match: { player1Id: string; player2Id: string }, use
     throw new LocalizedError({
       en: "Not a participant in this match",
       es: "No participas en esta partida",
-      ja: "このセットの参加者ではありません",
     });
   }
 }
@@ -435,8 +433,7 @@ export async function getCurrentGame(matchId: string) {
 
 export async function startFirstGame(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   requireParticipant(match, userId);
 
   const existing = await prisma.matchGame.findUnique({
@@ -656,14 +653,12 @@ export async function pickGameCharacter(
     throw new LocalizedError({
       en: "Not a participant in this game",
       es: "No participas en este juego",
-      ja: "この試合の参加者ではありません",
     });
   }
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
     throw new LocalizedError({
       en: "Not a recognized character",
       es: "Personaje no reconocido",
-      ja: "そのキャラクターは登録されていません",
     });
   }
   const isMii = isMiiCharacter(character);
@@ -671,7 +666,6 @@ export async function pickGameCharacter(
     throw new LocalizedError({
       en: "Moveset must be 4 digits, each 1-4",
       es: "El moveset debe tener 4 dígitos, cada uno de 1 a 4",
-      ja: "必殺技の設定は1〜4の数字4桁で入力してください",
     });
   }
   const storedMoveset = isMii ? moveset! : null;
@@ -681,13 +675,11 @@ export async function pickGameCharacter(
     throw new LocalizedError({
       en: "You already picked your character for this game",
       es: "Ya elegiste tu personaje para este juego",
-      ja: "この試合のキャラクターはすでに選択済みです",
     });
   if (!canPickNow)
     throw new LocalizedError({
       en: "Wait for your opponent to pick their character first",
       es: "Espera a que tu rival elija su personaje primero",
-      ja: "先に相手がキャラクターを選ぶのを待ってください",
     });
 
   const isActorA = userId === game.actorAId;
@@ -724,7 +716,7 @@ async function requireGame(matchId: string, gameNumber: number) {
   const game = await prisma.matchGame.findUnique({
     where: { matchId_gameNumber: { matchId, gameNumber } },
   });
-  if (!game) throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado", ja: "試合が見つかりません" });
+  if (!game) throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado" });
   return game;
 }
 
@@ -734,32 +726,27 @@ export async function strikeGameStage(userId: string, matchId: string, gameNumbe
     throw new LocalizedError({
       en: "Stage already decided",
       es: "El escenario ya está decidido",
-      ja: "ステージはすでに決まっています",
     });
   const actor = actorForStrike(game);
   if (!actor)
     throw new LocalizedError({
       en: "Striking is done — waiting on a pick",
       es: "El veto terminó — falta la selección",
-      ja: "拒否は終わっています — あとは選択を待っています",
     });
   if (actor !== userId)
     throw new LocalizedError({
       en: "Not your turn to strike",
       es: "No es tu turno de vetar",
-      ja: "いまは拒否する番ではありません",
     });
   if (!bothCharactersLocked(game))
     throw new LocalizedError({
       en: "Both players must lock in their character before striking a stage",
       es: "Ambos deben confirmar su personaje antes de vetar un escenario",
-      ja: "ステージを拒否するには、両者がキャラクターを選び終えている必要があります",
     });
   if (!game.stagesRemaining.includes(stage))
     throw new LocalizedError({
       en: "Stage already struck or invalid",
       es: "Escenario ya vetado o inválido",
-      ja: "そのステージはすでに拒否されているか、選べません",
     });
 
   // Conditional on struckStages still matching what we read, so a racing
@@ -785,13 +772,11 @@ export async function unstrikeLastGameStage(userId: string, matchId: string, gam
     throw new LocalizedError({
       en: "Stage already decided",
       es: "El escenario ya está decidido",
-      ja: "ステージはすでに決まっています",
     });
   if (game.struckStages.length === 0)
     throw new LocalizedError({
       en: "Nothing to undo yet",
       es: "Nada que deshacer todavía",
-      ja: "取り消せる操作がまだありません",
     });
 
   const lastIndex = game.struckStages.length - 1;
@@ -800,7 +785,6 @@ export async function unstrikeLastGameStage(userId: string, matchId: string, gam
     throw new LocalizedError({
       en: "You can only undo your own most recent strike",
       es: "Solo puedes deshacer tu veto más reciente",
-      ja: "取り消せるのは自分が直前に出した拒否だけです",
     });
 
   const lastStage = game.struckStages[lastIndex];
@@ -826,39 +810,33 @@ export async function strikeSameBans(userId: string, matchId: string, gameNumber
     throw new LocalizedError({
       en: "Stage already decided",
       es: "El escenario ya está decidido",
-      ja: "ステージはすでに決まっています",
     });
   const actor = actorForStrike(game);
   if (!actor)
     throw new LocalizedError({
       en: "Striking is done — waiting on a pick",
       es: "El veto terminó — falta la selección",
-      ja: "拒否は終わっています — あとは選択を待っています",
     });
   if (actor !== userId)
     throw new LocalizedError({
       en: "Not your turn to strike",
       es: "No es tu turno de vetar",
-      ja: "いまは拒否する番ではありません",
     });
   if (!bothCharactersLocked(game))
     throw new LocalizedError({
       en: "Both players must lock in their character before striking a stage",
       es: "Ambos deben confirmar su personaje antes de vetar un escenario",
-      ja: "ステージを拒否するには、両者がキャラクターを選び終えている必要があります",
     });
   if (game.actorAId !== userId || game.actorAStrikes !== 3) {
     throw new LocalizedError({
       en: "Same Bans only applies to a 3-stage strike turn",
       es: "Mismos vetos solo aplica a un turno de 3 escenarios",
-      ja: "「前回と同じ」は3ステージ拒否する手番でのみ使えます",
     });
   }
   if (game.struckStages.length !== 0)
     throw new LocalizedError({
       en: "Already struck this turn",
       es: "Ya vetaste en este turno",
-      ja: "この手番ではすでに拒否しています",
     });
 
   const allGames = await prisma.matchGame.findMany({ where: { matchId } });
@@ -867,13 +845,11 @@ export async function strikeSameBans(userId: string, matchId: string, gameNumber
     throw new LocalizedError({
       en: "No prior bans to repeat",
       es: "No hay vetos previos que repetir",
-      ja: "繰り返せる前回の拒否がありません",
     });
   if (!sameBans.stages.every((s) => game.stagesRemaining.includes(s))) {
     throw new LocalizedError({
       en: "Prior bans are no longer available",
       es: "Los vetos previos ya no están disponibles",
-      ja: "前回の拒否はもう使えません",
     });
   }
 
@@ -895,31 +871,26 @@ export async function pickGameStage(userId: string, matchId: string, gameNumber:
     throw new LocalizedError({
       en: "Stage already decided",
       es: "El escenario ya está decidido",
-      ja: "ステージはすでに決まっています",
     });
   if (actorForStrike(game) !== null)
     throw new LocalizedError({
       en: "Striking isn't finished yet",
       es: "El veto aún no termina",
-      ja: "拒否がまだ終わっていません",
     });
   if (picker(game) !== userId)
     throw new LocalizedError({
       en: "Not your turn to pick",
       es: "No es tu turno de elegir",
-      ja: "いまは選ぶ番ではありません",
     });
   if (!bothCharactersLocked(game))
     throw new LocalizedError({
       en: "Both players must lock in their character before picking a stage",
       es: "Ambos deben confirmar su personaje antes de elegir un escenario",
-      ja: "ステージを選ぶには、両者がキャラクターを選び終えている必要があります",
     });
   if (!game.stagesRemaining.includes(stage))
     throw new LocalizedError({
       en: "Not a valid remaining stage",
       es: "No es un escenario válido de los que quedan",
-      ja: "残っているステージの中にありません",
     });
 
   // turnStartedAt is the report clock's anchor: whoever picks the final stage
@@ -940,25 +911,21 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
     throw new LocalizedError({
       en: "Stage already decided",
       es: "El escenario ya está decidido",
-      ja: "ステージはすでに決まっています",
     });
   if (actorForStrike(game) !== null)
     throw new LocalizedError({
       en: "Striking isn't finished yet",
       es: "El veto aún no termina",
-      ja: "拒否がまだ終わっていません",
     });
   if (picker(game) !== userId)
     throw new LocalizedError({
       en: "Not your turn to pick",
       es: "No es tu turno de elegir",
-      ja: "いまは選ぶ番ではありません",
     });
   if (!bothCharactersLocked(game))
     throw new LocalizedError({
       en: "Both players must lock in their character before picking a stage",
       es: "Ambos deben confirmar su personaje antes de elegir un escenario",
-      ja: "ステージを選ぶには、両者がキャラクターを選び終えている必要があります",
     });
 
   const allGames = await prisma.matchGame.findMany({ where: { matchId } });
@@ -967,13 +934,11 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
     throw new LocalizedError({
       en: "No previous game to repeat",
       es: "No hay juego previo que repetir",
-      ja: "繰り返せる前の試合がありません",
     });
   if (!game.stagesRemaining.includes(stage))
     throw new LocalizedError({
       en: "That stage isn't available this game",
       es: "Ese escenario no está disponible este juego",
-      ja: "そのステージはこの試合では選べません",
     });
 
   await prisma.matchGame.updateMany({
@@ -990,8 +955,7 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
 // game 1's blind pick, where Run it back/Same Bans don't apply).
 export async function proposeGameStage(userId: string, matchId: string, gameNumber: number, stage: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   requireParticipant(match, userId);
 
   const game = await requireGame(matchId, gameNumber);
@@ -999,13 +963,11 @@ export async function proposeGameStage(userId: string, matchId: string, gameNumb
     throw new LocalizedError({
       en: "Stage already decided",
       es: "El escenario ya está decidido",
-      ja: "ステージはすでに決まっています",
     });
   if (!game.stagesRemaining.includes(stage))
     throw new LocalizedError({
       en: "Stage already struck or invalid",
       es: "Escenario ya vetado o inválido",
-      ja: "そのステージはすでに拒否されているか、選べません",
     });
 
   await prisma.matchGame.updateMany({
@@ -1020,7 +982,6 @@ export async function withdrawProposedStage(userId: string, matchId: string, gam
     throw new LocalizedError({
       en: "No pending proposal of yours to withdraw",
       es: "No tienes ninguna propuesta pendiente que retirar",
-      ja: "取り下げられる自分の提案がありません",
     });
 
   await prisma.matchGame.updateMany({
@@ -1037,13 +998,11 @@ export async function declineProposedStage(userId: string, matchId: string, game
     throw new LocalizedError({
       en: "No pending proposal to decline",
       es: "No hay propuesta pendiente que rechazar",
-      ja: "断れる提案がありません",
     });
   if (game.proposedById === userId)
     throw new LocalizedError({
       en: "You can't decline your own proposal — withdraw it instead",
       es: "No puedes rechazar tu propia propuesta — retírala",
-      ja: "自分の提案は断れません。取り下げてください",
     });
 
   await prisma.matchGame.updateMany({
@@ -1058,19 +1017,16 @@ export async function acceptProposedStage(userId: string, matchId: string, gameN
     throw new LocalizedError({
       en: "Stage already decided",
       es: "El escenario ya está decidido",
-      ja: "ステージはすでに決まっています",
     });
   if (!game.proposedById)
     throw new LocalizedError({
       en: "No pending proposal to accept",
       es: "No hay propuesta pendiente que aceptar",
-      ja: "受けられる提案がありません",
     });
   if (game.proposedById === userId)
     throw new LocalizedError({
       en: "You can't accept your own proposal",
       es: "No puedes aceptar tu propia propuesta",
-      ja: "自分の提案は受けられません",
     });
   // The other side may have struck the proposed stage in the race between
   // proposing and accepting — re-check rather than trusting the stale value.
@@ -1078,7 +1034,6 @@ export async function acceptProposedStage(userId: string, matchId: string, gameN
     throw new LocalizedError({
       en: "That stage isn't available anymore — ask for a new proposal",
       es: "Ese escenario ya no está disponible — pide una nueva propuesta",
-      ja: "そのステージはもう選べません。もう一度提案してもらってください",
     });
   }
 
@@ -1103,8 +1058,7 @@ type ReportOutcome =
 
 export async function reportGameResult(userId: string, matchId: string, gameNumber: number, won: boolean) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   requireParticipant(match, userId);
 
   const outcome = await withTransientRetry(() =>
@@ -1112,19 +1066,16 @@ export async function reportGameResult(userId: string, matchId: string, gameNumb
       const game = await tx.matchGame.findUnique({
         where: { matchId_gameNumber: { matchId, gameNumber } },
       });
-      if (!game)
-        throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado", ja: "試合が見つかりません" });
+      if (!game) throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado" });
       if (!game.finalStage)
         throw new LocalizedError({
           en: "Pick a stage before reporting a result",
           es: "Elige un escenario antes de reportar un resultado",
-          ja: "結果を報告する前にステージを決めてください",
         });
       if (game.winnerId)
         throw new LocalizedError({
           en: "This game is already decided",
           es: "Este juego ya está decidido",
-          ja: "この試合はすでに決着しています",
         });
 
       const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
@@ -1145,7 +1096,6 @@ export async function reportGameResult(userId: string, matchId: string, gameNumb
         throw new LocalizedError({
           en: "This game is already being reviewed by a mod",
           es: "Este juego ya lo está revisando un moderador",
-          ja: "この試合はすでにモデレーターが確認中です",
         });
 
       // The first reporter re-clicking while the opponent still hasn't
@@ -1154,7 +1104,6 @@ export async function reportGameResult(userId: string, matchId: string, gameNumb
         throw new LocalizedError({
           en: "You already reported this game",
           es: "Ya reportaste este juego",
-          ja: "この試合はすでに報告済みです",
         });
       }
 
@@ -1291,25 +1240,21 @@ export async function escalateGameDispute(userId: string, matchId: string, gameN
   const result = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
       const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-      if (!match)
-        throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+      if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
       requireParticipant(match, userId);
       const game = await tx.matchGame.findUnique({
         where: { matchId_gameNumber: { matchId, gameNumber } },
       });
-      if (!game)
-        throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado", ja: "試合が見つかりません" });
+      if (!game) throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado" });
       if (game.winnerId)
         throw new LocalizedError({
           en: "This game is already decided",
           es: "Este juego ya está decidido",
-          ja: "この試合はすでに決着しています",
         });
       if (!game.secondReportById)
         throw new LocalizedError({
           en: "This game isn't contested",
           es: "Este juego no está en disputa",
-          ja: "この試合は食い違っていません",
         });
       if (game.disputeRequestedAt) return null; // already under review — no-op
       return escalateContestedGame(tx, match, game.id, gameNumber);

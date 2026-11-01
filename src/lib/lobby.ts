@@ -390,7 +390,6 @@ function deferNotification(notify: () => Promise<unknown>) {
 const MATCH_FOUND_DM: Record<Lang, (link: string) => string> = {
   en: (link: string) => `🎮 Match found! You've been paired — head to the Lobby to play: ${link}`,
   es: (link: string) => `🎮 ¡Partida encontrada! Te emparejaron — ve a la Sala para jugar: ${link}`,
-  ja: (link: string) => `🎮 対戦相手が見つかりました！ロビーへ移動して対戦してください: ${link}`,
 };
 
 // DMs both players through the Discord bot once a match exists, alongside the
@@ -485,7 +484,6 @@ export async function joinLobbyAndTryPair(
     throw new LocalizedError({
       en: "Room code must be exactly 5 characters (A-Z or 0-9)",
       es: "El código de sala debe tener exactamente 5 caracteres (A-Z o 0-9)",
-      ja: "部屋番号は英数字（A〜Z、0〜9）5文字で入力してください",
     });
   }
 
@@ -499,7 +497,6 @@ export async function joinLobbyAndTryPair(
     throw new LocalizedError({
       en: `You timed out of your last match — you can queue again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
       es: `Se te acabó el tiempo en tu última partida — puedes volver a la cola en ${minutesLeft} minuto${minutesLeft === 1 ? "" : "s"}.`,
-      ja: `前のセットで時間切れになりました。あと${minutesLeft}分で再び待機列に入れます。`,
     });
   }
 
@@ -513,7 +510,6 @@ export async function joinLobbyAndTryPair(
     throw new LocalizedError({
       en: "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
       es: "Elige tu región antes de entrar a la cola — solo te emparejaremos con jugadores dentro de la distancia que elijas.",
-      ja: "待機列に入る前に地域を設定してください。設定した対戦距離の範囲内の相手とだけマッチングします。",
     });
   }
   let newEntry: Awaited<ReturnType<typeof prisma.ratingLobbyEntry.create>>;
@@ -609,13 +605,11 @@ export async function updateLobbyRoomCode(userId: string, roomCode: string | nul
     throw new LocalizedError({
       en: "You're not in the queue.",
       es: "No estás en la cola.",
-      ja: "待機列に入っていません。",
     });
   if (roomCode && !ROOM_CODE_PATTERN.test(roomCode)) {
     throw new LocalizedError({
       en: "Room code must be exactly 5 characters (A-Z or 0-9)",
       es: "El código de sala debe tener exactamente 5 caracteres (A-Z o 0-9)",
-      ja: "部屋番号は英数字（A〜Z、0〜9）5文字で入力してください",
     });
   }
   await prisma.ratingLobbyEntry.update({
@@ -959,13 +953,11 @@ export async function cancelLobbyEntry(userId: string) {
 
 export async function setMatchRoomCode(userId: string, matchId: string, roomCode: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
     throw new LocalizedError({
       en: "Not a participant in this match",
       es: "No participas en esta partida",
-      ja: "このセットの参加者ではありません",
     });
   }
   // Room hosting is assigned, not first-come — only the derived host has a
@@ -974,14 +966,12 @@ export async function setMatchRoomCode(userId: string, matchId: string, roomCode
     throw new LocalizedError({
       en: "Only the assigned host can set the room code",
       es: "Solo el anfitrión asignado puede poner el código de sala",
-      ja: "部屋番号を設定できるのは部屋を立てる側だけです",
     });
   }
   if (!/^[A-Z0-9]{5}$/.test(roomCode)) {
     throw new LocalizedError({
       en: "Room code must be exactly 5 characters (A-Z or 0-9)",
       es: "El código de sala debe tener exactamente 5 caracteres (A-Z o 0-9)",
-      ja: "部屋番号は英数字（A〜Z、0〜9）5文字で入力してください",
     });
   }
   await prisma.ratingMatch.update({

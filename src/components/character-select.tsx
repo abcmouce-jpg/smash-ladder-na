@@ -182,7 +182,6 @@ export function CharacterSelect({
                 {tr(lang, {
                   en: `No characters match "${query}"`,
                   es: `Ningún personaje coincide con "${query}"`,
-                  ja: `「${query}」に一致するキャラクターがいません`,
                 })}
               </li>
             ) : (

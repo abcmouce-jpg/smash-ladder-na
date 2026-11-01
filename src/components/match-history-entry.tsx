@@ -72,7 +72,7 @@ function CharactersLine({ mine, theirs, lang = "en" }: { mine: string[]; theirs:
   return (
     <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
       <CharacterGroup names={mine} />
-      <span className="shrink-0 text-muted-foreground/60">{tr(lang, { en: "vs", es: "contra", ja: "vs" })}</span>
+      <span className="shrink-0 text-muted-foreground/60">{tr(lang, { en: "vs", es: "contra" })}</span>
       <CharacterGroup names={theirs} />
     </span>
   );
@@ -133,9 +133,8 @@ export function MatchHistoryEntry({
     ? tr(lang, {
         en: "Practice rating before → after",
         es: "Clasificación de práctica antes → después",
-        ja: "練習レートの変動（前 → 後）",
       })
-    : tr(lang, { en: "Rating before → after", es: "Clasificación antes → después", ja: "レートの変動（前 → 後）" });
+    : tr(lang, { en: "Rating before → after", es: "Clasificación antes → después" });
 
   return (
     <div className="px-3 py-2 sm:px-4 sm:py-2.5">
@@ -174,7 +173,7 @@ export function MatchHistoryEntry({
               </Link>
               {match.isPracticing && (
                 <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                  {tr(lang, { en: "Practice", es: "Práctica", ja: "練習" })}
+                  {tr(lang, { en: "Practice", es: "Práctica" })}
                 </Badge>
               )}
             </p>
@@ -279,15 +278,12 @@ function MatchDetailsModal({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-sm font-medium text-card-foreground">
-              {tr(lang, { en: "Match details", es: "Detalles de la partida", ja: "試合の詳細" })}
+              {tr(lang, { en: "Match details", es: "Detalles de la partida" })}
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              {match.isPracticing && (
-                <Badge variant="outline">{tr(lang, { en: "Practice", es: "Práctica", ja: "練習" })}</Badge>
-              )}
+              {match.isPracticing && <Badge variant="outline">{tr(lang, { en: "Practice", es: "Práctica" })}</Badge>}
               <span className="font-medium">
-                {viewedPlayerName}{" "}
-                <span className="text-muted-foreground">{tr(lang, { en: "vs", es: "contra", ja: "vs" })}</span>{" "}
+                {viewedPlayerName} <span className="text-muted-foreground">{tr(lang, { en: "vs", es: "contra" })}</span>{" "}
                 {match.opponent.username}
               </span>
               {hasScore && (
@@ -312,7 +308,6 @@ function MatchDetailsModal({
               {tr(lang, {
                 en: "No games were recorded for this set.",
                 es: "No se registró ningún juego para esta partida.",
-                ja: "このセットの試合記録はありません。",
               })}
             </p>
           )}
@@ -322,7 +317,6 @@ function MatchDetailsModal({
                 {tr(lang, {
                   en: `Game ${game.gameNumber}`,
                   es: `Juego ${game.gameNumber}`,
-                  ja: `第${game.gameNumber}試合`,
                 })}
                 {game.stage ? `: ${game.stage}` : ""}
               </p>
@@ -371,7 +365,7 @@ function MatchDetailsModal({
 
         <div className="mt-4 flex justify-end">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
-            {tr(lang, { en: "Close", es: "Cerrar", ja: "閉じる" })}
+            {tr(lang, { en: "Close", es: "Cerrar" })}
           </Button>
         </div>
       </div>

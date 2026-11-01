@@ -19,7 +19,6 @@ export async function setArenaPassword(userId: string, password: string) {
     throw new LocalizedError({
       en: `Arena password can't be longer than ${MAX_ARENA_PASSWORD_LENGTH} characters`,
       es: `La contraseña de la arena no puede pasar de ${MAX_ARENA_PASSWORD_LENGTH} caracteres`,
-      ja: `アリーナのパスワードは${MAX_ARENA_PASSWORD_LENGTH}文字以内です`,
     });
   }
   // An empty submission resets back to the shared default.

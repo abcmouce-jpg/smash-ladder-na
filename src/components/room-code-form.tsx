@@ -28,7 +28,7 @@ export function RoomCodeForm({
     <div className="flex flex-col gap-1">
       <form action={formAction} className="flex items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">
-          {tr(lang, { en: "Room code", es: "Código de sala", ja: "部屋番号" })}
+          {tr(lang, { en: "Room code", es: "Código de sala" })}
           <input
             name="roomCode"
             value={roomCode}
@@ -40,7 +40,7 @@ export function RoomCodeForm({
                   .slice(0, 5),
               )
             }
-            placeholder={tr(lang, { en: "e.g. AB123", es: "ej. AB123", ja: "例: AB123" })}
+            placeholder={tr(lang, { en: "e.g. AB123", es: "ej. AB123" })}
             maxLength={5}
             pattern="[A-Z0-9]{5}"
             required
@@ -52,14 +52,12 @@ export function RoomCodeForm({
           />
         </label>
         <Button type="submit" size="sm" disabled={isPending}>
-          {tr(lang, { en: "Save", es: "Guardar", ja: "保存" })}
+          {tr(lang, { en: "Save", es: "Guardar" })}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
       {flashing && !state.error && (
-        <p className="text-xs text-muted-foreground">
-          {tr(lang, { en: "Saved!", es: "¡Guardado!", ja: "保存しました！" })}
-        </p>
+        <p className="text-xs text-muted-foreground">{tr(lang, { en: "Saved!", es: "¡Guardado!" })}</p>
       )}
     </div>
   );

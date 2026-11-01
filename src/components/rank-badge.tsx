@@ -10,7 +10,6 @@ import { tr } from "@/lib/lang";
 export const PROVISIONAL_LABEL: Record<Lang, string> = {
   en: "Provisional",
   es: "Provisional",
-  ja: "判定中",
 };
 
 // Renders a tier exactly as it reads everywhere else on the site, including

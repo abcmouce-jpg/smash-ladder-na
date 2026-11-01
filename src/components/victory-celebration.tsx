@@ -108,13 +108,12 @@ export function VictoryCelebration({
             ? tr(lang, {
                 en: `Tier up — ${tierName}!`,
                 es: `¡Subiste de rango — ${tierName}!`,
-                ja: `ランク帯アップ — ${tierName}！`,
               })
-            : tr(lang, { en: "Victory!", es: "¡Victoria!", ja: "勝利！" })}
+            : tr(lang, { en: "Victory!", es: "¡Victoria!" })}
         </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums">{displayRating}</p>
         <p className="text-sm font-medium tabular-nums text-primary">
-          {tr(lang, { en: `+${delta} rating`, es: `+${delta} de clasificación`, ja: `レート +${delta}` })}
+          {tr(lang, { en: `+${delta} rating`, es: `+${delta} de clasificación` })}
         </p>
       </div>
     </div>

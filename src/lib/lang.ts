@@ -7,11 +7,13 @@
 
 import type React from "react";
 
-// "ja" added 2026-10-23: スマメイト is shutting down and the team is building a
-// Japanese version on this same codebase.
-export type Lang = "en" | "es" | "ja";
+// Japanese was added 2026-10-23 for a second instance and removed 2026-11-01
+// when that instance was shut down. The parameter stayed: tr() turning a
+// missing translation into a compile error is what kept the Spanish side
+// complete, and it only does that with more than one language in the union.
+export type Lang = "en" | "es";
 
-export const LANGS: readonly Lang[] = ["en", "es", "ja"] as const;
+export const LANGS: readonly Lang[] = ["en", "es"] as const;
 
 export function asLang(value: string | null | undefined): Lang | null {
   return LANGS.includes(value as Lang) ? (value as Lang) : null;

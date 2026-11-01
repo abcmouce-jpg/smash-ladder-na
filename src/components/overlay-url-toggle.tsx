@@ -30,7 +30,6 @@ export function OverlayUrlToggle({ baseUrl, lang = "en" }: { baseUrl: string; la
         {tr(lang, {
           en: "Hide recent matches on overlay",
           es: "Ocultar partidas recientes en el overlay",
-          ja: "オーバーレイに直近の対戦を表示しない",
         })}
       </label>
       <label className="flex items-center gap-2 text-xs">
@@ -43,7 +42,6 @@ export function OverlayUrlToggle({ baseUrl, lang = "en" }: { baseUrl: string; la
         {tr(lang, {
           en: "Hide rating card on overlay",
           es: "Ocultar la tarjeta de clasificación en el overlay",
-          ja: "オーバーレイにレートカードを表示しない",
         })}
       </label>
       <label className="flex items-center gap-2 text-xs">
@@ -56,7 +54,6 @@ export function OverlayUrlToggle({ baseUrl, lang = "en" }: { baseUrl: string; la
         {tr(lang, {
           en: "Hide stage pick/ban on overlay",
           es: "Ocultar selección/veto de escenario en el overlay",
-          ja: "オーバーレイにステージの選択・拒否を表示しない",
         })}
       </label>
       <div className="flex items-center gap-2">

@@ -28,7 +28,6 @@ export function RatingTrendChart({ data, lang }: { data: { date: Date; rating: n
         {tr(lang, {
           en: "Not enough confirmed matches yet for a trend line.",
           es: "Todavía no hay suficientes partidas confirmadas para una gráfica.",
-          ja: "推移を描くには確定した試合が足りません。",
         })}
       </p>
     );
@@ -69,7 +68,6 @@ export function RatingTrendChart({ data, lang }: { data: { date: Date; rating: n
         aria-label={tr(lang, {
           en: "Rating over time chart",
           es: "Gráfica de clasificación a lo largo del tiempo",
-          ja: "レート推移のグラフ",
         })}
       >
         {ticks.map((t) => (
@@ -156,7 +154,7 @@ export function RatingTrendChart({ data, lang }: { data: { date: Date; rating: n
         >
           <div className="font-medium tabular-nums">{Math.round(hovered.rating)}</div>
           <div className="text-muted-foreground">
-            {hovered.date.toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX", ja: "ja-JP" }), {
+            {hovered.date.toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX" }), {
               dateStyle: "medium",
             })}
           </div>

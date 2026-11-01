@@ -57,9 +57,9 @@ export function useConfirm(lang: Lang = "en") {
         resolveRef.current = resolve;
         setState({
           message,
-          title: opts?.title ?? tr(lang, { en: "Confirm", es: "Confirmar", ja: "確認" }),
-          confirmLabel: opts?.confirmLabel ?? tr(lang, { en: "Confirm", es: "Confirmar", ja: "実行する" }),
-          cancelLabel: opts?.cancelLabel ?? tr(lang, { en: "Cancel", es: "Cancelar", ja: "やめる" }),
+          title: opts?.title ?? tr(lang, { en: "Confirm", es: "Confirmar" }),
+          confirmLabel: opts?.confirmLabel ?? tr(lang, { en: "Confirm", es: "Confirmar" }),
+          cancelLabel: opts?.cancelLabel ?? tr(lang, { en: "Cancel", es: "Cancelar" }),
           variant: opts?.variant ?? "default",
           resolve,
         });

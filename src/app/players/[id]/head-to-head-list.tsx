@@ -51,7 +51,6 @@ export function HeadToHeadRow({
           {tr(lang, {
             en: `${o.games} set${o.games === 1 ? "" : "s"}`,
             es: `${o.games} ${o.games === 1 ? "partida" : "partidas"}`,
-            ja: `${o.games}セット`,
           })}
         </span>
         <span className="shrink-0 text-sm font-semibold tabular-nums">

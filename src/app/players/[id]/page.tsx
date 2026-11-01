@@ -68,7 +68,7 @@ export default async function PlayerProfilePage({
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
 
-  const tabLabel = (en: string, es: string, ja: string) => tr(lang, { en, es, ja });
+  const tabLabel = (en: string, es: string) => tr(lang, { en, es });
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
@@ -90,23 +90,23 @@ export default async function PlayerProfilePage({
       <SectionTabs
         className="mt-8"
         items={[
-          { href: "?tab=overview", label: tabLabel("Overview", "Resumen", "概要"), active: tab === "overview" },
+          { href: "?tab=overview", label: tabLabel("Overview", "Resumen"), active: tab === "overview" },
           {
             href: "?tab=matches",
-            label: tabLabel("Match History", "Historial de partidas", "対戦履歴"),
+            label: tabLabel("Match History", "Historial de partidas"),
             active: tab === "matches",
           },
           {
             href: "?tab=characters",
-            label: tabLabel("Characters", "Personajes", "キャラクター"),
+            label: tabLabel("Characters", "Personajes"),
             active: tab === "characters",
           },
           {
             href: "?tab=headtohead",
-            label: tabLabel("Head 2 Heads", "Cara a Cara", "対戦相手別"),
+            label: tabLabel("Head 2 Heads", "Cara a Cara"),
             active: tab === "headtohead",
           },
-          { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas", "シーズン"), active: tab === "seasons" },
+          { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas"), active: tab === "seasons" },
         ]}
       />
 
@@ -208,13 +208,12 @@ export default async function PlayerProfilePage({
       {isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
           <h2 className="text-sm font-medium text-destructive">
-            {tr(lang, { en: "Danger zone", es: "Zona de peligro", ja: "アカウントの削除" })}
+            {tr(lang, { en: "Danger zone", es: "Zona de peligro" })}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {tr(lang, {
               en: "Deletes your username, avatar, and email. Match history stays, anonymized, so other players' win/loss records stay accurate.",
               es: "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos.",
-              ja: "ユーザー名・アイコン・メールアドレスを削除します。対戦履歴は匿名化して残ります。ほかのプレイヤーの戦績が狂わないようにするためです。",
             })}
           </p>
           <div className="mt-3">

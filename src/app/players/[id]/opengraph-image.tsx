@@ -86,21 +86,19 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
   // Tier names (LEGEND, FIGHTER…) stay as they are in every language — they
   // are the ladder's own labels, the way a rank name is.
-  const provisional = instanceText({ en: "PROVISIONAL", es: "PROVISIONAL", ja: "判定中" });
+  const provisional = instanceText({ en: "PROVISIONAL", es: "PROVISIONAL" });
   const ratingLine = ratingVisible
     ? instanceText({
         en: `${formatRating(player.rating)} rating`,
         es: `${formatRating(player.rating)} de clasificación`,
-        ja: `レート ${formatRating(player.rating)}`,
       })
     : instanceText({
         en: `${player.gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD} sets`,
         es: `${player.gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD} partidas`,
-        ja: `${player.gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD} セット`,
       });
-  const recordLabel = instanceText({ en: "LIFETIME RECORD", es: "RÉCORD HISTÓRICO", ja: "通算成績" });
-  const streakLabel = instanceText({ en: "BEST STREAK", es: "MEJOR RACHA", ja: "最多連勝" });
-  const peakLabel = instanceText({ en: "PEAK RATING", es: "CLASIFICACIÓN MÁXIMA", ja: "最高レート" });
+  const recordLabel = instanceText({ en: "LIFETIME RECORD", es: "RÉCORD HISTÓRICO" });
+  const streakLabel = instanceText({ en: "BEST STREAK", es: "MEJOR RACHA" });
+  const peakLabel = instanceText({ en: "PEAK RATING", es: "CLASIFICACIÓN MÁXIMA" });
 
   // The username is whatever the player typed, so unlike the site card this
   // can't ship a fixed subset — see lib/og-fonts.ts. Undefined (nothing

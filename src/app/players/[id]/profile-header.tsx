@@ -73,23 +73,19 @@ export function PlayerProfileHeader({
       ? tr(lang, {
           en: `I'm on ${SITE_NAME}!`,
           es: `¡Estoy en ${SITE_NAME}!`,
-          ja: `${SITE_NAME}やってます！`,
         })
       : tr(lang, {
           en: `${player.username} is on ${SITE_NAME}.`,
           es: `${player.username} está en ${SITE_NAME}.`,
-          ja: `${player.username}さんは${SITE_NAME}でプレイしています。`,
         })
     : isOwnProfile
       ? tr(lang, {
           en: `I'm rated ${ratingLabel} on ${SITE_NAME}!`,
           es: `¡Tengo ${ratingLabel} de clasificación en ${SITE_NAME}!`,
-          ja: `${SITE_NAME}でレート${ratingLabel}です！`,
         })
       : tr(lang, {
           en: `${player.username} is rated ${ratingLabel} on ${SITE_NAME}.`,
           es: `${player.username} tiene ${ratingLabel} de clasificación en ${SITE_NAME}.`,
-          ja: `${player.username}さんは${SITE_NAME}でレート${ratingLabel}です。`,
         });
   const profileUrl = `${siteOrigin()}/players/${player.id}`;
 
@@ -122,7 +118,6 @@ export function PlayerProfileHeader({
                     {tr(lang, {
                       en: "🏆 Gold Supporter",
                       es: "🏆 Patrocinador Gold",
-                      ja: "🏆 ゴールドサポーター",
                     })}
                   </Badge>
                 ) : (
@@ -131,7 +126,6 @@ export function PlayerProfileHeader({
                       {tr(lang, {
                         en: "💖 Supporter",
                         es: "💖 Patrocinador",
-                        ja: "💖 サポーター",
                       })}
                     </Badge>
                   )
@@ -143,7 +137,6 @@ export function PlayerProfileHeader({
                   tr(lang, {
                     en: `${formatRating(player.rating)} rating`,
                     es: `${formatRating(player.rating)} de clasificación`,
-                    ja: `レート ${formatRating(player.rating)}`,
                   })
                 ) : (
                   <RatingHidden gamesPlayed={player.gamesPlayed} lang={lang} />
@@ -154,7 +147,6 @@ export function PlayerProfileHeader({
                   {tr(lang, {
                     en: `${player.username} has donated to support ${SITE_NAME} — thank you!`,
                     es: `${player.username} ha donado para apoyar ${SITE_NAME} — ¡gracias!`,
-                    ja: `${player.username}さんは${SITE_NAME}を支援してくれました。ありがとうございます！`,
                   })}
                 </p>
               )}
@@ -180,7 +172,6 @@ export function PlayerProfileHeader({
                 aria-label={tr(lang, {
                   en: "YouTube channel",
                   es: "Canal de YouTube",
-                  ja: "YouTube チャンネル",
                 })}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
@@ -192,7 +183,7 @@ export function PlayerProfileHeader({
                 href={`https://twitch.tv/${player.twitchUsername}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`${tr(lang, { en: "Twitch channel", es: "Canal de Twitch", ja: "Twitch チャンネル" })}: ${
+                aria-label={`${tr(lang, { en: "Twitch channel", es: "Canal de Twitch" })}: ${
                   player.twitchDisplayName ?? player.twitchUsername
                 }`}
               >
@@ -228,7 +219,7 @@ export function PlayerProfileHeader({
             {player.wiredConnection && (
               <Badge variant="outline">
                 <Cable className="size-3" />
-                {tr(lang, { en: "Wired", es: "Por cable", ja: "有線" })}
+                {tr(lang, { en: "Wired", es: "Por cable" })}
               </Badge>
             )}
             {player.noShowCount > 0 && (
@@ -236,7 +227,6 @@ export function PlayerProfileHeader({
                 {tr(lang, {
                   en: `${player.noShowCount} no-show${player.noShowCount === 1 ? "" : "s"}`,
                   es: `${player.noShowCount} ${player.noShowCount === 1 ? "no-show" : "no-shows"}`,
-                  ja: `不参加${player.noShowCount}回`,
                 })}
               </Badge>
             )}
@@ -257,7 +247,6 @@ export function PlayerProfileHeader({
               {tr(lang, {
                 en: "Your record: ",
                 es: "Tu récord: ",
-                ja: "あなたの戦績：",
               })}
               {headToHead.wins}W–{headToHead.losses}L
             </p>
@@ -273,7 +262,6 @@ export function PlayerProfileHeader({
                 {tr(lang, {
                   en: "Blocked",
                   es: "Bloqueado",
-                  ja: "ブロック済み",
                 })}
               </Badge>
             ) : (
@@ -373,7 +361,6 @@ function CurrentMatchCard({
           {tr(lang, {
             en: "Currently in a match",
             es: "Actualmente en una partida",
-            ja: "対戦中",
           })}
         </p>
 
@@ -392,7 +379,6 @@ function CurrentMatchCard({
                     tr(lang, {
                       en: `${formatRating(myRating)} rating`,
                       es: `${formatRating(myRating)} de clasificación`,
-                      ja: `レート ${formatRating(myRating)}`,
                     })
                   ) : (
                     <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} />
@@ -410,7 +396,6 @@ function CurrentMatchCard({
               {tr(lang, {
                 en: `Game ${gameNumber} of 5`,
                 es: `Juego ${gameNumber} de 5`,
-                ja: `第${gameNumber}試合 / 全5試合`,
               })}
             </p>
           </div>
@@ -434,7 +419,6 @@ function CurrentMatchCard({
                     tr(lang, {
                       en: `${formatRating(opponent.rating)} rating`,
                       es: `${formatRating(opponent.rating)} de clasificación`,
-                      ja: `レート ${formatRating(opponent.rating)}`,
                     })
                   ) : (
                     <RatingHidden gamesPlayed={opponent.gamesPlayed} lang={lang} />

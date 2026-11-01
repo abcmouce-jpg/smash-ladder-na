@@ -15,7 +15,6 @@ function gamesLabel(count: number, lang: Lang) {
   return tr(lang, {
     en: count === 1 ? "game" : "games",
     es: count === 1 ? "partida" : "partidas",
-    ja: "試合",
   });
 }
 
@@ -43,7 +42,6 @@ export async function ProfileCharactersSection({
         {tr(lang, {
           en: "No ranked games recorded yet.",
           es: "Aún no hay partidas rankeadas registradas.",
-          ja: "レート対戦の記録がまだありません。",
         })}
       </p>
     );
@@ -68,7 +66,7 @@ export async function ProfileCharactersSection({
   return (
     <div className="grid items-start gap-6 sm:grid-cols-[220px_1fr]">
       <nav
-        aria-label={tr(lang, { en: "Characters", es: "Personajes", ja: "使用キャラ" })}
+        aria-label={tr(lang, { en: "Characters", es: "Personajes" })}
         className="flex flex-col gap-1 sm:max-h-128 sm:overflow-y-auto sm:pr-1"
       >
         {usage.map((u) => {
@@ -131,14 +129,14 @@ export async function ProfileCharactersSection({
                 ·
               </span>
               <span className="tabular-nums">
-                {formatUsagePercent(selectedUsage.usagePercent)} {tr(lang, { en: "usage", es: "de uso", ja: "使用率" })}
+                {formatUsagePercent(selectedUsage.usagePercent)} {tr(lang, { en: "usage", es: "de uso" })}
               </span>
             </p>
           </div>
         </div>
 
         <div className="mt-6">
-          <SectionHeading>{tr(lang, { en: "Matchups", es: "Enfrentamientos", ja: "対面したキャラ" })}</SectionHeading>
+          <SectionHeading>{tr(lang, { en: "Matchups", es: "Enfrentamientos" })}</SectionHeading>
         </div>
 
         {breakdown && breakdown.matchups.length > 0 ? (
@@ -187,7 +185,6 @@ export async function ProfileCharactersSection({
             {tr(lang, {
               en: "No recorded matchups yet.",
               es: "Aún no hay enfrentamientos registrados.",
-              ja: "対面の記録がまだありません。",
             })}
           </p>
         )}

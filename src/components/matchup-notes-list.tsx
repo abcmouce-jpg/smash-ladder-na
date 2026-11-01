@@ -91,7 +91,7 @@ export function MatchupNotesList({
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder={tr(lang, { en: "Search character…", es: "Buscar personaje…", ja: "キャラクターを検索…" })}
+        placeholder={tr(lang, { en: "Search character…", es: "Buscar personaje…" })}
         className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
       />
       <ul className="mt-3 flex flex-col gap-2">
@@ -123,7 +123,6 @@ export function MatchupNotesList({
             {tr(lang, {
               en: "No characters match that search.",
               es: "Ningún personaje coincide con esa búsqueda.",
-              ja: "該当するキャラクターがいません。",
             })}
           </p>
         )}
@@ -206,7 +205,6 @@ function MatchupNoteRow({
         tr(lang, {
           en: "Something went wrong — try again.",
           es: "Algo salió mal — inténtalo de nuevo.",
-          ja: "問題が発生しました。もう一度お試しください。",
         }),
       );
     } finally {
@@ -235,12 +233,10 @@ function MatchupNoteRow({
                   ? tr(lang, {
                       en: "Stop notifying me of new guides",
                       es: "Dejar de recibir notificaciones de nuevas guías",
-                      ja: "新しい攻略の通知をやめる",
                     })
                   : tr(lang, {
                       en: "Notify me of new guides",
                       es: "Recibir notificaciones de nuevas guías",
-                      ja: "新しい攻略を通知する",
                     })
               }
               title={
@@ -248,7 +244,6 @@ function MatchupNoteRow({
                   ? tr(lang, {
                       en: "You'll be notified when someone posts a new guide",
                       es: "Recibirás una notificación cuando alguien publique una nueva guía",
-                      ja: "新しい攻略が投稿されたら通知します",
                     })
                   : undefined
               }
@@ -284,7 +279,6 @@ function MatchupNoteRow({
               placeholder={tr(lang, {
                 en: "Your private note for this character…",
                 es: "Tu nota privada para este personaje…",
-                ja: "このキャラクターの自分用メモ…",
               })}
               className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
               title={character}
@@ -292,7 +286,7 @@ function MatchupNoteRow({
             <div className="flex items-center justify-between">
               {state.error ? <p className="text-xs text-destructive">{state.error}</p> : <span />}
               <Button type="submit" size="sm" disabled={isPending}>
-                {tr(lang, { en: "Save", es: "Guardar", ja: "保存" })}
+                {tr(lang, { en: "Save", es: "Guardar" })}
               </Button>
             </div>
           </form>

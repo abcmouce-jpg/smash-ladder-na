@@ -28,7 +28,6 @@ export function RatingDistributionChart({
         {tr(lang, {
           en: "Not enough ranked players to chart a distribution yet.",
           es: "Aún no hay suficientes jugadores clasificados para trazar una distribución.",
-          ja: "レート分布を描くにはランク対象のプレイヤーが足りません。",
         })}
       </p>
     );
@@ -43,7 +42,6 @@ export function RatingDistributionChart({
     tr(lang, {
       en: `${count} ${count === 1 ? "player" : "players"}`,
       es: `${count} ${count === 1 ? "jugador" : "jugadores"}`,
-      ja: `${count}人`,
     });
   const rangeLabel = (b: RatingBucket) => `${b.min}–${b.max}`;
   // A bucket's whole range sits inside one tier — bin edges and tier floors are
@@ -58,7 +56,6 @@ export function RatingDistributionChart({
         aria-label={tr(lang, {
           en: "Distribution of player ratings",
           es: "Distribución de clasificación de los jugadores",
-          ja: "プレイヤーのレート分布",
         })}
       >
         <div className="flex h-40 items-end gap-px">
@@ -90,7 +87,6 @@ export function RatingDistributionChart({
         {tr(lang, {
           en: `${total} ranked players — median ${median}, average ${average}`,
           es: `${total} jugadores clasificados — mediana ${median}, promedio ${average}`,
-          ja: `ランク対象${total}人 — 中央値${median}、平均${average}`,
         })}
       </p>
 
@@ -98,16 +94,16 @@ export function RatingDistributionChart({
           table fallback is for. */}
       <details className="mt-2 text-xs">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          {tr(lang, { en: "View as table", es: "Ver como tabla", ja: "表で見る" })}
+          {tr(lang, { en: "View as table", es: "Ver como tabla" })}
         </summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="text-muted-foreground">
-                <th className="py-1 font-medium">{tr(lang, { en: "Rating", es: "Clasificación", ja: "レート" })}</th>
-                <th className="py-1 font-medium">{tr(lang, { en: "Rank", es: "Rango", ja: "ランク帯" })}</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Rating", es: "Clasificación" })}</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Rank", es: "Rango" })}</th>
                 <th className="py-1 text-right font-medium tabular-nums">
-                  {tr(lang, { en: "Players", es: "Jugadores", ja: "人数" })}
+                  {tr(lang, { en: "Players", es: "Jugadores" })}
                 </th>
               </tr>
             </thead>

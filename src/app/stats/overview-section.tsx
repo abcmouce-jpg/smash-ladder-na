@@ -27,27 +27,27 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
           icon={CalendarClock}
-          label={tr(lang, { en: "Matches this season", es: "Partidas esta temporada", ja: "今シーズンの試合数" })}
+          label={tr(lang, { en: "Matches this season", es: "Partidas esta temporada" })}
           value={totals.matchesThisSeason}
         />
         <StatCard
           icon={Swords}
-          label={tr(lang, { en: "Matches all time", es: "Partidas en total", ja: "通算の試合数" })}
+          label={tr(lang, { en: "Matches all time", es: "Partidas en total" })}
           value={totals.matchesAllTime}
         />
         <StatCard
           icon={Users}
-          label={tr(lang, { en: "Ranked players", es: "Jugadores clasificados", ja: "ランク対象プレイヤー" })}
+          label={tr(lang, { en: "Ranked players", es: "Jugadores clasificados" })}
           value={totals.rankedPlayers}
         />
       </div>
 
       <section>
         <SectionHeading
-          label={tr(lang, { en: "Matches per day", es: "Partidas por día", ja: "1日あたりの試合数" })}
+          label={tr(lang, { en: "Matches per day", es: "Partidas por día" })}
           action={
             <span className="text-xs text-muted-foreground">
-              {tr(lang, { en: `${WINDOW_DAYS} days`, es: `${WINDOW_DAYS} días`, ja: `${WINDOW_DAYS}日間` })}
+              {tr(lang, { en: `${WINDOW_DAYS} days`, es: `${WINDOW_DAYS} días` })}
             </span>
           }
         />
@@ -60,7 +60,7 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
 
       <section>
         <SectionHeading
-          label={tr(lang, { en: "Activity by time of day", es: "Actividad por hora del día", ja: "時間帯別の活動" })}
+          label={tr(lang, { en: "Activity by time of day", es: "Actividad por hora del día" })}
           action={<LocalTimeZoneLabel />}
         />
         <Card className="mt-3">
@@ -72,10 +72,10 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
 
       <section>
         <SectionHeading
-          label={tr(lang, { en: "Rating distribution", es: "Distribución de clasificación", ja: "レート分布" })}
+          label={tr(lang, { en: "Rating distribution", es: "Distribución de clasificación" })}
           action={
             <span className="text-xs text-muted-foreground">
-              {LEADERBOARD_MIN_GAMES}+ {tr(lang, { en: "sets", es: "partidas", ja: "セット" })}
+              {LEADERBOARD_MIN_GAMES}+ {tr(lang, { en: "sets", es: "partidas" })}
             </span>
           }
         />

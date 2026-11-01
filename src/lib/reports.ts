@@ -9,17 +9,14 @@ export async function fileMatchReport(reporterId: string, matchId: string, reaso
     throw new LocalizedError({
       en: "Please describe what happened",
       es: "Describe lo que pasó",
-      ja: "何があったかを書いてください",
     });
 
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== reporterId && match.player2Id !== reporterId) {
     throw new LocalizedError({
       en: "Not a participant in this match",
       es: "No participas en esta partida",
-      ja: "このセットの参加者ではありません",
     });
   }
   const reportedUserId = match.player1Id === reporterId ? match.player2Id : match.player1Id;
@@ -34,13 +31,11 @@ export async function fileMatchReport(reporterId: string, matchId: string, reaso
 // makes a repeat click a no-op instead of an error.
 export async function fileConnectionReport(reporterId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match)
-    throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada", ja: "セットが見つかりません" });
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== reporterId && match.player2Id !== reporterId) {
     throw new LocalizedError({
       en: "Not a participant in this match",
       es: "No participas en esta partida",
-      ja: "このセットの参加者ではありません",
     });
   }
   const reportedUserId = match.player1Id === reporterId ? match.player2Id : match.player1Id;
@@ -146,8 +141,7 @@ export async function actionReport(
   options: { suspensionHours?: number | null; skipThreshold?: boolean } = {},
 ) {
   const report = await prisma.conductReport.findUnique({ where: { id: reportId } });
-  if (!report)
-    throw new LocalizedError({ en: "Report not found", es: "Reporte no encontrado", ja: "通報が見つかりません" });
+  if (!report) throw new LocalizedError({ en: "Report not found", es: "Reporte no encontrado" });
 
   if (!options.skipThreshold) {
     const totalReports = await prisma.conductReport.count({
@@ -158,7 +152,6 @@ export async function actionReport(
       throw new LocalizedError({
         en: `This player has only been reported ${totalReports} time${totalReports === 1 ? "" : "s"} — ${newStatus.toLowerCase()} requires at least ${threshold} (or use Insta).`,
         es: `Este jugador solo ha sido reportado ${totalReports} ${totalReports === 1 ? "vez" : "veces"} — ${newStatus.toLowerCase()} requiere al menos ${threshold} (o usa Insta).`,
-        ja: `このプレイヤーの通報は${totalReports}件しかありません。${newStatus.toLowerCase()}には最低${threshold}件必要です（または Insta を使用）。`,
       });
     }
   }
@@ -252,7 +245,6 @@ export async function moderateUserDirectly(
     throw new LocalizedError({
       en: `This player is already ${currentStatus.toLowerCase()}`,
       es: `Este jugador ya está ${currentStatus.toLowerCase()}`,
-      ja: `このプレイヤーはすでに ${currentStatus.toLowerCase()} の状態です`,
     });
 
   const suspendedUntil =

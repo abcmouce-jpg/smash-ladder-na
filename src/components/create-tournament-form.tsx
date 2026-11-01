@@ -12,7 +12,7 @@ export function CreateTournamentForm({ lang = "en" }: { lang?: Lang }) {
   return (
     <form action={formAction} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm">
-        {tr(lang, { en: "Name", es: "Nombre", ja: "大会名" })}
+        {tr(lang, { en: "Name", es: "Nombre" })}
         <input
           name="name"
           required
@@ -20,7 +20,6 @@ export function CreateTournamentForm({ lang = "en" }: { lang?: Lang }) {
           placeholder={tr(lang, {
             en: "e.g. Friday Night Bracket",
             es: "p. ej. Bracket del viernes por la noche",
-            ja: "例：金曜夜のブラケット",
           })}
           className="h-8 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
@@ -29,7 +28,6 @@ export function CreateTournamentForm({ lang = "en" }: { lang?: Lang }) {
         {tr(lang, {
           en: "start.gg link (optional, add before check-in closes)",
           es: "Enlace de start.gg (opcional, añádelo antes de que cierre el check-in)",
-          ja: "start.gg のリンク（任意。受付終了までに追加してください）",
         })}
         <input
           name="startggUrl"
@@ -39,7 +37,7 @@ export function CreateTournamentForm({ lang = "en" }: { lang?: Lang }) {
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        {tr(lang, { en: "Description (optional)", es: "Descripción (opcional)", ja: "説明（任意）" })}
+        {tr(lang, { en: "Description (optional)", es: "Descripción (opcional)" })}
         <textarea
           name="description"
           rows={2}
@@ -47,14 +45,13 @@ export function CreateTournamentForm({ lang = "en" }: { lang?: Lang }) {
           placeholder={tr(lang, {
             en: "Rules, format notes, etc.",
             es: "Reglas, notas de formato, etc.",
-            ja: "ルールや形式などを書いてください。",
           })}
           className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
         />
       </label>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
       <Button type="submit" className="self-start" disabled={isPending}>
-        {tr(lang, { en: "Host a tournament", es: "Organizar un torneo", ja: "大会を立てる" })}
+        {tr(lang, { en: "Host a tournament", es: "Organizar un torneo" })}
       </Button>
     </form>
   );

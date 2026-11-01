@@ -17,8 +17,7 @@ import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
   const session = await auth();
-  if (!session?.user?.id)
-    throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión", ja: "ログインしていません" });
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   return session.user.id;
 }
 
@@ -132,8 +131,7 @@ export async function importGuideAction(guideId: string): Promise<GuideActionSta
   try {
     const userId = await requireUserId();
     const guide = await prisma.characterGuide.findUnique({ where: { id: guideId } });
-    if (!guide || guide.hiddenAt)
-      throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado", ja: "攻略が見つかりません" });
+    if (!guide || guide.hiddenAt) throw new LocalizedError({ en: "Guide not found", es: "Aporte no encontrado" });
     await upsertMatchupNote(userId, guide.character, guide.content);
   } catch (err) {
     return { error: errorMessage(err, await getLang()) };
