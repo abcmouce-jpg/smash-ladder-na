@@ -7,6 +7,7 @@ import {
   touchWaitingLobbyEntry,
   ROOM_CODE_PATTERN,
 } from "@/lib/lobby";
+import { MatchMode } from "@/generated/prisma/enums";
 
 export async function GET(request: Request) {
   const userId = await resolveApiUser(request);
@@ -33,9 +34,16 @@ export async function POST(request: Request) {
   if (roomCode && !ROOM_CODE_PATTERN.test(roomCode)) {
     return NextResponse.json({ error: "Room code must be exactly 5 characters (A-Z or 0-9)" }, { status: 400 });
   }
+  // Omitting it stays a standard join, so an existing caller keeps working;
+  // without this, though, the API could only ever queue for the main ladder
+  // while the site had a second queue.
+  if (body?.mode !== undefined && body?.mode !== MatchMode.STANDARD && body?.mode !== MatchMode.RANDITTO) {
+    return NextResponse.json({ error: "mode must be STANDARD or RANDITTO" }, { status: 400 });
+  }
+  const mode = body?.mode === MatchMode.RANDITTO ? MatchMode.RANDITTO : MatchMode.STANDARD;
 
   try {
-    const entry = await joinLobbyAndTryPair(userId, isPracticing, roomCode);
+    const entry = await joinLobbyAndTryPair(userId, isPracticing, roomCode, mode);
     return NextResponse.json({ entry });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong" }, { status: 400 });

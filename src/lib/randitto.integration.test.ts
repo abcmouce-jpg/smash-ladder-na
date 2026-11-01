@@ -2,7 +2,13 @@ import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import { createTestUser } from "@/test/factories";
 import { LobbyEntryStatus, MatchMode, PairingMethod, RatingAlgorithm } from "@/generated/prisma/enums";
-import { createDirectMatch, getLobbyActivityStats, joinLobbyAndTryPair, sweepLobbyPairing } from "@/lib/lobby";
+import {
+  createDirectMatch,
+  getLobbyActivityStats,
+  joinLobbyAndTryPair,
+  retryPairForWaitingUser,
+  sweepLobbyPairing,
+} from "@/lib/lobby";
 import { getPublicStats } from "@/lib/public-stats";
 import { startFirstGame } from "@/lib/match-games";
 import { adminForceConfirmMatch } from "@/lib/matches";
@@ -397,5 +403,84 @@ describe("randitto matchmaking uses the randitto rating", () => {
       where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
     });
     expect(match).toBeNull();
+  });
+});
+
+// The lobby page's 5s poll retries pairing for anyone left WAITING, and it is
+// the path that actually runs for a thinly-used new mode: by definition its
+// players sit in the queue rather than finding someone the instant they join.
+// Join-time pairing had the mode check from the start, which is why these
+// crossed sets still appeared in production after the sweep was fixed.
+describe("the waiting-poll retry keeps the mode too", () => {
+  // Seeds a second waiter without going through join-time pairing, so the
+  // retry below is the thing under test rather than the join that preceded it.
+  async function waiterInQueue(mode: MatchMode) {
+    const u = await queuer();
+    await prisma.ratingLobbyEntry.create({
+      data: {
+        userId: u.id,
+        mode,
+        status: LobbyEntryStatus.WAITING,
+        pairingMethod: PairingMethod.MANUAL,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    return u;
+  }
+
+  async function matchesFor(userId: string) {
+    return prisma.ratingMatch.findMany({
+      where: { OR: [{ player1Id: userId }, { player2Id: userId }] },
+    });
+  }
+
+  // The positive control: without this the two negatives below would pass for
+  // any reason at all, including the retry never pairing anyone.
+  it("pairs a waiting standard player with another standard one", async () => {
+    const me = await queuer();
+    await joinLobbyAndTryPair(me.id, false, null, MatchMode.STANDARD);
+    await waiterInQueue(MatchMode.STANDARD);
+
+    await retryPairForWaitingUser(me.id);
+
+    const matches = await matchesFor(me.id);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.mode).toBe(MatchMode.STANDARD);
+  });
+
+  it("pairs a waiting randitto player with another randitto one", async () => {
+    const me = await queuer();
+    await joinLobbyAndTryPair(me.id, false, null, MatchMode.RANDITTO);
+    await waiterInQueue(MatchMode.RANDITTO);
+
+    await retryPairForWaitingUser(me.id);
+
+    const matches = await matchesFor(me.id);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.mode).toBe(MatchMode.RANDITTO);
+  });
+
+  // The production failure this covers, six times over on launch day: every
+  // crossed set had a standard player polling and a randitto waiter as the
+  // candidate, so the match came out STANDARD and the randitto player was
+  // handed an ordinary rated set.
+  it("never pairs a waiting standard player with a randitto one", async () => {
+    const me = await queuer();
+    await joinLobbyAndTryPair(me.id, false, null, MatchMode.STANDARD);
+    await waiterInQueue(MatchMode.RANDITTO);
+
+    await retryPairForWaitingUser(me.id);
+
+    expect(await matchesFor(me.id)).toHaveLength(0);
+  });
+
+  it("never pairs a waiting randitto player with a standard one", async () => {
+    const me = await queuer();
+    await joinLobbyAndTryPair(me.id, false, null, MatchMode.RANDITTO);
+    await waiterInQueue(MatchMode.STANDARD);
+
+    await retryPairForWaitingUser(me.id);
+
+    expect(await matchesFor(me.id)).toHaveLength(0);
   });
 });

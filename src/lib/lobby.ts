@@ -307,8 +307,27 @@ async function attemptPairing(params: {
           },
         },
       });
+      // The mode is filtered in SQL just above, and then again here. The
+      // belt-and-braces is not theoretical: on randitto's launch day four
+      // sets still came out crossed — a standard player polling, a randitto
+      // waiter as the candidate — with the SQL filter present and deployed,
+      // so something between this query and the rows it returned was not
+      // honouring it. A JS equality check cannot be dropped by whatever that
+      // was, and the tripwire below records it if it happens again.
+      const wrongMode = candidates.filter((c) => c.mode !== myEntry.mode);
+      if (wrongMode.length > 0) {
+        console.error(
+          "attemptPairing: SQL mode filter leaked candidates — rejected in JS",
+          JSON.stringify({
+            myEntryId: myEntry.id,
+            myMode: myEntry.mode,
+            leaked: wrongMode.map((c) => ({ id: c.id, mode: c.mode })),
+          }),
+        );
+      }
       const candidate = candidates.find(
         (c) =>
+          c.mode === myEntry.mode &&
           regionReachAllows(c.user.region, c.user.maxMatchDistanceKm, myRegion) &&
           // Compared on the rating the queue actually uses. Randitto has its
           // own ladder, so gating it on the 1v1 one kept two players who are
@@ -370,6 +389,13 @@ async function attemptPairing(params: {
           },
         });
         return null;
+      }
+
+      // Last line of defence before the row that actually costs someone a
+      // set on a ladder they never queued for.
+      if (candidate.mode !== myEntry.mode) {
+        console.error("attemptPairing: refusing to create a crossed match", candidate.mode, myEntry.mode);
+        throw new Error("mode mismatch between paired lobby entries");
       }
 
       const match = await tx.ratingMatch.create({
