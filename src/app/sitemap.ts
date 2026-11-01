@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { siteOrigin } from "@/lib/site-url";
 import { PUBLISHES_SPANISH, HAS_KOFI, HAS_COMMUNITY_GUIDES } from "@/lib/site";
-import { characterSlug, echoGroupCanonical, type SmashCharacter } from "@/lib/characters";
+import { characterPageTarget, characterSlug, type SmashCharacter } from "@/lib/characters";
 
 // Profiles are the only part of the site with a search-shaped question
 // behind it ("who is <player>") — the rest is either a utility page or a
@@ -47,15 +47,19 @@ async function characterEntries(siteUrl: string): Promise<MetadataRoute.Sitemap>
     where: { hiddenAt: null },
     select: { character: true, updatedAt: true },
   });
-  // Echoes fold into their base, matching what /characters/[name] serves.
-  const latestByGroup = new Map<string, Date>();
+  // characterPageTarget is what /characters/[name] serves, so this advertises
+  // exactly the URLs that exist: echoes folded into their base, and nothing
+  // for "Random" (a queue option, not a fighter — and someone has tagged a
+  // guide with it).
+  const latestByGroup = new Map<SmashCharacter, Date>();
   for (const guide of written) {
-    const group = echoGroupCanonical(guide.character as SmashCharacter);
+    const group = characterPageTarget(guide.character);
+    if (!group) continue;
     const seen = latestByGroup.get(group);
     if (!seen || seen < guide.updatedAt) latestByGroup.set(group, guide.updatedAt);
   }
   return [...latestByGroup].map(([character, lastModified]) => ({
-    url: `${siteUrl}/characters/${characterSlug(character as SmashCharacter)}`,
+    url: `${siteUrl}/characters/${characterSlug(character)}`,
     lastModified,
     changeFrequency: "weekly" as const,
     priority: 0.6,

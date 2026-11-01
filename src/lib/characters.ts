@@ -307,3 +307,21 @@ const CHARACTER_BY_SLUG: ReadonlyMap<string, SmashCharacter> = new Map(
 export function characterFromSlug(slug: string): SmashCharacter | null {
   return CHARACTER_BY_SLUG.get(slug.trim().toLowerCase()) ?? null;
 }
+
+/**
+ * The fighter whose page should serve a given character name, or null when
+ * there is no page for it.
+ *
+ * Shared by /characters/[name] and the sitemap on purpose. They each had
+ * their own copy of the rules — fold echoes into the base, and refuse
+ * "Random" because it is a queue option rather than a fighter — and the
+ * sitemap's copy was missing the second one, so a guide someone had tagged
+ * Random put /characters/random in the sitemap while the page 404'd it. One
+ * function means the list of advertised URLs and the list of served URLs
+ * cannot disagree again.
+ */
+export function characterPageTarget(character: string): SmashCharacter | null {
+  if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) return null;
+  if (character === "Random") return null;
+  return echoGroupCanonical(character as SmashCharacter);
+}

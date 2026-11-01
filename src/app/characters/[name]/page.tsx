@@ -5,9 +5,9 @@ import { getLang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 import {
   characterFromSlug,
+  characterPageTarget,
   characterSlug,
   characterLabel,
-  echoGroupCanonical,
   echoGroupLabel,
   ECHO_FIGHTER_GROUPS,
 } from "@/lib/characters";
@@ -35,13 +35,10 @@ type Params = { name: string };
 
 function resolve(slug: string) {
   const character = characterFromSlug(slug);
-  // "Random" is a queue option, not a fighter — there is nothing to say about
-  // it and a page for it would be an empty shell.
-  if (!character || character === "Random") return null;
-  // Echoes fold into their base everywhere else (the leaderboard, the stats
-  // table, the guide grouping), so they do here too rather than serving a
-  // near-duplicate page per echo.
-  return echoGroupCanonical(character);
+  // characterPageTarget holds the rules the sitemap also follows, so the URLs
+  // advertised there and the URLs served here stay the same set: echoes fold
+  // into their base, and "Random" is a queue option with no page.
+  return character ? characterPageTarget(character) : null;
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {

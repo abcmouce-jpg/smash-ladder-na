@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   characterFromSlug,
+  characterPageTarget,
   characterSlug,
   ECHO_FIGHTER_GROUPS,
   echoGroupCanonical,
@@ -220,5 +221,40 @@ describe("characterSlug", () => {
     expect(characterFromSlug("  bowser  ")).toBe("Bowser");
     expect(characterFromSlug("goku")).toBeNull();
     expect(characterFromSlug("")).toBeNull();
+  });
+});
+
+describe("characterPageTarget", () => {
+  it("folds an echo into its base", () => {
+    expect(characterPageTarget("Daisy")).toBe("Peach");
+    expect(characterPageTarget("Dark Pit")).toBe("Pit");
+  });
+
+  it("keeps a fighter that is its own group", () => {
+    expect(characterPageTarget("Fox")).toBe("Fox");
+  });
+
+  // Random is a queue option, so there is nothing to put on a page for it.
+  // The sitemap and the page have to agree on this: a guide tagged Random
+  // exists, and when only the page refused it the sitemap advertised a URL
+  // that 404'd.
+  it("refuses Random, which the page also 404s", () => {
+    expect(characterPageTarget("Random")).toBeNull();
+  });
+
+  it("refuses a name that is not on the roster", () => {
+    expect(characterPageTarget("Goku")).toBeNull();
+    expect(characterPageTarget("")).toBeNull();
+  });
+
+  // Whatever this returns must be servable, or the sitemap can advertise a
+  // 404 again.
+  it("only ever returns a fighter its own slug round-trips to", () => {
+    for (const character of SMASH_CHARACTERS) {
+      const target = characterPageTarget(character);
+      if (target === null) continue;
+      expect(characterFromSlug(characterSlug(target))).toBe(target);
+      expect(characterPageTarget(target)).toBe(target);
+    }
   });
 });
