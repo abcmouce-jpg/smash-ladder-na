@@ -318,12 +318,20 @@ function CurrentMatchCard({
   const isPlayer1 = match.player1Id === userId;
   const opponent = isPlayer1 ? match.player2 : match.player1;
   const myName = isPlayer1 ? match.player1.username : match.player2.username;
-  const myRating = isPlayer1 ? match.player1.rating : match.player2.rating;
-  const myGamesPlayed = isPlayer1 ? match.player1.gamesPlayed : match.player2.gamesPlayed;
+  const me = isPlayer1 ? match.player1 : match.player2;
+  // The set's own ladder, not whichever one the profile leads with. A
+  // randitto set showed the ladder rating of a player who is 1500 at
+  // randitto and 1908 on the board, which reads as the mode borrowing the
+  // main rating — it does not.
+  const randitto = match.mode === "RANDITTO";
+  const myRating = randitto ? me.randittoRating : me.rating;
+  const myGamesPlayed = randitto ? me.randittoGamesPlayed : me.gamesPlayed;
+  const opponentRating = randitto ? opponent.randittoRating : opponent.rating;
+  const opponentGamesPlayed = randitto ? opponent.randittoGamesPlayed : opponent.gamesPlayed;
   // Each side is gated on its own games played — one provisional player in the
   // set doesn't hide the other's established rating.
   const myRatingVisible = isRatingVisible(myGamesPlayed, viewerIsModerator);
-  const opponentRatingVisible = isRatingVisible(opponent.gamesPlayed, viewerIsModerator);
+  const opponentRatingVisible = isRatingVisible(opponentGamesPlayed, viewerIsModerator);
 
   const wins = { me: 0, opponent: 0 };
   for (const game of match.games) {
@@ -350,8 +358,12 @@ function CurrentMatchCard({
     : null;
   // Game 1 is a blind pick — characters stay hidden until both sides have
   // locked in, same as the in-lobby pick UI.
+  // Randitto's fighters come from Smash's own Random option, so the site has
+  // none to show.
   const showCharacters =
-    currentGame !== null && (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
+    !randitto &&
+    currentGame !== null &&
+    (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
 
   return (
     <Card className="mt-8">
@@ -417,8 +429,8 @@ function CurrentMatchCard({
                 <p className="text-right text-xs text-muted-foreground tabular-nums">
                   {opponentRatingVisible ? (
                     tr(lang, {
-                      en: `${formatRating(opponent.rating)} rating`,
-                      es: `${formatRating(opponent.rating)} de clasificación`,
+                      en: `${formatRating(opponentRating)} rating`,
+                      es: `${formatRating(opponentRating)} de clasificación`,
                     })
                   ) : (
                     <RatingHidden gamesPlayed={opponent.gamesPlayed} lang={lang} />

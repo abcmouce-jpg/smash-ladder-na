@@ -138,3 +138,36 @@ export function queueRating(user: { rating: number; randittoRating: number }, mo
 export function queueGames(user: { gamesPlayed: number; randittoGamesPlayed: number }, mode: MatchMode): number {
   return mode === MatchMode.RANDITTO ? user.randittoGamesPlayed : user.gamesPlayed;
 }
+
+/** Just the two numbers a display needs: the rating, and the sets behind it. */
+export type DisplayRating = { rating: number; gamesPlayed: number };
+
+/**
+ * The rating and set count to show for one side of a set.
+ *
+ * Separate from readTrack because a display has no use for deviation or
+ * volatility and should not have to fetch them — requiring the full state
+ * is what pushed each display into choosing its own track with a ternary
+ * instead, which is how the main ladder's number ended up on practice sets
+ * (#115) and then again on randitto ones.
+ */
+export function displayRating(
+  user: {
+    rating: number;
+    gamesPlayed: number;
+    practiceRating: number;
+    practiceGamesPlayed: number;
+    randittoRating: number;
+    randittoGamesPlayed: number;
+  },
+  track: RatingTrack,
+): DisplayRating {
+  switch (track) {
+    case "practice":
+      return { rating: user.practiceRating, gamesPlayed: user.practiceGamesPlayed };
+    case "randitto":
+      return { rating: user.randittoRating, gamesPlayed: user.randittoGamesPlayed };
+    default:
+      return { rating: user.rating, gamesPlayed: user.gamesPlayed };
+  }
+}

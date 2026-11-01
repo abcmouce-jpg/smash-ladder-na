@@ -51,6 +51,8 @@ import {
 } from "@/lib/match-games";
 import { STRIKING_STAGES, stageImagePath, stageLabel, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { RANDITTO_STAGE } from "@/lib/randitto";
+import { displayRating, trackFor } from "@/lib/rating-track";
+import { MatchMode } from "@/generated/prisma/enums";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
@@ -854,6 +856,8 @@ async function PairedView({
       gamesPlayed: true,
       practiceRating: true,
       practiceGamesPlayed: true,
+      randittoRating: true,
+      randittoGamesPlayed: true,
       region: true,
     },
   });
@@ -965,6 +969,7 @@ async function PairedView({
         userId={userId}
         opponentName={displayName}
         lang={lang}
+        mode={match.mode}
         me={me}
         myIsPracticing={myIsPracticing}
         opponent={opponent}
@@ -1395,6 +1400,7 @@ function MatchScoreboard({
   lang,
   me,
   myIsPracticing,
+  mode,
   opponent,
   viewerIsModerator,
   opponentStreak,
@@ -1409,6 +1415,8 @@ function MatchScoreboard({
   userId: string;
   opponentName: string;
   lang: Lang;
+  /** Which queue the set came from — decides which ladder these numbers are on. */
+  mode: MatchMode;
   me: {
     username: string;
     avatarUrl: string | null;
@@ -1416,6 +1424,8 @@ function MatchScoreboard({
     gamesPlayed: number;
     practiceRating: number;
     practiceGamesPlayed: number;
+    randittoRating: number;
+    randittoGamesPlayed: number;
     region: string | null;
   } | null;
   myIsPracticing: boolean;
@@ -1427,6 +1437,8 @@ function MatchScoreboard({
     gamesPlayed: number;
     practiceRating: number;
     practiceGamesPlayed: number;
+    randittoRating: number;
+    randittoGamesPlayed: number;
     region: string | null;
   };
   viewerIsModerator: boolean;
@@ -1446,16 +1458,20 @@ function MatchScoreboard({
   // Same "current playable game" rule the action section below uses, so the
   // pulsing pip always lines up with whatever GameSection is showing.
   const currentGame = games.find((g) => !g.winnerId && !isDisputedGame(g));
-  // Practice sets are rated off practiceRating, not the main ladder rating —
-  // showing the main number here is what made players think they were still
-  // on the main ladder (see #115). A player's rating is hidden from
-  // non-moderators until they've played enough sets on that track (see
-  // isRatingVisible) — the ranked count for a ranked set, the practice count
-  // for a practice one.
-  const myRating = myIsPracticing ? me?.practiceRating : me?.rating;
-  const opponentRating = opponentIsPracticing ? opponent.practiceRating : opponent.rating;
-  const myGamesOnTrack = myIsPracticing ? (me?.practiceGamesPlayed ?? 0) : (me?.gamesPlayed ?? 0);
-  const opponentGamesOnTrack = opponentIsPracticing ? opponent.practiceGamesPlayed : opponent.gamesPlayed;
+  // Which ladder these numbers are on comes from trackFor, not from a
+  // condition written out here. Showing the main number on a practice set is
+  // what made players think they were still on the main ladder (#115), and
+  // the same mistake was made again for randitto — once in the feed, once on
+  // the profile card, once here. One helper is the fix; three sites each
+  // choosing for themselves is the bug.
+  const myTrack = trackFor(mode, myIsPracticing);
+  const opponentTrack = trackFor(mode, opponentIsPracticing);
+  const myColumns = me ? displayRating(me, myTrack) : null;
+  const opponentColumns = displayRating(opponent, opponentTrack);
+  const myRating = myColumns?.rating;
+  const opponentRating = opponentColumns.rating;
+  const myGamesOnTrack = myColumns?.gamesPlayed ?? 0;
+  const opponentGamesOnTrack = opponentColumns.gamesPlayed;
   const myRatingVisible = isRatingVisible(myGamesOnTrack, viewerIsModerator);
   const opponentRatingVisible = isRatingVisible(opponentGamesOnTrack, viewerIsModerator);
 

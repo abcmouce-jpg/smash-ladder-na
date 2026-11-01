@@ -58,6 +58,9 @@ export const matchWithPlayers = {
       // for the main rating, it stays hidden from non-moderators until the
       // player has enough practice sets (see isRatingVisible).
       practiceGamesPlayed: true,
+      // Same role for the randitto ladder — see displayRating.
+      randittoRating: true,
+      randittoGamesPlayed: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -72,6 +75,9 @@ export const matchWithPlayers = {
       gamesPlayed: true,
       practiceRating: true,
       practiceGamesPlayed: true,
+      // Same role for the randitto ladder — see displayRating.
+      randittoRating: true,
+      randittoGamesPlayed: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
