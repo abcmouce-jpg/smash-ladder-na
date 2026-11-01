@@ -2,7 +2,7 @@ import { after } from "next/server";
 import { asLang, type Lang } from "@/lib/lang";
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { LobbyEntryStatus, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
+import { LobbyEntryStatus, MatchMode, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getRoomHostId, getUnresolvedMatchForUser } from "@/lib/matches";
 import { regionReachAllows, regionReachFilter } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
@@ -194,6 +194,7 @@ async function attemptPairing(params: {
     id: string;
     userId: string;
     isPracticing: boolean;
+    mode: MatchMode;
     existingRoomCode: string | null;
     joinedAt: Date;
   };
@@ -242,6 +243,9 @@ async function attemptPairing(params: {
           expiresAt: { gt: new Date() },
           userId: { notIn: [userId, ...blockedIds] },
           id: { not: myEntry.id },
+          // Modes are separate queues: somebody who asked for assigned
+          // fighters must not be handed a normal set, or the other way round.
+          mode: myEntry.mode,
           user: {
             // See sweepLobbyPairing: a ban has to remove someone from the
             // candidate pool too, not just stop them re-queueing.
@@ -281,16 +285,22 @@ async function attemptPairing(params: {
           ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user, Date.now() - c.joinedAt.getTime())) &&
           rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
           wiredRequirementAllows(me, c.user) &&
-          practiceMatchAllowed(
-            {
-              isPracticing: myEntry.isPracticing,
-              avoidPracticeOpponents: me.avoidPracticeOpponents,
-            },
-            {
-              isPracticing: c.isPracticing,
-              avoidPracticeOpponents: c.user.avoidPracticeOpponents,
-            },
-          ),
+          // Randitto rates onto the practice track (see joinLobbyAndTryPair),
+          // which would otherwise make "don't match me with people who are
+          // practicing" exclude every randitto opponent — leaving anyone with
+          // that setting unable to use the mode at all. Inside randitto both
+          // sides opted into the same thing, so the preference does not apply.
+          (myEntry.mode === MatchMode.RANDITTO ||
+            practiceMatchAllowed(
+              {
+                isPracticing: myEntry.isPracticing,
+                avoidPracticeOpponents: me.avoidPracticeOpponents,
+              },
+              {
+                isPracticing: c.isPracticing,
+                avoidPracticeOpponents: c.user.avoidPracticeOpponents,
+              },
+            )),
       );
       // No one to pair with this tick — release the self-claim above so
       // this entry goes back to WAITING instead of getting stuck PAIRED
@@ -337,6 +347,7 @@ async function attemptPairing(params: {
           expiresAt: new Date(Date.now() + MATCH_TTL_MS),
           player1IsPracticing: candidate.isPracticing,
           player2IsPracticing: myEntry.isPracticing,
+          mode: myEntry.mode,
           ...resolvePrefilledRoom(candidate, myEntry),
         },
       });
@@ -419,9 +430,16 @@ function deferMatchFoundNotifications(player1Id: string, player2Id: string) {
 
 export async function joinLobbyAndTryPair(
   userId: string,
-  isPracticing = false,
+  isPracticingArg = false,
   existingRoomCode: string | null = null,
+  mode: MatchMode = MatchMode.STANDARD,
 ) {
+  // Randitto always rates onto the practice track. A set played on a fighter
+  // you were handed says nothing about your ladder standing, and routing it
+  // through the track that already exists for exactly that ("recorded, but
+  // the main rating does not move") avoids inventing a third rating column
+  // for a mode that may not survive its first week.
+  const isPracticing = mode === MatchMode.RANDITTO ? true : isPracticingArg;
   const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({
       where: { userId, status: LobbyEntryStatus.WAITING },
@@ -504,6 +522,7 @@ export async function joinLobbyAndTryPair(
       data: {
         userId,
         isPracticing,
+        mode,
         existingRoomCode,
         expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
       },
@@ -531,6 +550,7 @@ export async function joinLobbyAndTryPair(
       id: newEntry.id,
       userId,
       isPracticing,
+      mode,
       existingRoomCode,
       joinedAt: newEntry.joinedAt,
     },
@@ -703,6 +723,7 @@ export async function retryPairForWaitingUser(userId: string) {
         id: entry.id,
         userId,
         isPracticing: entry.isPracticing,
+        mode: entry.mode,
         existingRoomCode: entry.existingRoomCode,
         joinedAt: entry.joinedAt,
       },

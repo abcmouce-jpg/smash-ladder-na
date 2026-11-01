@@ -99,6 +99,16 @@ enum TournamentStatus {
   CANCELLED
 }
 
+// Which queue a set came from. STANDARD is the ladder; RANDITTO assigns both
+// players a random fighter instead of letting them pick. Recorded on the match
+// as well as the join so the two can be compared after the fact — a novelty
+// mode that nobody returns to should be removable, and that needs the data to
+// say so rather than a guess. Additive: every existing row reads as STANDARD.
+enum MatchMode {
+  STANDARD
+  RANDITTO
+}
+
 enum MatchStatus {
   PENDING_REPORT
   REPORTED
@@ -283,6 +293,7 @@ model RatingLobbyEntry {
   expiresAt        DateTime
   cancelledAt      DateTime?
   isPracticing     Boolean           @default(false) // this join only — carried onto the created match as player{1,2}IsPracticing
+  mode             MatchMode         @default(STANDARD) // this join only — only pairs against the same mode, and is carried onto the created match
   existingRoomCode String? // this join only — if both sides of a pairing have one, the last joiner's is used; if only one side has one, they become host. Either way it's written straight to RatingMatch.roomCode
 
   @@index([status, expiresAt])
@@ -298,6 +309,7 @@ model RatingMatch {
   pairingMethod                PairingMethod       @default(MANUAL)
   roomCode                     String? // never rendered outside the paired pair's own view
   roomCodeSetById              String? // whoever entered it owns it; the other side can only read it
+  mode                         MatchMode           @default(STANDARD) // carried from the lobby entry; decides whether characters are assigned or picked
   status                       MatchStatus         @default(PENDING_REPORT)
   reportedWinnerId             String?
   reportedById                 String?

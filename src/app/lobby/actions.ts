@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { tr } from "@/lib/lang";
 import { getLang } from "@/lib/i18n";
 import { auth } from "@/auth";
+import { MatchMode } from "@/generated/prisma/enums";
 import { cancelLobbyEntry, joinLobbyAndTryPair, setMatchRoomCode, updateLobbyRoomCode } from "@/lib/lobby";
 import {
   requireActiveUser,
@@ -94,6 +95,10 @@ export type JoinLobbyState = { error: string | null };
 export async function joinLobby(_prevState: JoinLobbyState, formData: FormData): Promise<JoinLobbyState> {
   const userId = await requireUserId();
   const isPracticing = formData.get("isPracticing") === "on";
+  // Randitto is its own queue, and forces the practice track on both sides
+  // (see joinLobbyAndTryPair) — so the practice checkbox is irrelevant here
+  // rather than contradictory.
+  const mode = formData.get("mode") === "RANDITTO" ? MatchMode.RANDITTO : MatchMode.STANDARD;
   const existingRoomCode = String(formData.get("existingRoomCode") ?? "").trim() || null;
   let error: string | null = null;
   try {
@@ -103,7 +108,7 @@ export async function joinLobby(_prevState: JoinLobbyState, formData: FormData):
       limit: 5,
       windowLabel: "minute",
     });
-    await joinLobbyAndTryPair(userId, isPracticing, existingRoomCode);
+    await joinLobbyAndTryPair(userId, isPracticing, existingRoomCode, mode);
   } catch (err) {
     error = errorMessage(err, await getLang());
   }

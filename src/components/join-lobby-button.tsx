@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Loader2, Swords } from "lucide-react";
+import { Dices, Loader2, Swords } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { JoinLobbyState } from "@/app/lobby/actions";
 import type { Lang } from "@/lib/i18n";
@@ -119,15 +119,40 @@ export function JoinLobbyForm({
         </label>
       </details>
 
-      <Button
-        type="submit"
-        size="lg"
-        className="mt-4 h-11 w-full gap-2 px-8 text-base sm:w-auto"
-        disabled={isPending || !hasRegion}
-      >
-        {isPending ? <Loader2 className="size-4 animate-spin" /> : <Swords className="size-4" />}
-        {tr(lang, { en: "Find Match", es: "Buscar partida", ja: "対戦相手を探す" })}
-      </Button>
+      {/* Two submit buttons rather than a mode selector: a clicked submit
+          button sends its own name/value, so the queue a player wants is the
+          button they press and there is no third control to leave in the
+          wrong position. No `name` on this one, so it submits as standard. */}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Button
+          type="submit"
+          size="lg"
+          className="h-11 w-full gap-2 px-8 text-base sm:w-auto"
+          disabled={isPending || !hasRegion}
+        >
+          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Swords className="size-4" />}
+          {tr(lang, { en: "Find Match", es: "Buscar partida", ja: "対戦相手を探す" })}
+        </Button>
+        <Button
+          type="submit"
+          name="mode"
+          value="RANDITTO"
+          size="lg"
+          variant="outline"
+          className="h-11 w-full gap-2 px-6 text-base sm:w-auto"
+          disabled={isPending || !hasRegion}
+        >
+          <Dices className="size-4" />
+          {tr(lang, { en: "Randitto", es: "Randitto", ja: "ランダム対戦" })}
+        </Button>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {tr(lang, {
+          en: "Randitto is its own queue: you and your opponent are each handed a random fighter, re-drawn every game. It always rates onto the practice track, so the checkbox above doesn't matter for it.",
+          es: "Randitto es su propia cola: a ti y a tu rival se os asigna un personaje aleatorio, re-sorteado cada juego. Siempre cuenta para la clasificación de práctica, así que la casilla de arriba no le afecta.",
+          ja: "ランダム対戦は別の待機列です。お互いにランダムなキャラが割り当てられ、試合ごとに振り直されます。常に練習レートに記録されるので、上のチェックは関係ありません。",
+        })}
+      </p>
       {state.error && <p className="mt-2 text-sm text-destructive">{state.error}</p>}
     </form>
   );

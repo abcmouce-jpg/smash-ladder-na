@@ -1,8 +1,9 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { ConfirmationMethod, MatchStatus, UserRole } from "@/generated/prisma/enums";
+import { ConfirmationMethod, MatchMode, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES, STRIKING_STAGES } from "@/lib/stages";
+import { drawRandittoPair } from "@/lib/randitto";
 import { REGION_SET } from "@/lib/site";
 import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
@@ -456,6 +457,11 @@ export async function startFirstGame(userId: string, matchId: string) {
       actorBStrikes: STRIKING_STAGES ? 2 : 0,
       stagesRemaining: [...GAME_ONE_STAGES],
       characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
+      // Randitto hands out the fighters, so the pick phase has nothing to ask.
+      // Writing them at creation means every downstream check that waits on
+      // "both characters locked in" is already satisfied, rather than each of
+      // them needing to learn about the mode.
+      ...randittoSeats(match.mode),
     },
   });
 }
@@ -1541,7 +1547,7 @@ function getSetWinnerId(wins: Record<string, number>) {
 
 async function progressSet(
   tx: Prisma.TransactionClient,
-  match: { id: string; player1Id: string; player2Id: string },
+  match: { id: string; player1Id: string; player2Id: string; mode: MatchMode },
   decidedGameNumber: number,
   gameWinnerId: string,
   confirmationMethod: ConfirmationMethod = ConfirmationMethod.SELF_CONFIRMED,
@@ -1605,6 +1611,9 @@ async function progressSet(
       actorBStrikes: 0,
       stagesRemaining: [...COUNTERPICK_STAGES],
       characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
+      // Re-drawn per game, not once per set: a fighter you cannot play costs
+      // one game instead of the whole thing.
+      ...randittoSeats(match.mode),
     },
   });
   return null;
@@ -1644,4 +1653,25 @@ export async function realignNextGameActors(
     where: { id: nextGame.id },
     data: { actorAId: gameWinnerId, actorBId: loserId },
   });
+}
+
+/**
+ * The character columns a new game starts with.
+ *
+ * Empty for a standard set — the players pick, and the pick phase fills these
+ * in. For randitto they are drawn up front, which is what makes the mode work
+ * without touching the pick phase at all: `bothLocked`, the pick deadline
+ * sweeps and the auto-forfeit for a stale pick all key off these columns being
+ * populated, so a game that arrives already filled simply skips past them
+ * instead of each of them needing a `mode` branch.
+ */
+function randittoSeats(mode: MatchMode) {
+  if (mode !== MatchMode.RANDITTO) return {};
+  const { actorA, actorB } = drawRandittoPair();
+  return {
+    actorACharacter: actorA.character,
+    actorAMoveset: actorA.moveset,
+    actorBCharacter: actorB.character,
+    actorBMoveset: actorB.moveset,
+  };
 }
