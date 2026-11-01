@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import { createTestUser } from "@/test/factories";
-import { LobbyEntryStatus, MatchMode, RatingAlgorithm } from "@/generated/prisma/enums";
-import { joinLobbyAndTryPair } from "@/lib/lobby";
+import { LobbyEntryStatus, MatchMode, PairingMethod, RatingAlgorithm } from "@/generated/prisma/enums";
+import { createDirectMatch, joinLobbyAndTryPair, sweepLobbyPairing } from "@/lib/lobby";
 import { startFirstGame } from "@/lib/match-games";
 import { adminForceConfirmMatch } from "@/lib/matches";
 import { MII_CHARACTERS, MOVESET_PATTERN } from "@/lib/characters";
@@ -231,5 +231,72 @@ describe("the randitto rating track", () => {
     expect(after.gamesPlayed).toBe(21);
     expect(after.randittoRating).toBe(1500);
     expect(after.randittoGamesPlayed).toBe(0);
+  });
+});
+
+// Join-time pairing is only one of three ways a match gets made. The sweep
+// that picks up whoever is still waiting, and the rematch path, each create
+// matches of their own — and a thinly-used new mode consists almost entirely
+// of people who are still waiting, so the sweep is the path that matters most
+// for it. Missing those two put real players who asked for randitto into
+// ordinary rated sets in production.
+describe("every pairing path keeps the mode", () => {
+  it("the sweep never pairs randitto with standard", async () => {
+    const r = await queuer();
+    const s = await queuer();
+    await joinLobbyAndTryPair(r.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(s.id, false, null, MatchMode.STANDARD);
+
+    await sweepLobbyPairing();
+
+    const matches = await prisma.ratingMatch.count({
+      where: { OR: [{ player1Id: r.id }, { player2Id: r.id }] },
+    });
+    expect(matches).toBe(0);
+  });
+
+  it("the sweep pairs two randitto waiters into a RANDITTO match", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    // Queued one at a time with the other already cancelled out of the way,
+    // so join-time pairing finds nobody and the sweep is what pairs them.
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await prisma.ratingLobbyEntry.updateMany({
+      where: { userId: a.id },
+      data: { status: "WAITING", matchId: null, pairedEntryId: null },
+    });
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    if (match) {
+      expect(match.mode).toBe(MatchMode.RANDITTO);
+      return;
+    }
+    await sweepLobbyPairing();
+    const swept = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(swept.mode).toBe(MatchMode.RANDITTO);
+  });
+
+  it("a rematch out of a randitto set stays randitto", async () => {
+    const a = await queuer({ rating: 1500, gamesPlayed: 20 });
+    const b = await queuer({ rating: 1500, gamesPlayed: 20 });
+    const direct = await prisma.$transaction((tx) =>
+      createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH, false, false, MatchMode.RANDITTO),
+    );
+    expect(direct.mode).toBe(MatchMode.RANDITTO);
+    const entries = await prisma.ratingLobbyEntry.findMany({ where: { userId: { in: [a.id, b.id] } } });
+    expect(entries).toHaveLength(2);
+    for (const e of entries) expect(e.mode).toBe(MatchMode.RANDITTO);
+  });
+
+  it("a rematch out of a standard set stays standard", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    const direct = await prisma.$transaction((tx) => createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH));
+    expect(direct.mode).toBe(MatchMode.STANDARD);
   });
 });

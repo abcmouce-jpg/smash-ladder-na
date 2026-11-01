@@ -484,6 +484,7 @@ export async function requestRematch(userId: string, matchId: string) {
         PairingMethod.REMATCH,
         match.player1IsPracticing,
         match.player2IsPracticing,
+        match.mode,
       );
     }, TX_OPTIONS),
   );

@@ -743,6 +743,10 @@ export async function createDirectMatch(
   pairingMethod: PairingMethod,
   player1IsPracticing = false,
   player2IsPracticing = false,
+  // Carried for the same reason the practice flags are: a rematch out of a
+  // randitto set has to stay randitto, or accepting one would drop both
+  // players into an ordinary rated match without either of them asking.
+  mode: MatchMode = MatchMode.STANDARD,
 ) {
   const now = new Date();
   const match = await tx.ratingMatch.create({
@@ -754,6 +758,7 @@ export async function createDirectMatch(
       expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
       player1IsPracticing,
       player2IsPracticing,
+      mode,
     },
   });
 
@@ -763,6 +768,7 @@ export async function createDirectMatch(
       status: LobbyEntryStatus.PAIRED,
       pairingMethod,
       isPracticing: player2IsPracticing,
+      mode,
       expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
     },
   });
@@ -772,6 +778,7 @@ export async function createDirectMatch(
       status: LobbyEntryStatus.PAIRED,
       pairingMethod,
       isPracticing: player1IsPracticing,
+      mode,
       matchId: match.id,
       pairedEntryId: entry2.id,
       expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
@@ -869,6 +876,14 @@ export async function sweepLobbyPairing(maxPairs = 50) {
       const pairKey = blockPairKey(a.userId, b.userId);
       if (
         used.has(b.id) ||
+        // Modes are separate queues. Without this the sweep paired a randitto
+        // waiter with a standard one and, because the create below left mode
+        // unset, produced a STANDARD match — so somebody who asked for
+        // assigned fighters got an ordinary rated set instead. Join-time
+        // pairing had this check from the start; this path is the one that
+        // runs for anyone still waiting after it, which is exactly the people
+        // a thinly-used new mode consists of.
+        a.mode !== b.mode ||
         blockedPairs.has(pairKey) ||
         !canMatch(a.user, b.user, recentMatchPairs.get(pairKey), {
           a: sweepNow - a.joinedAt.getTime(),
@@ -912,6 +927,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
               expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
               player1IsPracticing: a.isPracticing,
               player2IsPracticing: b.isPracticing,
+              mode: a.mode,
               ...resolvePrefilledRoom(a, b),
             },
           });
