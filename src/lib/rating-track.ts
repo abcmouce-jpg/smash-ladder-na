@@ -120,3 +120,21 @@ export function writeTrack(track: RatingTrack, next: { rating: number; rd: numbe
 export function isMainTrack(track: RatingTrack): boolean {
   return track === "main";
 }
+
+/**
+ * The rating a queue matches on.
+ *
+ * Each mode has its own ladder, so the gap check has to compare the numbers
+ * the players are actually playing for. Gating randitto on the 1v1 rating
+ * kept two people who are both 1500 at randitto from matching because one of
+ * them is 2300 on the main board — a restriction about a rating neither of
+ * them had brought to that queue.
+ */
+export function queueRating(user: { rating: number; randittoRating: number }, mode: MatchMode): number {
+  return mode === MatchMode.RANDITTO ? user.randittoRating : user.rating;
+}
+
+/** Sets played on the queue's own ladder — feeds the provisional widening. */
+export function queueGames(user: { gamesPlayed: number; randittoGamesPlayed: number }, mode: MatchMode): number {
+  return mode === MatchMode.RANDITTO ? user.randittoGamesPlayed : user.gamesPlayed;
+}

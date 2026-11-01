@@ -92,6 +92,8 @@ export async function getPlayerProfile(userId: string, viewerIsModerator = false
       gamesPlayed: true,
       practiceRating: true,
       practiceGamesPlayed: true,
+      randittoRating: true,
+      randittoGamesPlayed: true,
       createdAt: true,
       region: true,
       wiredConnection: true,

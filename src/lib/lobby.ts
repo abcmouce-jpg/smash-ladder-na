@@ -6,6 +6,7 @@ import { LobbyEntryStatus, MatchMode, MatchStatus, PairingMethod, UserStatus } f
 import { getLatestMatchForUser, getRoomHostId, getUnresolvedMatchForUser } from "@/lib/matches";
 import { regionReachAllows, regionReachFilter } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
+import { queueGames, queueRating } from "@/lib/rating-track";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
 import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
 import { notifyMatchFoundToUsers, notifyQueueOpportunitySubscribers } from "@/lib/push-server";
@@ -213,6 +214,9 @@ async function attemptPairing(params: {
   myRegion: string | null;
   me: {
     rating: number;
+    randittoRating: number;
+    gamesPlayed: number;
+    randittoGamesPlayed: number;
     rematchCooldownHours: number | null;
     wiredConnection: boolean;
     requireWiredOpponent: boolean;
@@ -263,13 +267,23 @@ async function attemptPairing(params: {
             // candidate pool too, not just stop them re-queueing.
             status: { not: UserStatus.BANNED },
             ...(myReach ? { region: { in: myReach } } : {}),
+            // Narrowed in SQL on the same column the check below compares,
+            // or the pre-filter would drop candidates the mode considers
+            // perfectly close before anything got to look at them.
             ...(myEffectiveGap !== null
-              ? {
-                  rating: {
-                    gte: me.rating - myEffectiveGap,
-                    lte: me.rating + myEffectiveGap,
-                  },
-                }
+              ? myEntry.mode === MatchMode.RANDITTO
+                ? {
+                    randittoRating: {
+                      gte: queueRating(me, myEntry.mode) - myEffectiveGap,
+                      lte: queueRating(me, myEntry.mode) + myEffectiveGap,
+                    },
+                  }
+                : {
+                    rating: {
+                      gte: me.rating - myEffectiveGap,
+                      lte: me.rating + myEffectiveGap,
+                    },
+                  }
               : {}),
           },
         },
@@ -281,8 +295,10 @@ async function attemptPairing(params: {
               region: true,
               maxMatchDistanceKm: true,
               rating: true,
+              randittoRating: true,
               maxRatingGap: true,
               gamesPlayed: true,
+              randittoGamesPlayed: true,
               rematchCooldownHours: true,
               wiredConnection: true,
               requireWiredOpponent: true,
@@ -294,7 +310,19 @@ async function attemptPairing(params: {
       const candidate = candidates.find(
         (c) =>
           regionReachAllows(c.user.region, c.user.maxMatchDistanceKm, myRegion) &&
-          ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user, Date.now() - c.joinedAt.getTime())) &&
+          // Compared on the rating the queue actually uses. Randitto has its
+          // own ladder, so gating it on the 1v1 one kept two players who are
+          // both 1500 at randitto apart because one of them is 2300 on the
+          // main board — a restriction about a rating neither of them is
+          // playing for.
+          ratingGapAllows(
+            queueRating(me, myEntry.mode),
+            queueRating(c.user, myEntry.mode),
+            effectiveMaxRatingGap(
+              { maxRatingGap: c.user.maxRatingGap, gamesPlayed: queueGames(c.user, myEntry.mode) },
+              Date.now() - c.joinedAt.getTime(),
+            ),
+          ) &&
           rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
           wiredRequirementAllows(me, c.user) &&
           practiceMatchAllowed(
@@ -454,8 +482,10 @@ export async function joinLobbyAndTryPair(
         region: true,
         maxMatchDistanceKm: true,
         rating: true,
+        randittoRating: true,
         maxRatingGap: true,
         gamesPlayed: true,
+        randittoGamesPlayed: true,
         rematchCooldownHours: true,
         wiredConnection: true,
         requireWiredOpponent: true,
@@ -693,8 +723,10 @@ export async function retryPairForWaitingUser(userId: string) {
           region: true,
           maxMatchDistanceKm: true,
           rating: true,
+          randittoRating: true,
           maxRatingGap: true,
           gamesPlayed: true,
+          randittoGamesPlayed: true,
           rematchCooldownHours: true,
           wiredConnection: true,
           requireWiredOpponent: true,

@@ -342,3 +342,68 @@ describe("activity counts are per queue", () => {
     expect(stats.waiting).toBe(0);
   });
 });
+
+// Matchmaking restrictions have to read the ladder the queue is on. Gating
+// randitto on the 1v1 rating kept two players who are both 1500 at randitto
+// apart because one of them is 2300 on the main board.
+describe("randitto matchmaking uses the randitto rating", () => {
+  it("pairs two players far apart on the main ladder but level at randitto", async () => {
+    const a = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      rating: 2300,
+      randittoRating: 1500,
+      maxRatingGap: 300,
+    });
+    const b = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      rating: 1500,
+      randittoRating: 1500,
+      maxRatingGap: 300,
+    });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match, "an 800-point main-ladder gap should not block a randitto set").not.toBeNull();
+  });
+
+  it("still keeps the main queue on the main rating", async () => {
+    const a = await createTestUser({ region: "USA East", gamesPlayed: 50, rating: 2300, maxRatingGap: 300 });
+    const b = await createTestUser({ region: "USA East", gamesPlayed: 50, rating: 1500, maxRatingGap: 300 });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).toBeNull();
+  });
+
+  it("separates players who are far apart on the randitto ladder", async () => {
+    const a = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      randittoGamesPlayed: 50,
+      randittoRating: 2300,
+      maxRatingGap: 300,
+    });
+    const b = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      randittoGamesPlayed: 50,
+      randittoRating: 1500,
+      maxRatingGap: 300,
+    });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).toBeNull();
+  });
+});

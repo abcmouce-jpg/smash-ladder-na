@@ -120,6 +120,8 @@ export default async function PlayerProfilePage({
             rating={player.rating}
             gamesPlayed={player.gamesPlayed}
             practiceRating={player.practiceRating}
+            randittoRating={player.randittoRating}
+            randittoGamesPlayed={player.randittoGamesPlayed}
             practiceGamesPlayed={player.practiceGamesPlayed}
             isOwnProfile={isOwnProfile}
             isModerator={isModerator}

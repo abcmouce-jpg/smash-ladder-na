@@ -123,6 +123,8 @@ export async function ProfileOverviewSection({
   rating,
   gamesPlayed,
   practiceRating,
+  randittoRating,
+  randittoGamesPlayed,
   practiceGamesPlayed,
   isOwnProfile,
   isModerator,
@@ -135,6 +137,8 @@ export async function ProfileOverviewSection({
   rating: number;
   gamesPlayed: number;
   practiceRating: number;
+  randittoRating: number;
+  randittoGamesPlayed: number;
   practiceGamesPlayed: number;
   isOwnProfile: boolean;
   isModerator: boolean;
@@ -192,6 +196,7 @@ export async function ProfileOverviewSection({
   // window.
   const ratingVisible = isRatingVisible(gamesPlayed, isModerator);
   const practiceRatingVisible = isRatingVisible(practiceGamesPlayed, isModerator);
+  const randittoRatingVisible = isRatingVisible(randittoGamesPlayed, isModerator);
   const achievements = [
     ...computeAchievements(careerStats),
     ...computeRatingMilestoneAchievements(careerStats.peakRating),
@@ -312,6 +317,33 @@ export async function ProfileOverviewSection({
                   {tr(lang, {
                     en: "Practice sets",
                     es: "Partidas de práctica",
+                  })}
+                </p>
+              </div>
+              {/* Shown here and not only on its board: a randitto rating was
+                  otherwise invisible to the person who earned it until they
+                  had five sets and appeared on the leaderboard. */}
+              <div>
+                {randittoRatingVisible ? (
+                  <p className="text-lg font-semibold tabular-nums">{formatRating(randittoRating)}</p>
+                ) : (
+                  <p className="text-sm font-medium text-muted-foreground">
+                    <RatingHidden gamesPlayed={randittoGamesPlayed} lang={lang} practice />
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {tr(lang, {
+                    en: "Randitto rating",
+                    es: "Clasificación de Randitto",
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{randittoGamesPlayed}</p>
+                <p className="text-xs text-muted-foreground">
+                  {tr(lang, {
+                    en: "Randitto sets",
+                    es: "Partidas de Randitto",
                   })}
                 </p>
               </div>

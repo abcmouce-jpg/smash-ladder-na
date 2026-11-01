@@ -17,6 +17,10 @@ const feedPlayerSelect = {
   avatarUrl: true,
   rating: true,
   gamesPlayed: true,
+  // Randitto sets display the randitto ladder's number instead, so both
+  // tracks travel with the player rather than the feed having to look one up.
+  randittoRating: true,
+  randittoGamesPlayed: true,
   mainCharacter: true,
   twitchUsername: true,
   twitchDisplayName: true,

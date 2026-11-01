@@ -82,6 +82,7 @@ export function SetRow({
             viewerIsModerator={viewerIsModerator}
             className="col-start-1 row-start-1"
             lang={lang}
+            randitto={entry.mode === "RANDITTO"}
           />
 
           <div className="col-start-2 row-span-2 row-start-1 flex shrink-0 flex-col items-center gap-1">
@@ -100,6 +101,7 @@ export function SetRow({
             viewerIsModerator={viewerIsModerator}
             className="col-start-1 row-start-2"
             lang={lang}
+            randitto={entry.mode === "RANDITTO"}
           />
         </div>
 
@@ -238,12 +240,15 @@ function Side({
   viewerIsModerator = false,
   className,
   lang,
+  randitto = false,
 }: {
   player: FeedPlayer;
   align: "left" | "right";
   viewerIsModerator?: boolean;
   className?: string;
   lang: Lang;
+  /** Randitto reads off a different ladder and nobody picked their fighter. */
+  randitto?: boolean;
 }) {
   const isRight = align === "right";
   // A provisional player's rating isn't public (see isRatingVisible) — the
@@ -251,10 +256,24 @@ function Side({
   // number off. Moderators keep seeing it. The tier badge beside the name
   // already carries PROVISIONAL_LABEL for them, so the number line drops the
   // word rather than repeating it.
-  const ratingVisible = isRatingVisible(player.gamesPlayed, viewerIsModerator);
+  // Randitto has its own ladder and its own games count, so both the number
+  // and whether it is public yet come from that track rather than the 1v1 one.
+  const shownRating = randitto ? player.randittoRating : player.rating;
+  const shownGames = randitto ? player.randittoGamesPlayed : player.gamesPlayed;
+  const ratingVisible = isRatingVisible(shownGames, viewerIsModerator);
   return (
     <div className={cn("flex min-w-0 flex-1 items-center gap-2", isRight && "sm:flex-row-reverse", className)}>
-      {player.currentCharacter ? (
+      {/* The fighter icon says "this is what they play". In randitto it was
+          handed to them, so showing it claims something untrue about the
+          player — a question mark says the site is not telling you. */}
+      {randitto ? (
+        <span
+          aria-hidden
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-xs font-medium text-muted-foreground"
+        >
+          ?
+        </span>
+      ) : player.currentCharacter ? (
         <CharacterIcon name={player.currentCharacter} size={28} />
       ) : (
         <span aria-hidden className="size-7 shrink-0 rounded-full border border-dashed border-border" />
@@ -272,8 +291,8 @@ function Side({
         <span className={cn("flex min-w-0 items-center gap-1", isRight && "sm:justify-end")}>
           <span className="min-w-0 truncate font-medium">{player.username}</span>
           <RankBadge
-            rating={player.rating}
-            gamesPlayed={player.gamesPlayed}
+            rating={shownRating}
+            gamesPlayed={shownGames}
             className={cn("px-1.5 py-0 text-[10px]", isRight && "sm:order-first")}
             lang={lang}
           />
@@ -281,7 +300,7 @@ function Side({
         <span
           className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "sm:justify-end")}
         >
-          {ratingVisible && <span className="tabular-nums">{formatRating(player.rating)}</span>}
+          {ratingVisible && <span className="tabular-nums">{formatRating(shownRating)}</span>}
           {USES_REGIONS && player.region && (
             <span className="flex min-w-0 items-center gap-0.5">
               <MapPin className="size-3 shrink-0" />
