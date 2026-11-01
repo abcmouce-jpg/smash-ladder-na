@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, MapPin, Radio } from "lucide-react";
+import { Check, ChevronDown, Dices, MapPin, Radio } from "lucide-react";
 import type { MatchFeedEntry } from "@/lib/match-feed";
 import type { Lang } from "@/lib/i18n";
 import { CharacterIcon } from "@/components/character-icon";
@@ -117,6 +117,15 @@ export function SetRow({
             <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"} className="shrink-0 px-1.5 py-0 text-[10px]">
               {label?.[lang]}
             </Badge>
+            {/* Named rather than left to inference: a randitto set shows
+                fighters neither player chose and a rating that did not move,
+                which reads as a bug to anyone watching without being told. */}
+            {entry.mode === "RANDITTO" && (
+              <Badge variant="outline" className="flex shrink-0 items-center gap-1 px-1.5 py-0 text-[10px]">
+                <Dices className="size-2.5" />
+                Randitto
+              </Badge>
+            )}
             {entry.hasLiveStreamer && (
               <span className="flex shrink-0 items-center gap-1 font-medium text-red-500">
                 <Radio className="size-3" />

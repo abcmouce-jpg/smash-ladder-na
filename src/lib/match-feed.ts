@@ -28,6 +28,10 @@ const feedPlayerSelect = {
 const matchFeedSelect = {
   id: true,
   status: true,
+  // Which queue the set came from. The feed shows both, and a randitto set
+  // reads as nonsense without it: the fighters were handed out, so a viewer
+  // sees picks nobody would make and a rating that did not move.
+  mode: true,
   createdAt: true,
   confirmedAt: true,
   reportedWinnerId: true,
