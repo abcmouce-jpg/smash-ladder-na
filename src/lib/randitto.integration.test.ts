@@ -6,7 +6,7 @@ import { joinLobbyAndTryPair } from "@/lib/lobby";
 import { startFirstGame } from "@/lib/match-games";
 import { adminForceConfirmMatch } from "@/lib/matches";
 import { MII_CHARACTERS, MOVESET_PATTERN } from "@/lib/characters";
-import { GAME_ONE_STAGES } from "@/lib/stages";
+import { RANDITTO_STAGE } from "@/lib/randitto";
 
 // Region is required to queue (see joinLobbyAndTryPair), and a wide rating gap
 // keeps these tests about the mode rather than about matchmaking.
@@ -107,7 +107,7 @@ describe("randitto queue", () => {
 
   // The mode exists so nobody chooses; leaving the stage negotiated made it
   // the slowest part of the fastest queue.
-  it("opens game 1 with the stage already decided and no strikes pending", async () => {
+  it("opens game 1 on the fixed stage with no strikes pending", async () => {
     const a = await queuer();
     const b = await queuer();
     await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
@@ -121,8 +121,7 @@ describe("randitto queue", () => {
     const game = await prisma.matchGame.findUniqueOrThrow({
       where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
     });
-    expect(game.finalStage).not.toBeNull();
-    expect(GAME_ONE_STAGES).toContain(game.finalStage as string);
+    expect(game.finalStage).toBe(RANDITTO_STAGE);
     expect(game.actorAStrikes).toBe(0);
     expect(game.actorBStrikes).toBe(0);
     expect(game.struckStages).toEqual([]);

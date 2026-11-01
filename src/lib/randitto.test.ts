@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { MII_CHARACTERS, MOVESET_PATTERN, SMASH_CHARACTERS } from "@/lib/characters";
-import { RANDITTO_POOL, drawRandittoPair, drawRandittoPick, drawRandittoStage } from "@/lib/randitto";
+import { RANDITTO_POOL, RANDITTO_STAGE, drawRandittoPair, drawRandittoPick } from "@/lib/randitto";
+import { GAME_ONE_STAGES } from "@/lib/stages";
 
 describe("randitto pool", () => {
   it("is the roster without Random", () => {
@@ -72,24 +73,15 @@ describe("drawRandittoPair", () => {
   });
 });
 
-describe("drawRandittoStage", () => {
-  it("only draws from the pool it is given", () => {
-    const pool = ["Battlefield", "Smashville", "Town and City"];
-    for (let i = 0; i < 300; i++) {
-      expect(pool).toContain(drawRandittoStage(pool));
-    }
+describe("RANDITTO_STAGE", () => {
+  // Fixed rather than drawn: the fighters are already the variable, and a
+  // drawn stage on top would let a set be decided by a stage nobody would
+  // have picked for a matchup nobody picked either.
+  it("is a stage the roster actually has", () => {
+    expect(GAME_ONE_STAGES).toContain(RANDITTO_STAGE);
   });
 
-  it("reaches every stage in the pool rather than favouring one", () => {
-    const pool = ["Battlefield", "Smashville", "Town and City", "Final Destination"];
-    const seen = new Set<string>();
-    for (let i = 0; i < 400; i++) seen.add(drawRandittoStage(pool));
-    expect(seen.size).toBe(pool.length);
-  });
-
-  // Game 1 and games 2+ have different pools, so the caller passes which —
-  // drawing game 2's counterpick stage in game 1 would quietly widen it.
-  it("respects a single-stage pool", () => {
-    expect(drawRandittoStage(["Battlefield"])).toBe("Battlefield");
+  it("is Pokemon Stadium 2", () => {
+    expect(RANDITTO_STAGE).toBe("Pok\u00e9mon Stadium 2");
   });
 });

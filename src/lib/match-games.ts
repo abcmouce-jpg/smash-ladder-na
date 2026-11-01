@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ConfirmationMethod, MatchMode, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES, STRIKING_STAGES } from "@/lib/stages";
-import { drawRandittoPair, drawRandittoStage } from "@/lib/randitto";
+import { drawRandittoPair, RANDITTO_STAGE } from "@/lib/randitto";
 import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
@@ -458,7 +458,7 @@ export async function startFirstGame(userId: string, matchId: string) {
       // Writing them at creation means every downstream check that waits on
       // "both characters locked in" is already satisfied, rather than each of
       // them needing to learn about the mode.
-      ...randittoSeats(match.mode, GAME_ONE_STAGES),
+      ...randittoSeats(match.mode),
     },
   });
 }
@@ -1558,7 +1558,7 @@ async function progressSet(
       characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
       // Re-drawn per game, not once per set: a fighter you cannot play costs
       // one game instead of the whole thing.
-      ...randittoSeats(match.mode, COUNTERPICK_STAGES),
+      ...randittoSeats(match.mode),
     },
   });
   return null;
@@ -1610,7 +1610,7 @@ export async function realignNextGameActors(
  * populated, so a game that arrives already filled simply skips past them
  * instead of each of them needing a `mode` branch.
  */
-function randittoSeats(mode: MatchMode, stagePool: readonly string[]) {
+function randittoSeats(mode: MatchMode) {
   if (mode !== MatchMode.RANDITTO) return {};
   const { actorA, actorB } = drawRandittoPair();
   return {
@@ -1618,10 +1618,10 @@ function randittoSeats(mode: MatchMode, stagePool: readonly string[]) {
     actorAMoveset: actorA.moveset,
     actorBCharacter: actorB.character,
     actorBMoveset: actorB.moveset,
-    // The stage is drawn too, and the strike allowances are zeroed so the
-    // phase has nothing to run — actorForStrike returns null once they are
-    // spent, so the set opens straight on the reporting step.
-    finalStage: drawRandittoStage(stagePool),
+    // The stage is fixed and the strike allowances are zeroed so the phase
+    // has nothing to run — actorForStrike returns null once they are spent,
+    // so the set opens straight on the reporting step.
+    finalStage: RANDITTO_STAGE,
     actorAStrikes: 0,
     actorBStrikes: 0,
     // Normally stamped when the stage is settled (see the repeat-stage path);

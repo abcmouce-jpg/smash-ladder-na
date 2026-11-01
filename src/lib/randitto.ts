@@ -51,17 +51,21 @@ export function drawRandittoPick(): RandittoPick {
 }
 
 /**
- * The stage for one game, drawn from whatever that game's pool is.
+ * The stage every randitto game is played on.
  *
- * Randitto skips striking entirely. The mode exists so nobody chooses, and
- * leaving the stage as the one thing still negotiated made it the slowest
- * part of the fastest queue: characters were handed out instantly and then
- * both players waited through a strike, two strikes and a pick before game
- * one started. Drawn per game, like the fighters.
+ * Fixed, not drawn. Randitto skips striking entirely — the mode exists so
+ * nobody chooses, and leaving the stage negotiated made it the slowest part
+ * of the fastest queue: the fighters were handed out instantly and then both
+ * players sat through a strike, two strikes and a pick before game one.
+ *
+ * Fixed rather than random because the fighters are already the variable.
+ * Drawing the stage too would mean a set could be decided by a stage nobody
+ * would have picked for the matchup it happened to produce, on top of two
+ * fighters nobody picked — one layer of chance is the premise, two is noise.
+ * Pokémon Stadium 2 is the one starter with no meaningful layout quirk for
+ * any fighter to be handed, which is what makes it the fair constant here.
  */
-export function drawRandittoStage(pool: readonly string[]): string {
-  return pool[Math.floor(Math.random() * pool.length)];
-}
+export const RANDITTO_STAGE = "Pokémon Stadium 2";
 
 /**
  * Both sides' fighters for one game.
