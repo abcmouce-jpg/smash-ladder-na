@@ -59,6 +59,20 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
   },
+  // Search Console's HTML-tag ownership check, read from the environment so
+  // claiming the property is one `vercel env add` and a redeploy rather than a
+  // code change — and so each instance can hold its own token.
+  //
+  // Worth claiming: this site had zero pages indexed after three months live
+  // while everything that could block a crawler checked out clean (robots
+  // allows, the sitemap serves, no firewall rules, an external fetch gets 200
+  // with full content). Without the property there is no way to see which of
+  // "not crawled", "crawled and not indexed" or something else is actually
+  // happening, so the AdSense rejections stay guesswork.
+  //
+  // Next.js omits the tag entirely when this is undefined, so an unset
+  // variable is simply no tag — not an empty one that fails the check.
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION?.trim() || undefined },
 };
 
 export default async function RootLayout({
