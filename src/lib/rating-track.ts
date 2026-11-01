@@ -13,7 +13,7 @@
  */
 import { MatchMode } from "@/generated/prisma/enums";
 
-export type RatingTrack = "main" | "practice" | "randitto" | "randubs";
+export type RatingTrack = "main" | "practice" | "randitto";
 
 /** A player's rating state on one track, as nextRatingStates wants it. */
 export type TrackColumns = {
@@ -32,7 +32,6 @@ export type TrackColumns = {
  */
 export function trackFor(mode: MatchMode, isPracticing: boolean): RatingTrack {
   if (mode === MatchMode.RANDITTO) return "randitto";
-  if (mode === MatchMode.RANDUBS) return "randubs";
   return isPracticing ? "practice" : "main";
 }
 
@@ -51,10 +50,6 @@ export function readTrack(
     randittoRatingDeviation: number;
     randittoRatingVolatility: number;
     randittoGamesPlayed: number;
-    randubsRating: number;
-    randubsRatingDeviation: number;
-    randubsRatingVolatility: number;
-    randubsGamesPlayed: number;
   },
   track: RatingTrack,
 ): TrackColumns {
@@ -72,13 +67,6 @@ export function readTrack(
         ratingDeviation: user.randittoRatingDeviation,
         ratingVolatility: user.randittoRatingVolatility,
         gamesPlayed: user.randittoGamesPlayed,
-      };
-    case "randubs":
-      return {
-        rating: user.randubsRating,
-        ratingDeviation: user.randubsRatingDeviation,
-        ratingVolatility: user.randubsRatingVolatility,
-        gamesPlayed: user.randubsGamesPlayed,
       };
     default:
       return {
@@ -114,13 +102,6 @@ export function writeTrack(track: RatingTrack, next: { rating: number; rd: numbe
         randittoRatingVolatility: next.volatility,
         randittoGamesPlayed: { increment: 1 },
       };
-    case "randubs":
-      return {
-        randubsRating: next.rating,
-        randubsRatingDeviation: next.rd,
-        randubsRatingVolatility: next.volatility,
-        randubsGamesPlayed: { increment: 1 },
-      };
     default:
       return {
         rating: next.rating,
@@ -138,31 +119,4 @@ export function writeTrack(track: RatingTrack, next: { rating: number; rd: numbe
  */
 export function isMainTrack(track: RatingTrack): boolean {
   return track === "main";
-}
-
-/**
- * One side's rating state, averaged over its members.
- *
- * A 1v1 side has one member and this is just that player's numbers. A doubles
- * side has two, and the mean is what gets rated — then the change is handed
- * back to each member as a delta (see applyEloAndConfirm), so teammates who
- * arrived on different ratings stay apart rather than being flattened onto
- * the team's average.
- *
- * Games played takes the minimum rather than the mean, because it only feeds
- * the provisional K-factor: a veteran paired with a newcomer should not make
- * the newcomer's rating move like a veteran's.
- */
-export function meanOfTrack(members: (Parameters<typeof readTrack>[0] | null)[], track: RatingTrack): TrackColumns {
-  const present = members
-    .filter((m): m is Parameters<typeof readTrack>[0] => m !== null)
-    .map((m) => readTrack(m, track));
-  if (present.length === 0) throw new Error("a side must have at least one member");
-  const mean = (pick: (c: TrackColumns) => number) => present.reduce((sum, c) => sum + pick(c), 0) / present.length;
-  return {
-    rating: mean((c) => c.rating),
-    ratingDeviation: mean((c) => c.ratingDeviation),
-    ratingVolatility: mean((c) => c.ratingVolatility),
-    gamesPlayed: Math.min(...present.map((c) => c.gamesPlayed)),
-  };
 }

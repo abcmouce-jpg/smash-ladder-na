@@ -107,6 +107,9 @@ enum TournamentStatus {
 enum MatchMode {
   STANDARD
   RANDITTO
+  // Random doubles, tried and dropped 2026-11-01. The value stays because
+  // Postgres does not drop an enum member without rewriting the type, and
+  // nothing writes it any more — see the partner columns below.
   RANDUBS
 }
 
@@ -208,7 +211,11 @@ model User {
   randittoRatingDeviation    Float           @default(350) // same role as ratingDeviation, for the randitto track
   randittoRatingVolatility   Float           @default(0.06) // same role as ratingVolatility, for the randitto track
   randittoGamesPlayed        Int             @default(0)
-  randubsRating              Float           @default(1500) // separate rating track for RANDUBS (random doubles) sets — its own ladder, like the randitto one
+  // Left from the randubs experiment (dropped 2026-11-01). Inert: no code
+  // reads or writes them, and every row is still at its default. Kept rather
+  // than dropped so the schema matches the database the migration already
+  // changed; delete them in a migration if doubles is never revisited.
+  randubsRating              Float           @default(1500)
   randubsRatingDeviation     Float           @default(350)
   randubsRatingVolatility    Float           @default(0.06)
   randubsGamesPlayed         Int             @default(0)
@@ -321,9 +328,8 @@ model RatingMatch {
   roomCode                     String? // never rendered outside the paired pair's own view
   roomCodeSetById              String? // whoever entered it owns it; the other side can only read it
   mode                         MatchMode           @default(STANDARD) // carried from the lobby entry; decides whether characters are assigned or picked
-  // Doubles rides the existing two-side shape rather than a parallel model:
-  // player1/player2 are the two SIDES, and these are the second member of
-  // each. Null for every 1v1 mode, so nothing about a standard set changes.
+  // Each side's second member, from the randubs experiment (dropped
+  // 2026-11-01). Null on every row; nothing reads them.
   player1PartnerId             String?
   player1Partner               User?               @relation("Player1PartnerMatches", fields: [player1PartnerId], references: [id])
   player2PartnerId             String?
