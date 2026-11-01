@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { MII_CHARACTERS, MOVESET_PATTERN, SMASH_CHARACTERS } from "@/lib/characters";
-import { RANDITTO_POOL, drawRandittoPair, drawRandittoPick } from "@/lib/randitto";
+import { RANDITTO_POOL, drawRandittoPair, drawRandittoPick, drawRandittoStage } from "@/lib/randitto";
 
 describe("randitto pool", () => {
   it("is the roster without Random", () => {
@@ -69,5 +69,27 @@ describe("drawRandittoPair", () => {
     // Independent draws over n fighters collide about 1/n of the time.
     expect(same).toBeGreaterThan(0);
     expect(same).toBeLessThan(runs * 0.1);
+  });
+});
+
+describe("drawRandittoStage", () => {
+  it("only draws from the pool it is given", () => {
+    const pool = ["Battlefield", "Smashville", "Town and City"];
+    for (let i = 0; i < 300; i++) {
+      expect(pool).toContain(drawRandittoStage(pool));
+    }
+  });
+
+  it("reaches every stage in the pool rather than favouring one", () => {
+    const pool = ["Battlefield", "Smashville", "Town and City", "Final Destination"];
+    const seen = new Set<string>();
+    for (let i = 0; i < 400; i++) seen.add(drawRandittoStage(pool));
+    expect(seen.size).toBe(pool.length);
+  });
+
+  // Game 1 and games 2+ have different pools, so the caller passes which —
+  // drawing game 2's counterpick stage in game 1 would quietly widen it.
+  it("respects a single-stage pool", () => {
+    expect(drawRandittoStage(["Battlefield"])).toBe("Battlefield");
   });
 });

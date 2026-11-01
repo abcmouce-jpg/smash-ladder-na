@@ -51,6 +51,19 @@ export function drawRandittoPick(): RandittoPick {
 }
 
 /**
+ * The stage for one game, drawn from whatever that game's pool is.
+ *
+ * Randitto skips striking entirely. The mode exists so nobody chooses, and
+ * leaving the stage as the one thing still negotiated made it the slowest
+ * part of the fastest queue: characters were handed out instantly and then
+ * both players waited through a strike, two strikes and a pick before game
+ * one started. Drawn per game, like the fighters.
+ */
+export function drawRandittoStage(pool: readonly string[]): string {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/**
  * Both sides' fighters for one game.
  *
  * Drawn independently, so the same fighter on both sides is possible and is

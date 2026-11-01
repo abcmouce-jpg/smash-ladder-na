@@ -6,6 +6,7 @@ import { joinLobbyAndTryPair } from "@/lib/lobby";
 import { startFirstGame } from "@/lib/match-games";
 import { adminForceConfirmMatch } from "@/lib/matches";
 import { MII_CHARACTERS, MOVESET_PATTERN } from "@/lib/characters";
+import { GAME_ONE_STAGES } from "@/lib/stages";
 
 // Region is required to queue (see joinLobbyAndTryPair), and a wide rating gap
 // keeps these tests about the mode rather than about matchmaking.
@@ -102,6 +103,47 @@ describe("randitto queue", () => {
         expect(moveset).toMatch(MOVESET_PATTERN);
       }
     }
+  });
+
+  // The mode exists so nobody chooses; leaving the stage negotiated made it
+  // the slowest part of the fastest queue.
+  it("opens game 1 with the stage already decided and no strikes pending", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+
+    await startFirstGame(a.id, match.id);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.finalStage).not.toBeNull();
+    expect(GAME_ONE_STAGES).toContain(game.finalStage as string);
+    expect(game.actorAStrikes).toBe(0);
+    expect(game.actorBStrikes).toBe(0);
+    expect(game.struckStages).toEqual([]);
+  });
+
+  it("leaves a standard set's stage to be struck for, as before", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+
+    await startFirstGame(a.id, match.id);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.finalStage).toBeNull();
+    expect(game.actorAStrikes + game.actorBStrikes).toBeGreaterThan(0);
   });
 
   it("leaves a standard set's characters unassigned, as before", async () => {
