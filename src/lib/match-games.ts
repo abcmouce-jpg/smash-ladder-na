@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ConfirmationMethod, MatchMode, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES, STRIKING_STAGES } from "@/lib/stages";
-import { drawRandittoPair, RANDITTO_STAGE } from "@/lib/randitto";
+import { RANDITTO_STAGE } from "@/lib/randitto";
 import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
@@ -1601,32 +1601,19 @@ export async function realignNextGameActors(
 }
 
 /**
- * The character columns a new game starts with.
+ * The columns a new game starts with when the queue decides them.
  *
- * Empty for a standard set — the players pick, and the pick phase fills these
- * in. For randitto they are drawn up front, which is what makes the mode work
- * without touching the pick phase at all: `bothLocked`, the pick deadline
- * sweeps and the auto-forfeit for a stale pick all key off these columns being
- * populated, so a game that arrives already filled simply skips past them
- * instead of each of them needing a `mode` branch.
+ * Randitto and the modes like it skip the pick and strike phases entirely:
+ * the fighters come from Smash's own Random option, which the players press
+ * themselves, and the stage is fixed. Writing the stage and zeroing the
+ * strike allowances at creation is what lets those phases be skipped without
+ * each of them learning about the mode — actorForStrike returns null once the
+ * allowances are spent, so the set opens straight on the reporting step.
+ *
+ * Characters stay null on purpose: the game rolled them, not the site, so
+ * there is nothing truthful to record.
  */
 function randittoSeats(mode: MatchMode) {
   if (mode !== MatchMode.RANDITTO) return {};
-  const { actorA, actorB } = drawRandittoPair();
-  return {
-    actorACharacter: actorA.character,
-    actorAMoveset: actorA.moveset,
-    actorBCharacter: actorB.character,
-    actorBMoveset: actorB.moveset,
-    // The stage is fixed and the strike allowances are zeroed so the phase
-    // has nothing to run — actorForStrike returns null once they are spent,
-    // so the set opens straight on the reporting step.
-    finalStage: RANDITTO_STAGE,
-    actorAStrikes: 0,
-    actorBStrikes: 0,
-    // Normally stamped when the stage is settled (see the repeat-stage path);
-    // the reporting timer reads it, so a game that arrives already settled
-    // has to set it here or it would be timing from nothing.
-    turnStartedAt: new Date(),
-  };
+  return { finalStage: RANDITTO_STAGE, actorAStrikes: 0, actorBStrikes: 0, turnStartedAt: new Date() };
 }

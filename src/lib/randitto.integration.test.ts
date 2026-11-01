@@ -6,7 +6,6 @@ import { createDirectMatch, getLobbyActivityStats, joinLobbyAndTryPair, sweepLob
 import { getPublicStats } from "@/lib/public-stats";
 import { startFirstGame } from "@/lib/match-games";
 import { adminForceConfirmMatch } from "@/lib/matches";
-import { MII_CHARACTERS, MOVESET_PATTERN } from "@/lib/characters";
 import { RANDITTO_STAGE } from "@/lib/randitto";
 
 // Region is required to queue (see joinLobbyAndTryPair), and a wide rating gap
@@ -77,7 +76,7 @@ describe("randitto queue", () => {
     expect(match).not.toBeNull();
   });
 
-  it("starts game 1 with both fighters already assigned", async () => {
+  it("starts game 1 with no fighters recorded — Smash rolls them", async () => {
     const a = await queuer();
     const b = await queuer();
     await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
@@ -91,19 +90,12 @@ describe("randitto queue", () => {
     const game = await prisma.matchGame.findUniqueOrThrow({
       where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
     });
-    expect(game.actorACharacter).not.toBeNull();
-    expect(game.actorBCharacter).not.toBeNull();
-    expect(game.actorACharacter).not.toBe("Random");
-    expect(game.actorBCharacter).not.toBe("Random");
-    // A Mii without a moveset would leave the game looking half-picked.
-    for (const [character, moveset] of [
-      [game.actorACharacter, game.actorAMoveset],
-      [game.actorBCharacter, game.actorBMoveset],
-    ] as const) {
-      if ((MII_CHARACTERS as readonly string[]).includes(character as string)) {
-        expect(moveset).toMatch(MOVESET_PATTERN);
-      }
-    }
+    // Nothing is stored: the players press Random in game, so the site has
+    // no fighter it could truthfully record.
+    expect(game.actorACharacter).toBeNull();
+    expect(game.actorBCharacter).toBeNull();
+    // And the set is not left waiting on a pick phase that never runs.
+    expect(game.finalStage).toBe(RANDITTO_STAGE);
   });
 
   // The mode exists so nobody chooses; leaving the stage negotiated made it

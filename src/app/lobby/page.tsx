@@ -50,6 +50,7 @@ import {
   secondsUntil,
 } from "@/lib/match-games";
 import { STRIKING_STAGES, stageImagePath, stageLabel, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { RANDITTO_STAGE } from "@/lib/randitto";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
@@ -2120,52 +2121,59 @@ function GameSection({
             en: `Game ${current.gameNumber} — `,
             es: `Juego ${current.gameNumber} — `,
           })}
-          {!bothLocked
-            ? tr(lang, {
-                en: "Stage selection starts once you both pick a character.",
-                es: "La selección de escenario empieza cuando ambos elijan personaje.",
+          {match.mode === "RANDITTO"
+            ? // Nothing to choose on the site: Smash rolls the fighters and the
+              // stage is fixed, so the only step left is reporting.
+              tr(lang, {
+                en: `Both pick Random in game, on ${RANDITTO_STAGE}. Report the result when you're done.`,
+                es: `Los dos elegid Aleatorio en el juego, en ${RANDITTO_STAGE}. Reportad el resultado al terminar.`,
               })
-            : !STRIKING_STAGES && current.gameNumber === 1
-              ? // Game 1 is settled by the in-game lottery, so the site records
-                // the outcome rather than running the choice.
-                tr(lang, {
-                  en: "Both players choose the stage they want in game and take whatever the lottery gives — do not pick Random. Record the stage it landed on below.",
-                  es: "Ambos eligen el escenario que quieren dentro del juego y aceptan lo que salga — no elijan Aleatorio. Registren abajo el escenario que tocó.",
+            : !bothLocked
+              ? tr(lang, {
+                  en: "Stage selection starts once you both pick a character.",
+                  es: "La selección de escenario empieza cuando ambos elijan personaje.",
                 })
-              : !STRIKING_STAGES
-                ? tr(lang, {
-                    en: "The last game's loser picks the stage; the winner selects Random in game.",
-                    es: "Quien perdió el último juego elige el escenario; el ganador elige Aleatorio en el juego.",
+              : !STRIKING_STAGES && current.gameNumber === 1
+                ? // Game 1 is settled by the in-game lottery, so the site records
+                  // the outcome rather than running the choice.
+                  tr(lang, {
+                    en: "Both players choose the stage they want in game and take whatever the lottery gives — do not pick Random. Record the stage it landed on below.",
+                    es: "Ambos eligen el escenario que quieren dentro del juego y aceptan lo que salga — no elijan Aleatorio. Registren abajo el escenario que tocó.",
                   })
-                : !myTurn
-                  ? trNode(lang, {
-                      en: (
-                        <>
-                          Waiting for {opponentName} to {verbLocalized}… (
-                          <Countdown deadline={deadline} />s left)
-                        </>
-                      ),
-                      es: (
-                        <>
-                          Esperando a que {opponentName} {verbLocalized}… (
-                          <Countdown deadline={deadline} />s restantes)
-                        </>
-                      ),
+                : !STRIKING_STAGES
+                  ? tr(lang, {
+                      en: "The last game's loser picks the stage; the winner selects Random in game.",
+                      es: "Quien perdió el último juego elige el escenario; el ganador elige Aleatorio en el juego.",
                     })
-                  : trNode(lang, {
-                      en: (
-                        <>
-                          Your turn — {turnDescription} (
-                          <Countdown deadline={deadline} />s left, or it picks automatically).
-                        </>
-                      ),
-                      es: (
-                        <>
-                          Tu turno — {turnDescription} (
-                          <Countdown deadline={deadline} />s restantes, o se elige solo).
-                        </>
-                      ),
-                    })}
+                  : !myTurn
+                    ? trNode(lang, {
+                        en: (
+                          <>
+                            Waiting for {opponentName} to {verbLocalized}… (
+                            <Countdown deadline={deadline} />s left)
+                          </>
+                        ),
+                        es: (
+                          <>
+                            Esperando a que {opponentName} {verbLocalized}… (
+                            <Countdown deadline={deadline} />s restantes)
+                          </>
+                        ),
+                      })
+                    : trNode(lang, {
+                        en: (
+                          <>
+                            Your turn — {turnDescription} (
+                            <Countdown deadline={deadline} />s left, or it picks automatically).
+                          </>
+                        ),
+                        es: (
+                          <>
+                            Tu turno — {turnDescription} (
+                            <Countdown deadline={deadline} />s restantes, o se elige solo).
+                          </>
+                        ),
+                      })}
         </p>
         <StageProposalSection
           matchId={match.id}

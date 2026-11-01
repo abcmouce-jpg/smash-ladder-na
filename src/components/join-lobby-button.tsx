@@ -144,8 +144,8 @@ export function JoinLobbyForm({
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
         {tr(lang, {
-          en: "Randitto is its own queue: you and your opponent are each handed a random fighter, re-drawn every game. It always rates onto the practice track, so the checkbox above doesn't matter for it.",
-          es: "Randitto es su propia cola: a ti y a tu rival se os asigna un personaje aleatorio, re-sorteado cada juego. Siempre cuenta para la clasificación de práctica, así que la casilla de arriba no le afecta.",
+          en: "Randitto is its own queue, with its own rating that leaves your ladder rating alone. Both of you pick Random in game — Smash rolls a fresh fighter every game — and every set is on Pokémon Stadium 2. No character or stage picking on the site.",
+          es: "Randitto es su propia cola, con su propia clasificación que no toca la del ladder. Los dos elegís Aleatorio en el juego — Smash sortea un personaje nuevo cada partida — y todos los sets son en Pokémon Stadium 2. Sin elegir personaje ni escenario en el sitio.",
         })}
       </p>
       {state.error && <p className="mt-2 text-sm text-destructive">{state.error}</p>}
