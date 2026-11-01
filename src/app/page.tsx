@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Activity, Users } from "lucide-react";
+import { Activity, Dices, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { formatRating } from "@/lib/rating-format";
@@ -192,6 +192,25 @@ export default async function Home() {
                 es: (
                   <>
                     <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
+                  </>
+                ),
+              })}
+            </span>
+          </span>
+        )}
+        {stats.randittoPlayingNow > 0 && (
+          <span className="flex items-center gap-1.5 tabular-nums">
+            <Dices className="size-3.5" />
+            <span>
+              {trNode(lang, {
+                en: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.randittoPlayingNow}</span> in randitto
+                  </>
+                ),
+                es: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.randittoPlayingNow}</span> en randitto
                   </>
                 ),
               })}

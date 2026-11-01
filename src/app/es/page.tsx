@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { Activity, Users } from "lucide-react";
+import { Activity, Dices, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { getFriendliesPosts } from "@/lib/home-feed";
@@ -133,6 +133,12 @@ export default async function HomeEs() {
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
             <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
+          </span>
+        )}
+        {stats.randittoPlayingNow > 0 && (
+          <span className="flex items-center gap-1.5 tabular-nums">
+            <Dices className="size-3.5" />
+            <span className="font-medium text-foreground">{stats.randittoPlayingNow}</span> en randitto
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">

@@ -112,21 +112,33 @@ export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
 // direct RatingLobbyEntry count; in-match goes through RatingMatch.status
 // instead of RatingLobbyEntry.status, since PAIRED rows never get cleaned
 // up after a match resolves and would overcount actual activity.
+/**
+ * Who is queueing and playing right now, split by mode.
+ *
+ * Split because the two are separate queues: a randitto player waiting sees
+ * no help in a number that is mostly the standard queue, and someone deciding
+ * whether randitto is worth trying needs to know whether anyone is in it. A
+ * combined figure answers neither question — it reads as "plenty of people
+ * around" right up until you queue and nobody is in yours.
+ */
 export async function getLobbyActivityStats() {
-  const [waiting, inMatch] = await Promise.all([
+  const liveStatuses = { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] };
+  const [waiting, randittoWaiting, inMatch, randittoInMatch] = await Promise.all([
     prisma.ratingLobbyEntry.count({
-      where: {
-        status: LobbyEntryStatus.WAITING,
-        expiresAt: { gt: new Date() },
-      },
+      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() }, mode: MatchMode.STANDARD },
     }),
-    prisma.ratingMatch.count({
-      where: {
-        status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
-      },
+    prisma.ratingLobbyEntry.count({
+      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() }, mode: MatchMode.RANDITTO },
     }),
+    prisma.ratingMatch.count({ where: { status: liveStatuses, mode: MatchMode.STANDARD } }),
+    prisma.ratingMatch.count({ where: { status: liveStatuses, mode: MatchMode.RANDITTO } }),
   ]);
-  return { waiting, inMatch: inMatch * 2 };
+  return {
+    waiting,
+    inMatch: inMatch * 2,
+    randittoWaiting,
+    randittoInMatch: randittoInMatch * 2,
+  };
 }
 
 export async function getActiveLobbyEntry(userId: string) {

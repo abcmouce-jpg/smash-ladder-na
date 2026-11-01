@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import { createTestUser } from "@/test/factories";
 import { LobbyEntryStatus, MatchMode, PairingMethod, RatingAlgorithm } from "@/generated/prisma/enums";
-import { createDirectMatch, joinLobbyAndTryPair, sweepLobbyPairing } from "@/lib/lobby";
+import { createDirectMatch, getLobbyActivityStats, joinLobbyAndTryPair, sweepLobbyPairing } from "@/lib/lobby";
+import { getPublicStats } from "@/lib/public-stats";
 import { startFirstGame } from "@/lib/match-games";
 import { adminForceConfirmMatch } from "@/lib/matches";
 import { MII_CHARACTERS, MOVESET_PATTERN } from "@/lib/characters";
@@ -298,5 +299,46 @@ describe("every pairing path keeps the mode", () => {
     const b = await queuer();
     const direct = await prisma.$transaction((tx) => createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH));
     expect(direct.mode).toBe(MatchMode.STANDARD);
+  });
+});
+
+// "playing now" is the number the site leads with. Merging the two queues
+// into it would tell a visitor there is activity in a queue they cannot join
+// from the one they are looking at — the standard count would be carried by
+// randitto players and vice versa.
+describe("activity counts are per queue", () => {
+  it("counts a randitto match only under randitto", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const stats = await getLobbyActivityStats();
+    expect(stats.randittoInMatch).toBe(2);
+    expect(stats.inMatch).toBe(0);
+
+    const pub = await getPublicStats();
+    expect(pub.randittoPlayingNow).toBe(2);
+    expect(pub.playingNow).toBe(0);
+  });
+
+  it("counts a standard match only under standard", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+
+    const stats = await getLobbyActivityStats();
+    expect(stats.inMatch).toBe(2);
+    expect(stats.randittoInMatch).toBe(0);
+  });
+
+  it("counts waiting players under their own queue", async () => {
+    const a = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+
+    const stats = await getLobbyActivityStats();
+    expect(stats.randittoWaiting).toBe(1);
+    expect(stats.waiting).toBe(0);
   });
 });

@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Check,
   Clock,
+  Dices,
   Loader2,
   Lock,
   MapPin,
@@ -141,7 +142,14 @@ export default async function LobbyPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
-        <ActivityLine inMatch={activity.inMatch} matched={false} isWaiting={false} poll={false} lang={lang} />
+        <ActivityLine
+          inMatch={activity.inMatch}
+          randittoInMatch={activity.randittoInMatch}
+          matched={false}
+          isWaiting={false}
+          poll={false}
+          lang={lang}
+        />
         <p className="mt-2 text-sm text-muted-foreground">
           {tr(lang, {
             en: "Sign in with Discord (top right) to join the matchmaking lobby.",
@@ -235,6 +243,7 @@ export default async function LobbyPage() {
       <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
       <ActivityLine
         inMatch={activity.inMatch}
+        randittoInMatch={activity.randittoInMatch}
         matched={!!isInActiveMatch}
         isWaiting={isWaiting}
         poll={shouldPollLobby({
@@ -451,6 +460,7 @@ export default async function LobbyPage() {
 
 function ActivityLine({
   inMatch,
+  randittoInMatch,
   matched,
   isWaiting,
   poll,
@@ -460,6 +470,7 @@ function ActivityLine({
   lang,
 }: {
   inMatch: number;
+  randittoInMatch: number;
   matched: boolean;
   isWaiting: boolean;
   poll: boolean;
@@ -485,6 +496,28 @@ function ActivityLine({
           ),
         })}
       </span>
+      {/* Counted apart, because the two queues cannot pair with each other:
+          a number that merges them tells someone deciding between them
+          nothing about either. */}
+      {randittoInMatch > 0 && (
+        <span className="flex items-center gap-1.5 tabular-nums">
+          <Dices className="size-3.5" />
+          <span>
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{randittoInMatch}</span> in randitto
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{randittoInMatch}</span> en randitto
+                </>
+              ),
+            })}
+          </span>
+        </span>
+      )}
       {poll && (
         <LobbyPoller
           matched={matched}
