@@ -1538,3 +1538,87 @@ describe("requestRematch", () => {
     expect(newMatches).toBe(0);
   });
 });
+
+// A set that moves nobody is the one thing a ladder cannot report. Glicko-2
+// narrows a settled rating (low RD) by fractions of a point against a far-off
+// opponent, and the number players see is rounded — so 213 confirmed sides had
+// already been recorded with a change of 0 by 2026-11-02. Both sides must move
+// by at least MIN_RATING_DELTA in the direction the result implies.
+describe("every rated set moves both ratings by at least 1", () => {
+  async function ratedSet(
+    algorithm: RatingAlgorithm,
+    winnerAttrs: Record<string, unknown>,
+    loserAttrs: Record<string, unknown>,
+  ) {
+    await prisma.season.create({ data: { name: `Season ${algorithm} ${Math.random()}`, algorithm } });
+    const winner = await createTestUser(winnerAttrs);
+    const loser = await createTestUser(loserAttrs);
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: winner.id,
+        player2Id: loser.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, winner.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: winner.id,
+        reporterId: winner.id,
+      }),
+    );
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    return {
+      winnerBefore: updated.player1RatingBefore!,
+      winnerAfter: updated.player1RatingAfter!,
+      loserBefore: updated.player2RatingBefore!,
+      loserAfter: updated.player2RatingAfter!,
+    };
+  }
+
+  // The production shape: both ratings settled (low RD), a 900-point gap, and
+  // the favorite wins — the case that used to compute to under half a point.
+  it("Glicko-2: a settled favorite beating a far weaker player still moves both", async () => {
+    const r = await ratedSet(
+      RatingAlgorithm.GLICKO2,
+      { rating: 1900, gamesPlayed: 200, ratingDeviation: 40, ratingVolatility: 0.04 },
+      { rating: 1000, gamesPlayed: 200, ratingDeviation: 40, ratingVolatility: 0.04 },
+    );
+    expect(r.winnerAfter - r.winnerBefore).toBeGreaterThanOrEqual(1);
+    expect(r.loserBefore - r.loserAfter).toBeGreaterThanOrEqual(1);
+    // And the rounded numbers players read actually differ, which is the
+    // symptom that was reported.
+    expect(Math.round(r.winnerAfter)).not.toBe(Math.round(r.winnerBefore));
+    expect(Math.round(r.loserAfter)).not.toBe(Math.round(r.loserBefore));
+  });
+
+  it("Glicko-2: an ordinary even set is untouched by the floor", async () => {
+    const r = await ratedSet(
+      RatingAlgorithm.GLICKO2,
+      { rating: 1500, gamesPlayed: 50, ratingDeviation: 100 },
+      { rating: 1500, gamesPlayed: 50, ratingDeviation: 100 },
+    );
+    expect(r.winnerAfter - r.winnerBefore).toBeGreaterThan(5);
+    expect(r.loserBefore - r.loserAfter).toBeGreaterThan(5);
+  });
+
+  it("Elo: a huge favorite's win moves the loser too, not just the winner", async () => {
+    const r = await ratedSet(
+      RatingAlgorithm.ELO,
+      { rating: 2200, gamesPlayed: 200 },
+      { rating: 1200, gamesPlayed: 200 },
+    );
+    expect(r.winnerAfter - r.winnerBefore).toBeGreaterThanOrEqual(1);
+    expect(r.loserBefore - r.loserAfter).toBeGreaterThanOrEqual(1);
+  });
+
+  it("Smashmate: same floor on the losing side", async () => {
+    const r = await ratedSet(
+      RatingAlgorithm.SMASHMATE,
+      { rating: 2200, gamesPlayed: 200 },
+      { rating: 1200, gamesPlayed: 200 },
+    );
+    expect(r.winnerAfter - r.winnerBefore).toBeGreaterThanOrEqual(1);
+    expect(r.loserBefore - r.loserAfter).toBeGreaterThanOrEqual(1);
+  });
+});

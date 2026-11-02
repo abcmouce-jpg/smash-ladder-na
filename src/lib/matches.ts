@@ -528,15 +528,28 @@ export function expectedScore(ratingSelf: number, ratingOpp: number) {
 // single set at 30 too, so this is shared by both.
 export const MAX_RATING_DELTA = 30;
 
+// Every rated set has to show a result. A win against a much lower-rated
+// opponent — or a loss to a much higher-rated one — computes to less than half
+// a point, and the rating players actually see is rounded (see formatRating),
+// so the set reported a change of 0 and read as broken even though the math was
+// right. 213 confirmed sides were in that state on 2026-11-02. Both sides now
+// move by at least this much, in the direction the result implies. Smashmate
+// floored a win at 1 the same way; the losing side used to be "left exactly as
+// computed", which is what produced the zeros.
+export const MIN_RATING_DELTA = 1;
+
+// The floor applied to a rating that has already been computed, whatever
+// produced it. Glicko-2 needs it in this shape rather than on a delta, because
+// its update is not expressed as one — so the rule lives here once instead of
+// being restated per algorithm.
+function withMinimumMove(before: number, after: number, won: boolean): number {
+  return won ? Math.max(after, before + MIN_RATING_DELTA) : Math.min(after, before - MIN_RATING_DELTA);
+}
+
 function clampDelta(raw: number, score: 0 | 1 | number): number {
   const clamped = Math.max(-MAX_RATING_DELTA, Math.min(MAX_RATING_DELTA, raw));
-  // A win against a much lower-rated opponent can have `raw` round all the
-  // way down to +0 — mathematically correct, but the victory screen ends up
-  // announcing "+0 rating" on a win, which reads as broken. score is always
-  // exactly 1 (win) or 0 (loss), never a draw, so this only ever floors the
-  // winning side; a loss is left exactly as computed. Smashmate floored a
-  // win at 1 as well.
-  return score === 1 ? Math.max(1, clamped) : clamped;
+  // score is always exactly 1 (win) or 0 (loss), never a draw.
+  return score === 1 ? Math.max(MIN_RATING_DELTA, clamped) : Math.min(-MIN_RATING_DELTA, clamped);
 }
 
 export function eloDelta(games: number, score: number, expected: number): number {
@@ -566,17 +579,35 @@ function nextRatingStates(
   p1Games: number,
   p2Games: number,
 ): { p1: RatingState; p2: RatingState } {
+  const p1Won = p1Score === 1;
   if (algorithm === RatingAlgorithm.GLICKO2) {
-    return applyGlicko2Result(p1, p2, p1Score);
+    // Glicko-2 narrows a confident rating by fractions of a point against a
+    // far-off opponent, so this is the algorithm the zeros actually came from.
+    const next = applyGlicko2Result(p1, p2, p1Score);
+    return {
+      p1: { ...next.p1, rating: withMinimumMove(p1.rating, next.p1.rating, p1Won) },
+      p2: { ...next.p2, rating: withMinimumMove(p2.rating, next.p2.rating, !p1Won) },
+    };
   }
 
   const expected1 = expectedScore(p1.rating, p2.rating);
   const flat = algorithm === RatingAlgorithm.SMASHMATE;
   const delta1 = flat ? smashmateDelta(p1Score, expected1) : eloDelta(p1Games, p1Score, expected1);
   const delta2 = flat ? smashmateDelta(1 - p1Score, 1 - expected1) : eloDelta(p2Games, 1 - p1Score, 1 - expected1);
+  // clampDelta already floors both deltas, so this only matters if a rating
+  // carried in from another algorithm is fractional — applied anyway so the
+  // guarantee holds by construction rather than by that argument.
   return {
-    p1: { rating: Math.round(p1.rating + delta1), rd: p1.rd, volatility: p1.volatility },
-    p2: { rating: Math.round(p2.rating + delta2), rd: p2.rd, volatility: p2.volatility },
+    p1: {
+      rating: withMinimumMove(p1.rating, Math.round(p1.rating + delta1), p1Won),
+      rd: p1.rd,
+      volatility: p1.volatility,
+    },
+    p2: {
+      rating: withMinimumMove(p2.rating, Math.round(p2.rating + delta2), !p1Won),
+      rd: p2.rd,
+      volatility: p2.volatility,
+    },
   };
 }
 

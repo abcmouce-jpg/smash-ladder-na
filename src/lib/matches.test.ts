@@ -99,9 +99,18 @@ describe("Elo helpers", () => {
       expect(eloDelta(30, 1, e)).toBe(1);
     });
 
-    it("does not floor an all-but-certain loss — the win-only floor leaves it near-zero", () => {
+    // Used to be left as computed, which is what put a change of 0 on the
+    // losing side of a lopsided set (see MIN_RATING_DELTA).
+    it("floors an all-but-certain loss at -1", () => {
       const underdogExpected = expectedScore(1200, 2200); // near-zero chance of winning
-      expect(Math.abs(eloDelta(30, 0, underdogExpected))).toBeLessThan(1);
+      const raw = kFactor(30) * (0 - underdogExpected);
+      expect(Math.abs(raw)).toBeLessThan(0.5);
+      expect(eloDelta(30, 0, underdogExpected)).toBe(-1);
+    });
+
+    it("leaves an ordinary loss exactly as computed", () => {
+      const e = expectedScore(1500, 1500);
+      expect(eloDelta(30, 0, e)).toBeCloseTo(kFactor(30) * (0 - e), 10);
     });
   });
 });
