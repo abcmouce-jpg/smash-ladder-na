@@ -207,7 +207,11 @@ export default async function StreamOverlayPage({
   // stage has been picked yet, show the stage pool with each side's bans.
   // Strikes are recorded in order — actorA's share first, then actorB's —
   // so a stage's index in struckStages tells us who banned it.
-  const stageBanInProgress = !!currentGame && bothCharactersLocked(currentGame) && !currentGame.finalStage;
+  const stageBanInProgress =
+    !!currentMatch &&
+    !!currentGame &&
+    bothCharactersLocked(currentGame, currentMatch.mode) &&
+    !currentGame.finalStage;
   const stagePool = currentGame?.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
   const strikeOwner = (stage: string): "user" | "opponent" | null => {
     if (!currentGame) return null;

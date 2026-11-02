@@ -87,6 +87,7 @@ async function autoResolveStaleTurn(matchId: string) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId, winnerId: null, finalStage: null },
     orderBy: { gameNumber: "desc" },
+    include: { match: { select: { mode: true } } },
   });
   if (!game) return;
   // The strike/pick clock doesn't apply until both characters are locked in
@@ -95,7 +96,7 @@ async function autoResolveStaleTurn(matchId: string) {
   // creation timestamp) should never trigger an auto-resolve here. Stalling
   // on character selection itself is handled separately, by
   // autoResolveStaleCharacterPick.
-  if (!bothCharactersLocked(game)) return;
+  if (!bothCharactersLocked(game, game.match.mode)) return;
   if (Date.now() - game.turnStartedAt.getTime() < STRIKE_TIMEOUT_MS) return;
 
   // The stage the previous game was played on, if it's still on the table —
@@ -253,13 +254,18 @@ async function replayPreviousGame(
 //   matchup instead of someone losing to a clock. Nothing is forfeited and no
 //   cooldown is charged for it; a player who stays quiet through the game itself
 //   is still handled by the report clock below.
-async function autoResolveStaleCharacterPick(match: { id: string; player1Id: string; player2Id: string }) {
+async function autoResolveStaleCharacterPick(match: {
+  id: string;
+  player1Id: string;
+  player2Id: string;
+  mode: MatchMode;
+}) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId: match.id, winnerId: null, finalStage: null },
     orderBy: { gameNumber: "desc" },
   });
   if (!game) return;
-  if (bothCharactersLocked(game)) return;
+  if (bothCharactersLocked(game, match.mode)) return;
   if (Date.now() < game.characterPickDeadline.getTime()) return;
 
   const aLocked = game.actorACharacter !== null;
@@ -418,7 +424,7 @@ export async function getMatchGames(matchId: string) {
   await autoResolveStaleTurn(matchId);
   const match = await prisma.ratingMatch.findUnique({
     where: { id: matchId },
-    select: { id: true, player1Id: true, player2Id: true, status: true },
+    select: { id: true, player1Id: true, player2Id: true, status: true, mode: true },
   });
   if (match) {
     await autoResolveStaleCharacterPick(match);
@@ -499,7 +505,20 @@ function turnPassesToNextActor(
 // game 1) while the other side still hasn't picked at all, letting the
 // strike-timeout clock tick down against someone who hasn't even reached
 // the character screen yet.
-export function bothCharactersLocked(game: { actorACharacter: string | null; actorBCharacter: string | null }) {
+//
+// Randitto has no character phase at all: Smash hands out the fighters, so
+// there is nothing for a player to lock in and nothing for the site to know.
+// Answering "yes, done" is what keeps the phase that does not apply from
+// being presented — it was still showing a picker, and players were filling
+// it in by hand (one of them picked the literal "Random" entry), which is
+// precisely the chore the mode exists to remove. The mode is required rather
+// than defaulted: a silently-defaulted mode is the shape of the pairing bug
+// this same queue already produced.
+export function bothCharactersLocked(
+  game: { actorACharacter: string | null; actorBCharacter: string | null },
+  mode: MatchMode,
+) {
+  if (mode === MatchMode.RANDITTO) return true;
   return game.actorACharacter !== null && game.actorBCharacter !== null;
 }
 
@@ -715,6 +734,9 @@ export async function pickGameCharacter(
 async function requireGame(matchId: string, gameNumber: number) {
   const game = await prisma.matchGame.findUnique({
     where: { matchId_gameNumber: { matchId, gameNumber } },
+    // The set's mode decides whether a character phase exists at all, and
+    // every guard below that asks about one needs it (see bothCharactersLocked).
+    include: { match: { select: { mode: true } } },
   });
   if (!game) throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado" });
   return game;
@@ -738,7 +760,7 @@ export async function strikeGameStage(userId: string, matchId: string, gameNumbe
       en: "Not your turn to strike",
       es: "No es tu turno de vetar",
     });
-  if (!bothCharactersLocked(game))
+  if (!bothCharactersLocked(game, game.match.mode))
     throw new LocalizedError({
       en: "Both players must lock in their character before striking a stage",
       es: "Ambos deben confirmar su personaje antes de vetar un escenario",
@@ -822,7 +844,7 @@ export async function strikeSameBans(userId: string, matchId: string, gameNumber
       en: "Not your turn to strike",
       es: "No es tu turno de vetar",
     });
-  if (!bothCharactersLocked(game))
+  if (!bothCharactersLocked(game, game.match.mode))
     throw new LocalizedError({
       en: "Both players must lock in their character before striking a stage",
       es: "Ambos deben confirmar su personaje antes de vetar un escenario",
@@ -882,7 +904,7 @@ export async function pickGameStage(userId: string, matchId: string, gameNumber:
       en: "Not your turn to pick",
       es: "No es tu turno de elegir",
     });
-  if (!bothCharactersLocked(game))
+  if (!bothCharactersLocked(game, game.match.mode))
     throw new LocalizedError({
       en: "Both players must lock in their character before picking a stage",
       es: "Ambos deben confirmar su personaje antes de elegir un escenario",
@@ -922,7 +944,7 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
       en: "Not your turn to pick",
       es: "No es tu turno de elegir",
     });
-  if (!bothCharactersLocked(game))
+  if (!bothCharactersLocked(game, game.match.mode))
     throw new LocalizedError({
       en: "Both players must lock in their character before picking a stage",
       es: "Ambos deben confirmar su personaje antes de elegir un escenario",

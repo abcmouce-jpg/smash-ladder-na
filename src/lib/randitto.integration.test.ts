@@ -10,7 +10,7 @@ import {
   sweepLobbyPairing,
 } from "@/lib/lobby";
 import { getPublicStats } from "@/lib/public-stats";
-import { startFirstGame } from "@/lib/match-games";
+import { bothCharactersLocked, reportGameResult, startFirstGame } from "@/lib/match-games";
 import { adminForceConfirmMatch } from "@/lib/matches";
 import { RANDITTO_STAGE } from "@/lib/randitto";
 
@@ -102,6 +102,35 @@ describe("randitto queue", () => {
     expect(game.actorBCharacter).toBeNull();
     // And the set is not left waiting on a pick phase that never runs.
     expect(game.finalStage).toBe(RANDITTO_STAGE);
+  });
+
+  // Reported as a bug on launch day: game 1 behaved, then game 2 presented a
+  // character picker. Every game of a randitto set has to open the same way.
+  it("opens game 2 the same way — no fighters, fixed stage, no strikes", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+
+    await startFirstGame(a.id, match.id);
+    await reportGameResult(a.id, match.id, 1, true);
+    await reportGameResult(b.id, match.id, 1, false);
+
+    const game2 = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2.actorACharacter).toBeNull();
+    expect(game2.actorBCharacter).toBeNull();
+    expect(game2.finalStage).toBe(RANDITTO_STAGE);
+    expect(game2.actorAStrikes).toBe(0);
+    expect(game2.actorBStrikes).toBe(0);
+    // And with nothing recorded, the set still counts as past its character
+    // phase — otherwise the picker comes back and the player fills it in.
+    expect(bothCharactersLocked(game2, MatchMode.RANDITTO)).toBe(true);
+    expect(bothCharactersLocked(game2, MatchMode.STANDARD)).toBe(false);
   });
 
   // The mode exists so nobody chooses; leaving the stage negotiated made it

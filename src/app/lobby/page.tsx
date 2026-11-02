@@ -1328,7 +1328,7 @@ function matchActionSummary(userId: string, match: Match, games: MatchGameRow[])
 
   const gameNumber = current.gameNumber;
 
-  if (!bothCharactersLocked(current)) {
+  if (!bothCharactersLocked(current, match.mode)) {
     const pick = characterPickState(current, userId);
     if (pick.yourCharacter) {
       // Locked in yourself — the pick clock now belongs to the opponent. On
@@ -2075,7 +2075,7 @@ function GameSection({
   }
 
   const myTurn = turn.actorId === userId;
-  const bothLocked = bothCharactersLocked(current);
+  const bothLocked = bothCharactersLocked(current, match.mode);
   const canAct = myTurn && bothLocked;
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
