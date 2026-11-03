@@ -1,36 +1,24 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
-import { UserStatus } from "@/generated/prisma/enums";
 import { siteOrigin } from "@/lib/site-url";
 import { PUBLISHES_SPANISH, HAS_KOFI, HAS_COMMUNITY_GUIDES } from "@/lib/site";
 import { characterPageTarget, characterSlug, type SmashCharacter } from "@/lib/characters";
 
-// Profiles are the only part of the site with a search-shaped question
-// behind it ("who is <player>") — the rest is either a utility page or a
-// live view. Gated on the same 5-set floor the leaderboard uses, so a
-// profile is only listed once it actually has a record, characters and a
-// match history to show; listing every signup would be a pile of near-empty
-// pages, which is worse than not listing them at all.
-const SITEMAP_MIN_GAMES = 5;
-
-// Recomputed daily rather than per request: the set only changes as players
-// cross the 5-set line, and a crawler hitting this shouldn't fan out into a
-// full table scan each time.
-export const revalidate = 86400;
-
-async function playerEntries(siteUrl: string): Promise<MetadataRoute.Sitemap> {
-  const players = await prisma.user.findMany({
-    where: { status: UserStatus.ACTIVE, gamesPlayed: { gte: SITEMAP_MIN_GAMES } },
-    select: { id: true, updatedAt: true },
-    orderBy: { gamesPlayed: "desc" },
-  });
-  return players.map((p) => ({
-    url: `${siteUrl}/players/${p.id}`,
-    lastModified: p.updatedAt,
-    changeFrequency: "weekly" as const,
-    priority: 0.5,
-  }));
-}
+// Profiles are deliberately NOT listed. They are templated stat pages — a
+// name, a rating and a match table, about 2,400 characters of which ~200 is
+// the shared nav — and there were 1,236 of them against 32 pages with prose
+// on them, so 97.5% of what this file advertised was the "templated bulk"
+// the characterEntries comment below already refuses to submit. AdSense
+// refused the site ten times through 2026-10, every message pointing at
+// content quantity and quality and none of them at anything else; a sitemap
+// that is almost entirely generated pages is the clearest version of that
+// complaint we were sending ourselves.
+//
+// Dropping them costs very little. Measured 2026-11-01 in Search Console:
+// profiles took 5 of 96 clicks, against 83 for the home page. And a sitemap
+// is an invitation, not a fence — every profile stays linked from the
+// leaderboard, stays crawlable, and the ones already indexed stay indexed.
+// Restore playerEntries from git history if the trade ever looks wrong.
 
 /**
  * One entry per fighter that someone has actually written about.
@@ -102,6 +90,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       : []),
     { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    ...(await playerEntries(SITE_URL)),
   ];
 }
