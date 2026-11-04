@@ -1431,6 +1431,41 @@ export async function listLateCancelledMatches(take = 25) {
 }
 
 /**
+ * Cancelled sets involving a named player, newest first.
+ *
+ * The list above only reaches the most recent handful, and the set someone
+ * asks about is usually further back — there were 2,528 cancels in the
+ * season by 2026-11-04, 68 of them newer than the one that got questioned.
+ * Searching by name is what a mod actually does when a player says "where
+ * did my set go", and being unable to do it is what let an unreported game 4
+ * look like a moderator deleting their own loss.
+ */
+export async function findCancelledMatchesForPlayer(query: string, take = 20) {
+  const name = query.trim();
+  if (name.length < 2) return [];
+  const players = await prisma.user.findMany({
+    where: { username: { contains: name, mode: "insensitive" } },
+    select: { id: true },
+    take: 25,
+  });
+  if (players.length === 0) return [];
+  const ids = players.map((p) => p.id);
+  return prisma.ratingMatch.findMany({
+    where: {
+      status: MatchStatus.CANCELLED,
+      OR: [{ player1Id: { in: ids } }, { player2Id: { in: ids } }],
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    include: {
+      player1: { select: { id: true, username: true, rating: true } },
+      player2: { select: { id: true, username: true, rating: true } },
+      games: { select: { gameNumber: true, winnerId: true }, orderBy: { gameNumber: "asc" } },
+    },
+  });
+}
+
+/**
  * Recent cancelled sets a mod could still convert, newest first.
  *
  * Deliberately only lists the convertible ones: a cancel that can no longer
