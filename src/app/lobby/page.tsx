@@ -58,7 +58,7 @@ import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGION_GROUPS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier, isRatingVisible } from "@/lib/rank-tier";
-import { formatRating } from "@/lib/rating-format";
+import { formatRating, formatTrackRating } from "@/lib/rating-format";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
 import { SMASH_CHARACTERS, characterLabel, type SmashCharacter } from "@/lib/characters";
@@ -1541,19 +1541,14 @@ function MatchScoreboard({
                 {!zenMode && (
                   <span>
                     {myRatingVisible ? (
-                      <>
-                        {tr(lang, {
-                          en: `${formatRating(myRating ?? 0)}`,
-                          es: `${formatRating(myRating ?? 0)}`,
-                        })}
-                        {myIsPracticing &&
-                          tr(lang, {
-                            en: " (practice)",
-                            es: " (práctica)",
-                          })}
-                      </>
+                      formatTrackRating(myRating ?? 0, myTrack)
                     ) : (
-                      <RatingHidden gamesPlayed={myGamesOnTrack} lang={lang} practice={myIsPracticing} />
+                      <RatingHidden
+                        gamesPlayed={myGamesOnTrack}
+                        lang={lang}
+                        practice={myTrack === "practice"}
+                        randitto={myTrack === "randitto"}
+                      />
                     )}
                   </span>
                 )}
@@ -1630,19 +1625,14 @@ function MatchScoreboard({
                 {!zenMode && (
                   <span>
                     {opponentRatingVisible ? (
-                      <>
-                        {tr(lang, {
-                          en: `${formatRating(opponentRating)}`,
-                          es: `${formatRating(opponentRating)}`,
-                        })}
-                        {opponentIsPracticing &&
-                          tr(lang, {
-                            en: " (practice)",
-                            es: " (práctica)",
-                          })}
-                      </>
+                      formatTrackRating(opponentRating, opponentTrack)
                     ) : (
-                      <RatingHidden gamesPlayed={opponentGamesOnTrack} lang={lang} practice={opponentIsPracticing} />
+                      <RatingHidden
+                        gamesPlayed={opponentGamesOnTrack}
+                        lang={lang}
+                        practice={opponentTrack === "practice"}
+                        randitto={opponentTrack === "randitto"}
+                      />
                     )}
                   </span>
                 )}
@@ -2813,33 +2803,47 @@ async function ConfirmedSection({
   // trail below always adds up — see formatRating.
   const delta = formatRating(ratingAfter ?? 0) - formatRating(ratingBefore ?? 0);
   const practicing = match.player1Id === userId ? match.player1IsPracticing : match.player2IsPracticing;
+  // Which ladder this set moved comes from trackFor, the same rule the
+  // scoreboard above and the rating write in applyEloAndConfirm use. A
+  // randitto set queues with isPracticing forced off, so the flag alone would
+  // read it as ranked and expose the randitto number before its own
+  // provisional window ended.
+  const track = trackFor(match.mode, practicing);
 
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { gamesPlayed: true, practiceGamesPlayed: true },
+    select: {
+      rating: true,
+      gamesPlayed: true,
+      practiceRating: true,
+      practiceGamesPlayed: true,
+      randittoRating: true,
+      randittoGamesPlayed: true,
+    },
   });
-  // This match moved the practice track when the viewer queued as practicing,
-  // so gate on that track's own count — and hide it the same way as the main
-  // rating (see isRatingVisible). The post-match number is only presented once
-  // the player is past provisional; before that a win shows a plain
-  // confirmation rather than a celebration built around a hidden rating.
-  // Moderators see it throughout.
-  const gamesOnTrack = practicing ? (me?.practiceGamesPlayed ?? 0) : (me?.gamesPlayed ?? 0);
+  // This match moved one track, so gate on that track's own count — and hide
+  // it the same way as the main rating (see isRatingVisible). The post-match
+  // number is only presented once the player is past provisional; before that
+  // a win shows a plain confirmation rather than a celebration built around a
+  // hidden rating. Moderators see it throughout.
+  const gamesOnTrack = me ? displayRating(me, track).gamesPlayed : 0;
   const ratingVisible = isRatingVisible(gamesOnTrack, viewerIsModerator);
+  const mainTrack = track === "main";
 
   let body: React.ReactNode;
   if (ratingVisible && won && ratingBefore !== null && ratingAfter !== null) {
-    // Practice sets never touch the tier ladder, so a practice win is a plain
-    // victory celebration with no tier-up attached (see the practice-rating
-    // note in applyEloAndConfirm).
-    const tierUp = !practicing && didTierUp(ratingBefore, ratingAfter, gamesOnTrack);
-    const tier = practicing ? null : getRankTier(ratingAfter, gamesOnTrack);
+    // Only the main track has tiers, so a practice or randitto win is a plain
+    // victory celebration with no tier-up attached (see the rating-track note
+    // in applyEloAndConfirm).
+    const tierUp = mainTrack && didTierUp(ratingBefore, ratingAfter, gamesOnTrack);
+    const tier = mainTrack ? getRankTier(ratingAfter, gamesOnTrack) : null;
     body = (
       <VictoryCelebration
         ratingBefore={ratingBefore}
         ratingAfter={ratingAfter}
         tierUp={tierUp}
         tierName={tier?.name}
+        track={track}
         lang={lang}
       />
     );
@@ -2859,12 +2863,17 @@ async function ConfirmedSection({
         </p>
         {ratingVisible && ratingBefore !== null && ratingAfter !== null ? (
           <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-            {formatRating(ratingBefore)} → {formatRating(ratingAfter)} ({delta >= 0 ? "+" : ""}
+            {formatTrackRating(ratingBefore, track)} → {formatTrackRating(ratingAfter, track)} ({delta >= 0 ? "+" : ""}
             {delta})
           </p>
         ) : (
           <p className="mt-1 text-sm text-muted-foreground">
-            <RatingHidden gamesPlayed={gamesOnTrack} lang={lang} practice={practicing} />
+            <RatingHidden
+              gamesPlayed={gamesOnTrack}
+              lang={lang}
+              practice={track === "practice"}
+              randitto={track === "randitto"}
+            />
           </p>
         )}
       </>

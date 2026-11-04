@@ -17,7 +17,7 @@ import { playerStreamLink } from "@/lib/stream-links";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
 import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
-import { formatRating } from "@/lib/rating-format";
+import { formatRating, formatTrackRating } from "@/lib/rating-format";
 import { USES_REGIONS, SITE_NAME } from "@/lib/site";
 import { siteOrigin } from "@/lib/site-url";
 import type { Lang } from "@/lib/i18n";
@@ -324,6 +324,7 @@ function CurrentMatchCard({
   // randitto and 1908 on the board, which reads as the mode borrowing the
   // main rating — it does not.
   const randitto = match.mode === "RANDITTO";
+  const track = randitto ? "randitto" : "main";
   const myRating = randitto ? me.randittoRating : me.rating;
   const myGamesPlayed = randitto ? me.randittoGamesPlayed : me.gamesPlayed;
   const opponentRating = randitto ? opponent.randittoRating : opponent.rating;
@@ -389,11 +390,11 @@ function CurrentMatchCard({
                 <p className="text-xs text-muted-foreground tabular-nums">
                   {myRatingVisible ? (
                     tr(lang, {
-                      en: `${formatRating(myRating)} rating`,
-                      es: `${formatRating(myRating)} de clasificación`,
+                      en: `${formatTrackRating(myRating, track)} rating`,
+                      es: `${formatTrackRating(myRating, track)} de clasificación`,
                     })
                   ) : (
-                    <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} />
+                    <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} randitto={randitto} />
                   )}
                 </p>
               )}
@@ -429,11 +430,11 @@ function CurrentMatchCard({
                 <p className="text-right text-xs text-muted-foreground tabular-nums">
                   {opponentRatingVisible ? (
                     tr(lang, {
-                      en: `${formatRating(opponentRating)} rating`,
-                      es: `${formatRating(opponentRating)} de clasificación`,
+                      en: `${formatTrackRating(opponentRating, track)} rating`,
+                      es: `${formatTrackRating(opponentRating, track)} de clasificación`,
                     })
                   ) : (
-                    <RatingHidden gamesPlayed={opponent.gamesPlayed} lang={lang} />
+                    <RatingHidden gamesPlayed={opponentGamesPlayed} lang={lang} randitto={randitto} />
                   )}
                 </p>
               )}
