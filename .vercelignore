@@ -1,0 +1,17 @@
+# `vercel deploy` uploads the working directory and does NOT fall back to
+# .gitignore, so without this every local env file ships with the build. Two
+# things went wrong because of that: dotenvx loads .env with override: true, so
+# a local DATABASE_URL pointing at localhost replaced the real one during
+# static generation and the build failed with DatabaseNotReachable; and
+# .env.production.local — which `vercel env pull` fills with one project's
+# production secrets — was uploaded into a different project's deployment.
+.env
+.env.*
+!.env.example
+
+# Build output and local-only directories. The platform builds from source, so
+# shipping a stale local .next only slows the upload.
+.next
+.claude
+landing-jp
+node_modules

@@ -22,7 +22,7 @@ import {
   POST_MATCH_MESSAGE_MAX_LENGTH,
 } from "@/lib/supporters";
 import { KOFI_URL } from "@/lib/links";
-import { listBlockedUsers } from "@/lib/blocks";
+import { listBlockedUsers, MAX_BLOCKS_PER_USER } from "@/lib/blocks";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
@@ -37,17 +37,32 @@ import {
   updateNotificationSettingsAction,
   updateUserSettingsAction,
   updatePostMatchMessageAction,
+  updateStreamLinksAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
+import { tr, trNode } from "@/lib/lang";
+import { HAS_COMMUNITY_GUIDES, HAS_KOFI, HAS_QUICK_MESSAGES, SITE_LANGS } from "@/lib/site";
+import { LIVE_DECLARATION_TTL_MS } from "@/lib/stream-links";
+
+const LIVE_DECLARATION_HOURS = LIVE_DECLARATION_TTL_MS / (60 * 60 * 1000);
 
 // ?tab= picks which group of settings renders, so each stays deep-linkable and
 // server-rendered — same pattern as the Stats, Notes, and profile pages.
 const VALID_TABS = ["user", "lobby", "notifications", "apps"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
 
-type TwitchConnection = { username: string; displayName: string | null; profileImageUrl: string | null } | null;
+type TwitchConnection = {
+  username: string;
+  displayName: string | null;
+  profileImageUrl: string | null;
+} | null;
 type StartggConnection = { slug: string; gamerTag: string | null } | null;
-type ApiTokenSummary = { id: string; name: string; createdAt: string; lastUsedAt: string | null };
+type ApiTokenSummary = {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
 
 export default async function SettingsPage({
   searchParams,
@@ -71,9 +86,10 @@ export default async function SettingsPage({
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <PageTitle lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "es"
-            ? "Inicia sesión con Discord (arriba a la derecha) para administrar tus ajustes."
-            : "Sign in with Discord (top right) to manage your settings."}
+          {tr(lang, {
+            en: "Sign in with Discord (top right) to manage your settings.",
+            es: "Inicia sesión con Discord (arriba a la derecha) para administrar tus ajustes.",
+          })}
         </p>
       </main>
     );
@@ -93,6 +109,8 @@ export default async function SettingsPage({
         twitchUsername: true,
         twitchDisplayName: true,
         twitchProfileImageUrl: true,
+        youtubeChannelUrl: true,
+        liveStreamUrl: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
         audioPingOnMatch: true,
@@ -123,11 +141,22 @@ export default async function SettingsPage({
       <SectionTabs
         className="mt-8"
         items={[
-          { href: "?tab=user", label: lang === "es" ? "Usuario" : "User", active: tab === "user" },
-          { href: "?tab=lobby", label: lang === "es" ? "Sala" : "Lobby", active: tab === "lobby" },
+          {
+            href: "?tab=user",
+            label: tr(lang, { en: "User", es: "Usuario" }),
+            active: tab === "user",
+          },
+          {
+            href: "?tab=lobby",
+            label: tr(lang, { en: "Lobby", es: "Sala" }),
+            active: tab === "lobby",
+          },
           {
             href: "?tab=notifications",
-            label: lang === "es" ? "Notificaciones" : "Notifications",
+            label: tr(lang, {
+              en: "Notifications",
+              es: "Notificaciones",
+            }),
             active: tab === "notifications",
           },
           { href: "?tab=apps", label: "Apps", active: tab === "apps" },
@@ -198,6 +227,8 @@ export default async function SettingsPage({
           startgg={me?.startggUserId && me.startggSlug ? { slug: me.startggSlug, gamerTag: me.startggGamerTag } : null}
           startggJustConnected={startggConnected === "1"}
           startggError={startggError}
+          liveStreamUrl={me?.liveStreamUrl ?? null}
+          youtubeChannelUrl={me?.youtubeChannelUrl ?? null}
           apiTokens={apiTokens.map((token) => ({
             id: token.id,
             name: token.name,
@@ -244,11 +275,17 @@ function UserTab({
         <CardContent className="pt-4">
           <SettingsSaveForm action={updateUserSettingsAction} lang={lang} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1 text-sm">
-              <span>{lang === "es" ? "Nombre de usuario" : "Username"}</span>
+              <span>
+                {tr(lang, {
+                  en: "Username",
+                  es: "Nombre de usuario",
+                })}
+              </span>
               <span className="text-xs font-normal text-muted-foreground">
-                {lang === "es"
-                  ? "Se muestra en todo el sitio en vez de tu nombre de Discord — útil si no coinciden."
-                  : "Shown everywhere on the site instead of your Discord name — handy if they don't match."}
+                {tr(lang, {
+                  en: "Shown everywhere on the site instead of your Discord name — handy if they don't match.",
+                  es: "Se muestra en todo el sitio en vez de tu nombre de Discord — útil si no coinciden.",
+                })}
               </span>
               <input
                 name="username"
@@ -270,16 +307,20 @@ function UserTab({
               />
               <span>
                 <span className="font-medium">
-                  {lang === "es" ? "Ocultar mi Discord de mi perfil" : "Hide my Discord from my profile"}
+                  {tr(lang, {
+                    en: "Hide my Discord from my profile",
+                    es: "Ocultar mi Discord de mi perfil",
+                  })}
                 </span>
                 <span className="block text-xs font-normal text-muted-foreground">
-                  {lang === "es"
-                    ? `Tu perfil muestra tu nombre de usuario de Discord${
-                        discordUsername ? ` (${discordUsername})` : ""
-                      }, incluso si es igual a tu nombre de usuario aquí. Actívalo para ocultarlo de los demás.`
-                    : `Your profile shows your Discord username${
-                        discordUsername ? ` (${discordUsername})` : ""
-                      }, even when it matches your username here. Turn this on to hide it from everyone else.`}
+                  {tr(lang, {
+                    en: `Your profile shows your Discord username${
+                      discordUsername ? ` (${discordUsername})` : ""
+                    }, even when it matches your username here. Turn this on to hide it from everyone else.`,
+                    es: `Tu perfil muestra tu nombre de usuario de Discord${
+                      discordUsername ? ` (${discordUsername})` : ""
+                    }, incluso si es igual a tu nombre de usuario aquí. Actívalo para ocultarlo de los demás.`,
+                  })}
                 </span>
               </span>
             </label>
@@ -287,11 +328,13 @@ function UserTab({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-4">
-          <PreferredLanguageForm currentLang={lang} />
-        </CardContent>
-      </Card>
+      {SITE_LANGS.length > 1 && (
+        <Card>
+          <CardContent className="pt-4">
+            <PreferredLanguageForm currentLang={lang} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="pt-4">
@@ -299,30 +342,41 @@ function UserTab({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-4">
-          <SupporterCard
-            supporterCode={supporterCode}
-            isSupporter={isSupporter}
-            isGoldSupporter={isGoldSupporter}
-            supporterExpiresAt={supporterExpiresAt}
-            postMatchMessage={postMatchMessage}
-            lang={lang}
-          />
-        </CardContent>
-      </Card>
+      {HAS_KOFI && (
+        <Card>
+          <CardContent className="pt-4">
+            <SupporterCard
+              supporterCode={supporterCode}
+              isSupporter={isSupporter}
+              isGoldSupporter={isGoldSupporter}
+              supporterExpiresAt={supporterExpiresAt}
+              postMatchMessage={postMatchMessage}
+              lang={lang}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="pt-4">
-          <p className="text-sm font-medium">{lang === "es" ? "Jugadores bloqueados" : "Blocked players"}</p>
+          <p className="text-sm font-medium">
+            {tr(lang, {
+              en: "Blocked players",
+              es: "Jugadores bloqueados",
+            })}
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {lang === "es"
-              ? "Los jugadores bloqueados nunca se emparejan contigo en la cola rankeada. Bloquear es permanente y no se puede deshacer."
-              : "Blocked players are never matched with you in ranked queueing. Blocking is permanent and can't be undone."}
+            {tr(lang, {
+              en: `Blocked players are never matched with you in ranked queueing. Blocking is permanent and can't be undone. You've used ${blocked.length} of ${MAX_BLOCKS_PER_USER}.`,
+              es: `Los jugadores bloqueados nunca se emparejan contigo en la cola rankeada. Bloquear es permanente y no se puede deshacer. Has usado ${blocked.length} de ${MAX_BLOCKS_PER_USER}.`,
+            })}
           </p>
           {blocked.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              {lang === "es" ? "No has bloqueado a nadie." : "You haven't blocked anyone."}
+              {tr(lang, {
+                en: "You haven't blocked anyone.",
+                es: "No has bloqueado a nadie.",
+              })}
             </p>
           ) : (
             <ul className="mt-3 flex flex-col gap-2">
@@ -373,14 +427,16 @@ function LobbyTab({
               />
               <span>
                 <span className="font-medium">
-                  {lang === "es"
-                    ? "No emparejarme con rivales que están practicando"
-                    : "Don't match me with opponents who are practicing"}
+                  {tr(lang, {
+                    en: "Don't match me with opponents who are practicing",
+                    es: "No emparejarme con rivales que están practicando",
+                  })}
                 </span>
                 <span className="block text-xs font-normal text-muted-foreground">
-                  {lang === "es"
-                    ? "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo."
-                    : "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely."}
+                  {tr(lang, {
+                    en: "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely.",
+                    es: "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo.",
+                  })}
                 </span>
               </span>
             </label>
@@ -396,36 +452,50 @@ function LobbyTab({
                 />
                 <span>
                   <span className="font-medium">
-                    {lang === "es" ? "Sonido al ser emparejado" : "Audio ping when matched"}
+                    {tr(lang, {
+                      en: "Audio ping when matched",
+                      es: "Sonido al ser emparejado",
+                    })}
                   </span>
                   <span className="block text-xs font-normal text-muted-foreground">
-                    {lang === "es"
-                      ? "Reproduce un sonido en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
-                      : "Plays a sound on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
+                    {tr(lang, {
+                      en: "Plays a sound on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued.",
+                      es: "Reproduce un sonido en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo.",
+                    })}
                   </span>
                 </span>
               </label>
               <div className="flex items-center justify-between gap-2 pl-6">
-                <span className="text-sm">{lang === "es" ? "Sonido" : "Sound"}</span>
+                <span className="text-sm">{tr(lang, { en: "Sound", es: "Sonido" })}</span>
                 <MatchFoundSoundPicker key={matchFoundSound} defaultValue={matchFoundSound} lang={lang} />
               </div>
             </div>
 
             <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">{lang === "es" ? "Contraseña de sala" : "Arena password"}</span>
+              <span className="font-medium">
+                {tr(lang, {
+                  en: "Arena password",
+                  es: "Contraseña de sala",
+                })}
+              </span>
               <span className="text-xs font-normal text-muted-foreground">
-                {lang === "es" ? (
-                  <>
-                    Se muestra a tu rival como la contraseña que debe poner en la sala del juego. Déjalo en blanco para
-                    usar el valor por defecto del ladder (
-                    <span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>).
-                  </>
-                ) : (
-                  <>
-                    Shown to your opponent as what to set the in-game room password to. Leave blank to use the ladder
-                    default (<span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>).
-                  </>
-                )}
+                {trNode(lang, {
+                  en: (
+                    <>
+                      Shown to your opponent as what to set the in-game room password to. Leave blank to use the ladder
+                      default (<span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>
+                      ).
+                    </>
+                  ),
+                  es: (
+                    <>
+                      Se muestra a tu rival como la contraseña que debe poner en la sala del juego. Déjalo en blanco
+                      para usar el valor por defecto del ladder (
+                      <span className="font-medium text-foreground">{DEFAULT_ARENA_PASSWORD}</span>
+                      ).
+                    </>
+                  ),
+                })}
               </span>
               <input
                 name="arenaPassword"
@@ -437,29 +507,37 @@ function LobbyTab({
               />
             </label>
 
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium">
-                {lang === "es" ? "Mensajes rápidos del chat" : "Chat quick messages"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "Los botones que aparecen sobre el chat de la partida. Deja uno en blanco para usar el valor por defecto."
-                  : "The buttons shown above the match chat. Leave one blank to use the site default for that slot."}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {quickMessageSlots.map((value, i) => (
-                  <input
-                    key={i}
-                    name="quickMessage"
-                    type="text"
-                    maxLength={MAX_QUICK_MESSAGE_LENGTH}
-                    defaultValue={value}
-                    placeholder={DEFAULT_QUICK_MESSAGES[i]}
-                    className="h-8 w-28 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-                  />
-                ))}
+            {/* Not rendered at all where the chat shows no preset row —
+                hiding it would still post four empty slots on save. */}
+            {HAS_QUICK_MESSAGES && (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">
+                  {tr(lang, {
+                    en: "Chat quick messages",
+                    es: "Mensajes rápidos del chat",
+                  })}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {tr(lang, {
+                    en: "The buttons shown above the match chat. Leave one blank to use the site default for that slot.",
+                    es: "Los botones que aparecen sobre el chat de la partida. Deja uno en blanco para usar el valor por defecto.",
+                  })}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {quickMessageSlots.map((value, i) => (
+                    <input
+                      key={i}
+                      name="quickMessage"
+                      type="text"
+                      maxLength={MAX_QUICK_MESSAGE_LENGTH}
+                      defaultValue={value}
+                      placeholder={DEFAULT_QUICK_MESSAGES[i]}
+                      className="h-8 w-28 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </SettingsSaveForm>
         </CardContent>
       </Card>
@@ -504,9 +582,17 @@ function NotificationsTab({
   pushEnabled: boolean;
   lang: Lang;
 }) {
-  const prefs = { notificationsDisabled, notifyQueueOpportunities, notifyQueueOpportunitiesDm };
-  const pushTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "push");
-  const dmTypes = NOTIFICATION_DEFS.filter((def) => def.channel === "discord");
+  const prefs = {
+    notificationsDisabled,
+    notifyQueueOpportunities,
+    notifyQueueOpportunitiesDm,
+  };
+  // The key stays in NOTIFICATION_DEFS — stored preferences still reference it,
+  // and isNotificationEnabled still has to answer for them — but an instance
+  // with no community guides shouldn't offer a switch for their notifications.
+  const availableTypes = NOTIFICATION_DEFS.filter((def) => HAS_COMMUNITY_GUIDES || def.key !== "DM_CHARACTER_GUIDE");
+  const pushTypes = availableTypes.filter((def) => def.channel === "push");
+  const dmTypes = availableTypes.filter((def) => def.channel === "discord");
 
   return (
     <div className="mt-6 flex flex-col gap-4">
@@ -520,11 +606,17 @@ function NotificationsTab({
         <CardContent className="pt-4">
           <SettingsSaveForm action={updateNotificationSettingsAction} lang={lang} className="flex flex-col gap-5">
             <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium">{lang === "es" ? "Notificaciones push" : "Browser push"}</p>
+              <p className="text-sm font-medium">
+                {tr(lang, {
+                  en: "Browser push",
+                  es: "Notificaciones push",
+                })}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "Qué enviar al navegador, una vez activado arriba."
-                  : "What to send to the browser, once push is enabled above."}
+                {tr(lang, {
+                  en: "What to send to the browser, once push is enabled above.",
+                  es: "Qué enviar al navegador, una vez activado arriba.",
+                })}
               </p>
               {pushTypes.map((def) => (
                 <NotificationToggle
@@ -537,11 +629,17 @@ function NotificationsTab({
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border pt-4">
-              <p className="text-sm font-medium">{lang === "es" ? "MD de Discord" : "Discord DMs"}</p>
+              <p className="text-sm font-medium">
+                {tr(lang, {
+                  en: "Discord DMs",
+                  es: "MD de Discord",
+                })}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "El bot solo puede enviarte un MD si compartes servidor con él y tienes activados los MD de miembros del servidor."
-                  : "The bot can only DM you if you share a server with it and have DMs from server members enabled."}
+                {tr(lang, {
+                  en: "The bot can only DM you if you share a server with it and have DMs from server members enabled.",
+                  es: "El bot solo puede enviarte un MD si compartes servidor con él y tienes activados los MD de miembros del servidor.",
+                })}
               </p>
               {dmTypes.map((def) => (
                 <NotificationToggle
@@ -570,6 +668,8 @@ function AppsTab({
   startggJustConnected,
   startggError,
   apiTokens,
+  liveStreamUrl,
+  youtubeChannelUrl,
   lang,
 }: {
   userId: string;
@@ -582,6 +682,8 @@ function AppsTab({
   startggJustConnected: boolean;
   startggError?: string;
   apiTokens: ApiTokenSummary[];
+  liveStreamUrl: string | null;
+  youtubeChannelUrl: string | null;
   lang: Lang;
 }) {
   return (
@@ -589,6 +691,12 @@ function AppsTab({
       <Card>
         <CardContent className="pt-4">
           <TwitchConnectCard connected={twitch} justConnected={twitchJustConnected} error={twitchError} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <StreamLinksCard liveStreamUrl={liveStreamUrl} youtubeChannelUrl={youtubeChannelUrl} lang={lang} />
         </CardContent>
       </Card>
 
@@ -611,7 +719,12 @@ function AppsTab({
 
       <Card>
         <CardContent className="pt-4">
-          <p className="mb-1 text-sm font-medium">{lang === "es" ? "Tokens de API" : "API tokens"}</p>
+          <p className="mb-1 text-sm font-medium">
+            {tr(lang, {
+              en: "API tokens",
+              es: "Tokens de API",
+            })}
+          </p>
           <ApiTokensPanel
             tokens={apiTokens}
             generateAction={generateApiTokenAction}
@@ -629,11 +742,17 @@ function InviteLinkCard({ userId, referralCount, lang }: { userId: string; refer
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Invita a un amigo" : "Invite a friend"}</p>
+      <p className="font-medium">
+        {tr(lang, {
+          en: "Invite a friend",
+          es: "Invita a un amigo",
+        })}
+      </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? "Comparte este enlace — cuando alguien se registre a través de él, contará como tu invitación."
-          : "Share this link — anyone who signs up through it counts as your invite."}
+        {tr(lang, {
+          en: "Share this link — anyone who signs up through it counts as your invite.",
+          es: "Comparte este enlace — cuando alguien se registre a través de él, contará como tu invitación.",
+        })}
       </p>
       <div className="mt-3 flex items-center gap-2">
         <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
@@ -642,9 +761,10 @@ function InviteLinkCard({ userId, referralCount, lang }: { userId: string; refer
         <CopyButton text={link} />
       </div>
       <p className="mt-2 text-xs tabular-nums text-muted-foreground">
-        {lang === "es"
-          ? `${referralCount} ${referralCount === 1 ? "persona invitada ha" : "personas invitadas han"} empezado a jugar.`
-          : `${referralCount} ${referralCount === 1 ? "person you invited has" : "people you invited have"} started playing.`}
+        {tr(lang, {
+          en: `${referralCount} ${referralCount === 1 ? "person you invited has" : "people you invited have"} started playing.`,
+          es: `${referralCount} ${referralCount === 1 ? "persona invitada ha" : "personas invitadas han"} empezado a jugar.`,
+        })}
       </p>
     </div>
   );
@@ -666,24 +786,26 @@ function SupporterCard({
   lang: Lang;
 }) {
   const expiresLabel = supporterExpiresAt
-    ? new Date(supporterExpiresAt).toLocaleDateString(lang === "es" ? "es-MX" : "en-US", { dateStyle: "long" })
+    ? new Date(supporterExpiresAt).toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX" }), {
+        dateStyle: "long",
+      })
     : null;
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
       <p className="font-medium">
         {isGoldSupporter
-          ? lang === "es"
-            ? "🏆 Colaborador Gold"
-            : "🏆 Gold Supporter"
-          : lang === "es"
-            ? "Colaborador"
-            : "Supporter"}
+          ? tr(lang, {
+              en: "🏆 Gold Supporter",
+              es: "🏆 Colaborador Gold",
+            })
+          : tr(lang, { en: "Supporter", es: "Colaborador" })}
       </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? `Dona en Ko-fi y pega este código en el mensaje de la donación. $3+ quita los anuncios y da la insignia de colaborador; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ da la insignia Gold y aparece primero en la página de colaboradores.`
-          : `Donate on Ko-fi and paste this code into the donation message. $3+ removes ads and gives the supporter badge; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ gives the Gold badge and top placement on the supporters page.`}
+        {tr(lang, {
+          en: `Donate on Ko-fi and paste this code into the donation message. $3+ removes ads and gives the supporter badge; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ gives the Gold badge and top placement on the supporters page.`,
+          es: `Dona en Ko-fi y pega este código en el mensaje de la donación. $3+ quita los anuncios y da la insignia de colaborador; $${GOLD_SUPPORTER_MIN_AMOUNT_USD}+ da la insignia Gold y aparece primero en la página de colaboradores.`,
+        })}
       </p>
       <div className="mt-3 flex items-center gap-2">
         <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
@@ -693,49 +815,66 @@ function SupporterCard({
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
         {isSupporter && expiresLabel
-          ? lang === "es"
-            ? `Activo hasta el ${expiresLabel} (se extiende con cada pago de Ko-fi).`
-            : `Active until ${expiresLabel} (extends with each Ko-fi payment).`
+          ? tr(lang, {
+              en: `Active until ${expiresLabel} (extends with each Ko-fi payment).`,
+              es: `Activo hasta el ${expiresLabel} (se extiende con cada pago de Ko-fi).`,
+            })
           : isSupporter
-            ? lang === "es"
-              ? "Activo — otorgado por el staff."
-              : "Active — granted by staff."
-            : lang === "es"
-              ? "Aún no está activo. Puede tardar unos minutos después de donar."
-              : "Not active yet. May take a few minutes after donating to show up."}
+            ? tr(lang, {
+                en: "Active — granted by staff.",
+                es: "Activo — otorgado por el staff.",
+              })
+            : tr(lang, {
+                en: "Not active yet. May take a few minutes after donating to show up.",
+                es: "Aún no está activo. Puede tardar unos minutos después de donar.",
+              })}
       </p>
       <div className="mt-2 flex gap-2">
         <a href={KOFI_URL} target="_blank" rel="noreferrer">
           <Button type="button" variant="outline" size="sm">
-            {lang === "es" ? "Ir a Ko-fi" : "Go to Ko-fi"}
+            {tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi" })}
           </Button>
         </a>
         {isGoldSupporter && (
           <a href="/analytics">
             <Button type="button" variant="outline" size="sm">
-              {lang === "es" ? "📊 Ver mi análisis" : "📊 View my analytics"}
+              {tr(lang, {
+                en: "📊 View my analytics",
+                es: "📊 Ver mi análisis",
+              })}
             </Button>
           </a>
         )}
       </div>
 
       {isGoldSupporter && (
-        <SettingsSaveForm action={updatePostMatchMessageAction} lang={lang} className="mt-4 flex flex-col gap-1.5 border-t border-border pt-4">
+        <SettingsSaveForm
+          action={updatePostMatchMessageAction}
+          lang={lang}
+          className="mt-4 flex flex-col gap-1.5 border-t border-border pt-4"
+        >
           <label className="flex flex-col gap-1">
             <span className="font-medium text-foreground">
-              {lang === "es" ? "Mensaje de fin de partida" : "Post-match message"}
+              {tr(lang, {
+                en: "Post-match message",
+                es: "Mensaje de fin de partida",
+              })}
             </span>
             <span className="text-xs font-normal text-muted-foreground">
-              {lang === "es"
-                ? "Se publica automáticamente en el chat de la partida cuando esta se confirma. Déjalo vacío para no publicar nada."
-                : "Auto-posted in the match chat the moment a match of yours is confirmed. Leave blank to post nothing."}
+              {tr(lang, {
+                en: "Auto-posted in the match chat the moment a match of yours is confirmed. Leave blank to post nothing.",
+                es: "Se publica automáticamente en el chat de la partida cuando esta se confirma. Déjalo vacío para no publicar nada.",
+              })}
             </span>
             <input
               name="postMatchMessage"
               type="text"
               maxLength={POST_MATCH_MESSAGE_MAX_LENGTH}
               defaultValue={postMatchMessage}
-              placeholder={lang === "es" ? "GG, ¡buenas partidas!" : "GG, good games!"}
+              placeholder={tr(lang, {
+                en: "GG, good games!",
+                es: "GG, ¡buenas partidas!",
+              })}
               className="mt-1 h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
             />
           </label>
@@ -760,23 +899,95 @@ function StreamOverlayCard({
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Overlay de stream" : "Stream overlay"}</p>
+      <p className="font-medium">
+        {tr(lang, {
+          en: "Stream overlay",
+          es: "Overlay de stream",
+        })}
+      </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es" ? (
-          <>
-            Usa esta URL como Browser Source en OBS (configurada a <strong>1920 x 1080</strong>) para mostrar tu
-            clasificación, partidas recientes, y la partida actual en tu stream.
-          </>
-        ) : (
-          <>
-            Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your rating, recent
-            matches, and current match info on stream.
-          </>
-        )}
+        {trNode(lang, {
+          en: (
+            <>
+              Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your rating, recent
+              matches, and current match info on stream.
+            </>
+          ),
+          es: (
+            <>
+              Usa esta URL como Browser Source en OBS (configurada a <strong>1920 x 1080</strong>) para mostrar tu
+              clasificación, partidas recientes, y la partida actual en tu stream.
+            </>
+          ),
+        })}
       </p>
       <div className="mt-3">
-        <OverlayUrlToggle baseUrl={overlayUrl} />
+        <OverlayUrlToggle baseUrl={overlayUrl} lang={lang} />
       </div>
+    </div>
+  );
+}
+
+// Twitch liveness is detected; YouTube's cannot be on the free quota (see
+// lib/stream-links.ts), so a player streaming there says so here. The same
+// field takes a Twitch URL too — someone streaming from an account they
+// haven't connected still gets to be listed.
+function StreamLinksCard({
+  liveStreamUrl,
+  youtubeChannelUrl,
+  lang,
+}: {
+  liveStreamUrl: string | null;
+  youtubeChannelUrl: string | null;
+  lang: Lang;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <p className="font-medium">{tr(lang, { en: "Stream links", es: "Enlaces de stream" })}</p>
+      <SettingsSaveForm action={updateStreamLinksAction} lang={lang} className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="font-medium text-foreground">
+            {tr(lang, {
+              en: "Streaming right now",
+              es: "Transmitiendo ahora",
+            })}
+          </span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {tr(lang, {
+              en: `Paste the URL of the stream you're running and your sets get listed as live for ${LIVE_DECLARATION_HOURS} hours. Twitch or YouTube. Clear it when you stop.`,
+              es: `Pega la URL del stream que estés haciendo y tus partidas aparecerán como en vivo durante ${LIVE_DECLARATION_HOURS} horas. Twitch o YouTube. Bórralo cuando termines.`,
+            })}
+          </span>
+          <input
+            name="liveStreamUrl"
+            type="url"
+            defaultValue={liveStreamUrl ?? ""}
+            placeholder="https://www.youtube.com/watch?v=…"
+            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="font-medium text-foreground">
+            {tr(lang, {
+              en: "YouTube channel",
+              es: "Canal de YouTube",
+            })}
+          </span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {tr(lang, {
+              en: "Shown on your profile, the same way a connected Twitch account is.",
+              es: "Se muestra en tu perfil, igual que una cuenta de Twitch conectada.",
+            })}
+          </span>
+          <input
+            name="youtubeChannelUrl"
+            type="url"
+            defaultValue={youtubeChannelUrl ?? ""}
+            placeholder="https://www.youtube.com/channel/UC…/live"
+            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+          />
+        </label>
+      </SettingsSaveForm>
     </div>
   );
 }
@@ -794,15 +1005,28 @@ function TwitchConnectCard({
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Cuenta de Twitch" : "Twitch account"}</p>
+      <p className="font-medium">
+        {tr(lang, {
+          en: "Twitch account",
+          es: "Cuenta de Twitch",
+        })}
+      </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? "Conecta tu cuenta de Twitch para acceder a una página de overlay personalizada. El overlay muestra tu clasificación, rango, y partidas recientes — perfecto como Browser Source de OBS para tu stream."
-          : "Connect your Twitch account to access a custom stream overlay page. The overlay shows your rating, rank, and recent matches — perfect as an OBS Browser Source for your stream."}
+        {tr(lang, {
+          en: "Connect your Twitch account to access a custom stream overlay page. The overlay shows your rating, rank, and recent matches — perfect as an OBS Browser Source for your stream.",
+          es: "Conecta tu cuenta de Twitch para acceder a una página de overlay personalizada. El overlay muestra tu clasificación, rango, y partidas recientes — perfecto como Browser Source de OBS para tu stream.",
+        })}
       </p>
       {connected ? (
         <>
-          {justConnected && <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>}
+          {justConnected && (
+            <p className="text-xs text-emerald-600">
+              {tr(lang, {
+                en: "Connected!",
+                es: "¡Conectado!",
+              })}
+            </p>
+          )}
           <div className="mt-1 flex items-center gap-2">
             {connected.profileImageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -811,7 +1035,10 @@ function TwitchConnectCard({
             <span className="font-medium">{connected.displayName ?? connected.username} ✓</span>
             <form action={disconnectTwitchAction}>
               <Button type="submit" size="sm" variant="outline">
-                {lang === "es" ? "Desconectar" : "Disconnect"}
+                {tr(lang, {
+                  en: "Disconnect",
+                  es: "Desconectar",
+                })}
               </Button>
             </form>
           </div>
@@ -819,7 +1046,10 @@ function TwitchConnectCard({
       ) : (
         <a href="/api/twitch/connect" className="mt-1 self-start">
           <Button type="button" size="sm">
-            {lang === "es" ? "Conectar con Twitch" : "Connect with Twitch"}
+            {tr(lang, {
+              en: "Connect with Twitch",
+              es: "Conectar con Twitch",
+            })}
           </Button>
         </a>
       )}
@@ -841,15 +1071,28 @@ function StartggConnectCard({
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{lang === "es" ? "Perfil de start.gg" : "start.gg profile"}</p>
+      <p className="font-medium">
+        {tr(lang, {
+          en: "start.gg profile",
+          es: "Perfil de start.gg",
+        })}
+      </p>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? "Verificado mediante inicio de sesión de start.gg, no un enlace que escribes — así nadie más puede adjudicarse tus resultados."
-          : "Verified via start.gg sign-in, not a link you type in — so nobody else can claim your results as their own."}
+        {tr(lang, {
+          en: "Verified via start.gg sign-in, not a link you type in — so nobody else can claim your results as their own.",
+          es: "Verificado mediante inicio de sesión de start.gg, no un enlace que escribes — así nadie más puede adjudicarse tus resultados.",
+        })}
       </p>
       {connected ? (
         <>
-          {justConnected && <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>}
+          {justConnected && (
+            <p className="text-xs text-emerald-600">
+              {tr(lang, {
+                en: "Connected!",
+                es: "¡Conectado!",
+              })}
+            </p>
+          )}
           <div className="mt-1 flex items-center gap-2">
             <a
               href={startggProfileUrl(connected.slug)}
@@ -861,7 +1104,10 @@ function StartggConnectCard({
             </a>
             <form action={disconnectStartggAction}>
               <Button type="submit" size="sm" variant="outline">
-                {lang === "es" ? "Desconectar" : "Disconnect"}
+                {tr(lang, {
+                  en: "Disconnect",
+                  es: "Desconectar",
+                })}
               </Button>
             </form>
           </div>
@@ -869,7 +1115,10 @@ function StartggConnectCard({
       ) : (
         <a href="/api/startgg/connect" className="mt-1 self-start">
           <Button type="button" size="sm">
-            {lang === "es" ? "Conectar con start.gg" : "Connect with start.gg"}
+            {tr(lang, {
+              en: "Connect with start.gg",
+              es: "Conectar con start.gg",
+            })}
           </Button>
         </a>
       )}
@@ -882,7 +1131,7 @@ function PageTitle({ lang }: { lang: Lang }) {
   return (
     <div className="flex items-center gap-2">
       <Settings className="size-5 text-muted-foreground" />
-      <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Ajustes" : "Settings"}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{tr(lang, { en: "Settings", es: "Ajustes" })}</h1>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import type { Lang } from "@/lib/lang";
+
 export type RankTier = {
   name: string;
   minRating: number;
@@ -20,17 +22,17 @@ export type RankTier = {
 // storing it — see the equivalent warning on MATCH_DISTANCE_PRESETS in
 // regions.ts. Any future change MUST ship with a migration for existing
 // stored values.
-export const MATCH_RATING_GAP_PRESETS = [
-  { label: "Within 25", gap: 25 },
-  { label: "Within 50", gap: 50 },
-  { label: "Within 75", gap: 75 },
-  { label: "Within 100", gap: 100 },
-  { label: "Within 150", gap: 150 },
-  { label: "Within 200", gap: 200 },
-  { label: "Within 300", gap: 300 },
-  { label: "Within 500", gap: 500 },
-  { label: "Any rating", gap: null },
-] as const;
+export const MATCH_RATING_GAP_PRESETS: readonly { label: Record<Lang, string>; gap: number | null }[] = [
+  { label: { en: "Within 25", es: "Dentro de 25" }, gap: 25 },
+  { label: { en: "Within 50", es: "Dentro de 50" }, gap: 50 },
+  { label: { en: "Within 75", es: "Dentro de 75" }, gap: 75 },
+  { label: { en: "Within 100", es: "Dentro de 100" }, gap: 100 },
+  { label: { en: "Within 150", es: "Dentro de 150" }, gap: 150 },
+  { label: { en: "Within 200", es: "Dentro de 200" }, gap: 200 },
+  { label: { en: "Within 300", es: "Dentro de 300" }, gap: 300 },
+  { label: { en: "Within 500", es: "Dentro de 500" }, gap: 500 },
+  { label: { en: "Any rating", es: "Cualquier clasificación" }, gap: null },
+];
 
 // Ordered highest to lowest; the first tier whose floor the rating clears
 // wins.
@@ -146,15 +148,19 @@ export const LEGACY_RANK_TIERS: readonly RankTier[] = [
 ];
 
 // Which ladder a set of ratings should be read against, mirrored from
-// Season.algorithm. The Elo preseason used the legacy floors above; every
-// Glicko-2 season (Season 1 on) uses the current RANK_TIERS. Kept as plain
-// string literals rather than the generated Prisma enum so this module stays
-// dependency-free — the two are structurally identical, so a caller can pass
-// Season.algorithm straight in.
-export type SeasonAlgorithm = "ELO" | "GLICKO2";
+// Season.algorithm. Kept as plain string literals rather than the generated
+// Prisma enum so this module stays dependency-free — the two are structurally
+// identical, so a caller can pass Season.algorithm straight in.
+export type SeasonAlgorithm = "ELO" | "GLICKO2" | "SMASHMATE";
 
+// Only Glicko-2 reads against the current RANK_TIERS. Both Elo ladders — the
+// NA preseason's tapering K and Smashmate's flat 32 — centre on 1500 with a
+// far tighter spread (Smashmate's own published simulation put the standard
+// deviation near 200 and the #1 player at 1938), so RANK_TIERS' Legend floor
+// of 2200 would never be reached on either. They share the floors that were
+// calibrated against an Elo distribution in the first place.
 export function rankTiersFor(algorithm: SeasonAlgorithm): readonly RankTier[] {
-  return algorithm === "ELO" ? LEGACY_RANK_TIERS : RANK_TIERS;
+  return algorithm === "GLICKO2" ? RANK_TIERS : LEGACY_RANK_TIERS;
 }
 
 // Tiers a Free Battle post can be restricted to — a deliberate subset of
@@ -344,7 +350,12 @@ export function computeRatingMilestoneAchievements(peakRating: number | null): A
 
   const achievements: Achievement[] = [];
   for (let m = RATING_MILESTONE_START; m <= highestReached; m += RATING_MILESTONE_STEP) {
-    achievements.push({ id: `rating-${m}`, label: `Reached ${m}`, description: `Reach a rating of ${m}.`, achieved: true });
+    achievements.push({
+      id: `rating-${m}`,
+      label: `Reached ${m}`,
+      description: `Reach a rating of ${m}.`,
+      achieved: true,
+    });
   }
   const nextGoal = highestReached + RATING_MILESTONE_STEP;
   achievements.push({

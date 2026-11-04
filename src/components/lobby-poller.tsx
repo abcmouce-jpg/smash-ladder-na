@@ -4,8 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { playMatchFoundSound, type MatchFoundSound } from "@/lib/sound";
-
-const POLL_INTERVAL_MS = 5000;
+import { POLL_INTERVAL_MS, shouldRefresh } from "@/lib/lobby-poll";
 
 // Survives a remount (and a reload) so the match-found cue is announced once
 // per match per tab: a player who navigates back to /lobby mid-match, or whose
@@ -43,6 +42,7 @@ function clearAnnouncedThisTab() {
 export function LobbyPoller({
   matched,
   keepPollingInBackground = false,
+  hasPushSubscription = false,
   audioPingOnMatch = true,
   matchFoundSound = "CHIME",
 }: {
@@ -57,6 +57,12 @@ export function LobbyPoller({
   // the post-set chat window), it's not urgent the same way, so this goes
   // back to the original skip-while-hidden behavior.
   keepPollingInBackground?: boolean;
+  // Whether the player has a live Web Push subscription. When they do, a
+  // backgrounded wait is throttled (see lib/lobby-poll.ts): the pairing
+  // already pushes to them from joinLobbyAndTryPair, so the poll is only a
+  // fallback. Players without one keep the original five-second cadence,
+  // because for them the poll *is* the notification.
+  hasPushSubscription?: boolean;
   // Settings toggle (default on, matching the chime's original always-on
   // behavior before this existed) — see setAudioPingOnMatch.
   audioPingOnMatch?: boolean;
@@ -78,6 +84,10 @@ export function LobbyPoller({
   // chime you never heard is worse than one that plays twice).
   const missedChimeWhileHidden = useRef(false);
 
+  // When this poller last actually refreshed, so a throttled background wait
+  // can tell how long it has been. Not state: changing it must not re-render.
+  const lastRefreshAt = useRef(0);
+
   useEffect(() => {
     // Skip the refresh while the tab is backgrounded — an idle tab left
     // open (very common while waiting on a match) shouldn't keep burning
@@ -85,7 +95,19 @@ export function LobbyPoller({
     // fires on visibilitychange so coming back to the tab catches up
     // immediately instead of waiting out the rest of the interval.
     function tick() {
-      if (keepPollingInBackground || document.visibilityState === "visible") router.refresh();
+      const now = Date.now();
+      if (
+        !shouldRefresh({
+          visible: document.visibilityState === "visible",
+          keepPollingInBackground,
+          hasPushSubscription,
+          msSinceLastRefresh: now - lastRefreshAt.current,
+        })
+      ) {
+        return;
+      }
+      lastRefreshAt.current = now;
+      router.refresh();
     }
     const id = setInterval(tick, POLL_INTERVAL_MS);
     document.addEventListener("visibilitychange", tick);
@@ -93,7 +115,7 @@ export function LobbyPoller({
       clearInterval(id);
       document.removeEventListener("visibilitychange", tick);
     };
-  }, [router, keepPollingInBackground]);
+  }, [router, keepPollingInBackground, hasPushSubscription]);
 
   useEffect(() => {
     if (!matched) {

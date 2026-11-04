@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateTournamentForm } from "@/components/create-tournament-form";
 import { getLang } from "@/lib/i18n";
+import { tr, type Lang } from "@/lib/lang";
 
 const STATUS_VARIANT = {
   SIGNUPS: "outline",
@@ -14,12 +15,16 @@ const STATUS_VARIANT = {
   CANCELLED: "destructive",
 } as const;
 
-const STATUS_LABEL_ES: Record<string, string> = {
-  SIGNUPS: "inscripciones",
-  IN_PROGRESS: "en curso",
-  COMPLETED: "completado",
-  CANCELLED: "cancelado",
+// English reads the enum straight off the row, lowercased; the other
+// languages need a table, so they get one each.
+const STATUS_LABELS: Record<Lang, Record<string, string> | null> = {
+  en: null,
+  es: { SIGNUPS: "inscripciones", IN_PROGRESS: "en curso", COMPLETED: "completado", CANCELLED: "cancelado" },
 };
+
+export function tournamentStatusLabel(status: string, lang: Lang): string {
+  return STATUS_LABELS[lang]?.[status] ?? status.toLowerCase();
+}
 
 export default async function TournamentsPage() {
   const session = await auth();
@@ -29,12 +34,13 @@ export default async function TournamentsPage() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Torneos" : "Tournaments"}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{tr(lang, { en: "Tournaments", es: "Torneos" })}</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Eventos casuales de la comunidad que no afectan la clasificación — doble eliminación en start.gg por convención."
-          : "Casual, unrated community events — double elimination on start.gg by convention."}
+        {tr(lang, {
+          en: "Casual, unrated community events — double elimination on start.gg by convention.",
+          es: "Eventos casuales de la comunidad que no afectan la clasificación — doble eliminación en start.gg por convención.",
+        })}
       </p>
 
       {session?.user?.id && (
@@ -53,26 +59,24 @@ export default async function TournamentsPage() {
                 <div>
                   <p className="text-sm font-medium">{t.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {lang === "es" ? "Organizado por" : "Hosted by"} {t.host.username} · {t._count.entries}{" "}
-                    {lang === "es"
-                      ? t._count.entries === 1
-                        ? "participante"
-                        : "participantes"
-                      : t._count.entries === 1
-                        ? "entrant"
-                        : "entrants"}
+                    {tr(lang, { en: "Hosted by", es: "Organizado por" })} {t.host.username} · {t._count.entries}{" "}
+                    {tr(lang, {
+                      en: t._count.entries === 1 ? "entrant" : "entrants",
+                      es: t._count.entries === 1 ? "participante" : "participantes",
+                    })}
                   </p>
                 </div>
-                <Badge variant={STATUS_VARIANT[t.status]}>
-                  {lang === "es" ? STATUS_LABEL_ES[t.status] : t.status.toLowerCase()}
-                </Badge>
+                <Badge variant={STATUS_VARIANT[t.status]}>{tournamentStatusLabel(t.status, lang)}</Badge>
               </CardContent>
             </Card>
           </Link>
         ))}
         {tournaments.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            {lang === "es" ? "Aún no hay torneos — organiza uno arriba." : "No tournaments yet — host one above."}
+            {tr(lang, {
+              en: "No tournaments yet — host one above.",
+              es: "Aún no hay torneos — organiza uno arriba.",
+            })}
           </p>
         )}
       </div>

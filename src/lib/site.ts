@@ -1,6 +1,229 @@
+// Which instance this deployment is. One codebase, two sites: nasmashmate.com
+// for North America and a Japanese one stood up on 2026-10-24, the day
+// スマメイト (Smashmate) shut down and left the Japanese scene without a ladder.
+//
+// Everything that differs between them is read from the environment rather
+// than branched on in the code, so a third region costs a Vercel project and a
+// set of variables, not a pass over the source.
+//
+// NEXT_PUBLIC_ because the name appears in client components (share text, the
+// header) as well as in server-rendered metadata.
+
+import type { Lang } from "@/lib/i18n";
+
+/** Display name of this instance. */
+export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Smash Ladder NA";
+
+/** One-line description, used in metadata, the manifest and OG images. */
+export const SITE_DESCRIPTION =
+  process.env.NEXT_PUBLIC_SITE_DESCRIPTION?.trim() || "North American ranked ladder and matchmaking for Smash.";
+
+/**
+ * Which set of match regions this instance offers. Matchmaking is distance
+ * based, so a Japanese player must never be offered a North American region
+ * and the other way round — the pools are separated here rather than by
+ * filtering after the fact.
+ */
+// NEXT_PUBLIC_REGION_SET used to pick between this instance and a Japanese
+// one built on the same codebase. That instance was shut down 2026-11-01 and
+// the flags below are now plain constants rather than branches on it. The
+// flags themselves are kept — they document which behaviours were ever
+// instance-specific, and collapsing them to `true` is a one-line change to
+// undo if a second instance is ever wanted again.
+
+/**
+ * Languages this instance offers. North America serves an English and a
+ * Spanish-speaking audience and lets a visitor pick; Japan serves one, so it
+ * does not ask — a picker with a single entry is just a control that does
+ * nothing. getLang() short-circuits to DEFAULT_LANG when there is only one,
+ * so a cookie or a stored preference carried over from elsewhere cannot put
+ * the site into a language it does not publish.
+ */
+export const SITE_LANGS: readonly Lang[] = ["en", "es"];
+
+/**
+ * Whether /es exists. It is a crawlable Spanish landing page, with Spanish
+ * metadata and hardcoded Spanish strings — on an instance that doesn't
+ * publish Spanish it is a duplicate of "/" in the wrong language, so the
+ * route 404s, drops out of the sitemap, and stops being advertised as an
+ * hreflang alternate.
+ */
+export const PUBLISHES_SPANISH = SITE_LANGS.includes("es");
+
+/**
+ * Language a visitor gets before they pick one. getLang() still prefers an
+ * explicit cookie and then the signed-in preference; this is only the floor.
+ *
+ * Derived from SITE_LANGS rather than read straight from the environment, so
+ * the two cannot contradict each other: setting REGION_SET=jp and forgetting
+ * NEXT_PUBLIC_DEFAULT_LANG used to leave an instance that publishes only
+ * Japanese serving English to everyone. The variable can still choose among
+ * the languages this instance publishes; anything else falls back to the
+ * first.
+ */
+export const DEFAULT_LANG: Lang = (() => {
+  const v = process.env.NEXT_PUBLIC_DEFAULT_LANG?.trim();
+  return SITE_LANGS.includes(v as Lang) ? (v as Lang) : SITE_LANGS[0];
+})();
+
 // The custom domain, for links meant to be shared off-site (an X intent,
 // a Discord message) where the nicer branded URL matters. layout.tsx,
 // robots.ts, and sitemap.ts each still hardcode the vercel.app domain for
 // SEO canonicalization — a separate, pre-existing decision this doesn't
 // touch.
-export const SITE_URL = "https://nasmashmate.com";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://nasmashmate.com";
+
+/**
+ * Time zone dates are displayed in. A season ends at one instant worldwide;
+ * this is only which clock to show it on, so it follows the instance rather
+ * than the viewer's browser (a server-rendered date has no browser to ask).
+ */
+export const DISPLAY_TIME_ZONE = "America/New_York";
+
+/**
+ * Whether this instance runs the cash prize program. North America's is a
+ * USD pool split among the season's top 3; Japan has no prize program
+ * decided, and offering one there needs the money to come from sponsorship
+ * rather than entry fees to stay clear of 賭博罪, so the banner stays off
+ * until that call is made. Flip this, not the copy, when it is.
+ */
+export const HAS_PRIZE_POOL = true;
+
+/**
+ * Which scene this instance serves, as an adjective, for the copy that names
+ * it ("a hub for the North American Smash community"). Per language rather
+ * than one env string, because the home page says this in whichever language
+ * the visitor reads — an English speaker on the Japanese ladder should be
+ * told it is the Japanese one, not shown Japanese text or, worse, told it is
+ * North American.
+ */
+export const SCENE_LABEL: Record<Lang, string> = { en: "North American", es: "norteamericana" };
+
+/**
+ * SITE_NAME split for the home page's heading, which colours the last word
+ * ("Smash Ladder <NA>"). Split rather than hardcoded so the Japanese
+ * instance's name highlights its own last word; a one-word name keeps `lead`
+ * empty and colours the whole thing.
+ */
+export const SITE_NAME_PARTS = (() => {
+  const at = SITE_NAME.lastIndexOf(" ");
+  return at <= 0 ? { lead: "", accent: SITE_NAME } : { lead: SITE_NAME.slice(0, at), accent: SITE_NAME.slice(at + 1) };
+})();
+
+/**
+ * Whether geography narrows who you can be matched against.
+ *
+ * North America is ~5,000km across, so a player in Vancouver matching one in
+ * Miami is a real latency problem and the distance presets exist to stop it.
+ * Japan is ~2,500km end to end and most of its scene sits in a few metro
+ * areas, so the same mechanism mostly just shrinks an already-small launch
+ * pool. Off for Japan: region stays a profile and leaderboard attribute, but
+ * it does not gate matchmaking, and a player without one can still queue.
+ */
+export const DISTANCE_MATCHMAKING = true;
+
+/**
+ * Whether low-latency firmware mods are permitted on this instance.
+ *
+ * Nothing enforces this — a client-side mod is not detectable from here, so
+ * it is a stated rule rather than a check, and the rules pages say so. It is
+ * false for Japan because the Japanese community treats these mods as
+ * cheating, and launching against that is not a fight worth picking.
+ */
+export const ALLOWS_LATENCY_MODS = true;
+
+/**
+ * Which rating system new seasons run on. Glicko-2 carries a rating deviation
+ * and volatility a player never sees but which move their number in ways they
+ * cannot predict; Elo moves by an amount they can work out themselves.
+ * スマメイト trained the Japanese scene on the latter, so Japan starts there.
+ * Both are implemented and chosen per season — see NEXT_SEASON_ALGORITHM.
+ */
+export type RatingSystem = "elo" | "glicko2" | "smashmate";
+
+export const RATING_SYSTEM: RatingSystem = "glicko2";
+
+/**
+ * What to call the rating in prose. "Smashmate-style" rather than "Elo",
+ * because the name is the useful part of the answer for a player who already
+ * knows what a Smashmate rating felt like — see SMASHMATE_K_FACTOR in
+ * lib/matches.ts for why it is Elo underneath.
+ */
+// Every system, not just the two an instance can select today: a season can
+// still be ended onto ELO from the admin tools.
+const RATING_SYSTEM_LABELS: Record<RatingSystem, Record<Lang, string>> = {
+  smashmate: {
+    en: "a Smashmate-style rating",
+    es: "una clasificación estilo Smashmate",
+  },
+  elo: { en: "an Elo rating", es: "una clasificación Elo" },
+  glicko2: { en: "a Glicko-2 rating", es: "una clasificación Glicko-2" },
+};
+
+export const RATING_SYSTEM_LABEL: Record<Lang, string> = RATING_SYSTEM_LABELS[RATING_SYSTEM];
+
+/**
+ * Whether this instance uses regions at all.
+ *
+ * On North America a region is load-bearing: it drives distance-based
+ * matchmaking and narrows the leaderboard across a continent. On an instance
+ * that matches nationwide it drives nothing, so collecting it would be asking
+ * every player for a value no screen would ever read. Off means no picker, no
+ * filters, and no region shown anywhere.
+ */
+export const USES_REGIONS = true;
+
+/**
+ * Whether this instance runs a community Discord server.
+ *
+ * Discord stays the sign-in provider either way — this is only about whether
+ * there is a server to send people to. Japan does not run one, so its pages
+ * point at the X account instead of advertising a server it has no part in.
+ */
+export const HAS_DISCORD_SERVER = true;
+
+/**
+ * Whether this instance takes donations through Ko-fi.
+ *
+ * Off for Japan, which means more than hiding a link: the supporter and gold
+ * tiers exist only as a thank-you for donating, so with no way to donate the
+ * badges can never be earned and anything gated behind them would be
+ * permanently out of reach for everyone. Where this is off, those gates open
+ * instead of locking a feature nobody can unlock.
+ */
+/**
+ * A value chosen for the instance rather than for the reader.
+ *
+ * Next's `metadata` export is evaluated once at module load, so it can't ask
+ * getLang() who is reading — and it doesn't need to: an instance publishes a
+ * fixed set of languages (SITE_LANGS), and the one it leads with is the one
+ * its page titles, its <html lang> and its og:locale should be in. Use tr()
+ * everywhere a request is in hand; use this only where none is.
+ */
+export function instanceText<T>(values: Record<Lang, T>): T {
+  return values[DEFAULT_LANG];
+}
+
+/** og:locale for DEFAULT_LANG. */
+export const OG_LOCALE = instanceText({ en: "en_US", es: "es_MX" });
+
+/**
+ * Whether the chat offers preset one-tap messages.
+ *
+ * Japan doesn't want them: the four defaults are English Smash shorthand
+ * (glhf, ggs) and a canned-phrase row isn't how that scene opens a set.
+ * The column and the settings slots stay for the instances that use them.
+ */
+export const HAS_QUICK_MESSAGES = true;
+
+/**
+ * Whether players can write guides for each other.
+ *
+ * Japan doesn't: the private matchup notes stay — they are the half a player
+ * keeps to themselves and the half that shows up mid-match — but nothing on
+ * that instance is written for the community to share. Without this the
+ * Notes page would offer a public tab nobody was asked to fill.
+ */
+export const HAS_COMMUNITY_GUIDES = true;
+
+export const HAS_KOFI = true;

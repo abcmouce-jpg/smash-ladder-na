@@ -17,13 +17,8 @@ import {
   setStartggUrlAction,
 } from "../actions";
 import { getLang, type Lang } from "@/lib/i18n";
-
-const STATUS_LABEL_ES: Record<string, string> = {
-  SIGNUPS: "inscripciones",
-  IN_PROGRESS: "en curso",
-  COMPLETED: "completado",
-  CANCELLED: "cancelado",
-};
+import { tr } from "@/lib/lang";
+import { tournamentStatusLabel } from "@/app/tournaments/page";
 
 export default async function TournamentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -40,24 +35,24 @@ export default async function TournamentDetailPage({ params }: { params: Promise
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">{tournament.name}</h1>
-        <Badge variant="outline">
-          {lang === "es" ? STATUS_LABEL_ES[tournament.status] : tournament.status.toLowerCase()}
-        </Badge>
+        <Badge variant="outline">{tournamentStatusLabel(tournament.status, lang)}</Badge>
       </div>
       {tournament.description && <p className="mt-2 text-sm text-muted-foreground">{tournament.description}</p>}
       <p className="mt-1 text-xs text-muted-foreground">
-        {lang === "es" ? (
-          <>Organizado por {tournament.host.username} · Doble eliminación en start.gg</>
-        ) : (
-          <>Hosted by {tournament.host.username} · Double elimination on start.gg</>
-        )}
+        {tr(lang, {
+          en: `Hosted by ${tournament.host.username} · Double elimination on start.gg`,
+          es: `Organizado por ${tournament.host.username} · Doble eliminación en start.gg`,
+        })}
       </p>
 
       {tournament.startggUrl ? (
         <>
           <a href={tournament.startggUrl} target="_blank" rel="noopener noreferrer" className="mt-4 block">
             <Button type="button" className="gap-1.5">
-              {lang === "es" ? "Ver bracket en start.gg" : "View bracket on start.gg"}
+              {tr(lang, {
+                en: "View bracket on start.gg",
+                es: "Ver bracket en start.gg",
+              })}
               <ExternalLink className="size-3.5" />
             </Button>
           </a>
@@ -76,7 +71,7 @@ export default async function TournamentDetailPage({ params }: { params: Promise
       <Card className="mt-6">
         <CardContent className="pt-4">
           <p className="text-sm font-medium">
-            {lang === "es" ? "Participantes del ladder" : "Entrants from the ladder"} ({tournament.entries.length})
+            {tr(lang, { en: "Entrants from the ladder", es: "Participantes del ladder" })} ({tournament.entries.length})
           </p>
           <ul className="mt-2 flex flex-col gap-1.5">
             {tournament.entries.map((e) => (
@@ -89,7 +84,10 @@ export default async function TournamentDetailPage({ params }: { params: Promise
             ))}
             {tournament.entries.length === 0 && (
               <li className="text-sm text-muted-foreground">
-                {lang === "es" ? "Nadie se ha marcado como participante aún." : "No one's marked as in yet."}
+                {tr(lang, {
+                  en: "No one's marked as in yet.",
+                  es: "Nadie se ha marcado como participante aún.",
+                })}
               </li>
             )}
           </ul>
@@ -99,14 +97,14 @@ export default async function TournamentDetailPage({ params }: { params: Promise
               {userId && !myEntry && (
                 <form action={joinTournamentAction.bind(null, id)}>
                   <Button type="submit" size="sm">
-                    {lang === "es" ? "Voy" : "I'm in"}
+                    {tr(lang, { en: "I'm in", es: "Voy" })}
                   </Button>
                 </form>
               )}
               {userId && myEntry && (
                 <form action={leaveTournamentAction.bind(null, id)}>
                   <Button type="submit" variant="outline" size="sm">
-                    {lang === "es" ? "Salir" : "Leave"}
+                    {tr(lang, { en: "Leave", es: "Salir" })}
                   </Button>
                 </form>
               )}
@@ -118,21 +116,21 @@ export default async function TournamentDetailPage({ params }: { params: Promise
               {tournament.status === "SIGNUPS" && (
                 <form action={markInProgressAction.bind(null, id)}>
                   <Button type="submit" variant="secondary" size="sm">
-                    {lang === "es" ? "Marcar en curso" : "Mark in progress"}
+                    {tr(lang, { en: "Mark in progress", es: "Marcar en curso" })}
                   </Button>
                 </form>
               )}
               {tournament.status === "IN_PROGRESS" && (
                 <form action={markCompletedAction.bind(null, id)}>
                   <Button type="submit" variant="secondary" size="sm">
-                    {lang === "es" ? "Marcar completado" : "Mark completed"}
+                    {tr(lang, { en: "Mark completed", es: "Marcar completado" })}
                   </Button>
                 </form>
               )}
               {tournament.status !== "CANCELLED" && tournament.status !== "COMPLETED" && (
                 <form action={cancelTournamentAction.bind(null, id)}>
                   <Button type="submit" variant="destructive" size="sm">
-                    {lang === "es" ? "Cancelar" : "Cancel"}
+                    {tr(lang, { en: "Cancel", es: "Cancelar" })}
                   </Button>
                 </form>
               )}
@@ -156,7 +154,7 @@ async function StartggEventInfo({ startggUrl, lang }: { startggUrl: string; lang
       <CardContent className="pt-4">
         <p className="text-sm font-medium">
           {info.eventName} · {info.numEntrants ?? "?"}{" "}
-          {lang === "es" ? "participantes en start.gg" : "entrants on start.gg"}
+          {tr(lang, { en: "entrants on start.gg", es: "participantes en start.gg" })}
         </p>
         {info.isCompleted && info.standings.length > 0 && (
           <ul className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
@@ -177,10 +175,10 @@ function StartggForm({ tournamentId, lang }: { tournamentId: string; lang: Lang 
     <StartggUrlForm
       action={setStartggUrlAction.bind(null, tournamentId)}
       defaultValue=""
-      label={lang === "es" ? "Enlace de start.gg" : "start.gg link"}
+      label={tr(lang, { en: "start.gg link", es: "Enlace de start.gg" })}
       required
       placeholder="https://start.gg/tournament/..."
-      saveLabel={lang === "es" ? "Guardar" : "Save"}
+      saveLabel={tr(lang, { en: "Save", es: "Guardar" })}
     />
   );
 }

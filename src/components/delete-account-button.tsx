@@ -3,9 +3,11 @@
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
-export function DeleteAccountButton({ action, lang = "en" }: { action: () => Promise<void>; lang?: "en" | "es" }) {
-  const [confirm, confirmDialog] = useConfirm();
+export function DeleteAccountButton({ action, lang = "en" }: { action: () => Promise<void>; lang?: Lang }) {
+  const [confirm, confirmDialog] = useConfirm(lang);
   const confirmReadyRef = useRef(false);
 
   return (
@@ -23,9 +25,10 @@ export function DeleteAccountButton({ action, lang = "en" }: { action: () => Pro
           // dispatch finishes, and confirm() resolves asynchronously.
           const form = e.currentTarget;
           confirm(
-            lang === "es"
-              ? "¿Eliminar tu cuenta? Tu nombre de usuario, avatar y correo electrónico se eliminan permanentemente. El historial de partidas se mantiene (anonimizado) para que los registros de otros jugadores sigan siendo correctos. Esto no se puede deshacer."
-              : "Delete your account? Your username, avatar, and email are removed permanently. Match history stays (anonymized) so other players' records stay intact. This can't be undone.",
+            tr(lang, {
+              en: "Delete your account? Your username, avatar, and email are removed permanently. Match history stays (anonymized) so other players' records stay intact. This can't be undone.",
+              es: "¿Eliminar tu cuenta? Tu nombre de usuario, avatar y correo electrónico se eliminan permanentemente. El historial de partidas se mantiene (anonimizado) para que los registros de otros jugadores sigan siendo correctos. Esto no se puede deshacer.",
+            }),
           ).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
@@ -35,7 +38,7 @@ export function DeleteAccountButton({ action, lang = "en" }: { action: () => Pro
         }}
       >
         <Button type="submit" variant="destructive" size="sm">
-          {lang === "es" ? "Eliminar mi cuenta" : "Delete my account"}
+          {tr(lang, { en: "Delete my account", es: "Eliminar mi cuenta" })}
         </Button>
       </form>
       {confirmDialog}

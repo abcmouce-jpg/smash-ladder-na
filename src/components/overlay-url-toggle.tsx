@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { type Lang, tr } from "@/lib/lang";
 
-export function OverlayUrlToggle({ baseUrl }: { baseUrl: string }) {
+export function OverlayUrlToggle({ baseUrl, lang = "en" }: { baseUrl: string; lang?: Lang }) {
   const [hideRecentMatches, setHideRecentMatches] = useState(false);
   const [hideRatingCard, setHideRatingCard] = useState(false);
   // Stage pick/ban is hidden by default — the streamer opts into showing it
@@ -26,7 +27,10 @@ export function OverlayUrlToggle({ baseUrl }: { baseUrl: string }) {
           onChange={(e) => setHideRecentMatches(e.target.checked)}
           className="size-4 rounded border-border"
         />
-        Hide recent matches on overlay
+        {tr(lang, {
+          en: "Hide recent matches on overlay",
+          es: "Ocultar partidas recientes en el overlay",
+        })}
       </label>
       <label className="flex items-center gap-2 text-xs">
         <input
@@ -35,7 +39,10 @@ export function OverlayUrlToggle({ baseUrl }: { baseUrl: string }) {
           onChange={(e) => setHideRatingCard(e.target.checked)}
           className="size-4 rounded border-border"
         />
-        Hide rating card on overlay
+        {tr(lang, {
+          en: "Hide rating card on overlay",
+          es: "Ocultar la tarjeta de clasificación en el overlay",
+        })}
       </label>
       <label className="flex items-center gap-2 text-xs">
         <input
@@ -44,7 +51,10 @@ export function OverlayUrlToggle({ baseUrl }: { baseUrl: string }) {
           onChange={(e) => setHideStageBans(e.target.checked)}
           className="size-4 rounded border-border"
         />
-        Hide stage pick/ban on overlay
+        {tr(lang, {
+          en: "Hide stage pick/ban on overlay",
+          es: "Ocultar selección/veto de escenario en el overlay",
+        })}
       </label>
       <div className="flex items-center gap-2">
         <code className="rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono break-all max-w-full">

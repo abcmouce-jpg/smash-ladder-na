@@ -9,14 +9,7 @@ import { siteOrigin } from "@/lib/site-url";
 // generally do respect robots.txt (unlike a scraper ignoring it outright),
 // so a flat disallow is worth it even before/alongside Vercel Firewall's
 // Bot Protection rule.
-const BLOCKED_CRAWLER_USER_AGENTS = [
-  "AhrefsBot",
-  "SemrushBot",
-  "SiteAuditBot",
-  "MJ12bot",
-  "DotBot",
-  "BLEXBot",
-];
+const BLOCKED_CRAWLER_USER_AGENTS = ["AhrefsBot", "SemrushBot", "SiteAuditBot", "MJ12bot", "DotBot", "BLEXBot"];
 
 export default function robots(): MetadataRoute.Robots {
   return {

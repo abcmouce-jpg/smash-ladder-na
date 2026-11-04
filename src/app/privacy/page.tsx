@@ -1,6 +1,10 @@
 import { getLang } from "@/lib/i18n";
+import { SITE_NAME, instanceText } from "@/lib/site";
+import { X_ACCOUNT_URL } from "@/lib/links";
 
-export const metadata = { title: "Privacy Policy — Smash Ladder NA" };
+export const metadata = {
+  title: `${instanceText({ en: "Privacy Policy", es: "Política de privacidad" })} — ${SITE_NAME}`,
+};
 
 export default async function PrivacyPage() {
   const lang = await getLang();
@@ -9,7 +13,7 @@ export default async function PrivacyPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Política de privacidad</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Última actualización: 2026-07-19.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Última actualización: 2026-10-27.</p>
 
         <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
           <section>
@@ -24,6 +28,11 @@ export default async function PrivacyPage() {
               publicaciones de Amistosos, comentarios de chat de partidas, inscripciones a torneos, reportes de conducta
               que envías o recibes, y cualquier dato autodeclarado (región, estado de conexión por cable, personaje
               principal).
+            </p>
+            <p className="mt-2">
+              También registramos la dirección IP desde la que inicias sesión. Se guarda para la gestión de abusos — un
+              baneo sirve de poco si la siguiente cuenta desde la misma conexión empieza limpia — y solo la ven los
+              moderadores, en el perfil de alguien a quien están revisando.
             </p>
           </section>
 
@@ -99,7 +108,7 @@ export default async function PrivacyPage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Privacy Policy</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Last updated 2026-07-19.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Last updated 2026-10-27.</p>
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <section>
@@ -113,6 +122,11 @@ export default async function PrivacyPage() {
             Beyond that, we store what you generate by using the site: ranked matches and results, Friendlies posts,
             match comments, tournament sign-ups, conduct reports you file or receive, and anything you self-declare
             (region, wired-connection status, main character).
+          </p>
+          <p className="mt-2">
+            We also record the IP address you signed in from. It is kept for abuse handling — a ban is worth little if
+            the next account from the same connection starts clean — and it is visible only to moderators, on the
+            profile of someone they are reviewing.
           </p>
         </section>
 
@@ -148,9 +162,8 @@ export default async function PrivacyPage() {
           <h2 className="text-sm font-medium text-foreground">Cookies</h2>
           <p className="mt-2">
             One session cookie, used only to keep you signed in, and one language-preference cookie, used only to
-            remember whether you prefer to view the site in English or Spanish. On pages where an ad is shown, Google
-            AdSense may also set its own cookies, per the section above — otherwise no tracking or advertising cookies
-            are set.
+            remember which language you prefer to view the site in. On pages where an ad is shown, Google AdSense may
+            also set its own cookies, per the section above — otherwise no tracking or advertising cookies are set.
           </p>
         </section>
 

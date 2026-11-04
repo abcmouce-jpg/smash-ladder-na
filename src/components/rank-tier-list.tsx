@@ -2,17 +2,29 @@ import { PROVISIONAL_MIN_GAMES, RANK_TIERS, rankTierRatingRange, type RankTier }
 import { TierBadge } from "@/components/rank-badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // One row of the rank list: the real badge, the window it covers, and the
 // blurb. The range is passed in rather than derived here because the
 // provisional row is gated on sets played, not rating — it is the absence
 // of a tier, which is why it is not a member of RANK_TIERS and why `tier`
 // is nullable.
-function RankRow({ tier, range, children }: { tier: RankTier | null; range: string; children: React.ReactNode }) {
+function RankRow({
+  tier,
+  range,
+  children,
+  lang,
+}: {
+  tier: RankTier | null;
+  range: string;
+  children: React.ReactNode;
+  lang: Lang;
+}) {
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between gap-3">
-        <TierBadge tier={tier} />
+        <TierBadge tier={tier} lang={lang} />
         <span className="text-xs tabular-nums text-muted-foreground">{range}</span>
       </div>
       <p className="mt-1.5 text-sm text-muted-foreground">{children}</p>
@@ -39,21 +51,26 @@ const TIER_DESCRIPTIONS_ES: Record<string, string> = {
 // heading, dialog, or page markup: whichever surface shows the list owns its
 // own framing and its own outer spacing, which is what the className
 // pass-through is for.
-export function RankTierList({ className, lang = "en" }: { className?: string; lang?: "en" | "es" }) {
+export function RankTierList({ className, lang = "en" }: { className?: string; lang?: Lang }) {
   return (
     <Card className={cn("divide-y divide-border overflow-hidden py-0", className)}>
       {RANK_TIERS.map((tier) => (
-        <RankRow key={tier.name} tier={tier} range={rankTierRatingRange(tier)}>
+        <RankRow key={tier.name} tier={tier} range={rankTierRatingRange(tier)} lang={lang}>
           {lang === "es" ? TIER_DESCRIPTIONS_ES[tier.name] : tier.description}
         </RankRow>
       ))}
       <RankRow
         tier={null}
-        range={lang === "es" ? `Primeras ${PROVISIONAL_MIN_GAMES} partidas` : `First ${PROVISIONAL_MIN_GAMES} sets`}
+        lang={lang}
+        range={tr(lang, {
+          en: `First ${PROVISIONAL_MIN_GAMES} sets`,
+          es: `Primeras ${PROVISIONAL_MIN_GAMES} partidas`,
+        })}
       >
-        {lang === "es"
-          ? "Aún sin rango. La clasificación varía más en tus primeras partidas, así que la insignia se mantiene neutral hasta que se estabilice."
-          : "No rank yet. Ratings swing hardest over your first few sets, so the badge stays neutral until yours has had a chance to settle."}
+        {tr(lang, {
+          en: "No rank yet. Ratings swing hardest over your first few sets, so the badge stays neutral until yours has had a chance to settle.",
+          es: "Aún sin rango. La clasificación varía más en tus primeras partidas, así que la insignia se mantiene neutral hasta que se estabilice.",
+        })}
       </RankRow>
     </Card>
   );

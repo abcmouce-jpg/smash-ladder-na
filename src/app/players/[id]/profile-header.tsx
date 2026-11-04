@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Cable, EyeOff, MapPin, Share2, Swords } from "lucide-react";
+import { Cable, EyeOff, MapPin, Swords } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
@@ -11,14 +11,18 @@ import { TwitchIcon } from "@/components/twitch-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingHidden } from "@/components/rating-hidden";
 import { BlockUserButton } from "@/components/block-user-button";
-import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
+import { ShareMenu } from "@/components/share-menu";
+import { LiveStreamEmbed } from "@/components/live-stream-embed";
+import { playerStreamLink } from "@/lib/stream-links";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
 import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
-import { SITE_URL } from "@/lib/site";
+import { USES_REGIONS, SITE_NAME } from "@/lib/site";
+import { siteOrigin } from "@/lib/site-url";
 import type { Lang } from "@/lib/i18n";
 import type { BlockState } from "../actions";
+import { tr } from "@/lib/lang";
 
 // The profile header is shared chrome — it renders above every tab and is
 // identical no matter which one is active. The "currently in a match" card
@@ -64,23 +68,26 @@ export function PlayerProfileHeader({
   const ratingLabel = tier ? `${formatRating(player.rating)} (${tier.name})` : `${formatRating(player.rating)}`;
   // A provisional player's rating isn't public (see isRatingVisible), so the
   // share text drops the number rather than advertising a hidden one.
-  const shareText =
-    lang === "es"
-      ? !ratingVisible
-        ? isOwnProfile
-          ? "¡Estoy en Smash Ladder NA!"
-          : `${player.username} está en Smash Ladder NA.`
-        : isOwnProfile
-          ? `¡Tengo ${ratingLabel} de clasificación en Smash Ladder NA!`
-          : `${player.username} tiene ${ratingLabel} de clasificación en Smash Ladder NA.`
-      : !ratingVisible
-        ? isOwnProfile
-          ? "I'm on Smash Ladder NA!"
-          : `${player.username} is on Smash Ladder NA.`
-        : isOwnProfile
-          ? `I'm rated ${ratingLabel} on Smash Ladder NA!`
-          : `${player.username} is rated ${ratingLabel} on Smash Ladder NA.`;
-  const tweetIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareText} ${SITE_URL}/players/${player.id}`)}`;
+  const shareText = !ratingVisible
+    ? isOwnProfile
+      ? tr(lang, {
+          en: `I'm on ${SITE_NAME}!`,
+          es: `¡Estoy en ${SITE_NAME}!`,
+        })
+      : tr(lang, {
+          en: `${player.username} is on ${SITE_NAME}.`,
+          es: `${player.username} está en ${SITE_NAME}.`,
+        })
+    : isOwnProfile
+      ? tr(lang, {
+          en: `I'm rated ${ratingLabel} on ${SITE_NAME}!`,
+          es: `¡Tengo ${ratingLabel} de clasificación en ${SITE_NAME}!`,
+        })
+      : tr(lang, {
+          en: `${player.username} is rated ${ratingLabel} on ${SITE_NAME}.`,
+          es: `${player.username} tiene ${ratingLabel} de clasificación en ${SITE_NAME}.`,
+        });
+  const profileUrl = `${siteOrigin()}/players/${player.id}`;
 
   return (
     <>
@@ -108,12 +115,18 @@ export function PlayerProfileHeader({
                 )}
                 {player.isGoldSupporter ? (
                   <Badge variant="warning" className="text-xs">
-                    {lang === "es" ? "🏆 Patrocinador Gold" : "🏆 Gold Supporter"}
+                    {tr(lang, {
+                      en: "🏆 Gold Supporter",
+                      es: "🏆 Patrocinador Gold",
+                    })}
                   </Badge>
                 ) : (
                   player.isSupporter && (
                     <Badge variant="success" className="text-xs">
-                      {lang === "es" ? "💖 Patrocinador" : "💖 Supporter"}
+                      {tr(lang, {
+                        en: "💖 Supporter",
+                        es: "💖 Patrocinador",
+                      })}
                     </Badge>
                   )
                 )}
@@ -121,20 +134,20 @@ export function PlayerProfileHeader({
               </h1>
               <p className="text-sm tabular-nums text-muted-foreground">
                 {ratingVisible ? (
-                  lang === "es" ? (
-                    `${formatRating(player.rating)} de clasificación`
-                  ) : (
-                    `${formatRating(player.rating)} rating`
-                  )
+                  tr(lang, {
+                    en: `${formatRating(player.rating)} rating`,
+                    es: `${formatRating(player.rating)} de clasificación`,
+                  })
                 ) : (
                   <RatingHidden gamesPlayed={player.gamesPlayed} lang={lang} />
                 )}
               </p>
               {player.isSupporter && (
                 <p className="text-xs text-muted-foreground">
-                  {lang === "es"
-                    ? `${player.username} ha donado para apoyar Smash Ladder NA — ¡gracias!`
-                    : `${player.username} has donated to support Smash Ladder NA — thank you!`}
+                  {tr(lang, {
+                    en: `${player.username} has donated to support ${SITE_NAME} — thank you!`,
+                    es: `${player.username} ha donado para apoyar ${SITE_NAME} — ¡gracias!`,
+                  })}
                 </p>
               )}
             </div>
@@ -142,18 +155,35 @@ export function PlayerProfileHeader({
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3">
             {showDiscord && (
-              <Badge variant="outline" title={discordHiddenFromPublic ? "Hidden from other players — mod/admin only" : undefined}>
+              <Badge
+                variant="outline"
+                title={discordHiddenFromPublic ? "Hidden from other players — mod/admin only" : undefined}
+              >
                 <DiscordIcon className="size-3" />
                 {player.discordUsername}
                 {discordHiddenFromPublic && <EyeOff className="size-3" />}
               </Badge>
+            )}
+            {player.youtubeChannelUrl && (
+              <a
+                href={player.youtubeChannelUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={tr(lang, {
+                  en: "YouTube channel",
+                  es: "Canal de YouTube",
+                })}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                YouTube
+              </a>
             )}
             {player.twitchUsername && (
               <a
                 href={`https://twitch.tv/${player.twitchUsername}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`${lang === "es" ? "Canal de Twitch" : "Twitch channel"}: ${
+                aria-label={`${tr(lang, { en: "Twitch channel", es: "Canal de Twitch" })}: ${
                   player.twitchDisplayName ?? player.twitchUsername
                 }`}
               >
@@ -179,8 +209,8 @@ export function PlayerProfileHeader({
                 </Badge>
               </a>
             )}
-            <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
-            {player.region && (
+            <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} lang={lang} />
+            {USES_REGIONS && player.region && (
               <Badge variant="outline">
                 <MapPin className="size-3" />
                 {player.region}
@@ -189,14 +219,15 @@ export function PlayerProfileHeader({
             {player.wiredConnection && (
               <Badge variant="outline">
                 <Cable className="size-3" />
-                {lang === "es" ? "Por cable" : "Wired"}
+                {tr(lang, { en: "Wired", es: "Por cable" })}
               </Badge>
             )}
             {player.noShowCount > 0 && (
               <Badge variant="warning">
-                {lang === "es"
-                  ? `${player.noShowCount} ${player.noShowCount === 1 ? "no-show" : "no-shows"}`
-                  : `${player.noShowCount} no-show${player.noShowCount === 1 ? "" : "s"}`}
+                {tr(lang, {
+                  en: `${player.noShowCount} no-show${player.noShowCount === 1 ? "" : "s"}`,
+                  es: `${player.noShowCount} ${player.noShowCount === 1 ? "no-show" : "no-shows"}`,
+                })}
               </Badge>
             )}
             {isModerator && player.cancelCount > 0 && (
@@ -213,50 +244,42 @@ export function PlayerProfileHeader({
           </div>
           {headToHead && (
             <p className="mt-1.5 text-sm tabular-nums text-muted-foreground">
-              {lang === "es" ? "Tu récord: " : "Your record: "}
+              {tr(lang, {
+                en: "Your record: ",
+                es: "Tu récord: ",
+              })}
               {headToHead.wins}W–{headToHead.losses}L
             </p>
           )}
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
-          <div className="flex items-center gap-1">
-            <a
-              href={`/players/${player.id}/opengraph-image`}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={lang === "es" ? "Compartir tarjeta de clasificación" : "Share rank card"}
-              title={lang === "es" ? "Compartir tarjeta de clasificación" : "Share rank card"}
-              className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <Share2 className="size-4" />
-            </a>
-            <a
-              href={tweetIntentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={lang === "es" ? "Compartir en X" : "Share on X"}
-              title={lang === "es" ? "Compartir en X" : "Share on X"}
-              className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-            </a>
-          </div>
+          <ShareMenu url={profileUrl} text={shareText} playerId={player.id} lang={lang} />
           {viewerId &&
             !isOwnProfile &&
             (blocked ? (
-              <Badge variant="outline">{lang === "es" ? "Bloqueado" : "Blocked"}</Badge>
+              <Badge variant="outline">
+                {tr(lang, {
+                  en: "Blocked",
+                  es: "Bloqueado",
+                })}
+              </Badge>
             ) : (
               <BlockUserButton action={blockAction} username={player.username} lang={lang} />
             ))}
         </div>
       </div>
 
-      {inMatch && isLiveOnTwitch && player.twitchUsername && (
-        <TwitchLiveEmbed username={player.twitchUsername} parentHost={parentHost} />
-      )}
+      {inMatch &&
+        (() => {
+          const link = playerStreamLink(player);
+          // A detected Twitch stream, or one the player declared — the second
+          // is the only way a YouTube stream can be known (see lib/stream-links.ts).
+          if (!link || (link.platform === "twitch" && !isLiveOnTwitch && !player.liveStreamUrl)) return null;
+          return (
+            <LiveStreamEmbed embedUrl={link.embedUrl(parentHost)} title={player.twitchDisplayName ?? player.username} />
+          );
+        })()}
 
       {currentMatch && (
         <CurrentMatchCard
@@ -295,12 +318,20 @@ function CurrentMatchCard({
   const isPlayer1 = match.player1Id === userId;
   const opponent = isPlayer1 ? match.player2 : match.player1;
   const myName = isPlayer1 ? match.player1.username : match.player2.username;
-  const myRating = isPlayer1 ? match.player1.rating : match.player2.rating;
-  const myGamesPlayed = isPlayer1 ? match.player1.gamesPlayed : match.player2.gamesPlayed;
+  const me = isPlayer1 ? match.player1 : match.player2;
+  // The set's own ladder, not whichever one the profile leads with. A
+  // randitto set showed the ladder rating of a player who is 1500 at
+  // randitto and 1908 on the board, which reads as the mode borrowing the
+  // main rating — it does not.
+  const randitto = match.mode === "RANDITTO";
+  const myRating = randitto ? me.randittoRating : me.rating;
+  const myGamesPlayed = randitto ? me.randittoGamesPlayed : me.gamesPlayed;
+  const opponentRating = randitto ? opponent.randittoRating : opponent.rating;
+  const opponentGamesPlayed = randitto ? opponent.randittoGamesPlayed : opponent.gamesPlayed;
   // Each side is gated on its own games played — one provisional player in the
   // set doesn't hide the other's established rating.
   const myRatingVisible = isRatingVisible(myGamesPlayed, viewerIsModerator);
-  const opponentRatingVisible = isRatingVisible(opponent.gamesPlayed, viewerIsModerator);
+  const opponentRatingVisible = isRatingVisible(opponentGamesPlayed, viewerIsModerator);
 
   const wins = { me: 0, opponent: 0 };
   for (const game of match.games) {
@@ -327,15 +358,22 @@ function CurrentMatchCard({
     : null;
   // Game 1 is a blind pick — characters stay hidden until both sides have
   // locked in, same as the in-lobby pick UI.
+  // Randitto's fighters come from Smash's own Random option, so the site has
+  // none to show.
   const showCharacters =
-    currentGame !== null && (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
+    !randitto &&
+    currentGame !== null &&
+    (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
 
   return (
     <Card className="mt-8">
       <CardContent className="pt-4">
         <p className="flex items-center gap-2 text-sm font-medium">
           <Swords className="size-4 text-muted-foreground" />
-          {lang === "es" ? "Actualmente en una partida" : "Currently in a match"}
+          {tr(lang, {
+            en: "Currently in a match",
+            es: "Actualmente en una partida",
+          })}
         </p>
 
         <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -347,17 +385,18 @@ function CurrentMatchCard({
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{myName}</p>
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {myRatingVisible ? (
-                  lang === "es" ? (
-                    `${formatRating(myRating)} de clasificación`
+              {!zenMode && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {myRatingVisible ? (
+                    tr(lang, {
+                      en: `${formatRating(myRating)} rating`,
+                      es: `${formatRating(myRating)} de clasificación`,
+                    })
                   ) : (
-                    `${formatRating(myRating)} rating`
-                  )
-                ) : (
-                  <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} />
-                )}
-              </p>
+                    <RatingHidden gamesPlayed={myGamesPlayed} lang={lang} />
+                  )}
+                </p>
+              )}
             </div>
           </div>
 
@@ -366,36 +405,33 @@ function CurrentMatchCard({
               {wins.me}–{wins.opponent}
             </p>
             <p className="text-xs text-muted-foreground">
-              {lang === "es" ? `Juego ${gameNumber} de 5` : `Game ${gameNumber} of 5`}
+              {tr(lang, {
+                en: `Game ${gameNumber} of 5`,
+                es: `Juego ${gameNumber} de 5`,
+              })}
             </p>
           </div>
 
           <div className="flex min-w-0 items-center justify-end gap-2.5">
-            {!zenMode &&
-              (showCharacters && opponentCharacter ? (
-                <CharacterIcon name={opponentCharacter} size={32} />
-              ) : (
-                <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
-              ))}
+            {showCharacters && opponentCharacter ? (
+              <CharacterIcon name={opponentCharacter} size={32} />
+            ) : (
+              <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+            )}
             <div className="min-w-0">
-              {zenMode ? (
-                <p className="truncate text-right text-sm font-medium">{lang === "es" ? "Rival" : "Opponent"}</p>
-              ) : (
-                <Link
-                  href={`/players/${opponent.id}`}
-                  className="block truncate text-right text-sm font-medium hover:underline"
-                >
-                  {opponent.username}
-                </Link>
-              )}
+              <Link
+                href={`/players/${opponent.id}`}
+                className="block truncate text-right text-sm font-medium hover:underline"
+              >
+                {opponent.username}
+              </Link>
               {!zenMode && (
                 <p className="text-right text-xs text-muted-foreground tabular-nums">
                   {opponentRatingVisible ? (
-                    lang === "es" ? (
-                      `${formatRating(opponent.rating)} de clasificación`
-                    ) : (
-                      `${formatRating(opponent.rating)} rating`
-                    )
+                    tr(lang, {
+                      en: `${formatRating(opponentRating)} rating`,
+                      es: `${formatRating(opponentRating)} de clasificación`,
+                    })
                   ) : (
                     <RatingHidden gamesPlayed={opponent.gamesPlayed} lang={lang} />
                   )}

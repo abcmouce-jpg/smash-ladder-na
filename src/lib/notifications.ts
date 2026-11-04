@@ -1,3 +1,4 @@
+import type { Lang } from "@/lib/i18n";
 // Central registry of the notification settings a player can toggle, and the
 // single source of truth for how each one is stored and labelled. The Settings
 // → Notifications tab renders straight from this list — grouped into browser
@@ -47,8 +48,8 @@ export type NotificationDef = {
   channel: NotificationChannel;
   /** Present → opt-in stored in this column; absent → opt-out in notificationsDisabled. */
   field?: NotificationOptInField;
-  label: { en: string; es: string };
-  description: { en: string; es: string };
+  label: Record<Lang, string>;
+  description: Record<Lang, string>;
 };
 
 export const NOTIFICATION_DEFS: readonly NotificationDef[] = [

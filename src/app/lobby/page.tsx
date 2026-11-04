@@ -1,8 +1,10 @@
 import Image from "next/image";
+import { errorMessage } from "@/lib/localized-error";
 import Link from "next/link";
 import {
   Check,
   Clock,
+  Dices,
   Loader2,
   Lock,
   MapPin,
@@ -15,7 +17,12 @@ import {
 import { auth } from "@/auth";
 import { getMatchupNote } from "@/lib/matchup-notes";
 import { prisma } from "@/lib/db";
-import { getActiveLobbyEntry, getLobbyActivityStats, retryPairForWaitingUser, touchWaitingLobbyEntry } from "@/lib/lobby";
+import {
+  getActiveLobbyEntry,
+  getLobbyActivityStats,
+  retryPairForWaitingUser,
+  touchWaitingLobbyEntry,
+} from "@/lib/lobby";
 import { PushNudgeBanner } from "@/components/push-nudge-banner";
 import { SupporterBanner } from "@/components/supporter-banner";
 import { getSupporterCount } from "@/lib/public-stats";
@@ -42,7 +49,10 @@ import {
   lastUsedMoveset,
   secondsUntil,
 } from "@/lib/match-games";
-import { stageImagePath, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { STRIKING_STAGES, stageImagePath, stageLabel, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { RANDITTO_STAGE } from "@/lib/randitto";
+import { displayRating, trackFor } from "@/lib/rating-track";
+import { MatchMode } from "@/generated/prisma/enums";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { referralLink } from "@/lib/referrals";
 import { CopyButton } from "@/components/copy-button";
@@ -51,7 +61,7 @@ import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier, isRatingVisible } fro
 import { formatRating } from "@/lib/rating-format";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
-import { SMASH_CHARACTERS } from "@/lib/characters";
+import { SMASH_CHARACTERS, characterLabel, type SmashCharacter } from "@/lib/characters";
 import { cn } from "@/lib/utils";
 import { PageHeading } from "@/components/page-heading";
 import { Button } from "@/components/ui/button";
@@ -118,6 +128,8 @@ import {
   updateWiredConnection,
   updateZenMode,
 } from "./actions";
+import { tr, trNode } from "@/lib/lang";
+import { USES_REGIONS, DISTANCE_MATCHMAKING, HAS_QUICK_MESSAGES } from "@/lib/site";
 
 type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
 
@@ -132,12 +144,20 @@ export default async function LobbyPage() {
   if (!session?.user?.id) {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
-        <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
-        <ActivityLine inMatch={activity.inMatch} matched={false} isWaiting={false} poll={false} lang={lang} />
+        <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
+        <ActivityLine
+          inMatch={activity.inMatch}
+          randittoInMatch={activity.randittoInMatch}
+          matched={false}
+          isWaiting={false}
+          poll={false}
+          lang={lang}
+        />
         <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "es"
-            ? "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento."
-            : "Sign in with Discord (top right) to join the matchmaking lobby."}
+          {tr(lang, {
+            en: "Sign in with Discord (top right) to join the matchmaking lobby.",
+            es: "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento.",
+          })}
         </p>
       </main>
     );
@@ -151,11 +171,12 @@ export default async function LobbyPage() {
   if (restriction?.status === "BANNED") {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-16">
-        <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
+        <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
         <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "es"
-            ? "Tu cuenta está suspendida permanentemente, así que la sala no está disponible. Mira el aviso de arriba para más detalles."
-            : "Your account has been banned, so the lobby isn't available. See the notice above for details."}
+          {tr(lang, {
+            en: "Your account has been banned, so the lobby isn't available. See the notice above for details.",
+            es: "Tu cuenta está suspendida permanentemente, así que la sala no está disponible. Mira el aviso de arriba para más detalles.",
+          })}
         </p>
       </main>
     );
@@ -170,13 +191,23 @@ export default async function LobbyPage() {
   if (entry?.status === "WAITING") await touchWaitingLobbyEntry(session.user.id);
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { region: true, queueCooldownUntil: true, audioPingOnMatch: true, matchFoundSound: true },
+    select: {
+      region: true,
+      queueCooldownUntil: true,
+      audioPingOnMatch: true,
+      matchFoundSound: true,
+      // Only whether one exists, never the rows: this decides how often a
+      // backgrounded wait re-renders the page (see lib/lobby-poll.ts), and
+      // _count keeps it to a COUNT on the userId index.
+      _count: { select: { pushSubscriptions: true } },
+    },
   });
   // Region is required to queue (see joinLobbyAndTryPair), so the Lobby states
   // that up front and points at the settings card instead of letting the Find
   // Match button fail server-side with an error message.
-  const hasRegion = Boolean(me?.region);
+  const hasRegion = !USES_REGIONS || Boolean(me?.region);
   const queueCooldownUntil = me?.queueCooldownUntil?.toISOString() ?? null;
+  const hasPushSubscription = (me?._count.pushSubscriptions ?? 0) > 0;
   const audioPingOnMatch = me?.audioPingOnMatch ?? true;
   const matchFoundSound = me?.matchFoundSound ?? "CHIME";
   const isInActiveMatch =
@@ -212,9 +243,10 @@ export default async function LobbyPage() {
 
   return (
     <main className={`mx-auto w-full px-6 py-16 ${showMatchPanel ? "max-w-5xl" : "max-w-3xl"}`}>
-      <PageHeading icon={Swords} title={lang === "es" ? "Sala" : "Lobby"} />
+      <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
       <ActivityLine
         inMatch={activity.inMatch}
+        randittoInMatch={activity.randittoInMatch}
         matched={!!isInActiveMatch}
         isWaiting={isWaiting}
         poll={shouldPollLobby({
@@ -223,6 +255,7 @@ export default async function LobbyPage() {
           matchJustEnded: !!matchJustEnded,
           hasLeftMatch: !!myLeftAt,
         })}
+        hasPushSubscription={hasPushSubscription}
         audioPingOnMatch={audioPingOnMatch}
         matchFoundSound={matchFoundSound}
         lang={lang}
@@ -246,22 +279,34 @@ export default async function LobbyPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-base">
-                      {lang === "es" ? "Buscando rival…" : "Searching for an opponent…"}
+                      {tr(lang, {
+                        en: "Searching for an opponent…",
+                        es: "Buscando rival…",
+                      })}
                     </CardTitle>
                     <CardDescription className="mt-0.5">
-                      {lang === "es" ? "Activa las notificaciones en " : "Turn on notifications in "}
+                      {tr(lang, {
+                        en: "Turn on notifications in ",
+                        es: "Activa las notificaciones en ",
+                      })}
                       <Link
                         href="/settings?tab=notifications#push-notifications"
                         className="text-foreground underline underline-offset-2"
                       >
-                        {lang === "es" ? "Ajustes" : "Settings"}
+                        {tr(lang, {
+                          en: "Settings",
+                          es: "Ajustes",
+                        })}
                       </Link>
-                      {lang === "es" ? " para no perderte la partida." : " so you don't miss the match."}
+                      {tr(lang, {
+                        en: " so you don't miss the match.",
+                        es: " para no perderte la partida.",
+                      })}
                     </CardDescription>
                   </div>
                   <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Clock className="size-3.5" />
-                    {lang === "es" ? "En cola" : "In queue"}
+                    {tr(lang, { en: "In queue", es: "En cola" })}
                     <span className="font-medium tabular-nums text-foreground">
                       <QueueTimer joinedAt={entry.joinedAt.toISOString()} />
                     </span>
@@ -271,7 +316,10 @@ export default async function LobbyPage() {
               <CardContent className="pt-4">
                 <form action={cancelLobby}>
                   <Button type="submit" variant="outline">
-                    {lang === "es" ? "Cancelar búsqueda" : "Cancel search"}
+                    {tr(lang, {
+                      en: "Cancel search",
+                      es: "Cancelar búsqueda",
+                    })}
                   </Button>
                 </form>
                 <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4">
@@ -282,9 +330,10 @@ export default async function LobbyPage() {
                   />
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      {lang === "es"
-                        ? "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido."
-                        : "Wait feeling long? Invite a friend to get matched faster."}
+                      {tr(lang, {
+                        en: "Wait feeling long? Invite a friend to get matched faster.",
+                        es: "¿La espera se siente larga? Invita a un amigo para emparejarte más rápido.",
+                      })}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
                       <code className="max-w-full flex-1 truncate rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono">
@@ -306,17 +355,24 @@ export default async function LobbyPage() {
                   <div>
                     <CardTitle className="text-base">
                       {matchJustEnded
-                        ? lang === "es"
-                          ? "¿Listo para otra partida?"
-                          : "Ready for another match?"
-                        : lang === "es"
-                          ? "¿Listo para jugar?"
-                          : "Ready to play?"}
+                        ? tr(lang, {
+                            en: "Ready for another match?",
+                            es: "¿Listo para otra partida?",
+                          })
+                        : tr(lang, {
+                            en: "Ready to play?",
+                            es: "¿Listo para jugar?",
+                          })}
                     </CardTitle>
                     <CardDescription className="mt-0.5">
-                      {lang === "es"
-                        ? "Entra en la cola y te emparejaremos con un rival cercano."
-                        : "Join the queue and we'll pair you with a nearby opponent."}
+                      {tr(lang, {
+                        en: DISTANCE_MATCHMAKING
+                          ? "Join the queue and we'll pair you with a nearby opponent."
+                          : "Join the queue and we'll pair you with an opponent.",
+                        es: DISTANCE_MATCHMAKING
+                          ? "Entra en la cola y te emparejaremos con un rival cercano."
+                          : "Entra en la cola y te emparejaremos con un rival.",
+                      })}
                     </CardDescription>
                   </div>
                 </div>
@@ -326,29 +382,32 @@ export default async function LobbyPage() {
                   <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                     <MapPin className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <p className="text-muted-foreground">
-                      {lang === "es" ? (
-                        <>
-                          Elige tu <span className="font-medium text-foreground">región de partida</span> en los ajustes
-                          de abajo para poder buscar partida.{" "}
-                          <a
-                            href="#match-settings"
-                            className="font-medium text-foreground underline underline-offset-2"
-                          >
-                            Elegir región ↓
-                          </a>
-                        </>
-                      ) : (
-                        <>
-                          Choose your <span className="font-medium text-foreground">match region</span> in the settings
-                          below to start matching.{" "}
-                          <a
-                            href="#match-settings"
-                            className="font-medium text-foreground underline underline-offset-2"
-                          >
-                            Set region ↓
-                          </a>
-                        </>
-                      )}
+                      {trNode(lang, {
+                        en: (
+                          <>
+                            Choose your <span className="font-medium text-foreground">match region</span> in the
+                            settings below to start matching.{" "}
+                            <a
+                              href="#match-settings"
+                              className="font-medium text-foreground underline underline-offset-2"
+                            >
+                              Set region ↓
+                            </a>
+                          </>
+                        ),
+                        es: (
+                          <>
+                            Elige tu <span className="font-medium text-foreground">región de partida</span> en los
+                            ajustes de abajo para poder buscar partida.{" "}
+                            <a
+                              href="#match-settings"
+                              className="font-medium text-foreground underline underline-offset-2"
+                            >
+                              Elegir región ↓
+                            </a>
+                          </>
+                        ),
+                      })}
                     </p>
                   </div>
                 )}
@@ -366,15 +425,26 @@ export default async function LobbyPage() {
                   <SlidersHorizontal className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <CardTitle className="text-base">{lang === "es" ? "Ajustes de partida" : "Match settings"}</CardTitle>
+                  <CardTitle className="text-base">
+                    {tr(lang, {
+                      en: "Match settings",
+                      es: "Ajustes de partida",
+                    })}
+                  </CardTitle>
                   <CardDescription className="mt-0.5">
-                    {lang === "es" ? "Con quién te emparejamos y cómo." : "Who you match with, and how."}
+                    {tr(lang, {
+                      en: "Who you match with, and how.",
+                      es: "Con quién te emparejamos y cómo.",
+                    })}
                   </CardDescription>
                 </div>
                 {isWaiting && (
                   <Badge variant="outline" className="shrink-0">
                     <Lock className="size-3" />
-                    {lang === "es" ? "Bloqueados" : "Locked"}
+                    {tr(lang, {
+                      en: "Locked",
+                      es: "Bloqueados",
+                    })}
                   </Badge>
                 )}
               </div>
@@ -393,17 +463,21 @@ export default async function LobbyPage() {
 
 function ActivityLine({
   inMatch,
+  randittoInMatch,
   matched,
   isWaiting,
   poll,
+  hasPushSubscription = false,
   audioPingOnMatch = true,
   matchFoundSound = "CHIME",
   lang,
 }: {
   inMatch: number;
+  randittoInMatch: number;
   matched: boolean;
   isWaiting: boolean;
   poll: boolean;
+  hasPushSubscription?: boolean;
   audioPingOnMatch?: boolean;
   matchFoundSound?: MatchFoundSound;
   lang: Lang;
@@ -412,20 +486,46 @@ function ActivityLine({
     <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
       <Users className="size-3.5" />
       <span className="tabular-nums">
-        {lang === "es" ? (
-          <>
-            <span className="font-medium text-foreground">{inMatch}</span> jugando ahora
-          </>
-        ) : (
-          <>
-            <span className="font-medium text-foreground">{inMatch}</span> playing now
-          </>
-        )}
+        {trNode(lang, {
+          en: (
+            <>
+              <span className="font-medium text-foreground">{inMatch}</span> playing now
+            </>
+          ),
+          es: (
+            <>
+              <span className="font-medium text-foreground">{inMatch}</span> jugando ahora
+            </>
+          ),
+        })}
       </span>
+      {/* Counted apart, because the two queues cannot pair with each other:
+          a number that merges them tells someone deciding between them
+          nothing about either. */}
+      {randittoInMatch > 0 && (
+        <span className="flex items-center gap-1.5 tabular-nums">
+          <Dices className="size-3.5" />
+          <span>
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{randittoInMatch}</span> in randitto
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{randittoInMatch}</span> en randitto
+                </>
+              ),
+            })}
+          </span>
+        </span>
+      )}
       {poll && (
         <LobbyPoller
           matched={matched}
           keepPollingInBackground={isWaiting}
+          hasPushSubscription={hasPushSubscription}
           audioPingOnMatch={audioPingOnMatch}
           matchFoundSound={matchFoundSound}
         />
@@ -465,9 +565,11 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
   async function action(_prevState: MatchSettingsState, formData: FormData): Promise<MatchSettingsState> {
     "use server";
     try {
-      await updateRegion(String(formData.get("region") ?? ""));
-      const distance = String(formData.get("maxMatchDistanceKm") ?? "");
-      await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
+      if (USES_REGIONS) await updateRegion(String(formData.get("region") ?? ""));
+      if (DISTANCE_MATCHMAKING) {
+        const distance = String(formData.get("maxMatchDistanceKm") ?? "");
+        await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
+      }
       const ratingGap = String(formData.get("maxRatingGap") ?? "");
       await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
       const rematchCooldown = String(formData.get("rematchCooldownHours") ?? "");
@@ -478,79 +580,105 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
       await updateWiredConnection(formData.get("wired") === "on");
     } catch (err) {
       return {
-        error: err instanceof Error ? err.message : "Something went wrong — try again.",
+        error: errorMessage(err, await getLang()),
         saved: false,
       };
     }
     return { error: null, saved: true };
   }
 
-  const missingRegion = !me?.region;
+  const missingRegion = DISTANCE_MATCHMAKING && !me?.region;
 
   return (
     <MatchSettingsForm action={action} className="flex flex-col gap-6" lang={lang} disabled={disabled}>
       {disabled && (
         <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          {lang === "es"
-            ? "Estás en la cola, así que estos ajustes están bloqueados — cancela la búsqueda para cambiarlos."
-            : "You're in the queue, so these settings are locked — cancel your search to change them."}
+          {tr(lang, {
+            en: "You're in the queue, so these settings are locked — cancel your search to change them.",
+            es: "Estás en la cola, así que estos ajustes están bloqueados — cancela la búsqueda para cambiarlos.",
+          })}
         </p>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          <span className="flex items-center gap-1.5">
-            {lang === "es" ? "Región de partida" : "Match region"}
-            {missingRegion && <Badge variant="warning">{lang === "es" ? "Requerido" : "Required"}</Badge>}
-          </span>
-          <OptionSelect
-            key={me?.region ?? ""}
-            name="region"
-            defaultValue={me?.region ?? ""}
-            placeholder={lang === "es" ? "Sin definir" : "Not set"}
-            clearLabel={lang === "es" ? "Sin definir" : "Not set"}
-            className="w-full"
-            searchable
-            autoSubmit
-            searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
-            disabled={disabled}
-            options={REGION_OPTIONS}
-          />
-        </label>
+        {USES_REGIONS && (
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            <span className="flex items-center gap-1.5">
+              {tr(lang, {
+                en: "Match region",
+                es: "Región de partida",
+              })}
+              {missingRegion && <Badge variant="warning">{tr(lang, { en: "Required", es: "Requerido" })}</Badge>}
+            </span>
+            <OptionSelect
+              key={me?.region ?? ""}
+              name="region"
+              defaultValue={me?.region ?? ""}
+              placeholder={tr(lang, {
+                en: "Not set",
+                es: "Sin definir",
+              })}
+              clearLabel={tr(lang, {
+                en: "Not set",
+                es: "Sin definir",
+              })}
+              className="w-full"
+              searchable
+              autoSubmit
+              searchPlaceholder={tr(lang, {
+                en: "Search regions…",
+                es: "Buscar regiones…",
+              })}
+              disabled={disabled}
+              options={REGION_OPTIONS}
+            />
+          </label>
+        )}
 
-        <MatchSettingSelect
-          name="maxMatchDistanceKm"
-          label={lang === "es" ? "Distancia de partida" : "Match distance"}
-          defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
-          resetKey={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
-          disabled={disabled}
-          options={MATCH_DISTANCE_PRESETS.map((preset) => ({
-            value: String(preset.km ?? WORLDWIDE_VALUE),
-            label: preset.label,
-          }))}
-        />
+        {DISTANCE_MATCHMAKING && (
+          <MatchSettingSelect
+            name="maxMatchDistanceKm"
+            label={tr(lang, {
+              en: "Match distance",
+              es: "Distancia de partida",
+            })}
+            defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
+            resetKey={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
+            disabled={disabled}
+            options={MATCH_DISTANCE_PRESETS.map((preset) => ({
+              value: String(preset.km ?? WORLDWIDE_VALUE),
+              label: preset.label,
+            }))}
+          />
+        )}
 
         <MatchSettingSelect
           name="maxRatingGap"
-          label={lang === "es" ? "Diferencia de clasificación" : "Rating gap"}
+          label={tr(lang, {
+            en: "Rating gap",
+            es: "Diferencia de clasificación",
+          })}
           defaultValue={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           resetKey={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           disabled={disabled}
           options={MATCH_RATING_GAP_PRESETS.map((preset) => ({
             value: String(preset.gap ?? ANY_RATING_VALUE),
-            label: preset.label,
+            label: preset.label[lang],
           }))}
         />
 
         <MatchSettingSelect
           name="rematchCooldownHours"
-          label={lang === "es" ? "Espera de revancha" : "Rematch cooldown"}
+          label={tr(lang, {
+            en: "Rematch cooldown",
+            es: "Espera de revancha",
+          })}
           defaultValue={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
           resetKey={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
           disabled={disabled}
           options={REMATCH_COOLDOWN_PRESETS.map((preset) => ({
             value: String(preset.hours ?? ANYTIME_VALUE),
-            label: preset.label,
+            label: preset.label[lang],
           }))}
         />
       </div>
@@ -566,55 +694,64 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
               disabled={disabled}
               className="size-4 rounded border-border disabled:opacity-60"
             />
-            {lang === "es" ? "En una conexión por cable (LAN)" : "On a wired (LAN) connection"}
+            {tr(lang, {
+              en: "On a wired (LAN) connection",
+              es: "En una conexión por cable (LAN)",
+            })}
           </label>
           {/* Kept outside the label so clicking the link doesn't toggle the box. */}
           <p className="mt-1.5 pl-6 text-xs text-muted-foreground">
-            {lang === "es" ? (
-              <>
-                Se desactiva solo si tus cancelaciones superan el 25% de tus cancelaciones más partidas jugadas, o si
-                suficientes rivales reportan un problema de conexión contigo — consulta las{" "}
-                <Link href="/rules" className="text-foreground underline underline-offset-2">
-                  Reglas
-                </Link>
-                .
-              </>
-            ) : (
-              <>
-                Auto-clears if your cancels pass 25% of cancels plus games played, or if enough opponents report a
-                connection issue with you — see the{" "}
-                <Link href="/rules" className="text-foreground underline underline-offset-2">
-                  Rules
-                </Link>
-                .
-              </>
-            )}
+            {trNode(lang, {
+              en: (
+                <>
+                  Auto-clears if your cancels pass 25% of cancels plus games played, or if enough opponents report a
+                  connection issue with you — see the{" "}
+                  <Link href="/rules" className="text-foreground underline underline-offset-2">
+                    Rules
+                  </Link>
+                  .
+                </>
+              ),
+              es: (
+                <>
+                  Se desactiva solo si tus cancelaciones superan el 25% de tus cancelaciones más partidas jugadas, o si
+                  suficientes rivales reportan un problema de conexión contigo — consulta las{" "}
+                  <Link href="/rules" className="text-foreground underline underline-offset-2">
+                    Reglas
+                  </Link>
+                  .
+                </>
+              ),
+            })}
           </p>
         </div>
 
         <MatchSettingToggle
           name="requireWiredOpponent"
           checked={me?.requireWiredOpponent ?? false}
-          label={lang === "es" ? "Solo rivales por cable" : "Only match with wired opponents"}
+          label={tr(lang, {
+            en: "Only match with wired opponents",
+            es: "Solo rivales por cable",
+          })}
           disabled={disabled}
         />
         <MatchSettingToggle
           name="avoidPracticeOpponents"
           checked={me?.avoidPracticeOpponents ?? false}
-          label={
-            lang === "es" ? "Evitar rivales que están practicando" : "Don't match me with opponents who are practicing"
-          }
+          label={tr(lang, {
+            en: "Don't match me with opponents who are practicing",
+            es: "Evitar rivales que están practicando",
+          })}
           disabled={disabled}
         />
         <MatchSettingToggle
           name="zenMode"
           checked={me?.zenMode ?? false}
-          label={lang === "es" ? "Modo Zen" : "Zen Mode"}
-          hint={
-            lang === "es"
-              ? "Oculta la clasificación, el nombre, los personajes y el avatar de tu rival."
-              : "Hide your opponent's rating, name, characters, and avatar."
-          }
+          label={tr(lang, { en: "Zen Mode", es: "Modo Zen" })}
+          hint={tr(lang, {
+            en: "Hide both ratings while you're in a match.",
+            es: "Oculta ambas clasificaciones mientras estás en una partida.",
+          })}
           disabled={disabled}
         />
       </div>
@@ -719,14 +856,16 @@ async function PairedView({
       gamesPlayed: true,
       practiceRating: true,
       practiceGamesPlayed: true,
+      randittoRating: true,
+      randittoGamesPlayed: true,
       region: true,
     },
   });
   const zenMode = me?.zenMode ?? false;
-  const displayName = zenMode ? (lang === "es" ? "Rival" : "Opponent") : opponent.username;
-  // Doesn't hide the opponent's real name/rating from them (that's what
-  // zenMode above does, one-directionally) — just lets them know you have
-  // it on, so they're not confused if you're less chatty/less findable.
+  const displayName = opponent.username;
+  // Doesn't hide the opponent's own rating from them (that's what zenMode
+  // above does, one-directionally) — just lets them know you have it on, so
+  // they're not confused if you don't talk rating.
   const opponentInZenMode = opponent.zenMode;
   const opponentIsPracticing = isPlayer1 ? match.player2IsPracticing : match.player1IsPracticing;
   const myIsPracticing = isPlayer1 ? match.player1IsPracticing : match.player2IsPracticing;
@@ -743,7 +882,6 @@ async function PairedView({
         match={match}
         opponentName={displayName}
         opponentHasLeft={!!opponentLeftAt}
-        zenMode={zenMode}
         lang={lang}
       />
     );
@@ -768,7 +906,7 @@ async function PairedView({
               />
               <form action={leaveMatchAction.bind(null, match.id)} className="ml-auto">
                 <Button type="submit" variant="outline" size="sm">
-                  {lang === "es" ? "Salir" : "Leave"}
+                  {tr(lang, { en: "Leave", es: "Salir" })}
                 </Button>
               </form>
             </CardContent>
@@ -779,9 +917,10 @@ async function PairedView({
               prefetch={false}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
-              {lang === "es"
-                ? "Ver todos los detalles de la partida en tu perfil →"
-                : "View full match details on your profile →"}
+              {tr(lang, {
+                en: "View full match details on your profile →",
+                es: "Ver todos los detalles de la partida en tu perfil →",
+              })}
             </Link>
           </CardContent>
         </Card>
@@ -800,9 +939,8 @@ async function PairedView({
   );
   const opponentStreak = currentStreak(await getPlayerMatchHistory(opponent.id));
   // Lifetime record vs this specific opponent (confirmed, non-practice sets
-  // only). Skipped in zen mode — like the streak badge, it would give away
-  // who the masked opponent is.
-  const headToHead = zenMode ? null : await getHeadToHead(userId, opponent.id);
+  // only).
+  const headToHead = await getHeadToHead(userId, opponent.id);
   // Once any game's been decided or reported, cancelMatch is blocked
   // outright (see its gameInProgress check) — surrenderMatch isn't, so the
   // button always means "surrender" from that point on, no need to spend a
@@ -816,7 +954,6 @@ async function PairedView({
       match={match}
       opponentName={displayName}
       opponentHasLeft={!!opponentLeftAt}
-      zenMode={zenMode}
       lang={lang}
     />
   );
@@ -832,6 +969,7 @@ async function PairedView({
         userId={userId}
         opponentName={displayName}
         lang={lang}
+        mode={match.mode}
         me={me}
         myIsPracticing={myIsPracticing}
         opponent={opponent}
@@ -867,9 +1005,10 @@ async function PairedView({
               return (
                 <CardContent key={g.id} className="border-t border-border pt-4">
                   <p className="text-sm text-muted-foreground">
-                    {lang === "es"
-                      ? `⚠️ El juego ${g.gameNumber} está en disputa y espera revisión de un mod. La partida puede continuar.`
-                      : `⚠️ Game ${g.gameNumber} is disputed and awaiting mod review. The set can continue.`}
+                    {tr(lang, {
+                      en: `⚠️ Game ${g.gameNumber} is disputed and awaiting mod review. The set can continue.`,
+                      es: `⚠️ El juego ${g.gameNumber} está en disputa y espera revisión de un mod. La partida puede continuar.`,
+                    })}
                   </p>
                   <DisputeResolutionForm
                     action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
@@ -887,63 +1026,67 @@ async function PairedView({
             const body = (
               <>
                 <p className="text-sm text-muted-foreground">
-                  {lang === "es"
-                    ? `⚠️ Tú y ${displayName} reportaron resultados distintos en el juego ${g.gameNumber}. Vuelve a reportar para confirmar, o disputa para que un mod lo revise.`
-                    : `⚠️ You and ${displayName} reported different results for Game ${g.gameNumber}. Re-report to confirm, or dispute it for a mod to review.`}
+                  {tr(lang, {
+                    en: `⚠️ You and ${displayName} reported different results for Game ${g.gameNumber}. Re-report to confirm, or dispute it for a mod to review.`,
+                    es: `⚠️ Tú y ${displayName} reportaron resultados distintos en el juego ${g.gameNumber}. Vuelve a reportar para confirmar, o disputa para que un mod lo revise.`,
+                  })}
                 </p>
                 <div className="mt-2 flex gap-2">
                   <ConfirmSubmitButton
                     action={reportGame.bind(null, match.id, g.gameNumber, true)}
-                    confirmMessage={
-                      lang === "es"
-                        ? `¿Confirmar que ganaste el juego ${g.gameNumber}?`
-                        : `Confirm that you won game ${g.gameNumber}?`
-                    }
+                    confirmMessage={tr(lang, {
+                      en: `Confirm that you won game ${g.gameNumber}?`,
+                      es: `¿Confirmar que ganaste el juego ${g.gameNumber}?`,
+                    })}
                     variant="success"
+                    lang={lang}
                   >
-                    {lang === "es" ? "Gané" : "I Won"}
+                    {tr(lang, { en: "I Won", es: "Gané" })}
                   </ConfirmSubmitButton>
                   <ConfirmSubmitButton
                     action={reportGame.bind(null, match.id, g.gameNumber, false)}
-                    confirmMessage={
-                      lang === "es"
-                        ? `¿Confirmar que perdiste el juego ${g.gameNumber}?`
-                        : `Confirm that you lost game ${g.gameNumber}?`
-                    }
+                    confirmMessage={tr(lang, {
+                      en: `Confirm that you lost game ${g.gameNumber}?`,
+                      es: `¿Confirmar que perdiste el juego ${g.gameNumber}?`,
+                    })}
                     variant="destructive"
+                    lang={lang}
                   >
-                    {lang === "es" ? "Perdí" : "I Lost"}
+                    {tr(lang, { en: "I Lost", es: "Perdí" })}
                   </ConfirmSubmitButton>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {(() => {
-                    if (lang === "es") {
-                      if (myConfirmed && oppConfirmed) {
-                        return "Ambos confirmaron. Un mod revisará este juego.";
-                      }
-                      if (myConfirmed) {
-                        return `Confirmaste. Esperando a ${displayName}.`;
-                      }
-                      if (oppConfirmed) {
-                        return `${displayName} confirmó. Confirma el tuyo para terminar.`;
-                      }
-                      return "Reportar el resultado opuesto le da el juego a tu rival.";
-                    }
                     if (myConfirmed && oppConfirmed) {
-                      return "You both confirmed. A mod will review this game.";
+                      return tr(lang, {
+                        en: "You both confirmed. A mod will review this game.",
+                        es: "Ambos confirmaron. Un mod revisará este juego.",
+                      });
                     }
                     if (myConfirmed) {
-                      return `You confirmed. Waiting for ${displayName}.`;
+                      return tr(lang, {
+                        en: `You confirmed. Waiting for ${displayName}.`,
+                        es: `Confirmaste. Esperando a ${displayName}.`,
+                      });
                     }
                     if (oppConfirmed) {
-                      return `${displayName} confirmed. Confirm yours to finish.`;
+                      return tr(lang, {
+                        en: `${displayName} confirmed. Confirm yours to finish.`,
+                        es: `${displayName} confirmó. Confirma el tuyo para terminar.`,
+                      });
                     }
-                    return "Reporting the opposite result gives your opponent the game.";
+                    return tr(lang, {
+                      en: "Reporting the opposite result gives your opponent the game.",
+                      es: "Reportar el resultado opuesto le da el juego a tu rival.",
+                    });
                   })()}
                 </p>
                 <form action={disputeGame.bind(null, match.id, g.gameNumber)} className="mt-2">
                   <Button type="submit" variant="outline" size="sm">
-                    {lang === "es" ? "Disputar este juego" : "Dispute this game"}
+                    {tr(lang, {
+                      en: "Dispute this game",
+                      es: "Disputar este juego",
+                    })}
                   </Button>
                 </form>
               </>
@@ -958,9 +1101,10 @@ async function PairedView({
           {match.status === "DISPUTED" && (
             <CardContent className="border-t border-border pt-4">
               <p className="text-sm text-muted-foreground">
-                {lang === "es"
-                  ? `Tú y ${displayName} reportaron resultados distintos. Un mod revisará esta partida.`
-                  : `You and ${displayName} reported different results. A mod will review this match.`}
+                {tr(lang, {
+                  en: `You and ${displayName} reported different results. A mod will review this match.`,
+                  es: `Tú y ${displayName} reportaron resultados distintos. Un mod revisará esta partida.`,
+                })}
               </p>
             </CardContent>
           )}
@@ -1046,17 +1190,20 @@ function MatchFooterActions({
     <>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
-          {lang === "es"
-            ? gameDecided
-              ? "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje y escenario del juego anterior."
-              : opponentEngaged
-                ? "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis."
-                : "Tu rival aún no se presenta. Cancelar ahora es gratis."
-            : gameDecided
-              ? "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character and stage from the previous game."
-              : opponentEngaged
-                ? "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel."
-                : "Your opponent hasn't shown up yet. Cancelling now is free."}
+          {gameDecided
+            ? tr(lang, {
+                en: "A game is already decided, so leaving now counts as a surrender (a loss). If your opponent goes quiet, you don't need to surrender: they forfeit their turn after a few minutes; a stalled pick costs them the whole set on game 1, and from game 2 onwards just falls back to the character and stage from the previous game.",
+                es: "Ya se decidió un juego, así que salir ahora cuenta como rendición (una derrota). Si tu rival deja de responder, no necesitas rendirte: pierde su turno por abandono tras unos minutos; una elección estancada le cuesta el set completo en el juego 1, y del juego 2 en adelante solo vuelve al personaje y escenario del juego anterior.",
+              })
+            : opponentEngaged
+              ? tr(lang, {
+                  en: "Your opponent already started this match, so leaving now counts as a surrender (a loss), not a free cancel.",
+                  es: "Tu rival ya empezó esta partida, así que salir ahora cuenta como rendición (una derrota), no como cancelación gratis.",
+                })
+              : tr(lang, {
+                  en: "Your opponent hasn't shown up yet. Cancelling now is free.",
+                  es: "Tu rival aún no se presenta. Cancelar ahora es gratis.",
+                })}
         </p>
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <CancelOrSurrenderButton
@@ -1071,9 +1218,10 @@ function MatchFooterActions({
       </div>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {lang === "es"
-            ? "¿No pueden terminar? Ambos pueden acordar cancelar. Sin afectar la clasificación."
-            : "Can't finish? Both players can agree to cancel. No rating impact."}
+          {tr(lang, {
+            en: "Can't finish? Both players can agree to cancel. No rating impact.",
+            es: "¿No pueden terminar? Ambos pueden acordar cancelar. Sin afectar la clasificación.",
+          })}
         </p>
         <MutualCancelSection
           matchId={match.id}
@@ -1086,17 +1234,26 @@ function MatchFooterActions({
       <ReportConductForm action={reportConductAction.bind(null, match.id)} lang={lang} />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? "¿Lag o desconexiones?" : "Lag or disconnects?"}
+          {tr(lang, {
+            en: "Lag or disconnects?",
+            es: "¿Lag o desconexiones?",
+          })}
         </p>
         {alreadyReportedConnection ? (
           <Button size="sm" variant="outline" disabled className="gap-1.5">
             <Check className="h-3.5 w-3.5" />
-            {lang === "es" ? "Conexión reportada" : "Connection reported"}
+            {tr(lang, {
+              en: "Connection reported",
+              es: "Conexión reportada",
+            })}
           </Button>
         ) : (
           <form action={reportConnection.bind(null, match.id)}>
             <Button type="submit" size="sm" variant="outline">
-              {lang === "es" ? "Reportar conexión" : "Report connection"}
+              {tr(lang, {
+                en: "Report connection",
+                es: "Reportar conexión",
+              })}
             </Button>
           </form>
         )}
@@ -1124,7 +1281,12 @@ type MatchGameRow = Awaited<ReturnType<typeof getMatchGames>>[number];
 // actually offer). Kept as data so the banner renderer owns all the copy.
 type MatchActionSummary =
   | { kind: "start-game"; gameNumber: number }
-  | { kind: "pick-character"; gameNumber: number; mine: boolean; deadlineIso: string | null }
+  | {
+      kind: "pick-character";
+      gameNumber: number;
+      mine: boolean;
+      deadlineIso: string | null;
+    }
   | {
       kind: "stage";
       gameNumber: number;
@@ -1133,7 +1295,12 @@ type MatchActionSummary =
       strikeCount: number;
       deadlineIso: string;
     }
-  | { kind: "report-game"; gameNumber: number; mine: boolean; deadlineIso: string | null }
+  | {
+      kind: "report-game";
+      gameNumber: number;
+      mine: boolean;
+      deadlineIso: string | null;
+    }
   | { kind: "contest"; gameNumber: number; escalated: boolean }
   | { kind: "match-disputed" }
   | { kind: "waiting" };
@@ -1150,14 +1317,18 @@ function matchActionSummary(userId: string, match: Match, games: MatchGameRow[])
   if (!current) {
     const lastGame = games[games.length - 1];
     if (games.length > 0 && lastGame && isDisputedGame(lastGame)) {
-      return { kind: "contest", gameNumber: lastGame.gameNumber, escalated: !!lastGame.disputeRequestedAt };
+      return {
+        kind: "contest",
+        gameNumber: lastGame.gameNumber,
+        escalated: !!lastGame.disputeRequestedAt,
+      };
     }
     return { kind: "start-game", gameNumber: games.length + 1 };
   }
 
   const gameNumber = current.gameNumber;
 
-  if (!bothCharactersLocked(current)) {
+  if (!bothCharactersLocked(current, match.mode)) {
     const pick = characterPickState(current, userId);
     if (pick.yourCharacter) {
       // Locked in yourself — the pick clock now belongs to the opponent. On
@@ -1181,7 +1352,12 @@ function matchActionSummary(userId: string, match: Match, games: MatchGameRow[])
     // Games 2+: the previous game's winner (actor A) must lock in before you
     // can pick. This pre-lock window isn't a per-player clock — nothing
     // auto-resolves while neither side has locked in — so no countdown.
-    return { kind: "pick-character", gameNumber, mine: false, deadlineIso: null };
+    return {
+      kind: "pick-character",
+      gameNumber,
+      mine: false,
+      deadlineIso: null,
+    };
   }
 
   const turn = gameTurnState(current);
@@ -1224,6 +1400,7 @@ function MatchScoreboard({
   lang,
   me,
   myIsPracticing,
+  mode,
   opponent,
   viewerIsModerator,
   opponentStreak,
@@ -1238,6 +1415,8 @@ function MatchScoreboard({
   userId: string;
   opponentName: string;
   lang: Lang;
+  /** Which queue the set came from — decides which ladder these numbers are on. */
+  mode: MatchMode;
   me: {
     username: string;
     avatarUrl: string | null;
@@ -1245,6 +1424,8 @@ function MatchScoreboard({
     gamesPlayed: number;
     practiceRating: number;
     practiceGamesPlayed: number;
+    randittoRating: number;
+    randittoGamesPlayed: number;
     region: string | null;
   } | null;
   myIsPracticing: boolean;
@@ -1256,6 +1437,8 @@ function MatchScoreboard({
     gamesPlayed: number;
     practiceRating: number;
     practiceGamesPlayed: number;
+    randittoRating: number;
+    randittoGamesPlayed: number;
     region: string | null;
   };
   viewerIsModerator: boolean;
@@ -1275,18 +1458,20 @@ function MatchScoreboard({
   // Same "current playable game" rule the action section below uses, so the
   // pulsing pip always lines up with whatever GameSection is showing.
   const currentGame = games.find((g) => !g.winnerId && !isDisputedGame(g));
-  const es = lang === "es";
-
-  // Practice sets are rated off practiceRating, not the main ladder rating —
-  // showing the main number here is what made players think they were still
-  // on the main ladder (see #115). A player's rating is hidden from
-  // non-moderators until they've played enough sets on that track (see
-  // isRatingVisible) — the ranked count for a ranked set, the practice count
-  // for a practice one.
-  const myRating = myIsPracticing ? me?.practiceRating : me?.rating;
-  const opponentRating = opponentIsPracticing ? opponent.practiceRating : opponent.rating;
-  const myGamesOnTrack = myIsPracticing ? (me?.practiceGamesPlayed ?? 0) : (me?.gamesPlayed ?? 0);
-  const opponentGamesOnTrack = opponentIsPracticing ? opponent.practiceGamesPlayed : opponent.gamesPlayed;
+  // Which ladder these numbers are on comes from trackFor, not from a
+  // condition written out here. Showing the main number on a practice set is
+  // what made players think they were still on the main ladder (#115), and
+  // the same mistake was made again for randitto — once in the feed, once on
+  // the profile card, once here. One helper is the fix; three sites each
+  // choosing for themselves is the bug.
+  const myTrack = trackFor(mode, myIsPracticing);
+  const opponentTrack = trackFor(mode, opponentIsPracticing);
+  const myColumns = me ? displayRating(me, myTrack) : null;
+  const opponentColumns = displayRating(opponent, opponentTrack);
+  const myRating = myColumns?.rating;
+  const opponentRating = opponentColumns.rating;
+  const myGamesOnTrack = myColumns?.gamesPlayed ?? 0;
+  const opponentGamesOnTrack = opponentColumns.gamesPlayed;
   const myRatingVisible = isRatingVisible(myGamesOnTrack, viewerIsModerator);
   const opponentRatingVisible = isRatingVisible(opponentGamesOnTrack, viewerIsModerator);
 
@@ -1298,19 +1483,23 @@ function MatchScoreboard({
     const inProgress = currentGame?.gameNumber === gameNumber;
     const label = decided
       ? decided === "won"
-        ? es
-          ? `Juego ${gameNumber} — lo ganaste`
-          : `Game ${gameNumber} — you won`
-        : es
-          ? `Juego ${gameNumber} — lo perdiste`
-          : `Game ${gameNumber} — you lost`
+        ? tr(lang, {
+            en: `Game ${gameNumber} — you won`,
+            es: `Juego ${gameNumber} — lo ganaste`,
+          })
+        : tr(lang, {
+            en: `Game ${gameNumber} — you lost`,
+            es: `Juego ${gameNumber} — lo perdiste`,
+          })
       : inProgress
-        ? es
-          ? `Juego ${gameNumber} — en curso`
-          : `Game ${gameNumber} — in progress`
-        : es
-          ? `Juego ${gameNumber} — pendiente`
-          : `Game ${gameNumber} — upcoming`;
+        ? tr(lang, {
+            en: `Game ${gameNumber} — in progress`,
+            es: `Juego ${gameNumber} — en curso`,
+          })
+        : tr(lang, {
+            en: `Game ${gameNumber} — upcoming`,
+            es: `Juego ${gameNumber} — pendiente`,
+          });
     labels.push(label);
     return (
       <span
@@ -1337,26 +1526,38 @@ function MatchScoreboard({
           )}
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-1.5 font-medium">
-              <span className="truncate">{es ? "Tú" : "You"}</span>
-              {myIsPracticing && <Badge variant="outline">{es ? "🧪 Modo práctica" : "🧪 Practice Mode"}</Badge>}
+              <span className="truncate">{tr(lang, { en: "You", es: "Tú" })}</span>
+              {myIsPracticing && (
+                <Badge variant="outline">
+                  {tr(lang, {
+                    en: "🧪 Practice Mode",
+                    es: "🧪 Modo práctica",
+                  })}
+                </Badge>
+              )}
             </p>
-            {(!zenMode || me?.region) && (
+            {(!zenMode || (USES_REGIONS && me?.region)) && (
               <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground tabular-nums">
                 {!zenMode && (
                   <span>
                     {myRatingVisible ? (
                       <>
-                        {es
-                          ? `${formatRating(myRating ?? 0)}`
-                          : `${formatRating(myRating ?? 0)}`}
-                        {myIsPracticing && (es ? " (práctica)" : " (practice)")}
+                        {tr(lang, {
+                          en: `${formatRating(myRating ?? 0)}`,
+                          es: `${formatRating(myRating ?? 0)}`,
+                        })}
+                        {myIsPracticing &&
+                          tr(lang, {
+                            en: " (practice)",
+                            es: " (práctica)",
+                          })}
                       </>
                     ) : (
                       <RatingHidden gamesPlayed={myGamesOnTrack} lang={lang} practice={myIsPracticing} />
                     )}
                   </span>
                 )}
-                {me?.region && (
+                {USES_REGIONS && me?.region && (
                   <span className="inline-flex items-center gap-1">
                     <MapPin className="size-3" />
                     {me.region}
@@ -1364,10 +1565,13 @@ function MatchScoreboard({
                 )}
               </p>
             )}
-            {!zenMode && myTopCharacters.length > 0 && (
+            {myTopCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center gap-1.5">
                 <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                  {es ? "Personajes más usados" : "Most played characters"}
+                  {tr(lang, {
+                    en: "Most played characters",
+                    es: "Personajes más usados",
+                  })}
                 </span>
                 {myTopCharacters.map((character) => (
                   <CharacterIcon key={character} name={character} size={20} />
@@ -1393,38 +1597,56 @@ function MatchScoreboard({
         <div className="flex min-w-0 items-start justify-end gap-3 text-right sm:flex-1">
           <div className="min-w-0">
             <p className="flex flex-wrap items-center justify-end gap-1.5 font-medium">
-              {!zenMode ? (
-                <Link href={`/players/${opponent.id}`} prefetch={false} className="truncate hover:underline">
-                  {opponentName}
-                </Link>
-              ) : (
-                <span className="truncate">{opponentName}</span>
-              )}
-              {!zenMode && opponentStreak > 0 && (
+              <Link href={`/players/${opponent.id}`} prefetch={false} className="truncate hover:underline">
+                {opponentName}
+              </Link>
+              {opponentStreak > 0 && (
                 <Badge variant="success" className="tabular-nums">
-                  {es ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
+                  {tr(lang, {
+                    en: `${opponentStreak} win streak`,
+                    es: `${opponentStreak} victorias seguidas`,
+                  })}
                 </Badge>
               )}
-              {opponentInZenMode && <Badge variant="outline">{es ? "🧘 Modo Zen" : "🧘 Zen Mode"}</Badge>}
-              {opponentIsPracticing && <Badge variant="outline">{es ? "Practicando" : "Practicing"}</Badge>}
+              {opponentInZenMode && (
+                <Badge variant="outline">
+                  {tr(lang, {
+                    en: "🧘 Zen Mode",
+                    es: "🧘 Modo Zen",
+                  })}
+                </Badge>
+              )}
+              {opponentIsPracticing && (
+                <Badge variant="outline">
+                  {tr(lang, {
+                    en: "Practicing",
+                    es: "Practicando",
+                  })}
+                </Badge>
+              )}
             </p>
-            {(!zenMode || opponent.region) && (
+            {(!zenMode || (USES_REGIONS && opponent.region)) && (
               <p className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground tabular-nums">
                 {!zenMode && (
                   <span>
                     {opponentRatingVisible ? (
                       <>
-                        {es
-                          ? `${formatRating(opponentRating)}`
-                          : `${formatRating(opponentRating)}`}
-                        {opponentIsPracticing && (es ? " (práctica)" : " (practice)")}
+                        {tr(lang, {
+                          en: `${formatRating(opponentRating)}`,
+                          es: `${formatRating(opponentRating)}`,
+                        })}
+                        {opponentIsPracticing &&
+                          tr(lang, {
+                            en: " (practice)",
+                            es: " (práctica)",
+                          })}
                       </>
                     ) : (
                       <RatingHidden gamesPlayed={opponentGamesOnTrack} lang={lang} practice={opponentIsPracticing} />
                     )}
                   </span>
                 )}
-                {opponent.region && (
+                {USES_REGIONS && opponent.region && (
                   <span className="inline-flex items-center gap-1">
                     <MapPin className="size-3" />
                     {opponent.region}
@@ -1432,10 +1654,13 @@ function MatchScoreboard({
                 )}
               </p>
             )}
-            {!zenMode && topCharacters.length > 0 && (
+            {topCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center justify-end gap-1.5">
                 <span className="pointer-events-none absolute -top-6 right-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                  {es ? "Personajes más usados" : "Most played characters"}
+                  {tr(lang, {
+                    en: "Most played characters",
+                    es: "Personajes más usados",
+                  })}
                 </span>
                 {topCharacters.map((character) => (
                   <CharacterIcon key={character} name={character} size={20} />
@@ -1443,7 +1668,7 @@ function MatchScoreboard({
               </div>
             )}
           </div>
-          {!zenMode && opponent.avatarUrl && (
+          {opponent.avatarUrl && (
             <Image
               src={opponent.avatarUrl}
               alt={opponent.username}
@@ -1456,22 +1681,26 @@ function MatchScoreboard({
       </CardContent>
 
       {/* Your record vs this opponent — its own row along the bottom */}
-      {!zenMode && (
-        <CardContent className="pb-2">
-          <p className="text-center text-xs tabular-nums text-muted-foreground">
-            {headToHead ? (
-              <>
-                {es ? "Tu récord: " : "Your record: "}
-                {headToHead.wins}W–{headToHead.losses}L
-              </>
-            ) : es ? (
-              "Primera vez que se enfrentan"
-            ) : (
-              "First time opponent"
-            )}
-          </p>
-        </CardContent>
-      )}
+      <CardContent className="pb-2">
+        <p className="text-center text-xs tabular-nums text-muted-foreground">
+          {headToHead ? (
+            <>
+              {tr(lang, {
+                en: "Your record: ",
+                es: "Tu récord: ",
+              })}
+              {headToHead.wins}
+              {tr(lang, { en: "W", es: "V" })}–{headToHead.losses}
+              {tr(lang, { en: "L", es: "D" })}
+            </>
+          ) : (
+            tr(lang, {
+              en: "First time opponent",
+              es: "Primera vez que se enfrentan",
+            })
+          )}
+        </p>
+      </CardContent>
     </Card>
   );
 }
@@ -1488,8 +1717,6 @@ function MatchActionBanner({
   opponentName: string;
   lang: Lang;
 }) {
-  const es = lang === "es";
-
   let tone: "action" | "waiting";
   let kicker: React.ReactNode = null;
   let title: React.ReactNode;
@@ -1500,31 +1727,46 @@ function MatchActionBanner({
   switch (summary.kind) {
     case "start-game": {
       tone = "action";
-      kicker = es ? "Tu turno" : "Your turn";
-      title = es ? `Empieza el juego ${summary.gameNumber}` : `Start Game ${summary.gameNumber}`;
-      detail = es ? "Presiona el botón de abajo para empezar." : "Press the button below to start.";
+      kicker = tr(lang, { en: "Your turn", es: "Tu turno" });
+      title = tr(lang, {
+        en: `Start Game ${summary.gameNumber}`,
+        es: `Empieza el juego ${summary.gameNumber}`,
+      });
+      detail = tr(lang, {
+        en: "Press the button below to start.",
+        es: "Presiona el botón de abajo para empezar.",
+      });
       break;
     }
     case "pick-character": {
       if (summary.mine) {
         tone = "action";
-        kicker = es ? "Tu turno" : "Your turn";
-        title = es
-          ? `Elige tu personaje para el juego ${summary.gameNumber}`
-          : `Pick your character for Game ${summary.gameNumber}`;
-        detail = es
-          ? "Ambos eligen personaje primero, luego el escenario."
-          : "Both players pick a character first, then the stage.";
+        kicker = tr(lang, {
+          en: "Your turn",
+          es: "Tu turno",
+        });
+        title = tr(lang, {
+          en: `Pick your character for Game ${summary.gameNumber}`,
+          es: `Elige tu personaje para el juego ${summary.gameNumber}`,
+        });
+        detail = tr(lang, {
+          en: "Both players pick a character first, then the stage.",
+          es: "Ambos eligen personaje primero, luego el escenario.",
+        });
         deadlineIso = summary.deadlineIso;
         largeCountdown = true;
       } else {
         tone = "waiting";
-        title = es
-          ? `Esperando a que ${opponentName} elija personaje…`
-          : `Waiting for ${opponentName} to pick a character…`;
+        title = tr(lang, {
+          en: `Waiting for ${opponentName} to pick a character…`,
+          es: `Esperando a que ${opponentName} elija personaje…`,
+        });
         deadlineIso = summary.deadlineIso;
         if (!deadlineIso) {
-          detail = es ? "Elegirás después de que elija." : "You'll pick after they lock in.";
+          detail = tr(lang, {
+            en: "You'll pick after they lock in.",
+            es: "Elegirás después de que elija.",
+          });
         }
       }
       break;
@@ -1532,28 +1774,38 @@ function MatchActionBanner({
     case "stage": {
       if (summary.mine) {
         tone = "action";
-        kicker = es ? "Tu turno" : "Your turn";
+        kicker = tr(lang, {
+          en: "Your turn",
+          es: "Tu turno",
+        });
         title =
           summary.phase === "striking"
-            ? es
-              ? `Descarta ${summary.strikeCount} ${summary.strikeCount === 1 ? "escenario" : "escenarios"} para el juego ${summary.gameNumber}`
-              : `Strike ${summary.strikeCount} ${summary.strikeCount === 1 ? "stage" : "stages"} for Game ${summary.gameNumber}`
-            : es
-              ? `Elige el escenario del juego ${summary.gameNumber}`
-              : `Pick the stage for Game ${summary.gameNumber}`;
-        detail = es ? "Si el tiempo se agota, se elige solo." : "If time runs out, it picks for you.";
+            ? tr(lang, {
+                en: `Strike ${summary.strikeCount} ${summary.strikeCount === 1 ? "stage" : "stages"} for Game ${summary.gameNumber}`,
+                es: `Descarta ${summary.strikeCount} ${summary.strikeCount === 1 ? "escenario" : "escenarios"} para el juego ${summary.gameNumber}`,
+              })
+            : tr(lang, {
+                en: `Pick the stage for Game ${summary.gameNumber}`,
+                es: `Elige el escenario del juego ${summary.gameNumber}`,
+              });
+        detail = tr(lang, {
+          en: "If time runs out, it picks for you.",
+          es: "Si el tiempo se agota, se elige solo.",
+        });
         deadlineIso = summary.deadlineIso;
         largeCountdown = true;
       } else {
         tone = "waiting";
         title =
           summary.phase === "striking"
-            ? es
-              ? `Esperando a que ${opponentName} descarte para el juego ${summary.gameNumber}…`
-              : `Waiting for ${opponentName} to strike for Game ${summary.gameNumber}…`
-            : es
-              ? `Esperando a que ${opponentName} elija el escenario del juego ${summary.gameNumber}…`
-              : `Waiting for ${opponentName} to pick the stage for Game ${summary.gameNumber}…`;
+            ? tr(lang, {
+                en: `Waiting for ${opponentName} to strike for Game ${summary.gameNumber}…`,
+                es: `Esperando a que ${opponentName} descarte para el juego ${summary.gameNumber}…`,
+              })
+            : tr(lang, {
+                en: `Waiting for ${opponentName} to pick the stage for Game ${summary.gameNumber}…`,
+                es: `Esperando a que ${opponentName} elija el escenario del juego ${summary.gameNumber}…`,
+              });
         deadlineIso = summary.deadlineIso;
       }
       break;
@@ -1561,24 +1813,33 @@ function MatchActionBanner({
     case "report-game": {
       if (summary.mine) {
         tone = "action";
-        kicker = es ? "Tu turno" : "Your turn";
+        kicker = tr(lang, {
+          en: "Your turn",
+          es: "Tu turno",
+        });
         if (summary.deadlineIso) {
-          title = es
-            ? `${opponentName} reportó el juego ${summary.gameNumber} — confírmalo o dispútalo.`
-            : `${opponentName} reported Game ${summary.gameNumber} — confirm or dispute it.`;
+          title = tr(lang, {
+            en: `${opponentName} reported Game ${summary.gameNumber} — confirm or dispute it.`,
+            es: `${opponentName} reportó el juego ${summary.gameNumber} — confírmalo o dispútalo.`,
+          });
         } else {
-          title = es
-            ? `Reporta el resultado del juego ${summary.gameNumber}`
-            : `Report Game ${summary.gameNumber}'s result`;
-          detail = es ? "Cada quien reporta su propio resultado." : "Each player reports their own result.";
+          title = tr(lang, {
+            en: `Report Game ${summary.gameNumber}'s result`,
+            es: `Reporta el resultado del juego ${summary.gameNumber}`,
+          });
+          detail = tr(lang, {
+            en: "Each player reports their own result.",
+            es: "Cada quien reporta su propio resultado.",
+          });
         }
         deadlineIso = summary.deadlineIso;
         largeCountdown = !!summary.deadlineIso;
       } else {
         tone = "waiting";
-        title = es
-          ? `Esperando a que ${opponentName} confirme el resultado…`
-          : `Waiting for ${opponentName} to confirm the result…`;
+        title = tr(lang, {
+          en: `Waiting for ${opponentName} to confirm the result…`,
+          es: `Esperando a que ${opponentName} confirme el resultado…`,
+        });
         deadlineIso = summary.deadlineIso;
       }
       break;
@@ -1586,25 +1847,34 @@ function MatchActionBanner({
     case "contest": {
       tone = "waiting";
       title = summary.escalated
-        ? es
-          ? `Un mod está revisando el juego ${summary.gameNumber}.`
-          : `A mod is reviewing Game ${summary.gameNumber}.`
-        : es
-          ? `El resultado del juego ${summary.gameNumber} está en disputa. Resuélvelo abajo.`
-          : `Game ${summary.gameNumber}'s result is disputed. Resolve it below.`;
+        ? tr(lang, {
+            en: `A mod is reviewing Game ${summary.gameNumber}.`,
+            es: `Un mod está revisando el juego ${summary.gameNumber}.`,
+          })
+        : tr(lang, {
+            en: `Game ${summary.gameNumber}'s result is disputed. Resolve it below.`,
+            es: `El resultado del juego ${summary.gameNumber} está en disputa. Resuélvelo abajo.`,
+          });
       break;
     }
     case "match-disputed": {
       tone = "waiting";
-      title = es ? "Un mod está revisando esta partida." : "A mod is reviewing this match.";
-      detail = es
-        ? "No hay nada que hacer por ahora. Te avisaremos cuando se resuelva."
-        : "Nothing to do for now. We'll notify you when it's resolved.";
+      title = tr(lang, {
+        en: "A mod is reviewing this match.",
+        es: "Un mod está revisando esta partida.",
+      });
+      detail = tr(lang, {
+        en: "Nothing to do for now. We'll notify you when it's resolved.",
+        es: "No hay nada que hacer por ahora. Te avisaremos cuando se resuelva.",
+      });
       break;
     }
     case "waiting": {
       tone = "waiting";
-      title = es ? "Esperando a tu rival…" : "Waiting on your opponent…";
+      title = tr(lang, {
+        en: "Waiting on your opponent…",
+        es: "Esperando a tu rival…",
+      });
       break;
     }
   }
@@ -1633,14 +1903,18 @@ function MatchActionBanner({
         (largeCountdown ? (
           <div className="shrink-0 text-right">
             <p className="flex items-baseline justify-end gap-1 text-2xl leading-none font-bold tabular-nums">
-              <Countdown deadline={deadlineIso} />
-              <span className="text-base font-semibold text-muted-foreground">s</span>
+              <Countdown deadline={deadlineIso} format="clock" />
             </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{es ? "tiempo restante" : "time left"}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {tr(lang, {
+                en: "time left",
+                es: "tiempo restante",
+              })}
+            </p>
           </div>
         ) : (
           <p className="shrink-0 text-sm text-muted-foreground tabular-nums">
-            <Countdown deadline={deadlineIso} />s
+            <Countdown deadline={deadlineIso} format="clock" />
           </p>
         ))}
     </div>
@@ -1679,21 +1953,22 @@ function GameSection({
       return (
         <CardContent className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            {lang === "es" ? (
-              <>
-                {lastGame.disputeRequestedAt
-                  ? `El juego ${lastGame.gameNumber} está en disputa. Un mod lo resolverá.`
-                  : `Tú y tu rival reportaron resultados distintos en el juego ${lastGame.gameNumber}. Confírmalo o dispútalo abajo.`}
-                {lastGame.finalStage && ` Escenario: ${lastGame.finalStage}.`}
-              </>
-            ) : (
-              <>
-                {lastGame.disputeRequestedAt
-                  ? `Game ${lastGame.gameNumber} is disputed. A mod will resolve it.`
-                  : `You and your opponent reported different results for Game ${lastGame.gameNumber}. Confirm or dispute it below.`}
-                {lastGame.finalStage && ` Stage: ${lastGame.finalStage}.`}
-              </>
-            )}
+            <>
+              {lastGame.disputeRequestedAt
+                ? tr(lang, {
+                    en: `Game ${lastGame.gameNumber} is disputed. A mod will resolve it.`,
+                    es: `El juego ${lastGame.gameNumber} está en disputa. Un mod lo resolverá.`,
+                  })
+                : tr(lang, {
+                    en: `You and your opponent reported different results for Game ${lastGame.gameNumber}. Confirm or dispute it below.`,
+                    es: `Tú y tu rival reportaron resultados distintos en el juego ${lastGame.gameNumber}. Confírmalo o dispútalo abajo.`,
+                  })}
+              {lastGame.finalStage &&
+                tr(lang, {
+                  en: ` Stage: ${stageLabel(lastGame.finalStage, "en")}.`,
+                  es: ` Escenario: ${stageLabel(lastGame.finalStage, "es")}.`,
+                })}
+            </>
           </p>
         </CardContent>
       );
@@ -1703,22 +1978,42 @@ function GameSection({
     return (
       <CardContent className={cn("border-t border-border pt-4", INPUT_FOCUS)}>
         <p className="text-sm font-medium">
-          {lang === "es"
-            ? gameNumber === 1
-              ? "Listo para elegir escenario"
-              : `Juego ${gameNumber} — quien ganó el último juego descarta primero`
-            : gameNumber === 1
-              ? "Ready to pick a stage"
-              : `Game ${gameNumber} — the last game's winner strikes first`}
+          {/* Both halves describe striking, which only one instance does.
+              Where nobody strikes, game 1's stage comes out of the in-game
+              lottery and later games are the previous loser's pick — so
+              neither sentence is true there. */}
+          {gameNumber === 1
+            ? STRIKING_STAGES
+              ? tr(lang, {
+                  en: "Ready to pick a stage",
+                  es: "Listo para elegir escenario",
+                })
+              : tr(lang, {
+                  en: "Ready to start game 1",
+                  es: "Listo para empezar el juego 1",
+                })
+            : STRIKING_STAGES
+              ? tr(lang, {
+                  en: `Game ${gameNumber} — the last game's winner strikes first`,
+                  es: `Juego ${gameNumber} — quien ganó el último juego descarta primero`,
+                })
+              : tr(lang, {
+                  en: `Game ${gameNumber} — the last game's loser picks the stage`,
+                  es: `Juego ${gameNumber} — quien perdió el último juego elige escenario`,
+                })}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {lang === "es"
-            ? `Presiona el botón de abajo para empezar con ${opponentName}. El sitio te guía turno por turno.`
-            : `Press the button below to start with ${opponentName}. The site walks you through each turn.`}
+          {tr(lang, {
+            en: `Press the button below to start with ${opponentName}. The site walks you through each turn.`,
+            es: `Presiona el botón de abajo para empezar con ${opponentName}. El sitio te guía turno por turno.`,
+          })}
         </p>
         <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
           <Button type="submit" size="sm">
-            {lang === "es" ? `Empezar el juego ${gameNumber} →` : `Start Game ${gameNumber} →`}
+            {tr(lang, {
+              en: `Start Game ${gameNumber} →`,
+              es: `Empezar el juego ${gameNumber} →`,
+            })}
           </Button>
         </form>
       </CardContent>
@@ -1752,7 +2047,7 @@ function GameSection({
       <>
         {characterSection}
         <CardContent className="border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground">{lang === "es" ? "Escenario" : "Stage"}</p>
+          <p className="text-sm text-muted-foreground">{tr(lang, { en: "Stage", es: "Escenario" })}</p>
           {current.finalStage &&
             (() => {
               const imgPath = stageImagePath(current.finalStage!);
@@ -1761,14 +2056,14 @@ function GameSection({
                   {imgPath && (
                     <Image
                       src={`/stages/${imgPath}`}
-                      alt={current.finalStage!}
+                      alt={stageLabel(current.finalStage!, lang)}
                       fill
                       className="object-cover"
                       sizes="192px"
                     />
                   )}
                   <span className="relative z-10 rounded bg-background/80 px-2 py-1 text-sm font-medium">
-                    {current.finalStage!}
+                    {stageLabel(current.finalStage!, lang)}
                   </span>
                 </div>
               );
@@ -1780,11 +2075,12 @@ function GameSection({
   }
 
   const myTurn = turn.actorId === userId;
-  const bothLocked = bothCharactersLocked(current);
+  const bothLocked = bothCharactersLocked(current, match.mode);
   const canAct = myTurn && bothLocked;
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
-  const verbEs = turn.phase === "striking" ? "descartar" : "elegir";
+  const verbLocalized =
+    turn.phase === "striking" ? tr(lang, { en: "strike", es: "descartar" }) : tr(lang, { en: "pick", es: "elegir" });
 
   // Strikes happen actorA's-share-then-actorB's-share, in order, so the
   // count already struck tells us how many the current actor still owes
@@ -1798,13 +2094,15 @@ function GameSection({
         : current.actorAStrikes + current.actorBStrikes - struckSoFar
       : 1;
   const turnDescription =
-    lang === "es"
-      ? turn.phase === "striking"
-        ? `descartar ${remainingStrikes} escenario${remainingStrikes === 1 ? "" : "s"}`
-        : "elegir un escenario"
-      : turn.phase === "striking"
-        ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
-        : `${verb} a stage`;
+    turn.phase === "striking"
+      ? tr(lang, {
+          en: `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`,
+          es: `descartar ${remainingStrikes} escenario${remainingStrikes === 1 ? "" : "s"}`,
+        })
+      : tr(lang, {
+          en: `${verb} a stage`,
+          es: "elegir un escenario",
+        });
 
   // Only shown once both characters are locked in (see the !bothLocked
   // branch below) — at that point turnStartedAt is when the current player's
@@ -1835,35 +2133,71 @@ function GameSection({
       {characterSection}
       <CardContent className={cn("border-t border-border pt-4", canAct && INPUT_FOCUS)}>
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? `Juego ${current.gameNumber} — ` : `Game ${current.gameNumber} — `}
-          {!bothLocked ? (
-            lang === "es" ? (
-              "La selección de escenario empieza cuando ambos elijan personaje."
-            ) : (
-              "Stage selection starts once you both pick a character."
-            )
-          ) : !myTurn ? (
-            lang === "es" ? (
-              <>
-                Esperando a que {opponentName} {verbEs}… (
-                <Countdown deadline={deadline} />s restantes)
-              </>
-            ) : (
-              <>
-                Waiting for {opponentName} to {verb}… (
-                <Countdown deadline={deadline} />s left)
-              </>
-            )
-          ) : lang === "es" ? (
-            <>
-              Tu turno — {turnDescription} (<Countdown deadline={deadline} />s restantes, o se elige solo).
-            </>
-          ) : (
-            <>
-              Your turn — {turnDescription} (<Countdown deadline={deadline} />s left, or it picks automatically).
-            </>
-          )}
+          {tr(lang, {
+            en: `Game ${current.gameNumber} — `,
+            es: `Juego ${current.gameNumber} — `,
+          })}
+          {match.mode === "RANDITTO"
+            ? // Nothing to choose on the site: Smash rolls the fighters and the
+              // stage is fixed, so the only step left is reporting.
+              tr(lang, {
+                en: `Both pick Random in game, on ${RANDITTO_STAGE}. Report the result when you're done.`,
+                es: `Los dos elegid Aleatorio en el juego, en ${RANDITTO_STAGE}. Reportad el resultado al terminar.`,
+              })
+            : !bothLocked
+              ? tr(lang, {
+                  en: "Stage selection starts once you both pick a character.",
+                  es: "La selección de escenario empieza cuando ambos elijan personaje.",
+                })
+              : !STRIKING_STAGES && current.gameNumber === 1
+                ? // Game 1 is settled by the in-game lottery, so the site records
+                  // the outcome rather than running the choice.
+                  tr(lang, {
+                    en: "Both players choose the stage they want in game and take whatever the lottery gives — do not pick Random. Record the stage it landed on below.",
+                    es: "Ambos eligen el escenario que quieren dentro del juego y aceptan lo que salga — no elijan Aleatorio. Registren abajo el escenario que tocó.",
+                  })
+                : !STRIKING_STAGES
+                  ? tr(lang, {
+                      en: "The last game's loser picks the stage; the winner selects Random in game.",
+                      es: "Quien perdió el último juego elige el escenario; el ganador elige Aleatorio en el juego.",
+                    })
+                  : !myTurn
+                    ? trNode(lang, {
+                        en: (
+                          <>
+                            Waiting for {opponentName} to {verbLocalized}… (
+                            <Countdown deadline={deadline} />s left)
+                          </>
+                        ),
+                        es: (
+                          <>
+                            Esperando a que {opponentName} {verbLocalized}… (
+                            <Countdown deadline={deadline} />s restantes)
+                          </>
+                        ),
+                      })
+                    : trNode(lang, {
+                        en: (
+                          <>
+                            Your turn — {turnDescription} (
+                            <Countdown deadline={deadline} />s left, or it picks automatically).
+                          </>
+                        ),
+                        es: (
+                          <>
+                            Tu turno — {turnDescription} (
+                            <Countdown deadline={deadline} />s restantes, o se elige solo).
+                          </>
+                        ),
+                      })}
         </p>
+        <StageProposalSection
+          matchId={match.id}
+          game={current}
+          userId={userId}
+          opponentName={opponentName}
+          lang={lang}
+        />
         {sameBans && (
           <div className="mt-3">
             <SameBansButton
@@ -1879,7 +2213,10 @@ function GameSection({
           <div className="mt-3">
             <form action={runItBack.bind(null, match.id, current.gameNumber)}>
               <Button type="submit" size="sm" variant="default" disabled={!canAct}>
-                {lang === "es" ? `Repetir escenario (${runItBackStage})` : `Run it back (${runItBackStage})`}
+                {tr(lang, {
+                  en: `Run it back (${runItBackStage})`,
+                  es: `Repetir escenario (${runItBackStage})`,
+                })}
               </Button>
             </form>
           </div>
@@ -1902,10 +2239,16 @@ function GameSection({
                   className={`relative flex h-24 w-36 max-sm:h-20 max-sm:w-28 flex-col items-center justify-end gap-1 overflow-hidden p-2 ${isStruck ? "cursor-not-allowed opacity-60" : ""}`}
                 >
                   {imgPath && (
-                    <Image src={`/stages/${imgPath}`} alt={stage} fill className="object-cover" sizes="128px" />
+                    <Image
+                      src={`/stages/${imgPath}`}
+                      alt={stageLabel(stage, lang)}
+                      fill
+                      className="object-cover"
+                      sizes="128px"
+                    />
                   )}
                   <span className="relative z-10 rounded bg-background/80 px-1 text-xs max-sm:text-[10px] font-medium">
-                    {stage}
+                    {stageLabel(stage, lang)}
                   </span>
                   {isStruck && (
                     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
@@ -1925,21 +2268,27 @@ function GameSection({
         {canUndoLastStrike && (
           <form action={unstrikeStage.bind(null, match.id, current.gameNumber)} className="mt-2">
             <Button type="submit" size="sm" variant="outline">
-              {lang === "es" ? "Deshacer mi último descarte" : "Undo my last strike"}
+              {tr(lang, {
+                en: "Undo my last strike",
+                es: "Deshacer mi último descarte",
+              })}
             </Button>
           </form>
         )}
-        <StageProposalSection
-          matchId={match.id}
-          game={current}
-          userId={userId}
-          opponentName={opponentName}
-          lang={lang}
-        />
       </CardContent>
     </>
   );
 }
+
+// The only two stages players actually agree on: of 300 reconstructed game-1
+// agreements, 184 were Small Battlefield and 104 Pokémon Stadium 2 — 96% of
+// them (scripts/feature-usage.ts). The rest of the pool stays available but
+// collapsed, so these two can be one click instead of two. The labels are the
+// shorthand players already type at each other in chat.
+const PROPOSAL_SHORTCUTS = [
+  { stage: "Small Battlefield", short: { en: "Small?", es: "Small?" } },
+  { stage: "Pokémon Stadium 2", short: { en: "PS2?", es: "PS2?" } },
+] as const;
 
 // "Small?" — the mutual-agreement shortcut: either player can propose any
 // stage still on the table and the other side accepts or declines, at any
@@ -1955,7 +2304,12 @@ function StageProposalSection({
   lang,
 }: {
   matchId: string;
-  game: { gameNumber: number; stagesRemaining: string[]; proposedStage: string | null; proposedById: string | null };
+  game: {
+    gameNumber: number;
+    stagesRemaining: string[];
+    proposedStage: string | null;
+    proposedById: string | null;
+  };
   userId: string;
   opponentName: string;
   lang: Lang;
@@ -1966,29 +2320,31 @@ function StageProposalSection({
       <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
         <p className="text-sm">
           {proposedByMe
-            ? lang === "es"
-              ? `Propusiste ${game.proposedStage} — esperando a ${opponentName}.`
-              : `You proposed ${game.proposedStage} — waiting on ${opponentName}.`
-            : lang === "es"
-              ? `${opponentName} propuso ${game.proposedStage}.`
-              : `${opponentName} proposed ${game.proposedStage}.`}
+            ? tr(lang, {
+                en: `You proposed ${game.proposedStage} — waiting on ${opponentName}.`,
+                es: `Propusiste ${game.proposedStage} — esperando a ${opponentName}.`,
+              })
+            : tr(lang, {
+                en: `${opponentName} proposed ${game.proposedStage}.`,
+                es: `${opponentName} propuso ${game.proposedStage}.`,
+              })}
         </p>
         {proposedByMe ? (
           <form action={withdrawStageProposal.bind(null, matchId, game.gameNumber)}>
             <Button type="submit" size="sm" variant="outline">
-              {lang === "es" ? "Retirar" : "Withdraw"}
+              {tr(lang, { en: "Withdraw", es: "Retirar" })}
             </Button>
           </form>
         ) : (
           <>
             <form action={acceptStageProposal.bind(null, matchId, game.gameNumber)}>
-              <Button type="submit" size="sm">
-                {lang === "es" ? "Aceptar" : "Accept"}
+              <Button type="submit" className="h-10 px-5 text-base font-semibold">
+                {tr(lang, { en: "Accept", es: "Aceptar" })}
               </Button>
             </form>
             <form action={declineStageProposal.bind(null, matchId, game.gameNumber)}>
               <Button type="submit" size="sm" variant="outline">
-                {lang === "es" ? "Rechazar" : "Decline"}
+                {tr(lang, { en: "Decline", es: "Rechazar" })}
               </Button>
             </form>
           </>
@@ -1997,26 +2353,64 @@ function StageProposalSection({
     );
   }
 
+  const shortcuts = PROPOSAL_SHORTCUTS.filter((s) => game.stagesRemaining.includes(s.stage));
+  const rest = game.stagesRemaining.filter((stage) => !shortcuts.some((s) => s.stage === stage));
+
   return (
-    <details className="mt-3 group">
-      <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-        {lang === "es" ? "¿Proponer un escenario? (acuerdo mutuo)" : "Propose a stage? (mutual agreement)"}
-      </summary>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {game.stagesRemaining.map((stage) => (
-          <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
-            <Button type="submit" size="sm" variant="outline">
-              {stage}
-            </Button>
-          </form>
-        ))}
-      </div>
-    </details>
+    <div className="mt-3">
+      {/* Only where striking happens. The shortcut exists to skip it, so on an
+          instance that never strikes it is a button offering to skip nothing —
+          the stage list below is the whole interaction there. */}
+      {STRIKING_STAGES && shortcuts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {shortcuts.map(({ stage, short }) => (
+            <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
+              <Button type="submit" className="h-10 px-5 text-base font-semibold">
+                {tr(lang, short)}
+              </Button>
+            </form>
+          ))}
+          <span className="text-xs text-muted-foreground">
+            {tr(lang, {
+              en: "Propose it and skip striking",
+              es: "Propón y sáltate el descarte",
+            })}
+          </span>
+        </div>
+      )}
+      {rest.length > 0 && (
+        <details className="mt-2 group">
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+            {STRIKING_STAGES
+              ? tr(lang, {
+                  en: "Propose a different stage",
+                  es: "Proponer otro escenario",
+                })
+              : tr(lang, {
+                  en: "Propose a stage",
+                  es: "Proponer un escenario",
+                })}
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {rest.map((stage) => (
+              <form key={stage} action={proposeStage.bind(null, matchId, game.gameNumber, stage)}>
+                <Button type="submit" size="sm" variant="outline">
+                  {stageLabel(stage, lang)}
+                </Button>
+              </form>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
   );
 }
 
-function characterLabel(character: string, moveset: string | null) {
-  return moveset ? `${character} (${moveset})` : character;
+// A pick as it reads back to the player: the fighter's name in their own
+// language, plus the Mii moveset digits when there are any.
+function pickedCharacterLabel(character: string, moveset: string | null, lang: Lang) {
+  const name = characterLabel(character as SmashCharacter, lang);
+  return moveset ? `${name} (${moveset})` : name;
 }
 
 async function CharacterPickSection({
@@ -2070,17 +2464,23 @@ async function CharacterPickSection({
   // games 2+ fall back to the character they played in the previous game — while
   // a pick their opponent already made stands.
   const isGameOne = game.gameNumber === 1;
-  const timeoutCost = isGameOne
-    ? { es: "pierdes este set por abandono", en: "you forfeit this set" }
-    : { es: "se usa tu personaje del último juego", en: "your character from the last game is used" };
-  const expiredNote = isGameOne
+  const timeoutCost: Record<Lang, string> = isGameOne
     ? {
-        es: "Pasó el plazo. Elige ahora o pierdes el set por abandono.",
-        en: "You're past the deadline. Pick now or you forfeit the set.",
+        en: "you forfeit this set",
+        es: "pierdes este set por abandono",
       }
     : {
-        es: "Pasó el plazo. Elige ahora o se usa tu personaje del último juego.",
+        en: "your character from the last game is used",
+        es: "se usa tu personaje del último juego",
+      };
+  const expiredNote: Record<Lang, string> = isGameOne
+    ? {
+        en: "You're past the deadline. Pick now or you forfeit the set.",
+        es: "Pasó el plazo. Elige ahora o pierdes el set por abandono.",
+      }
+    : {
         en: "You're past the deadline. Pick now or your character from the last game is used.",
+        es: "Pasó el plazo. Elige ahora o se usa tu personaje del último juego.",
       };
 
   if (yourCharacter && opponentCharacter) {
@@ -2092,40 +2492,33 @@ async function CharacterPickSection({
             <NotebookPen className="mt-0.5 size-4 shrink-0 text-primary" />
             <div className="min-w-0">
               <p className="text-xs font-medium text-primary">
-                {lang === "es" ? `Tu nota sobre ${opponentCharacter}` : `Your note on ${opponentCharacter}`}
+                {tr(lang, {
+                  en: `Your note on ${opponentCharacter}`,
+                  es: `Tu nota sobre ${opponentCharacter}`,
+                })}
               </p>
               <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">{matchupNote}</p>
             </div>
           </div>
         )}
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Personajes — tú:{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(yourCharacter, yourMoveset)}
-              </span>
-              , {opponentName}:{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(opponentCharacter, opponentMoveset)}
-              </span>
-            </>
-          ) : (
-            <>
-              Characters — you:{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(yourCharacter, yourMoveset)}
-              </span>
-              , {opponentName}:{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(opponentCharacter, opponentMoveset)}
-              </span>
-            </>
-          )}
+          <>
+            {tr(lang, {
+              en: "Characters — you: ",
+              es: "Personajes — tú: ",
+            })}
+            <span className="font-medium text-foreground">
+              <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+              {pickedCharacterLabel(yourCharacter, yourMoveset, lang)}
+            </span>
+            {tr(lang, { en: ", ", es: ", " })}
+            {opponentName}
+            {tr(lang, { en: ": ", es: ": " })}
+            <span className="font-medium text-foreground">
+              <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+              {pickedCharacterLabel(opponentCharacter, opponentMoveset, lang)}
+            </span>
+          </>
         </p>
       </CardContent>
     );
@@ -2135,59 +2528,59 @@ async function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Elegiste{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(yourCharacter, yourMoveset)}
-              </span>
-              . Esperando a que {opponentName} elija…{" "}
-              {secondsLeft > 0 ? (
-                isGameOne ? (
-                  <>
-                    Ganas el set por abandono si no elige en <Countdown deadline={deadline} />
-                    s.
-                  </>
-                ) : (
-                  <>
-                    Si no elige en <Countdown deadline={deadline} />
-                    s, se usa su personaje del último juego.
-                  </>
-                )
-              ) : isGameOne ? (
-                "Pasó el plazo. Esto debería resolverse a tu favor pronto."
-              ) : (
-                "Pasó el plazo. Esto debería resolverse en breve."
-              )}
-            </>
-          ) : (
-            <>
-              You picked{" "}
-              <span className="font-medium text-foreground">
-                <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-                {characterLabel(yourCharacter, yourMoveset)}
-              </span>
-              . Waiting for {opponentName} to pick…{" "}
-              {secondsLeft > 0 ? (
-                isGameOne ? (
-                  <>
-                    You win the set by forfeit if they don&apos;t pick in <Countdown deadline={deadline} />
-                    s.
-                  </>
-                ) : (
-                  <>
-                    If they don&apos;t pick in <Countdown deadline={deadline} />
-                    s, their character from the last game is used.
-                  </>
-                )
-              ) : isGameOne ? (
-                "The deadline passed. This should resolve in your favor soon."
-              ) : (
-                "The deadline passed. This should resolve shortly."
-              )}
-            </>
-          )}
+          <>
+            {tr(lang, {
+              en: "You picked ",
+              es: "Elegiste ",
+            })}
+            <span className="font-medium text-foreground">
+              <CharacterIcon name={yourCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
+              {pickedCharacterLabel(yourCharacter, yourMoveset, lang)}
+            </span>
+            {tr(lang, {
+              en: `. Waiting for ${opponentName} to pick… `,
+              es: `. Esperando a que ${opponentName} elija… `,
+            })}
+            {secondsLeft > 0
+              ? isGameOne
+                ? trNode(lang, {
+                    en: (
+                      <>
+                        You win the set by forfeit if they don&apos;t pick in <Countdown deadline={deadline} />
+                        s.
+                      </>
+                    ),
+                    es: (
+                      <>
+                        Ganas el set por abandono si no elige en <Countdown deadline={deadline} />
+                        s.
+                      </>
+                    ),
+                  })
+                : trNode(lang, {
+                    en: (
+                      <>
+                        If they don&apos;t pick in <Countdown deadline={deadline} />
+                        s, their character from the last game is used.
+                      </>
+                    ),
+                    es: (
+                      <>
+                        Si no elige en <Countdown deadline={deadline} />
+                        s, se usa su personaje del último juego.
+                      </>
+                    ),
+                  })
+              : isGameOne
+                ? tr(lang, {
+                    en: "The deadline passed. This should resolve in your favor soon.",
+                    es: "Pasó el plazo. Esto debería resolverse a tu favor pronto.",
+                  })
+                : tr(lang, {
+                    en: "The deadline passed. This should resolve shortly.",
+                    es: "Pasó el plazo. Esto debería resolverse en breve.",
+                  })}
+          </>
         </p>
       </CardContent>
     );
@@ -2197,9 +2590,10 @@ async function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          {lang === "es"
-            ? `Esperando a que ${opponentName} elija personaje primero.`
-            : `Waiting for ${opponentName} to pick a character first.`}
+          {tr(lang, {
+            en: `Waiting for ${opponentName} to pick a character first.`,
+            es: `Esperando a que ${opponentName} elija personaje primero.`,
+          })}
         </p>
       </CardContent>
     );
@@ -2209,46 +2603,56 @@ async function CharacterPickSection({
     <CardContent className={cn("border-t border-border pt-4", INPUT_FOCUS)}>
       <p className="text-sm text-muted-foreground">
         {isGameOne ? (
-          lang === "es" ? (
-            "Elige tu personaje. Queda oculto hasta que ambos elijan."
-          ) : (
-            "Pick your character. It stays hidden until you both pick."
-          )
+          tr(lang, {
+            en: "Pick your character. It stays hidden until you both pick.",
+            es: "Elige tu personaje. Queda oculto hasta que ambos elijan.",
+          })
         ) : opponentCharacter ? (
           <>
-            {lang === "es" ? `${opponentName} eligió ` : `${opponentName} picked `}
+            {tr(lang, {
+              en: `${opponentName} picked `,
+              es: `${opponentName} eligió `,
+            })}
             <span className="font-medium text-foreground">
               <CharacterIcon name={opponentCharacter} size={16} className="mr-1 inline align-[-0.25em]" />
-              {characterLabel(opponentCharacter, opponentMoveset)}
+              {pickedCharacterLabel(opponentCharacter, opponentMoveset, lang)}
             </span>
-            {lang === "es" ? ". Elige tu personaje." : ". Pick your character."}
+            {tr(lang, {
+              en: ". Pick your character.",
+              es: ". Elige tu personaje.",
+            })}
           </>
-        ) : lang === "es" ? (
-          "Elige tu personaje. Vas primero."
         ) : (
-          "Pick your character. You go first."
+          tr(lang, {
+            en: "Pick your character. You go first.",
+            es: "Elige tu personaje. Vas primero.",
+          })
         )}{" "}
         {secondsLeft > 0 ? (
           <span className="font-medium text-foreground">
-            {lang === "es" ? (
-              <>
-                Tienes <Countdown deadline={deadline} />s para elegir o {timeoutCost.es}.
-              </>
-            ) : (
-              <>
-                You have <Countdown deadline={deadline} />s to pick or {timeoutCost.en}.
-              </>
-            )}
+            {trNode(lang, {
+              en: (
+                <>
+                  You have <Countdown deadline={deadline} />s to pick or {timeoutCost.en}.
+                </>
+              ),
+              es: (
+                <>
+                  Tienes <Countdown deadline={deadline} />s para elegir o {timeoutCost.es}.
+                </>
+              ),
+            })}
           </span>
         ) : (
-          <span className="font-medium text-destructive">{lang === "es" ? expiredNote.es : expiredNote.en}</span>
+          <span className="font-medium text-destructive">{expiredNote[lang]}</span>
         )}
       </p>
       {isPracticing && (
         <p className="mt-2 text-xs text-muted-foreground">
-          {lang === "es"
-            ? "Entraste en modo Práctica. Esta partida solo afecta tu clasificación de práctica."
-            : "You queued as Practicing. This set only affects your practice rating."}
+          {tr(lang, {
+            en: "You queued as Practicing. This set only affects your practice rating.",
+            es: "Entraste en modo Práctica. Esta partida solo afecta tu clasificación de práctica.",
+          })}
         </p>
       )}
       <CharacterPickForm
@@ -2293,90 +2697,95 @@ function ReportGameSection({
   // controls.
   let statusLine: React.ReactNode = null;
   if (game.reportedById === userId) {
-    statusLine =
-      lang === "es" ? (
-        <>
-          Esperando a que {opponentName} confirme…{" "}
-          {secondsLeft !== null && secondsLeft > 0 ? (
-            <>
-              Se confirma solo en <Countdown deadline={deadline!} />
-              s.
-            </>
-          ) : (
-            "Pasó el plazo. Esto debería resolverse a tu favor pronto."
-          )}
-        </>
-      ) : (
-        <>
-          Waiting for {opponentName} to confirm…{" "}
-          {secondsLeft !== null && secondsLeft > 0 ? (
-            <>
-              It auto-confirms in <Countdown deadline={deadline!} />
-              s.
-            </>
-          ) : (
-            "The deadline passed. This should resolve in your favor soon."
-          )}
-        </>
-      );
+    statusLine = (
+      <>
+        {tr(lang, {
+          en: `Waiting for ${opponentName} to confirm… `,
+          es: `Esperando a que ${opponentName} confirme… `,
+        })}
+        {secondsLeft !== null && secondsLeft > 0
+          ? trNode(lang, {
+              en: (
+                <>
+                  It auto-confirms in <Countdown deadline={deadline!} />
+                  s.
+                </>
+              ),
+              es: (
+                <>
+                  Se confirma solo en <Countdown deadline={deadline!} />
+                  s.
+                </>
+              ),
+            })
+          : tr(lang, {
+              en: "The deadline passed. This should resolve in your favor soon.",
+              es: "Pasó el plazo. Esto debería resolverse a tu favor pronto.",
+            })}
+      </>
+    );
   } else if (game.reportedById) {
-    statusLine =
-      lang === "es" ? (
-        <>
-          {game.reportedWinnerId === userId
-            ? `${opponentName} reportó que ganaste.`
-            : `${opponentName} reportó que ganó.`}{" "}
-          {secondsLeft !== null && secondsLeft > 0 && (
-            <>
-              Confirma o disputa antes de <Countdown deadline={deadline!} />
-              s.
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          {game.reportedWinnerId === userId
-            ? `${opponentName} reported that you won.`
-            : `${opponentName} reported that they won.`}{" "}
-          {secondsLeft !== null && secondsLeft > 0 && (
-            <>
-              Confirm or dispute within <Countdown deadline={deadline!} />
-              s.
-            </>
-          )}
-        </>
-      );
+    statusLine = (
+      <>
+        {game.reportedWinnerId === userId
+          ? tr(lang, {
+              en: `${opponentName} reported that you won. `,
+              es: `${opponentName} reportó que ganaste. `,
+            })
+          : tr(lang, {
+              en: `${opponentName} reported that they won. `,
+              es: `${opponentName} reportó que ganó. `,
+            })}
+        {secondsLeft !== null &&
+          secondsLeft > 0 &&
+          trNode(lang, {
+            en: (
+              <>
+                Confirm or dispute within <Countdown deadline={deadline!} />
+                s.
+              </>
+            ),
+            es: (
+              <>
+                Confirma o disputa antes de <Countdown deadline={deadline!} />
+                s.
+              </>
+            ),
+          })}
+      </>
+    );
   }
 
   const body = (
     <>
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? `Reporta el resultado del juego ${game.gameNumber} después de jugar. Si solo uno reporta, el otro tiene ${REPORT_TIMEOUT_MS / 60_000} minutos para confirmar o disputar. Pasado ese plazo, el reporte queda firme y el otro recibe un no-show.`
-          : `Report Game ${game.gameNumber}'s result after you play. If only one player reports, the other has ${REPORT_TIMEOUT_MS / 60_000} minutes to confirm or dispute. After that, the report stands and the other player gets a no-show.`}
+        {tr(lang, {
+          en: `Report Game ${game.gameNumber}'s result after you play. If only one player reports, the other has ${REPORT_TIMEOUT_MS / 60_000} minutes to confirm or dispute. After that, the report stands and the other player gets a no-show.`,
+          es: `Reporta el resultado del juego ${game.gameNumber} después de jugar. Si solo uno reporta, el otro tiene ${REPORT_TIMEOUT_MS / 60_000} minutos para confirmar o disputar. Pasado ese plazo, el reporte queda firme y el otro recibe un no-show.`,
+        })}
       </p>
       <div className="mt-4 flex gap-2">
         <ConfirmSubmitButton
           action={reportGame.bind(null, match.id, game.gameNumber, true)}
-          confirmMessage={
-            lang === "es"
-              ? `¿Reportar que ganaste el juego ${game.gameNumber}?`
-              : `Report that you won game ${game.gameNumber}?`
-          }
+          confirmMessage={tr(lang, {
+            en: `Report that you won game ${game.gameNumber}?`,
+            es: `¿Reportar que ganaste el juego ${game.gameNumber}?`,
+          })}
           variant="success"
+          lang={lang}
         >
-          {lang === "es" ? "Gané" : "I Won"}
+          {tr(lang, { en: "I Won", es: "Gané" })}
         </ConfirmSubmitButton>
         <ConfirmSubmitButton
           action={reportGame.bind(null, match.id, game.gameNumber, false)}
-          confirmMessage={
-            lang === "es"
-              ? `¿Reportar que perdiste el juego ${game.gameNumber}?`
-              : `Report that you lost game ${game.gameNumber}?`
-          }
+          confirmMessage={tr(lang, {
+            en: `Report that you lost game ${game.gameNumber}?`,
+            es: `¿Reportar que perdiste el juego ${game.gameNumber}?`,
+          })}
           variant="destructive"
+          lang={lang}
         >
-          {lang === "es" ? "Perdí" : "I Lost"}
+          {tr(lang, { en: "I Lost", es: "Perdí" })}
         </ConfirmSubmitButton>
       </div>
       {statusLine && <p className="mt-4 text-sm text-muted-foreground">{statusLine}</p>}
@@ -2439,12 +2848,14 @@ async function ConfirmedSection({
       <>
         <p className="text-sm font-medium">
           {won
-            ? lang === "es"
-              ? "Partida confirmada — ganaste"
-              : "Set confirmed — you won"
-            : lang === "es"
-              ? "Partida confirmada — perdiste"
-              : "Set confirmed — you lost"}
+            ? tr(lang, {
+                en: "Set confirmed — you won",
+                es: "Partida confirmada — ganaste",
+              })
+            : tr(lang, {
+                en: "Set confirmed — you lost",
+                es: "Partida confirmada — perdiste",
+              })}
         </p>
         {ratingVisible && ratingBefore !== null && ratingAfter !== null ? (
           <p className="mt-1 text-sm tabular-nums text-muted-foreground">
@@ -2487,9 +2898,10 @@ function RematchSection({
   if (opponentLeftAt) {
     return (
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? `${opponentName} se fue — revancha no disponible.`
-          : `${opponentName} has left — rematch unavailable.`}
+        {tr(lang, {
+          en: `${opponentName} has left — rematch unavailable.`,
+          es: `${opponentName} se fue — revancha no disponible.`,
+        })}
       </p>
     );
   }
@@ -2498,17 +2910,19 @@ function RematchSection({
     if (opponentUnavailable) {
       return (
         <p className="text-xs text-muted-foreground">
-          {lang === "es"
-            ? `${opponentName} ya no está disponible — pasó a otra partida.`
-            : `${opponentName} is no longer available — they've moved on to another match.`}
+          {tr(lang, {
+            en: `${opponentName} is no longer available — they've moved on to another match.`,
+            es: `${opponentName} ya no está disponible — pasó a otra partida.`,
+          })}
         </p>
       );
     }
     return (
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? `Esperando a que ${opponentName} acepte la revancha…`
-          : `Waiting for ${opponentName} to accept the rematch…`}
+        {tr(lang, {
+          en: `Waiting for ${opponentName} to accept the rematch…`,
+          es: `Esperando a que ${opponentName} acepte la revancha…`,
+        })}
       </p>
     );
   }
@@ -2516,9 +2930,10 @@ function RematchSection({
   if (opponentUnavailable) {
     return (
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? `${opponentName} ya no está disponible — pasó a otra partida.`
-          : `${opponentName} is no longer available — they've moved on to another match.`}
+        {tr(lang, {
+          en: `${opponentName} is no longer available — they've moved on to another match.`,
+          es: `${opponentName} ya no está disponible — pasó a otra partida.`,
+        })}
       </p>
     );
   }
@@ -2527,18 +2942,23 @@ function RematchSection({
     <div className="flex items-center gap-2">
       {opponentRequestedAt && (
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? `¡${opponentName} quiere revancha!` : `${opponentName} wants a rematch!`}
+          {tr(lang, {
+            en: `${opponentName} wants a rematch!`,
+            es: `¡${opponentName} quiere revancha!`,
+          })}
         </p>
       )}
       <form action={requestRematchAction.bind(null, matchId)}>
         <Button type="submit" variant="outline" size="sm">
-          {lang === "es"
-            ? opponentRequestedAt
-              ? "Aceptar revancha"
-              : "Pedir revancha"
-            : opponentRequestedAt
-              ? "Accept Rematch"
-              : "Request Rematch"}
+          {opponentRequestedAt
+            ? tr(lang, {
+                en: "Accept Rematch",
+                es: "Aceptar revancha",
+              })
+            : tr(lang, {
+                en: "Request Rematch",
+                es: "Pedir revancha",
+              })}
         </Button>
       </form>
     </div>
@@ -2561,7 +2981,10 @@ function MutualCancelSection({
   if (myRequestedAt) {
     return (
       <p className="text-xs text-muted-foreground">
-        {lang === "es" ? `Esperando a que ${opponentName} esté de acuerdo…` : `Waiting for ${opponentName} to agree…`}
+        {tr(lang, {
+          en: `Waiting for ${opponentName} to agree…`,
+          es: `Esperando a que ${opponentName} esté de acuerdo…`,
+        })}
       </p>
     );
   }
@@ -2570,18 +2993,23 @@ function MutualCancelSection({
     <div className="flex items-center gap-2">
       {opponentRequestedAt && (
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? `¡${opponentName} quiere cancelar!` : `${opponentName} wants to cancel!`}
+          {tr(lang, {
+            en: `${opponentName} wants to cancel!`,
+            es: `¡${opponentName} quiere cancelar!`,
+          })}
         </p>
       )}
       <form action={requestMutualCancelAction.bind(null, matchId)}>
         <Button type="submit" variant="outline" size="sm">
-          {lang === "es"
-            ? opponentRequestedAt
-              ? "Aceptar cancelación"
-              : "Pedir cancelación"
-            : opponentRequestedAt
-              ? "Agree to Cancel"
-              : "Request Cancel"}
+          {opponentRequestedAt
+            ? tr(lang, {
+                en: "Agree to Cancel",
+                es: "Aceptar cancelación",
+              })
+            : tr(lang, {
+                en: "Request Cancel",
+                es: "Pedir cancelación",
+              })}
         </Button>
       </form>
     </div>
@@ -2592,13 +3020,15 @@ function TerminatedSection({ status, lang }: { status: "CANCELLED" | "EXPIRED"; 
   return (
     <CardContent className="pt-4">
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? status === "CANCELLED"
-            ? "Esta partida fue cancelada — sin afectar la clasificación."
-            : "Nadie reportó un resultado a tiempo, así que esta partida expiró sin afectar la clasificación."
-          : status === "CANCELLED"
-            ? "This match was cancelled — no rating impact."
-            : "Nobody reported a result in time, so this match expired with no rating impact."}
+        {status === "CANCELLED"
+          ? tr(lang, {
+              en: "This match was cancelled — no rating impact.",
+              es: "Esta partida fue cancelada — sin afectar la clasificación.",
+            })
+          : tr(lang, {
+              en: "Nobody reported a result in time, so this match expired with no rating impact.",
+              es: "Nadie reportó un resultado a tiempo, así que esta partida expiró sin afectar la clasificación.",
+            })}
       </p>
     </CardContent>
   );
@@ -2609,14 +3039,12 @@ async function CommentsSection({
   match,
   opponentName,
   opponentHasLeft,
-  zenMode,
   lang,
 }: {
   userId: string;
   match: Match;
   opponentName: string;
   opponentHasLeft: boolean;
-  zenMode?: boolean;
   lang: Lang;
 }) {
   const rawComments = await listMatchComments(userId, match.id);
@@ -2625,16 +3053,13 @@ async function CommentsSection({
     where: { id: userId },
     select: { quickMessages: true },
   });
-  const myQuickMessages = resolveQuickMessages(myQuickMessagesRaw?.quickMessages ?? []);
-
-  // Determine opponent's user id for zen mode — replace their name in chat
-  const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+  const myQuickMessages = HAS_QUICK_MESSAGES ? resolveQuickMessages(myQuickMessagesRaw?.quickMessages ?? []) : [];
 
   // Serialize dates to strings for the client component
   const comments = rawComments.map((c) => ({
     id: c.id,
     author: {
-      username: zenMode && c.author.id === opponentId ? (lang === "es" ? "Rival" : "Opponent") : c.author.username,
+      username: c.author.username,
       role: c.author.role,
     },
     body: c.body,
@@ -2645,19 +3070,25 @@ async function CommentsSection({
   return (
     <Card className="flex h-full max-lg:max-h-[60vh] lg:max-h-[min(60vh,600px)] flex-col">
       <CardHeader className="pb-3">
-        <p className="text-sm font-medium text-foreground">💬 Chat</p>
+        <p className="text-sm font-medium text-foreground">💬 {tr(lang, { en: "Chat", es: "Chat" })}</p>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-0 pt-0">
         {opponentHasLeft && (
           <p className="mb-2 text-xs text-muted-foreground">
-            {lang === "es" ? `${opponentName} dejó el chat.` : `${opponentName} has left the chat.`}
+            {tr(lang, {
+              en: `${opponentName} has left the chat.`,
+              es: `${opponentName} dejó el chat.`,
+            })}
           </p>
         )}
         <ChatMessages
           comments={comments}
           empty={
             <p className="mt-2 text-sm text-muted-foreground">
-              {lang === "es" ? "Aún no hay mensajes." : "No messages yet."}
+              {tr(lang, {
+                en: "No messages yet.",
+                es: "Aún no hay mensajes.",
+              })}
             </p>
           }
         />
@@ -2701,24 +3132,29 @@ function RoomCodeSection({
         <p className="font-medium tabular-nums">
           <FlashOnChange value={initialValue}>
             {initialValue ||
-              (lang === "es" ? `${opponentName} está creando la sala…` : `${opponentName} is creating the room…`)}
+              tr(lang, {
+                en: `${opponentName} is creating the room…`,
+                es: `${opponentName} está creando la sala…`,
+              })}
           </FlashOnChange>
         </p>
         {initialValue && (
           <p className="text-xs text-muted-foreground">
-            {lang === "es" ? "Definido por tu rival — únete con este." : "Set by your opponent — join with this."}
+            {tr(lang, {
+              en: "Set by your opponent — join with this.",
+              es: "Definido por tu rival — únete con este.",
+            })}
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              Contraseña: <span className="font-medium text-foreground">{hostArenaPassword}</span>.
-            </>
-          ) : (
-            <>
-              Password: <span className="font-medium text-foreground">{hostArenaPassword}</span>.
-            </>
-          )}
+          <>
+            {tr(lang, {
+              en: "Password: ",
+              es: "Contraseña: ",
+            })}
+            <span className="font-medium text-foreground">{hostArenaPassword}</span>
+            {tr(lang, { en: ".", es: "." })}
+          </>
         </p>
       </div>
     );
@@ -2727,29 +3163,35 @@ function RoomCodeSection({
   return (
     <div className="flex flex-col gap-1">
       <p className="text-xs font-medium text-foreground">
-        {lang === "es" ? "Te toca crear la sala." : "You're creating the room."}
+        {tr(lang, {
+          en: "You're creating the room.",
+          es: "Te toca crear la sala.",
+        })}
       </p>
       <RoomCodeForm initialValue={initialValue} action={submitRoomCode.bind(null, matchId)} lang={lang} />
       <p className="text-xs text-muted-foreground">
-        {lang === "es" ? (
-          <>
-            Contraseña: <span className="font-medium text-foreground">{hostArenaPassword}</span> — este es tu valor por
-            defecto, puedes{" "}
-            <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
-              cambiarlo en Ajustes
-            </Link>
-            .
-          </>
-        ) : (
-          <>
-            Password: <span className="font-medium text-foreground">{hostArenaPassword}</span> — this is your default,
-            you can{" "}
-            <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
-              change it in Settings
-            </Link>
-            .
-          </>
-        )}
+        {trNode(lang, {
+          en: (
+            <>
+              Password: <span className="font-medium text-foreground">{hostArenaPassword}</span> — this is your default,
+              you can{" "}
+              <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
+                change it in Settings
+              </Link>
+              .
+            </>
+          ),
+          es: (
+            <>
+              Contraseña: <span className="font-medium text-foreground">{hostArenaPassword}</span> — este es tu valor
+              por defecto, puedes{" "}
+              <Link href="/settings?tab=lobby" prefetch={false} className="underline hover:text-foreground">
+                cambiarlo en Ajustes
+              </Link>
+              .
+            </>
+          ),
+        })}
       </p>
     </div>
   );

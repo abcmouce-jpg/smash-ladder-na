@@ -270,7 +270,7 @@ describe("finalizeExpiredMatches", () => {
     });
 
     it("only auto-confirms a hanging report once and DMs mods once", async () => {
-      const dmSpy = vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
+      const dmSpy = vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue("sent");
       await createTestUser({ role: UserRole.MOD });
       const reporter = await createTestUser({ rating: 1500 });
       const ghost = await createTestUser({ rating: 1500 });
@@ -305,7 +305,7 @@ describe("finalizeExpiredMatches", () => {
     });
 
     it("only awards an unanswered lead once and DMs mods once", async () => {
-      const dmSpy = vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
+      const dmSpy = vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue("sent");
       await createTestUser({ role: UserRole.MOD });
       const leader = await createTestUser({ rating: 1500 });
       const ghost = await createTestUser({ rating: 1500 });
@@ -352,7 +352,7 @@ describe("finalizeExpiredMatches", () => {
     });
 
     it("only expires a no-report match once and DMs mods once", async () => {
-      const dmSpy = vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
+      const dmSpy = vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue("sent");
       await createTestUser({ role: UserRole.MOD });
       const a = await createTestUser({ rating: 1500 });
       const b = await createTestUser({ rating: 1500 });

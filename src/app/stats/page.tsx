@@ -6,9 +6,11 @@ import { SectionTabs } from "@/components/section-tabs";
 import { StatsOverviewSection } from "./overview-section";
 import { StatsCharactersSection } from "./characters-section";
 import { StatsSeasonsSection } from "./seasons-section";
+import { SITE_NAME, instanceText } from "@/lib/site";
+import { tr } from "@/lib/lang";
 
 export const metadata: Metadata = {
-  title: "Stats — Smash Ladder NA",
+  title: `${instanceText({ en: "Stats", es: "Estadísticas" })} — ${SITE_NAME}`,
   description: "Ladder activity, season champions, and character meta across the North American Smash ladder.",
 };
 
@@ -32,20 +34,31 @@ export default async function StatsPage({
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
       <PageHeading
         icon={BarChart3}
-        title={lang === "es" ? "Estadísticas" : "Stats"}
-        description={
-          lang === "es"
-            ? "La actividad del ladder, el meta de personajes y el historial de temporadas de Norteamérica."
-            : "Ladder activity, character meta, and season history across the North American ladder."
-        }
+        title={tr(lang, { en: "Stats", es: "Estadísticas" })}
+        description={tr(lang, {
+          en: "Ladder activity, character meta, and season history across the North American ladder.",
+          es: "La actividad del ladder, el meta de personajes y el historial de temporadas de Norteamérica.",
+        })}
       />
 
       <SectionTabs
         className="mt-8"
         items={[
-          { href: "?tab=overview", label: lang === "es" ? "Resumen" : "Overview", active: tab === "overview" },
-          { href: "?tab=characters", label: lang === "es" ? "Personajes" : "Characters", active: tab === "characters" },
-          { href: "?tab=seasons", label: lang === "es" ? "Temporadas" : "Seasons", active: tab === "seasons" },
+          {
+            href: "?tab=overview",
+            label: tr(lang, { en: "Overview", es: "Resumen" }),
+            active: tab === "overview",
+          },
+          {
+            href: "?tab=characters",
+            label: tr(lang, { en: "Characters", es: "Personajes" }),
+            active: tab === "characters",
+          },
+          {
+            href: "?tab=seasons",
+            label: tr(lang, { en: "Seasons", es: "Temporadas" }),
+            active: tab === "seasons",
+          },
         ]}
       />
 

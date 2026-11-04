@@ -10,6 +10,7 @@ import { GLICKO2_INITIAL_RATING, GLICKO2_INITIAL_RD, GLICKO2_INITIAL_VOLATILITY 
 import { formatRating } from "@/lib/rating-format";
 import { LEADERBOARD_MIN_GAMES, type Achievement } from "@/lib/rank-tier";
 import { dayKeyInTimeZone, zonedTimeToUtc } from "@/lib/timezone";
+import { RATING_SYSTEM } from "@/lib/site";
 
 // Pre-season launch announcement, shown site-wide until this passes.
 // -04:00 is ET's summer (EDT) offset — update if this ever needs to move
@@ -94,29 +95,97 @@ export function isWithinSeasonEndingWindow(endsAt: Date, windowMs: number, now =
   return endsAt.getTime() - now.getTime() <= windowMs;
 }
 
-// Temporary: ending a season resets EVERYONE's rating, and enough people
-// hold ADMIN now (mostly for community/promotion reasons, not moderation)
-// that this narrows who can trigger it, independent of the ADMIN/MOD role
-// check. Revisit once ADMIN grants are reviewed.
-export const SEASON_MANAGER_USER_ID = process.env.SEASON_MANAGER_USER_ID?.trim() || null;
+// Ending a season resets EVERYONE's rating, and enough people hold ADMIN
+// (mostly for community/promotion reasons, not moderation) that this narrows
+// who can trigger it, independent of the ADMIN/MOD role check.
+//
+// A list rather than the single SEASON_MANAGER_USER_ID it started as, for the
+// same reason ROLE_MANAGER_USER_IDS is one: season timing has to be workable
+// by more than one person, who are rarely online together. The old singular
+// variable is still read so an instance that sets it keeps working.
+//
+// Unset — neither variable — means any MOD/ADMIN can, which is what a new
+// instance wants before it has staff to narrow down to.
+export const SEASON_MANAGER_USER_IDS = [
+  ...(process.env.SEASON_MANAGER_USER_IDS ?? "").split(","),
+  process.env.SEASON_MANAGER_USER_ID ?? "",
+]
+  .map((id) => id.trim())
+  .filter(Boolean);
+
+export function canManageSeasons(userId: string) {
+  return SEASON_MANAGER_USER_IDS.length === 0 || SEASON_MANAGER_USER_IDS.includes(userId);
+}
 
 // Which rating system a newly-started season runs on. Every season created from
 // here on starts fresh on Glicko-2 (see endActiveSeasonAndStartNext); a season
 // that's already running keeps whatever its own `algorithm` column says, so
 // this never rewrites the current season. Flip back to ELO to make the next
 // rollover produce an Elo season again.
-export const NEXT_SEASON_ALGORITHM = RatingAlgorithm.GLICKO2;
+export const NEXT_SEASON_ALGORITHM =
+  RATING_SYSTEM === "smashmate"
+    ? RatingAlgorithm.SMASHMATE
+    : RATING_SYSTEM === "elo"
+      ? RatingAlgorithm.ELO
+      : RatingAlgorithm.GLICKO2;
 
 export async function getActiveSeason() {
-  return prisma.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  return prisma.season.findFirst({
+    where: { endsAt: null },
+    orderBy: { startsAt: "desc" },
+  });
 }
 
 // Used at match-confirm time; creates Season 1 on first use so the app
-// doesn't need a manual setup step before matches can be rated.
+// doesn't need a manual setup step before matches can be rated. The algorithm
+// is passed explicitly: Season.algorithm's column default is ELO, which is
+// not what any instance configured today actually wants.
 export async function ensureActiveSeason() {
   const existing = await getActiveSeason();
   if (existing) return existing;
-  return prisma.season.create({ data: { name: "Season 1" } });
+  return prisma.season.create({ data: { name: "Season 1", algorithm: NEXT_SEASON_ALGORITHM } });
+}
+
+/**
+ * Changes the algorithm the season that is already running is rated with.
+ *
+ * NEXT_SEASON_ALGORITHM only decides what a season gets at creation, so an
+ * instance that changes RATING_SYSTEM mid-season keeps rating matches with
+ * whatever its current season recorded — invisibly, since nothing on the site
+ * contradicts the new setting. That is how Japan opened Season 1 on ELO's
+ * tapering K after deciding on Smashmate's flat one.
+ *
+ * Only while the season has rated nothing. Past that point the ratings on the
+ * board were produced by the old math and every new one would be produced by
+ * the new, which is not a ladder — ending the season and starting the next on
+ * the new algorithm is the operation for that, and it already exists.
+ */
+export async function setActiveSeasonAlgorithm(algorithm: RatingAlgorithm) {
+  const active = await getActiveSeason();
+  if (!active) throw new Error("No active season");
+  if (active.algorithm === algorithm) return active;
+
+  // A set where BOTH sides queued as practicing moved no ladder rating —
+  // applyEloAndConfirm writes practiceRating for a practicing side and leaves
+  // rating alone — so it must not freeze the choice. Which matters in
+  // practice: trying the queue end to end on a new instance is exactly what
+  // someone does before deciding the season is set up right, and practice
+  // mode is how they do it without touching the board.
+  const ratedCount = await prisma.ratingMatch.count({
+    where: {
+      seasonId: active.id,
+      status: MatchStatus.CONFIRMED,
+      NOT: { player1IsPracticing: true, player2IsPracticing: true },
+    },
+  });
+  if (ratedCount > 0) {
+    throw new Error(
+      `${active.name} has already rated ${ratedCount} ${ratedCount === 1 ? "set" : "sets"} with ${active.algorithm} — ` +
+        "end the season and start the next one on the new algorithm instead",
+    );
+  }
+
+  return prisma.season.update({ where: { id: active.id }, data: { algorithm } });
 }
 
 export async function listPastSeasons() {
@@ -141,7 +210,10 @@ const PLACEMENT_LABEL = ["Champion", "Runner-up", "3rd Place"];
 // season's rank medals.
 export async function getPlayerSeasonAchievements(userId: string): Promise<Achievement[]> {
   const standings = await prisma.seasonStanding.findMany({
-    where: { userId, OR: [{ rank: { lte: 3 } }, { season: { name: PRE_SEASON_NAME } }] },
+    where: {
+      userId,
+      OR: [{ rank: { lte: 3 } }, { season: { name: PRE_SEASON_NAME } }],
+    },
     orderBy: { season: { startsAt: "desc" } },
     include: { season: { select: { name: true } } },
   });
@@ -202,7 +274,11 @@ export async function getSeasonStandings(seasonId: string, pagination: { skip?: 
 // requestMutualCancel, this isn't either player's fault.
 async function cancelUnresolvedMatches(tx: Prisma.TransactionClient) {
   const unresolved = await tx.ratingMatch.findMany({
-    where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
+    where: {
+      status: {
+        in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED],
+      },
+    },
     select: { id: true },
   });
   if (unresolved.length === 0) return;
@@ -375,7 +451,11 @@ export async function launchPreSeasonIfDue(now = new Date()) {
     await endActiveSeasonAndStartNext(PRE_SEASON_NAME, now, PRE_SEASON_EXPECTED_END_AT, RatingAlgorithm.ELO);
   } else {
     await prisma.season.create({
-      data: { name: PRE_SEASON_NAME, startsAt: now, scheduledEndAt: PRE_SEASON_EXPECTED_END_AT },
+      data: {
+        name: PRE_SEASON_NAME,
+        startsAt: now,
+        scheduledEndAt: PRE_SEASON_EXPECTED_END_AT,
+      },
     });
   }
   return true;

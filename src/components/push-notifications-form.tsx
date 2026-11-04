@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { removePushSubscriptionAction, savePushSubscriptionAction, sendTestPushAction } from "@/app/settings/actions";
 import { getPushSubscription, isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 type Status = { kind: "error" | "info"; text: string } | null;
 
@@ -38,7 +39,7 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
     setBusy(true);
     setStatus(null);
     try {
-      const result = await subscribeToPush();
+      const result = await subscribeToPush(lang);
       if ("error" in result) {
         setStatus({ kind: "error", text: result.error });
         return;
@@ -53,13 +54,18 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
       setEnabled(true);
       setStatus({
         kind: "info",
-        text:
-          lang === "es" ? "Notificaciones activadas para este navegador." : "Notifications enabled for this browser.",
+        text: tr(lang, {
+          en: "Notifications enabled for this browser.",
+          es: "Notificaciones activadas para este navegador.",
+        }),
       });
     } catch {
       setStatus({
         kind: "error",
-        text: lang === "es" ? "Algo salió mal — inténtalo de nuevo." : "Something went wrong — try again.",
+        text: tr(lang, {
+          en: "Something went wrong — try again.",
+          es: "Algo salió mal — inténtalo de nuevo.",
+        }),
       });
     } finally {
       setBusy(false);
@@ -77,12 +83,18 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
       }
       setStatus({
         kind: "info",
-        text: lang === "es" ? "Notificación de prueba enviada." : "Test notification sent — check your devices.",
+        text: tr(lang, {
+          en: "Test notification sent — check your devices.",
+          es: "Notificación de prueba enviada.",
+        }),
       });
     } catch {
       setStatus({
         kind: "error",
-        text: lang === "es" ? "Algo salió mal — inténtalo de nuevo." : "Something went wrong — try again.",
+        text: tr(lang, {
+          en: "Something went wrong — try again.",
+          es: "Algo salió mal — inténtalo de nuevo.",
+        }),
       });
     } finally {
       setTesting(false);
@@ -100,15 +112,18 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
       setEnabled(false);
       setStatus({
         kind: "info",
-        text:
-          lang === "es"
-            ? "Notificaciones desactivadas para este navegador."
-            : "Notifications disabled for this browser.",
+        text: tr(lang, {
+          en: "Notifications disabled for this browser.",
+          es: "Notificaciones desactivadas para este navegador.",
+        }),
       });
     } catch {
       setStatus({
         kind: "error",
-        text: lang === "es" ? "Algo salió mal — inténtalo de nuevo." : "Something went wrong — try again.",
+        text: tr(lang, {
+          en: "Something went wrong — try again.",
+          es: "Algo salió mal — inténtalo de nuevo.",
+        }),
       });
     } finally {
       setBusy(false);
@@ -119,7 +134,12 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
     return (
       <div className="flex items-end justify-between gap-2">
         <div className="text-sm">
-          <p>{lang === "es" ? "Notificaciones al ser emparejado" : "Push notifications when matched"}</p>
+          <p>
+            {tr(lang, {
+              en: "Push notifications when matched",
+              es: "Notificaciones al ser emparejado",
+            })}
+          </p>
         </div>
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
       </div>
@@ -129,24 +149,32 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
   return (
     <div className="flex items-end justify-between gap-2">
       <div className="text-sm">
-        <p>{lang === "es" ? "Notificaciones al ser emparejado" : "Push notifications when matched"}</p>
+        <p>
+          {tr(lang, {
+            en: "Push notifications when matched",
+            es: "Notificaciones al ser emparejado",
+          })}
+        </p>
         <p className="mt-1 text-xs font-normal text-muted-foreground">
-          {lang === "es"
-            ? "Envía una notificación del navegador cuando te emparejen, para que te enteres aunque la pestaña de la Sala esté en segundo plano o tu teléfono esté bloqueado."
-            : "Sends a browser notification when you're paired, so you notice even if the Lobby tab is in the background or your phone is locked."}
+          {tr(lang, {
+            en: "Sends a browser notification when you're paired, so you notice even if the Lobby tab is in the background or your phone is locked.",
+            es: "Envía una notificación del navegador cuando te emparejen, para que te enteres aunque la pestaña de la Sala esté en segundo plano o tu teléfono esté bloqueado.",
+          })}
         </p>
         {supported === false && (
           <p className="mt-1 text-xs text-muted-foreground">
-            {lang === "es"
-              ? "Este navegador no admite notificaciones push."
-              : "Push notifications aren't supported in this browser."}
+            {tr(lang, {
+              en: "Push notifications aren't supported in this browser.",
+              es: "Este navegador no admite notificaciones push.",
+            })}
           </p>
         )}
         {needsHomeScreenInstall && (
           <p className="mt-1 text-xs text-muted-foreground">
-            {lang === "es"
-              ? "En iPhone/iPad, añade el sitio a la pantalla de inicio primero — las notificaciones solo funcionan desde la app instalada."
-              : "On iPhone/iPad, add the site to your Home Screen first — notifications only work from the installed app."}
+            {tr(lang, {
+              en: "On iPhone/iPad, add the site to your Home Screen first — notifications only work from the installed app.",
+              es: "En iPhone/iPad, añade el sitio a la pantalla de inicio primero — las notificaciones solo funcionan desde la app instalada.",
+            })}
           </p>
         )}
         {status && (
@@ -160,7 +188,7 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
           {enabled && (
             <Button type="button" size="sm" variant="outline" onClick={sendTest} disabled={busy || testing}>
               {testing && <Loader2 className="size-4 animate-spin" />}
-              {testing ? (lang === "es" ? "Enviando…" : "Sending…") : lang === "es" ? "Probar" : "Test"}
+              {testing ? tr(lang, { en: "Sending…", es: "Enviando…" }) : tr(lang, { en: "Test", es: "Probar" })}
             </Button>
           )}
           <Button
@@ -172,16 +200,10 @@ export function PushNotificationsForm({ defaultEnabled, lang }: { defaultEnabled
           >
             {busy && <Loader2 className="size-4 animate-spin" />}
             {busy
-              ? lang === "es"
-                ? "Guardando…"
-                : "Saving…"
+              ? tr(lang, { en: "Saving…", es: "Guardando…" })
               : enabled
-                ? lang === "es"
-                  ? "Desactivar"
-                  : "Disable"
-                : lang === "es"
-                  ? "Activar"
-                  : "Enable"}
+                ? tr(lang, { en: "Disable", es: "Desactivar" })
+                : tr(lang, { en: "Enable", es: "Activar" })}
           </Button>
         </div>
       )}

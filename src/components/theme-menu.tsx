@@ -11,8 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
-const THEME_OPTIONS: { value: Theme; label: { en: string; es: string }; icon: typeof Sun }[] = [
+const THEME_OPTIONS: { value: Theme; label: Record<Lang, string>; icon: typeof Sun }[] = [
   { value: "light", label: { en: "Light", es: "Claro" }, icon: Sun },
   { value: "dark", label: { en: "Dark", es: "Oscuro" }, icon: Moon },
   { value: "auto", label: { en: "Auto", es: "Automático" }, icon: Monitor },
@@ -23,7 +25,7 @@ const THEME_OPTIONS: { value: Theme; label: { en: string; es: string }; icon: ty
 // click-and-see-what-happens loop, so this is an explicit menu with a
 // checkmark on the active mode instead — same underlying storage/apply logic
 // as the old ThemeToggle.
-export function ThemeMenu({ lang = "en" }: { lang?: "en" | "es" }) {
+export function ThemeMenu({ lang = "en" }: { lang?: Lang }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") return getStoredTheme();
     return "auto";
@@ -52,8 +54,8 @@ export function ThemeMenu({ lang = "en" }: { lang?: "en" | "es" }) {
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label={lang === "es" ? "Cambiar tema" : "Change theme"}
-          title={lang === "es" ? "Tema" : "Theme"}
+          aria-label={tr(lang, { en: "Change theme", es: "Cambiar tema" })}
+          title={tr(lang, { en: "Theme", es: "Tema" })}
           className="text-muted-foreground hover:text-foreground"
         >
           <ActiveIcon className="size-3.5" suppressHydrationWarning />
@@ -66,7 +68,7 @@ export function ThemeMenu({ lang = "en" }: { lang?: "en" | "es" }) {
           return (
             <DropdownMenuItem key={option.value} onSelect={() => choose(option.value)}>
               <Icon className="size-3.5" />
-              <span className="flex-1">{lang === "es" ? option.label.es : option.label.en}</span>
+              <span className="flex-1">{option.label[lang]}</span>
               <Check className={cn("size-3.5", active ? "opacity-100" : "opacity-0")} aria-hidden />
             </DropdownMenuItem>
           );

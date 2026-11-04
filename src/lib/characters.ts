@@ -4,6 +4,8 @@
 // report/main just like any other entry. The site has no way to know which
 // actual fighter the game's RNG landed on, so "Random" gets tracked as its
 // own bucket rather than resolved to a real character.
+import type { Lang } from "@/lib/lang";
+
 export const SMASH_CHARACTERS = [
   "Mario",
   "Donkey Kong",
@@ -131,10 +133,25 @@ export function echoGroupCanonical(character: SmashCharacter): SmashCharacter {
   return echoGroupMembers(character)[0];
 }
 
+/**
+ * A fighter's name as the site shows it.
+ *
+ * English for both languages the site publishes: the Spanish scene calls the
+ * fighters by their English names, and the English name is the stored value,
+ * so there is nothing to translate. Kept as a function taking `lang` because
+ * every caller already passes one and a name is a display concern that may
+ * need a language again.
+ */
+export function characterLabel(character: SmashCharacter, _lang: Lang = "en"): string {
+  return character;
+}
+
 // Human-readable label for a character's whole echo group, e.g. "Marth /
 // Lucina" — falls back to just the name for anyone without an echo.
-export function echoGroupLabel(character: SmashCharacter): string {
-  return echoGroupMembers(character).join(" / ");
+export function echoGroupLabel(character: SmashCharacter, lang: Lang = "en"): string {
+  return echoGroupMembers(character)
+    .map((member) => characterLabel(member, lang))
+    .join(" / ");
 }
 
 // The roster as the notes page presents it: one entry per echo group (its
@@ -156,11 +173,7 @@ export function isMatchupCharacter(character: string): boolean {
 
 // The 3 Mii fighters — the only characters that take a user-entered
 // moveset string (see MOVESET_PATTERN) alongside the pick itself.
-export const MII_CHARACTERS: readonly SmashCharacter[] = [
-  "Mii Brawler",
-  "Mii Swordfighter",
-  "Mii Gunner",
-];
+export const MII_CHARACTERS: readonly SmashCharacter[] = ["Mii Brawler", "Mii Swordfighter", "Mii Gunner"];
 
 export function isMiiCharacter(character: string): boolean {
   return (MII_CHARACTERS as readonly string[]).includes(character);
@@ -169,3 +182,57 @@ export function isMiiCharacter(character: string): boolean {
 // A Mii's custom moveset: 4 special moves, each customized to one of 4
 // variants, entered as a 4-digit string like "1221".
 export const MOVESET_PATTERN = /^[1-4]{4}$/;
+
+/**
+ * A character's URL segment.
+ *
+ * The roster has names a path segment cannot carry as-is — "Pyra/Mythra" has
+ * a slash, "Mr. Game & Watch" an ampersand, "Pokémon Trainer" an accent — so
+ * the canonical English name (the stored value everywhere else) is reduced to
+ * ASCII words joined by hyphens. Accents are decomposed and their marks
+ * dropped rather than transliterated, which keeps é → e without a lookup
+ * table. characters.test.ts asserts the whole roster still maps to distinct
+ * slugs, so adding a fighter whose slug collides with an existing one fails
+ * there rather than silently serving one character's page for two names.
+ */
+export function characterSlug(character: SmashCharacter): string {
+  return character
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+const CHARACTER_BY_SLUG: ReadonlyMap<string, SmashCharacter> = new Map(
+  SMASH_CHARACTERS.map((character) => [characterSlug(character), character]),
+);
+
+/**
+ * The character a URL segment names, or null for one that matches no fighter.
+ *
+ * Case-insensitive so a hand-typed or link-shortened URL still lands, but
+ * nothing is guessed: an unknown slug is a 404 rather than a nearest match,
+ * because a wrong character page reads as real data about the wrong fighter.
+ */
+export function characterFromSlug(slug: string): SmashCharacter | null {
+  return CHARACTER_BY_SLUG.get(slug.trim().toLowerCase()) ?? null;
+}
+
+/**
+ * The fighter whose page should serve a given character name, or null when
+ * there is no page for it.
+ *
+ * Shared by /characters/[name] and the sitemap on purpose. They each had
+ * their own copy of the rules — fold echoes into the base, and refuse
+ * "Random" because it is a queue option rather than a fighter — and the
+ * sitemap's copy was missing the second one, so a guide someone had tagged
+ * Random put /characters/random in the sitemap while the page 404'd it. One
+ * function means the list of advertised URLs and the list of served URLs
+ * cannot disagree again.
+ */
+export function characterPageTarget(character: string): SmashCharacter | null {
+  if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) return null;
+  if (character === "Random") return null;
+  return echoGroupCanonical(character as SmashCharacter);
+}

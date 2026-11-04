@@ -1,10 +1,12 @@
 import { after } from "next/server";
+import { asLang, type Lang } from "@/lib/lang";
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { LobbyEntryStatus, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
+import { LobbyEntryStatus, MatchMode, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getRoomHostId, getUnresolvedMatchForUser } from "@/lib/matches";
-import { getRegionsWithinDistance } from "@/lib/regions";
+import { regionReachAllows, regionReachFilter } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
+import { queueGames, queueRating } from "@/lib/rating-track";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
 import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
 import { notifyMatchFoundToUsers, notifyQueueOpportunitySubscribers } from "@/lib/push-server";
@@ -12,6 +14,8 @@ import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { siteOrigin } from "@/lib/site-url";
 import { isNotificationEnabled } from "@/lib/notifications";
+import { DEFAULT_LANG, DISTANCE_MATCHMAKING } from "@/lib/site";
+import { LocalizedError } from "@/lib/localized-error";
 
 // isPracticing lives on the join (RatingLobbyEntry), not the user, since
 // it's a per-session choice — avoidPracticeOpponents is the user-level
@@ -31,7 +35,10 @@ function practiceMatchAllowed(
 async function getRecentOpponentTimestamps(userId: string) {
   const since = new Date(Date.now() - MAX_REMATCH_COOLDOWN_HOURS * 60 * 60 * 1000);
   const matches = await prisma.ratingMatch.findMany({
-    where: { OR: [{ player1Id: userId }, { player2Id: userId }], createdAt: { gte: since } },
+    where: {
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+      createdAt: { gte: since },
+    },
     select: { player1Id: true, player2Id: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
@@ -106,16 +113,33 @@ export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
 // direct RatingLobbyEntry count; in-match goes through RatingMatch.status
 // instead of RatingLobbyEntry.status, since PAIRED rows never get cleaned
 // up after a match resolves and would overcount actual activity.
+/**
+ * Who is queueing and playing right now, split by mode.
+ *
+ * Split because the two are separate queues: a randitto player waiting sees
+ * no help in a number that is mostly the standard queue, and someone deciding
+ * whether randitto is worth trying needs to know whether anyone is in it. A
+ * combined figure answers neither question — it reads as "plenty of people
+ * around" right up until you queue and nobody is in yours.
+ */
 export async function getLobbyActivityStats() {
-  const [waiting, inMatch] = await Promise.all([
+  const liveStatuses = { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] };
+  const [waiting, randittoWaiting, inMatch, randittoInMatch] = await Promise.all([
     prisma.ratingLobbyEntry.count({
-      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() } },
+      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() }, mode: MatchMode.STANDARD },
     }),
-    prisma.ratingMatch.count({
-      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] } },
+    prisma.ratingLobbyEntry.count({
+      where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: new Date() }, mode: MatchMode.RANDITTO },
     }),
+    prisma.ratingMatch.count({ where: { status: liveStatuses, mode: MatchMode.STANDARD } }),
+    prisma.ratingMatch.count({ where: { status: liveStatuses, mode: MatchMode.RANDITTO } }),
   ]);
-  return { waiting, inMatch: inMatch * 2 };
+  return {
+    waiting,
+    inMatch: inMatch * 2,
+    randittoWaiting,
+    randittoInMatch: randittoInMatch * 2,
+  };
 }
 
 export async function getActiveLobbyEntry(userId: string) {
@@ -179,16 +203,26 @@ export async function getActiveLobbyEntry(userId: string) {
 // differing only in whether the entry was just created or already existed.
 async function attemptPairing(params: {
   userId: string;
-  myEntry: { id: string; userId: string; isPracticing: boolean; existingRoomCode: string | null; joinedAt: Date };
-  myRegion: string;
+  myEntry: {
+    id: string;
+    userId: string;
+    isPracticing: boolean;
+    mode: MatchMode;
+    existingRoomCode: string | null;
+    joinedAt: Date;
+  };
+  myRegion: string | null;
   me: {
     rating: number;
+    randittoRating: number;
+    gamesPlayed: number;
+    randittoGamesPlayed: number;
     rematchCooldownHours: number | null;
     wiredConnection: boolean;
     requireWiredOpponent: boolean;
     avoidPracticeOpponents: boolean;
   };
-  myReach: string[];
+  myReach: string[] | null;
   myEffectiveGap: number | null;
   blockedIds: string[];
   recentOpponents: Map<string, Date>;
@@ -208,7 +242,10 @@ async function attemptPairing(params: {
       // already claimed this entry, so bail before touching anything else.
       const selfClaim = await tx.ratingLobbyEntry.updateMany({
         where: { id: myEntry.id, status: LobbyEntryStatus.WAITING },
-        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+        data: {
+          status: LobbyEntryStatus.PAIRED,
+          pairingMethod: PairingMethod.AUTO,
+        },
       });
       if (selfClaim.count === 0) return null;
 
@@ -222,13 +259,31 @@ async function attemptPairing(params: {
           expiresAt: { gt: new Date() },
           userId: { notIn: [userId, ...blockedIds] },
           id: { not: myEntry.id },
+          // Modes are separate queues: somebody who asked for assigned
+          // fighters must not be handed a normal set, or the other way round.
+          mode: myEntry.mode,
           user: {
             // See sweepLobbyPairing: a ban has to remove someone from the
             // candidate pool too, not just stop them re-queueing.
             status: { not: UserStatus.BANNED },
-            region: { in: myReach },
+            ...(myReach ? { region: { in: myReach } } : {}),
+            // Narrowed in SQL on the same column the check below compares,
+            // or the pre-filter would drop candidates the mode considers
+            // perfectly close before anything got to look at them.
             ...(myEffectiveGap !== null
-              ? { rating: { gte: me.rating - myEffectiveGap, lte: me.rating + myEffectiveGap } }
+              ? myEntry.mode === MatchMode.RANDITTO
+                ? {
+                    randittoRating: {
+                      gte: queueRating(me, myEntry.mode) - myEffectiveGap,
+                      lte: queueRating(me, myEntry.mode) + myEffectiveGap,
+                    },
+                  }
+                : {
+                    rating: {
+                      gte: me.rating - myEffectiveGap,
+                      lte: me.rating + myEffectiveGap,
+                    },
+                  }
               : {}),
           },
         },
@@ -240,8 +295,10 @@ async function attemptPairing(params: {
               region: true,
               maxMatchDistanceKm: true,
               rating: true,
+              randittoRating: true,
               maxRatingGap: true,
               gamesPlayed: true,
+              randittoGamesPlayed: true,
               rematchCooldownHours: true,
               wiredConnection: true,
               requireWiredOpponent: true,
@@ -250,15 +307,52 @@ async function attemptPairing(params: {
           },
         },
       });
+      // The mode is filtered in SQL just above, and then again here. The
+      // belt-and-braces is not theoretical: on randitto's launch day four
+      // sets still came out crossed — a standard player polling, a randitto
+      // waiter as the candidate — with the SQL filter present and deployed,
+      // so something between this query and the rows it returned was not
+      // honouring it. A JS equality check cannot be dropped by whatever that
+      // was, and the tripwire below records it if it happens again.
+      const wrongMode = candidates.filter((c) => c.mode !== myEntry.mode);
+      if (wrongMode.length > 0) {
+        console.error(
+          "attemptPairing: SQL mode filter leaked candidates — rejected in JS",
+          JSON.stringify({
+            myEntryId: myEntry.id,
+            myMode: myEntry.mode,
+            leaked: wrongMode.map((c) => ({ id: c.id, mode: c.mode })),
+          }),
+        );
+      }
       const candidate = candidates.find(
         (c) =>
-          getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
-          ratingGapAllows(me.rating, c.user.rating, effectiveMaxRatingGap(c.user)) &&
+          c.mode === myEntry.mode &&
+          regionReachAllows(c.user.region, c.user.maxMatchDistanceKm, myRegion) &&
+          // Compared on the rating the queue actually uses. Randitto has its
+          // own ladder, so gating it on the 1v1 one kept two players who are
+          // both 1500 at randitto apart because one of them is 2300 on the
+          // main board — a restriction about a rating neither of them is
+          // playing for.
+          ratingGapAllows(
+            queueRating(me, myEntry.mode),
+            queueRating(c.user, myEntry.mode),
+            effectiveMaxRatingGap(
+              { maxRatingGap: c.user.maxRatingGap, gamesPlayed: queueGames(c.user, myEntry.mode) },
+              Date.now() - c.joinedAt.getTime(),
+            ),
+          ) &&
           rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
           wiredRequirementAllows(me, c.user) &&
           practiceMatchAllowed(
-            { isPracticing: myEntry.isPracticing, avoidPracticeOpponents: me.avoidPracticeOpponents },
-            { isPracticing: c.isPracticing, avoidPracticeOpponents: c.user.avoidPracticeOpponents },
+            {
+              isPracticing: myEntry.isPracticing,
+              avoidPracticeOpponents: me.avoidPracticeOpponents,
+            },
+            {
+              isPracticing: c.isPracticing,
+              avoidPracticeOpponents: c.user.avoidPracticeOpponents,
+            },
           ),
       );
       // No one to pair with this tick — release the self-claim above so
@@ -267,7 +361,10 @@ async function attemptPairing(params: {
       if (!candidate) {
         await tx.ratingLobbyEntry.update({
           where: { id: myEntry.id },
-          data: { status: LobbyEntryStatus.WAITING, pairingMethod: PairingMethod.MANUAL },
+          data: {
+            status: LobbyEntryStatus.WAITING,
+            pairingMethod: PairingMethod.MANUAL,
+          },
         });
         return null;
       }
@@ -278,14 +375,27 @@ async function attemptPairing(params: {
       // myEntry stuck PAIRED with nothing to show for it.
       const claim = await tx.ratingLobbyEntry.updateMany({
         where: { id: candidate.id, status: LobbyEntryStatus.WAITING },
-        data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+        data: {
+          status: LobbyEntryStatus.PAIRED,
+          pairingMethod: PairingMethod.AUTO,
+        },
       });
       if (claim.count === 0) {
         await tx.ratingLobbyEntry.update({
           where: { id: myEntry.id },
-          data: { status: LobbyEntryStatus.WAITING, pairingMethod: PairingMethod.MANUAL },
+          data: {
+            status: LobbyEntryStatus.WAITING,
+            pairingMethod: PairingMethod.MANUAL,
+          },
         });
         return null;
+      }
+
+      // Last line of defence before the row that actually costs someone a
+      // set on a ladder they never queued for.
+      if (candidate.mode !== myEntry.mode) {
+        console.error("attemptPairing: refusing to create a crossed match", candidate.mode, myEntry.mode);
+        throw new Error("mode mismatch between paired lobby entries");
       }
 
       const match = await tx.ratingMatch.create({
@@ -297,6 +407,7 @@ async function attemptPairing(params: {
           expiresAt: new Date(Date.now() + MATCH_TTL_MS),
           player1IsPracticing: candidate.isPracticing,
           player2IsPracticing: myEntry.isPracticing,
+          mode: myEntry.mode,
           ...resolvePrefilledRoom(candidate, myEntry),
         },
       });
@@ -336,7 +447,7 @@ function deferNotification(notify: () => Promise<unknown>) {
 
 // The "match found" DM copy, mirroring MATCH_FOUND_MESSAGES in push-server.ts
 // — same event, same en/es split by the player's preferredLanguage.
-const MATCH_FOUND_DM = {
+const MATCH_FOUND_DM: Record<Lang, (link: string) => string> = {
   en: (link: string) => `🎮 Match found! You've been paired — head to the Lobby to play: ${link}`,
   es: (link: string) => `🎮 ¡Partida encontrada! Te emparejaron — ve a la Sala para jugar: ${link}`,
 };
@@ -354,12 +465,16 @@ const MATCH_FOUND_DM = {
 export async function notifyMatchFoundViaDiscord(player1Id: string, player2Id: string) {
   const players = await prisma.user.findMany({
     where: { id: { in: [player1Id, player2Id] } },
-    select: { discordId: true, preferredLanguage: true, notificationsDisabled: true },
+    select: {
+      discordId: true,
+      preferredLanguage: true,
+      notificationsDisabled: true,
+    },
   });
   const link = `${siteOrigin()}/lobby`;
   for (const player of players) {
     if (!isNotificationEnabled(player, "DM_MATCH_FOUND")) continue;
-    const copy = player.preferredLanguage === "es" ? MATCH_FOUND_DM.es : MATCH_FOUND_DM.en;
+    const copy = MATCH_FOUND_DM[asLang(player.preferredLanguage) ?? DEFAULT_LANG];
     await sendDiscordDM(player.discordId, copy(link));
   }
 }
@@ -374,11 +489,18 @@ function deferMatchFoundNotifications(player1Id: string, player2Id: string) {
 
 export async function joinLobbyAndTryPair(
   userId: string,
-  isPracticing = false,
+  isPracticingArg = false,
   existingRoomCode: string | null = null,
+  mode: MatchMode = MatchMode.STANDARD,
 ) {
+  // Randitto has its own rating track (see trackFor), so the practice flag
+  // has nothing to express on it — forced off rather than carried, to keep a
+  // fourth "practising at randitto" ladder from existing by accident.
+  const isPracticing = mode === MatchMode.RANDITTO ? false : isPracticingArg;
   const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] = await Promise.all([
-    prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
+    prisma.ratingLobbyEntry.findFirst({
+      where: { userId, status: LobbyEntryStatus.WAITING },
+    }),
     getUnresolvedMatchForUser(userId),
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -386,8 +508,10 @@ export async function joinLobbyAndTryPair(
         region: true,
         maxMatchDistanceKm: true,
         rating: true,
+        randittoRating: true,
         maxRatingGap: true,
         gamesPlayed: true,
+        randittoGamesPlayed: true,
         rematchCooldownHours: true,
         wiredConnection: true,
         requireWiredOpponent: true,
@@ -417,7 +541,10 @@ export async function joinLobbyAndTryPair(
   }
 
   if (existingRoomCode && !ROOM_CODE_PATTERN.test(existingRoomCode)) {
-    throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
+    throw new LocalizedError({
+      en: "Room code must be exactly 5 characters (A-Z or 0-9)",
+      es: "El código de sala debe tener exactamente 5 caracteres (A-Z o 0-9)",
+    });
   }
 
   const now = new Date();
@@ -427,24 +554,34 @@ export async function joinLobbyAndTryPair(
   // ghosted opponent's time with zero consequence for the one who dodged.
   if (me.queueCooldownUntil && me.queueCooldownUntil > now) {
     const minutesLeft = Math.ceil((me.queueCooldownUntil.getTime() - now.getTime()) / (60 * 1000));
-    throw new Error(
-      `You timed out of your last match — you can queue again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
-    );
+    throw new LocalizedError({
+      en: `You timed out of your last match — you can queue again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
+      es: `Se te acabó el tiempo en tu última partida — puedes volver a la cola en ${minutesLeft} minuto${minutesLeft === 1 ? "" : "s"}.`,
+    });
   }
 
-  // Matching is same-or-nearby-region by default — a region has to be set
-  // first so there's something to compare — but either side's own match
-  // distance setting can widen (or narrow) how far that reaches.
+  // Where matching is same-or-nearby-region, a region has to be set first so
+  // there is something to compare, and either side's own match distance
+  // setting can widen or narrow how far that reaches. Where it isn't (see
+  // DISTANCE_MATCHMAKING), region is a profile attribute and never blocks a
+  // join — demanding one would be asking for a value nothing then reads.
   const myRegion = me.region;
-  if (!myRegion) {
-    throw new Error(
-      "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
-    );
+  if (DISTANCE_MATCHMAKING && !myRegion) {
+    throw new LocalizedError({
+      en: "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
+      es: "Elige tu región antes de entrar a la cola — solo te emparejaremos con jugadores dentro de la distancia que elijas.",
+    });
   }
   let newEntry: Awaited<ReturnType<typeof prisma.ratingLobbyEntry.create>>;
   try {
     newEntry = await prisma.ratingLobbyEntry.create({
-      data: { userId, isPracticing, existingRoomCode, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
+      data: {
+        userId,
+        isPracticing,
+        mode,
+        existingRoomCode,
+        expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
+      },
     });
   } catch (err) {
     // The waitingEntry check above is a read-then-write race: two concurrent
@@ -460,12 +597,19 @@ export async function joinLobbyAndTryPair(
     throw err;
   }
 
-  const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
+  const myReach = regionReachFilter(myRegion, me.maxMatchDistanceKm);
   const myEffectiveGap = effectiveMaxRatingGap(me);
 
   const paired = await attemptPairing({
     userId,
-    myEntry: { id: newEntry.id, userId, isPracticing, existingRoomCode, joinedAt: newEntry.joinedAt },
+    myEntry: {
+      id: newEntry.id,
+      userId,
+      isPracticing,
+      mode,
+      existingRoomCode,
+      joinedAt: newEntry.joinedAt,
+    },
     myRegion,
     me,
     myReach,
@@ -517,9 +661,16 @@ export async function updateLobbyRoomCode(userId: string, roomCode: string | nul
     where: { userId, status: LobbyEntryStatus.WAITING },
     orderBy: { joinedAt: "desc" },
   });
-  if (!entry) throw new Error("You're not in the queue.");
+  if (!entry)
+    throw new LocalizedError({
+      en: "You're not in the queue.",
+      es: "No estás en la cola.",
+    });
   if (roomCode && !ROOM_CODE_PATTERN.test(roomCode)) {
-    throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
+    throw new LocalizedError({
+      en: "Room code must be exactly 5 characters (A-Z or 0-9)",
+      es: "El código de sala debe tener exactamente 5 caracteres (A-Z o 0-9)",
+    });
   }
   await prisma.ratingLobbyEntry.update({
     where: { id: entry.id },
@@ -583,7 +734,11 @@ export async function retryPairForWaitingUser(userId: string) {
   try {
     const now = new Date();
     const entry = await prisma.ratingLobbyEntry.findFirst({
-      where: { userId, status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
+      where: {
+        userId,
+        status: LobbyEntryStatus.WAITING,
+        expiresAt: { gt: now },
+      },
     });
     if (!entry) return;
 
@@ -594,8 +749,10 @@ export async function retryPairForWaitingUser(userId: string) {
           region: true,
           maxMatchDistanceKm: true,
           rating: true,
+          randittoRating: true,
           maxRatingGap: true,
           gamesPlayed: true,
+          randittoGamesPlayed: true,
           rematchCooldownHours: true,
           wiredConnection: true,
           requireWiredOpponent: true,
@@ -605,12 +762,16 @@ export async function retryPairForWaitingUser(userId: string) {
       getBlockedEitherWayIds(userId),
       getRecentOpponentTimestamps(userId),
     ]);
-    // Region is required to join in the first place, so this shouldn't be
-    // reachable — guard anyway rather than passing null into region matching.
-    if (!me.region) return;
+    // Region gates joining only when the instance matches on distance; where
+    // it does not, a player without one is perfectly matchable.
+    if (DISTANCE_MATCHMAKING && !me.region) return;
 
-    const myReach = getRegionsWithinDistance(me.region, me.maxMatchDistanceKm);
-    const myEffectiveGap = effectiveMaxRatingGap(me);
+    const myReach = regionReachFilter(me.region, me.maxMatchDistanceKm);
+    // This is the retry path for someone already sitting in the queue, so
+    // their own wait is exactly what the provisional cap should widen
+    // against — without it a provisional player searched with the strict
+    // ±300 band forever, which is the case the widening exists to fix.
+    const myEffectiveGap = effectiveMaxRatingGap(me, Date.now() - entry.joinedAt.getTime());
 
     const paired = await attemptPairing({
       userId,
@@ -618,6 +779,7 @@ export async function retryPairForWaitingUser(userId: string) {
         id: entry.id,
         userId,
         isPracticing: entry.isPracticing,
+        mode: entry.mode,
         existingRoomCode: entry.existingRoomCode,
         joinedAt: entry.joinedAt,
       },
@@ -651,6 +813,10 @@ export async function createDirectMatch(
   pairingMethod: PairingMethod,
   player1IsPracticing = false,
   player2IsPracticing = false,
+  // Carried for the same reason the practice flags are: a rematch out of a
+  // randitto set has to stay randitto, or accepting one would drop both
+  // players into an ordinary rated match without either of them asking.
+  mode: MatchMode = MatchMode.STANDARD,
 ) {
   const now = new Date();
   const match = await tx.ratingMatch.create({
@@ -662,6 +828,7 @@ export async function createDirectMatch(
       expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
       player1IsPracticing,
       player2IsPracticing,
+      mode,
     },
   });
 
@@ -671,6 +838,7 @@ export async function createDirectMatch(
       status: LobbyEntryStatus.PAIRED,
       pairingMethod,
       isPracticing: player2IsPracticing,
+      mode,
       expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
     },
   });
@@ -680,6 +848,7 @@ export async function createDirectMatch(
       status: LobbyEntryStatus.PAIRED,
       pairingMethod,
       isPracticing: player1IsPracticing,
+      mode,
       matchId: match.id,
       pairedEntryId: entry2.id,
       expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
@@ -705,13 +874,20 @@ type MatchCandidate = {
   requireWiredOpponent: boolean;
 };
 
-function canMatch(a: MatchCandidate, b: MatchCandidate, lastMatchAt: Date | undefined) {
-  if (!a.region || !b.region) return false;
+function canMatch(
+  a: MatchCandidate,
+  b: MatchCandidate,
+  lastMatchAt: Date | undefined,
+  // How long each side has been queued, so a provisional player's rating-gap
+  // cap can relax the longer the strict band has failed them (see
+  // effectiveMaxRatingGap). Defaults to 0 = the original strict behaviour.
+  waits: { a: number; b: number } = { a: 0, b: 0 },
+) {
   return (
-    getRegionsWithinDistance(a.region, a.maxMatchDistanceKm).includes(b.region) &&
-    getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region) &&
-    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(a)) &&
-    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(b)) &&
+    regionReachAllows(a.region, a.maxMatchDistanceKm, b.region) &&
+    regionReachAllows(b.region, b.maxMatchDistanceKm, a.region) &&
+    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(a, waits.a)) &&
+    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(b, waits.b)) &&
     rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours) &&
     wiredRequirementAllows(a, b)
   );
@@ -757,6 +933,9 @@ export async function sweepLobbyPairing(maxPairs = 50) {
     },
   });
 
+  // One clock for the whole sweep so every pair is judged against the same
+  // instant rather than drifting as the loop runs.
+  const sweepNow = Date.now();
   const used = new Set<string>();
   for (let i = 0; i < waiting.length && paired < maxPairs; i++) {
     const a = waiting[i];
@@ -767,11 +946,28 @@ export async function sweepLobbyPairing(maxPairs = 50) {
       const pairKey = blockPairKey(a.userId, b.userId);
       if (
         used.has(b.id) ||
+        // Modes are separate queues. Without this the sweep paired a randitto
+        // waiter with a standard one and, because the create below left mode
+        // unset, produced a STANDARD match — so somebody who asked for
+        // assigned fighters got an ordinary rated set instead. Join-time
+        // pairing had this check from the start; this path is the one that
+        // runs for anyone still waiting after it, which is exactly the people
+        // a thinly-used new mode consists of.
+        a.mode !== b.mode ||
         blockedPairs.has(pairKey) ||
-        !canMatch(a.user, b.user, recentMatchPairs.get(pairKey)) ||
+        !canMatch(a.user, b.user, recentMatchPairs.get(pairKey), {
+          a: sweepNow - a.joinedAt.getTime(),
+          b: sweepNow - b.joinedAt.getTime(),
+        }) ||
         !practiceMatchAllowed(
-          { isPracticing: a.isPracticing, avoidPracticeOpponents: a.user.avoidPracticeOpponents },
-          { isPracticing: b.isPracticing, avoidPracticeOpponents: b.user.avoidPracticeOpponents },
+          {
+            isPracticing: a.isPracticing,
+            avoidPracticeOpponents: a.user.avoidPracticeOpponents,
+          },
+          {
+            isPracticing: b.isPracticing,
+            avoidPracticeOpponents: b.user.avoidPracticeOpponents,
+          },
         )
       )
         continue;
@@ -781,8 +977,14 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           // Claim both atomically so a join happening at the same moment can't
           // grab one of them out from under this sweep.
           const claim = await tx.ratingLobbyEntry.updateMany({
-            where: { id: { in: [a.id, b.id] }, status: LobbyEntryStatus.WAITING },
-            data: { status: LobbyEntryStatus.PAIRED, pairingMethod: PairingMethod.AUTO },
+            where: {
+              id: { in: [a.id, b.id] },
+              status: LobbyEntryStatus.WAITING,
+            },
+            data: {
+              status: LobbyEntryStatus.PAIRED,
+              pairingMethod: PairingMethod.AUTO,
+            },
           });
           if (claim.count !== 2) return null;
 
@@ -795,6 +997,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
               expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
               player1IsPracticing: a.isPracticing,
               player2IsPracticing: b.isPracticing,
+              mode: a.mode,
               ...resolvePrefilledRoom(a, b),
             },
           });
@@ -828,17 +1031,26 @@ export async function cancelLobbyEntry(userId: string) {
 
 export async function setMatchRoomCode(userId: string, matchId: string, roomCode: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
   // Room hosting is assigned, not first-come — only the derived host has a
   // code to enter, the other side just reads it. See getRoomHostId.
   if (getRoomHostId(match) !== userId) {
-    throw new Error("Only the assigned host can set the room code");
+    throw new LocalizedError({
+      en: "Only the assigned host can set the room code",
+      es: "Solo el anfitrión asignado puede poner el código de sala",
+    });
   }
   if (!/^[A-Z0-9]{5}$/.test(roomCode)) {
-    throw new Error("Room code must be exactly 5 characters (A-Z or 0-9)");
+    throw new LocalizedError({
+      en: "Room code must be exactly 5 characters (A-Z or 0-9)",
+      es: "El código de sala debe tener exactamente 5 caracteres (A-Z o 0-9)",
+    });
   }
   await prisma.ratingMatch.update({
     where: { id: matchId },

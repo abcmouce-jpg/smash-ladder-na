@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { savePushSubscriptionAction } from "@/app/settings/actions";
 import { getPushSubscription, isPushSupported, subscribeToPush } from "@/lib/push-client";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const DISMISSED_KEY = "pushNudgeDismissed";
 
@@ -45,7 +46,7 @@ export function PushNudgeBanner({ lang }: { lang: Lang }) {
     setBusy(true);
     setError(null);
     try {
-      const result = await subscribeToPush();
+      const result = await subscribeToPush(lang);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -59,7 +60,12 @@ export function PushNudgeBanner({ lang }: { lang: Lang }) {
       if (!saved.success) throw new Error("Failed to save subscription");
       dismiss();
     } catch {
-      setError(lang === "es" ? "Algo salió mal — inténtalo de nuevo." : "Something went wrong — try again.");
+      setError(
+        tr(lang, {
+          en: "Something went wrong — try again.",
+          es: "Algo salió mal — inténtalo de nuevo.",
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -72,24 +78,27 @@ export function PushNudgeBanner({ lang }: { lang: Lang }) {
       <BellRing className="mt-0.5 size-4 shrink-0 text-primary" />
       <div className="min-w-0 flex-1">
         <p>
-          {lang === "es"
-            ? "Activa las notificaciones para no perderte tu emparejamiento si cierras esta pestaña o bloqueas tu teléfono."
-            : "Turn on notifications so you don't miss your match if you close this tab or lock your phone."}
+          {tr(lang, {
+            en: "Turn on notifications so you don't miss your match if you close this tab or lock your phone.",
+            es: "Activa las notificaciones para no perderte tu emparejamiento si cierras esta pestaña o bloqueas tu teléfono.",
+          })}
         </p>
         {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
         <div className="mt-2 flex items-center gap-2">
           <Button type="button" size="sm" onClick={enable} disabled={busy}>
-            {busy ? (lang === "es" ? "Activando…" : "Enabling…") : lang === "es" ? "Activar notificaciones" : "Enable notifications"}
+            {busy
+              ? tr(lang, { en: "Enabling…", es: "Activando…" })
+              : tr(lang, { en: "Enable notifications", es: "Activar notificaciones" })}
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={dismiss} disabled={busy}>
-            {lang === "es" ? "Ahora no" : "Not now"}
+            {tr(lang, { en: "Not now", es: "Ahora no" })}
           </Button>
         </div>
       </div>
       <button
         type="button"
         onClick={dismiss}
-        aria-label={lang === "es" ? "Cerrar" : "Dismiss"}
+        aria-label={tr(lang, { en: "Dismiss", es: "Cerrar" })}
         className="shrink-0 text-muted-foreground hover:text-foreground"
       >
         <X className="size-4" />

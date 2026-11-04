@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { Activity, Users } from "lucide-react";
+import { Activity, Dices, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { getFriendliesPosts } from "@/lib/home-feed";
@@ -24,9 +24,11 @@ import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
+import { PUBLISHES_SPANISH, SITE_NAME } from "@/lib/site";
+import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Smash Ladder NA — Liga clasificatoria",
+  title: `${SITE_NAME} — Liga clasificatoria`,
   description: "Liga clasificatoria y emparejamiento de Norteamérica para Smash, en español.",
   alternates: { languages: { "en-US": "/" } },
 };
@@ -37,6 +39,8 @@ export const metadata: Metadata = {
 // any visit here, so navigating onward (via the header nav, hero CTAs, etc.)
 // stays in Spanish instead of snapping back to English on the next page.
 export default async function HomeEs() {
+  if (!PUBLISHES_SPANISH) notFound();
+
   const session = await auth();
   const user = session?.user;
 
@@ -112,8 +116,8 @@ export default async function HomeEs() {
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
           {ratingVisible ? (
             <>
-              Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en{" "}
-              {me.gamesPlayed} partidas.
+              Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span>{" "}
+              en {me.gamesPlayed} partidas.
             </>
           ) : (
             <RatingHidden gamesPlayed={me.gamesPlayed} lang="es" />
@@ -129,6 +133,12 @@ export default async function HomeEs() {
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
             <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
+          </span>
+        )}
+        {stats.randittoPlayingNow > 0 && (
+          <span className="flex items-center gap-1.5 tabular-nums">
+            <Dices className="size-3.5" />
+            <span className="font-medium text-foreground">{stats.randittoPlayingNow}</span> en randitto
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">

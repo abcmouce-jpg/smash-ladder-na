@@ -9,7 +9,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
+// Every language the site has, each named in itself — a picker that labels
+// Each language is named in itself — "Español", not "Spanish".
 const LANGUAGES = [
   { value: "en", label: "English", short: "EN" },
   { value: "es", label: "Español", short: "ES" },
@@ -20,16 +24,7 @@ const LANGUAGES = [
 // row. The current choice stays readable on the trigger (and checked in the
 // list) rather than hidden behind the menu. The server actions are bound by
 // the (server) header and passed down so this stays a dumb client component.
-export function LanguageToggle({
-  lang,
-  enAction,
-  esAction,
-}: {
-  lang: "en" | "es";
-  enAction: () => Promise<void>;
-  esAction: () => Promise<void>;
-}) {
-  const actions = { en: enAction, es: esAction };
+export function LanguageToggle({ lang, actions }: { lang: Lang; actions: Record<Lang, () => Promise<void>> }) {
   const current = LANGUAGES.find((option) => option.value === lang)!;
 
   return (
@@ -40,8 +35,8 @@ export function LanguageToggle({
           variant="ghost"
           size="sm"
           className="group text-muted-foreground hover:text-foreground"
-          aria-label={lang === "es" ? "Idioma" : "Language"}
-          title={lang === "es" ? "Idioma" : "Language"}
+          aria-label={tr(lang, { en: "Language", es: "Idioma" })}
+          title={tr(lang, { en: "Language", es: "Idioma" })}
         >
           {current.short}
           <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />

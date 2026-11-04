@@ -1,6 +1,9 @@
 "use client";
 
-export function TypingIndicator({ opponentName, lang = "en" }: { opponentName: string; lang?: "en" | "es" }) {
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
+
+export function TypingIndicator({ opponentName, lang = "en" }: { opponentName: string; lang?: Lang }) {
   return (
     <div className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground">
       <span className="flex items-center gap-0.5">
@@ -8,7 +11,12 @@ export function TypingIndicator({ opponentName, lang = "en" }: { opponentName: s
         <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
         <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
       </span>
-      <span>{lang === "es" ? `${opponentName} está escribiendo…` : `${opponentName} is typing…`}</span>
+      <span>
+        {tr(lang, {
+          en: `${opponentName} is typing…`,
+          es: `${opponentName} está escribiendo…`,
+        })}
+      </span>
     </div>
   );
 }

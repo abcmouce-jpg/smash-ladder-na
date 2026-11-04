@@ -17,6 +17,7 @@ import { ProfileCharactersSection } from "./profile-characters";
 import { ProfileHeadToHeadSection } from "./profile-headtohead";
 import { ProfileSeasonsSection } from "./profile-seasons";
 import { ProfileMatchHistorySection } from "./profile-match-history";
+import { tr } from "@/lib/lang";
 
 // The profile's sections, driven purely by the `?tab=` query param so
 // every view stays server-rendered and deep-linkable — no client tab state.
@@ -67,7 +68,7 @@ export default async function PlayerProfilePage({
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
 
-  const tabLabel = (label: string, es: string) => (lang === "es" ? es : label);
+  const tabLabel = (en: string, es: string) => tr(lang, { en, es });
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
@@ -95,8 +96,16 @@ export default async function PlayerProfilePage({
             label: tabLabel("Match History", "Historial de partidas"),
             active: tab === "matches",
           },
-          { href: "?tab=characters", label: tabLabel("Characters", "Personajes"), active: tab === "characters" },
-          { href: "?tab=headtohead", label: tabLabel("Head 2 Heads", "Cara a Cara"), active: tab === "headtohead" },
+          {
+            href: "?tab=characters",
+            label: tabLabel("Characters", "Personajes"),
+            active: tab === "characters",
+          },
+          {
+            href: "?tab=headtohead",
+            label: tabLabel("Head 2 Heads", "Cara a Cara"),
+            active: tab === "headtohead",
+          },
           { href: "?tab=seasons", label: tabLabel("Seasons", "Temporadas"), active: tab === "seasons" },
         ]}
       />
@@ -111,6 +120,8 @@ export default async function PlayerProfilePage({
             rating={player.rating}
             gamesPlayed={player.gamesPlayed}
             practiceRating={player.practiceRating}
+            randittoRating={player.randittoRating}
+            randittoGamesPlayed={player.randittoGamesPlayed}
             practiceGamesPlayed={player.practiceGamesPlayed}
             isOwnProfile={isOwnProfile}
             isModerator={isModerator}
@@ -200,11 +211,14 @@ export default async function PlayerProfilePage({
 
       {isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
-          <h2 className="text-sm font-medium text-destructive">{lang === "es" ? "Zona de peligro" : "Danger zone"}</h2>
+          <h2 className="text-sm font-medium text-destructive">
+            {tr(lang, { en: "Danger zone", es: "Zona de peligro" })}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos."
-              : "Deletes your username, avatar, and email. Match history stays, anonymized, so other players' win/loss records stay accurate."}
+            {tr(lang, {
+              en: "Deletes your username, avatar, and email. Match history stays, anonymized, so other players' win/loss records stay accurate.",
+              es: "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos.",
+            })}
           </p>
           <div className="mt-3">
             <DeleteAccountButton action={deleteAccountAction} lang={lang} />

@@ -3,16 +3,24 @@ import { config } from "dotenv";
 
 // Same lookup order as prisma.config.ts (and Next.js), keyed off NODE_ENV: the
 // per-environment files are read before the shared `.env` so the first one to
-// define a key wins. In the Next runtime this is a no-op for values the
-// framework already populated, but scripts run directly through `tsx` import
-// this file first and need it to pick the local `.env.development` over the
-// production credentials in `.env`. Keying off NODE_ENV is also what keeps the
-// checked-in `.env.development` out of a deployed build, where NODE_ENV is
-// `production`. Pass DATABASE_URL inline to target a specific database from a
-// script.
-const nodeEnv = process.env.NODE_ENV ?? "development";
-for (const file of [`.env.${nodeEnv}.local`, ".env.local", `.env.${nodeEnv}`, ".env"]) {
-  if (existsSync(file)) config({ path: file });
+// define a key wins. Scripts run directly through `tsx` import this file first
+// and need it to pick the local `.env.development` over the production
+// credentials in `.env`. Keying off NODE_ENV is also what keeps the checked-in
+// `.env.development` out of a deployed build, where NODE_ENV is `production`.
+// Pass DATABASE_URL inline to target a specific database from a script.
+//
+// Skipped under Next: the framework has already populated process.env by the
+// time this module runs, so the lookup only ever mattered for scripts started
+// through tsx. Guarding it also keeps the loop out of the server bundle —
+// since 16.4 Turbopack treats a dynamic fs path here as a build error, not a
+// warning ("Dynamic filesystem access causes tracing of the whole project"),
+// because it would otherwise trace every source file and the public folder
+// into the deployed server code. turbopackIgnore marks the call as deliberate.
+if (!process.env.NEXT_RUNTIME) {
+  const nodeEnv = process.env.NODE_ENV ?? "development";
+  for (const file of [`.env.${nodeEnv}.local`, ".env.local", `.env.${nodeEnv}`, ".env"]) {
+    if (existsSync(/*turbopackIgnore: true*/ file)) config({ path: file });
+  }
 }
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";

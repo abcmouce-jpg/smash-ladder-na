@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { PUBLISHES_SPANISH } from "@/lib/site";
 
 // Forwards the request path to Server Components as a header — layout.tsx
 // reads it to decide whether to render the normal site chrome (header,
@@ -18,7 +19,7 @@ export function proxy(request: NextRequest) {
   // link stays in Spanish instead of snapping back to English on the very
   // next page — a Server Component can't set cookies during render, so this
   // is the one place that can do it without turning /es into a route handler.
-  if (request.nextUrl.pathname === "/es") {
+  if (PUBLISHES_SPANISH && request.nextUrl.pathname === "/es") {
     response.cookies.set("lang", "es", { maxAge: 60 * 60 * 24 * 365, path: "/", sameSite: "lax" });
   }
 
@@ -33,6 +34,17 @@ export function proxy(request: NextRequest) {
   const ref = request.nextUrl.searchParams.get("ref");
   if (ref) {
     response.cookies.set("ref", ref, { maxAge: 60 * 60 * 24 * 30, path: "/", sameSite: "lax" });
+  }
+
+  // Campaign attribution — same mechanism, different axis: `?src=<tag>`
+  // records *where a post went up* rather than which player shared it (see
+  // lib/campaigns.ts). Kept as its own cookie so a link carrying both still
+  // credits the referrer and the campaign independently. Shorter window than
+  // referrals: this answers "did that post work", and a signup three weeks
+  // later is no longer evidence about the post.
+  const src = request.nextUrl.searchParams.get("src");
+  if (src) {
+    response.cookies.set("src", src, { maxAge: 60 * 60 * 24 * 7, path: "/", sameSite: "lax" });
   }
 
   return response;

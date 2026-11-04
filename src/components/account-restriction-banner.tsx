@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getAccountRestriction } from "@/lib/account";
 import { getLang } from "@/lib/i18n";
 import { DISCORD_SERVER_URL } from "@/lib/links";
+import { tr } from "@/lib/lang";
 
 // Site-wide notice for a banned or suspended account.
 //
@@ -19,25 +20,28 @@ export async function AccountRestrictionBanner() {
   const [restriction, lang] = await Promise.all([getAccountRestriction(session.user.id), getLang()]);
   if (!restriction) return null;
 
-  const es = lang === "es";
   const banned = restriction.status === "BANNED";
   const Icon = banned ? Ban : Clock;
 
   const title = banned
-    ? es
-      ? "Tu cuenta está suspendida permanentemente"
-      : "Your account has been banned"
-    : es
-      ? "Tu cuenta está restringida temporalmente"
-      : "Your account is temporarily restricted";
+    ? tr(lang, {
+        en: "Your account has been banned",
+        es: "Tu cuenta está suspendida permanentemente",
+      })
+    : tr(lang, {
+        en: "Your account is temporarily restricted",
+        es: "Tu cuenta está restringida temporalmente",
+      });
 
   const body = banned
-    ? es
-      ? "No puedes entrar a la sala, jugar partidas clasificatorias ni publicar. Esto es una decisión de moderación, no un error del sitio."
-      : "You can't join the lobby, play ranked matches, or post. This is a moderation decision, not a site error."
-    : es
-      ? "Algunas funciones están limitadas por ahora. Esto es una decisión de moderación, no un error del sitio."
-      : "Some features are limited for now. This is a moderation decision, not a site error.";
+    ? tr(lang, {
+        en: "You can't join the lobby, play ranked matches, or post. This is a moderation decision, not a site error.",
+        es: "No puedes entrar a la sala, jugar partidas clasificatorias ni publicar. Esto es una decisión de moderación, no un error del sitio.",
+      })
+    : tr(lang, {
+        en: "Some features are limited for now. This is a moderation decision, not a site error.",
+        es: "Algunas funciones están limitadas por ahora. Esto es una decisión de moderación, no un error del sitio.",
+      });
 
   return (
     <div className="border-b border-destructive/30 bg-destructive/10">
@@ -48,7 +52,7 @@ export async function AccountRestrictionBanner() {
           <p className="mt-1 text-muted-foreground">{body}</p>
           {restriction.until && (
             <p className="mt-1 text-muted-foreground">
-              {es ? "Hasta: " : "Until: "}
+              {tr(lang, { en: "Until: ", es: "Hasta: " })}
               <time dateTime={restriction.until.toISOString()}>
                 {restriction.until.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
               </time>
@@ -56,12 +60,15 @@ export async function AccountRestrictionBanner() {
           )}
           {restriction.reason && (
             <p className="mt-1 break-words text-muted-foreground">
-              {es ? "Motivo: " : "Reason: "}
+              {tr(lang, { en: "Reason: ", es: "Motivo: " })}
               <span className="text-foreground">{restriction.reason}</span>
             </p>
           )}
           <p className="mt-1 text-muted-foreground">
-            {es ? "¿Crees que es un error? Contáctanos en " : "Think this is a mistake? Reach a mod on "}
+            {tr(lang, {
+              en: "Think this is a mistake? Reach a mod on ",
+              es: "¿Crees que es un error? Contáctanos en ",
+            })}
             <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
               Discord
             </a>

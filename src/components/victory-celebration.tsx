@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Trophy } from "lucide-react";
 import { playTierUpChime, playVictoryChime } from "@/lib/sound";
 import { formatRating } from "@/lib/rating-format";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const CONFETTI_COLORS = ["#f43f5e", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"];
 
@@ -83,7 +85,7 @@ export function VictoryCelebration({
   ratingAfter: number;
   tierUp: boolean;
   tierName?: string;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const displayRating = useCountUp(ratingBefore, ratingAfter);
   // Matched to the count-up's rounded end value (and the trail elsewhere) so
@@ -102,17 +104,16 @@ export function VictoryCelebration({
       <div className="victory-pop relative flex flex-col items-center gap-1">
         <Trophy className="size-6 text-primary" />
         <p className="text-xl font-bold tracking-tight text-primary">
-          {lang === "es"
-            ? tierUp && tierName
-              ? `¡Subiste de rango — ${tierName}!`
-              : "¡Victoria!"
-            : tierUp && tierName
-              ? `Tier up — ${tierName}!`
-              : "Victory!"}
+          {tierUp && tierName
+            ? tr(lang, {
+                en: `Tier up — ${tierName}!`,
+                es: `¡Subiste de rango — ${tierName}!`,
+              })
+            : tr(lang, { en: "Victory!", es: "¡Victoria!" })}
         </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums">{displayRating}</p>
         <p className="text-sm font-medium tabular-nums text-primary">
-          {lang === "es" ? `+${delta} de clasificación` : `+${delta} rating`}
+          {tr(lang, { en: `+${delta} rating`, es: `+${delta} de clasificación` })}
         </p>
       </div>
     </div>

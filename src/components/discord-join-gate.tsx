@@ -5,6 +5,8 @@ import { DiscordIcon } from "@/components/discord-icon";
 import { signOut } from "@/auth";
 import { DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/site";
+import { tr } from "@/lib/lang";
 
 // Rendered by layout.tsx in place of the page itself for an already-signed-in
 // session that isn't (or no longer is) in the Discord server — the same
@@ -20,16 +22,20 @@ export async function DiscordJoinGate() {
         <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
           <DiscordIcon className="size-10 text-[#5865F2]" />
           <h1 className="text-xl font-semibold tracking-tight">
-            {lang === "es" ? "Únete a nuestro Discord para continuar" : "Join our Discord to continue"}
+            {tr(lang, {
+              en: "Join our Discord to continue",
+              es: "Únete a nuestro Discord para continuar",
+            })}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Smash Ladder NA ahora requiere estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta."
-              : "Smash Ladder NA now requires being in our Discord server — it's how staff can actually reach you if something goes wrong with a match or an account."}
+            {tr(lang, {
+              en: `${SITE_NAME} now requires being in our Discord server — it's how staff can actually reach you if something goes wrong with a match or an account.`,
+              es: `${SITE_NAME} ahora requiere estar en nuestro servidor de Discord — es como el staff puede ayudarte si algo sale mal con una partida o una cuenta.`,
+            })}
           </p>
           <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer" className="w-full">
             <Button className="w-full gap-2">
-              {lang === "es" ? "Unirse al Discord" : "Join the Discord"}
+              {tr(lang, { en: "Join the Discord", es: "Unirse al Discord" })}
               <ExternalLink className="size-4" />
             </Button>
           </a>
@@ -42,7 +48,10 @@ export async function DiscordJoinGate() {
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- intentional: see comment above */}
           <a href="/" className="w-full">
             <Button type="button" variant="outline" className="w-full">
-              {lang === "es" ? "Ya me uní — comprobar de nuevo" : "I've joined — check again"}
+              {tr(lang, {
+                en: "I've joined — check again",
+                es: "Ya me uní — comprobar de nuevo",
+              })}
             </Button>
           </a>
           <form
@@ -52,7 +61,7 @@ export async function DiscordJoinGate() {
             }}
           >
             <button type="submit" className="text-xs text-muted-foreground underline">
-              {lang === "es" ? "Cerrar sesión" : "Sign out"}
+              {tr(lang, { en: "Sign out", es: "Cerrar sesión" })}
             </button>
           </form>
         </CardContent>

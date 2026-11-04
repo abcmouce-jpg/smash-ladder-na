@@ -4,11 +4,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { RatingAlgorithm } from "@/generated/prisma/enums";
-
-const ALGORITHM_LABEL: Record<RatingAlgorithm, string> = {
-  ELO: "Elo",
-  GLICKO2: "Glicko-2",
-};
+import { RATING_ALGORITHM_LABEL as ALGORITHM_LABEL } from "@/lib/rating-algorithm";
 
 export function EndSeasonButton({
   action,
@@ -70,6 +66,7 @@ export function EndSeasonButton({
           className="h-7 rounded-lg border border-border bg-background px-1.5 text-xs text-foreground outline-none focus-visible:border-ring"
         >
           <option value={RatingAlgorithm.GLICKO2}>Glicko-2</option>
+          <option value={RatingAlgorithm.SMASHMATE}>Smashmate (flat K=32 Elo)</option>
           <option value={RatingAlgorithm.ELO}>Elo (legacy)</option>
         </select>
         <Button type="submit" variant="destructive" size="sm">

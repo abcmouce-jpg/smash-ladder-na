@@ -11,10 +11,12 @@ import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 import { StagePickHighlight } from "@/components/stage-pick-highlight";
 import { getLang } from "@/lib/i18n";
 import { bothCharactersLocked } from "@/lib/match-games";
-import { GAME_ONE_STAGES, COUNTERPICK_STAGES, stageImagePath } from "@/lib/stages";
+import { GAME_ONE_STAGES, COUNTERPICK_STAGES, stageImagePath, stageLabel } from "@/lib/stages";
 import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
 import { RatingHidden } from "@/components/rating-hidden";
+import { tr } from "@/lib/lang";
+import { USES_REGIONS } from "@/lib/site";
 
 // How long the picked stage stays highlighted on stream once it's picked,
 // and how long the server keeps rendering the highlight card — the window
@@ -205,7 +207,11 @@ export default async function StreamOverlayPage({
   // stage has been picked yet, show the stage pool with each side's bans.
   // Strikes are recorded in order — actorA's share first, then actorB's —
   // so a stage's index in struckStages tells us who banned it.
-  const stageBanInProgress = !!currentGame && bothCharactersLocked(currentGame) && !currentGame.finalStage;
+  const stageBanInProgress =
+    !!currentMatch &&
+    !!currentGame &&
+    bothCharactersLocked(currentGame, currentMatch.mode) &&
+    !currentGame.finalStage;
   const stagePool = currentGame?.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
   const strikeOwner = (stage: string): "user" | "opponent" | null => {
     if (!currentGame) return null;
@@ -237,9 +243,14 @@ export default async function StreamOverlayPage({
         <div className="absolute left-8 top-8">
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {lang === "es" ? "Clas." : "Rating"}
+              {tr(lang, { en: "Rating", es: "Clas." })}
             </span>
-            <RankBadge rating={user.rating} gamesPlayed={user.gamesPlayed} className="text-md mx-3 px-3 py-1" />
+            <RankBadge
+              rating={user.rating}
+              gamesPlayed={user.gamesPlayed}
+              className="text-md mx-3 px-3 py-1"
+              lang={lang}
+            />
             <div className="mt-1 flex items-baseline gap-4">
               <Trophy className="size-8 text-white drop-shadow-lg" />
               <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">
@@ -249,18 +260,21 @@ export default async function StreamOverlayPage({
             <div className="mt-1.5 flex items-center gap-4">
               {rank && (
                 <span className="text-2xl text-white/50">
-                  {lang === "es" ? `Rango #${rank}/${totalPlayers}` : `Rank #${rank}/${totalPlayers}`}
+                  {tr(lang, {
+                    en: `Rank #${rank}/${totalPlayers}`,
+                    es: `Rango #${rank}/${totalPlayers}`,
+                  })}
                 </span>
               )}
             </div>
 
             <div className="text-white mt-1.5 flex items-center gap-5 text-xl">
-              {lang === "es" ? "Hoy:" : "Today:"}
+              {tr(lang, { en: "Today:", es: "Hoy:" })}
               <span className="text-emerald-400 font-semibold">{dailyStats.totalWins}W</span>
               <span className="text-red-400 font-semibold">{dailyStats.totalLosses}L</span>
             </div>
 
-            {user.region && (
+            {USES_REGIONS && user.region && (
               <div className="mt-2 flex items-center gap-2 text-xl">
                 <MapPin className="size-5 text-white/50" />
                 <span className="text-white/50">{user.region}</span>
@@ -281,7 +295,7 @@ export default async function StreamOverlayPage({
           <>
             {/* Best of 5 label */}
             <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
-              {lang === "es" ? "Mejor de 5" : "Best of 5"}
+              {tr(lang, { en: "Best of 5", es: "Mejor de 5" })}
             </span>
 
             {/* Scoreboard */}
@@ -352,12 +366,12 @@ export default async function StreamOverlayPage({
         <div className="absolute right-8" style={{ top: "calc(2.5rem + 96px)" }}>
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              {lang === "es" ? "Partidas recientes" : "Recent matches"}
+              {tr(lang, { en: "Recent matches", es: "Partidas recientes" })}
             </span>
             <div className="mt-3 flex flex-col gap-2">
               {recentMatches.length === 0 ? (
                 <span className="text-lg text-white/40">
-                  {lang === "es" ? "Aún no hay partidas" : "No matches yet"}
+                  {tr(lang, { en: "No matches yet", es: "Aún no hay partidas" })}
                 </span>
               ) : (
                 recentMatches.map((match) => (
@@ -367,7 +381,7 @@ export default async function StreamOverlayPage({
                         match.won ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
-                      {match.won ? (lang === "es" ? "V" : "W") : lang === "es" ? "D" : "L"}
+                      {match.won ? tr(lang, { en: "W", es: "V" }) : tr(lang, { en: "L", es: "D" })}
                     </span>
                     <span className="min-w-0 max-w-48 truncate text-white/80">{match.opponent.username}</span>
                     <span
@@ -400,9 +414,10 @@ export default async function StreamOverlayPage({
           <StagePickHighlight autoHide={showPickHighlight} holdMs={PICK_HIGHLIGHT_HOLD_MS}>
             <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-4 shadow-2xl backdrop-blur-sm">
               <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-                {lang === "es"
-                  ? `Juego ${currentGame.gameNumber} — ${pickedStage ? "Escenario elegido" : "Elección de escenario"}`
-                  : `Game ${currentGame.gameNumber} — ${pickedStage ? "Stage picked" : "Stage pick/ban"}`}
+                {tr(lang, {
+                  en: `Game ${currentGame.gameNumber} — ${pickedStage ? "Stage picked" : "Stage pick/ban"}`,
+                  es: `Juego ${currentGame.gameNumber} — ${pickedStage ? "Escenario elegido" : "Elección de escenario"}`,
+                })}
               </span>
               <div className="mt-3 flex gap-2">
                 {stagePool.map((stage) => {
@@ -417,11 +432,17 @@ export default async function StreamOverlayPage({
                       }`}
                     >
                       {imgPath && (
-                        <Image src={`/stages/${imgPath}`} alt={stage} fill className="object-cover" sizes="144px" />
+                        <Image
+                          src={`/stages/${imgPath}`}
+                          alt={stageLabel(stage, lang)}
+                          fill
+                          className="object-cover"
+                          sizes="144px"
+                        />
                       )}
                       {picked && (
                         <span className="absolute inset-x-0 top-0 z-30 bg-emerald-500/90 px-1 py-0.5 text-center text-[10px] font-bold tracking-wider text-white uppercase">
-                          {lang === "es" ? "Elegido" : "Picked"}
+                          {tr(lang, { en: "Picked", es: "Elegido" })}
                         </span>
                       )}
                       {owner && (
@@ -437,7 +458,7 @@ export default async function StreamOverlayPage({
                         </div>
                       )}
                       <span className="absolute inset-x-0 bottom-0 z-20 truncate bg-black/70 px-1 py-0.5 text-center text-xs font-medium text-white">
-                        {stage}
+                        {stageLabel(stage, lang)}
                       </span>
                     </div>
                   );

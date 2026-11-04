@@ -31,6 +31,7 @@ import {
 } from "@/lib/rank-tier";
 import { formatRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // The overview shows only the newest few matches so it stays a glance; the full
 // — filterable, paginated — history lives on its own Match History tab.
@@ -42,13 +43,33 @@ const RECENT_MATCH_HISTORY_LIMIT = 10;
 // reasoning as the rank-tier description lookup in rank-tier-list.tsx. The
 // rating-threshold achievements pull their number back out of the already-
 // computed English description instead of re-importing minRatingFor.
-const ACHIEVEMENTS_ES: Record<string, { label: string; description: string }> = {
-  "first-win": { label: "Primera victoria", description: "Gana tu primera partida rankeada." },
-  "ten-wins": { label: "10 victorias", description: "Gana 10 partidas rankeadas." },
-  "fifty-wins": { label: "50 victorias", description: "Gana 50 partidas rankeadas." },
-  veteran: { label: "3+ temporadas jugadas", description: "Juega en 3 o más temporadas del ladder." },
-  competitor: { label: "Entraste a un torneo", description: "Inscríbete a un torneo a través del sitio." },
-  "jack-of-trades": { label: "Todoterreno", description: "Gana una partida usando un personaje distinto cada juego." },
+type AchievementText = { label: string; description: string };
+
+const ACHIEVEMENTS_ES: Record<string, AchievementText> = {
+  "first-win": {
+    label: "Primera victoria",
+    description: "Gana tu primera partida rankeada.",
+  },
+  "ten-wins": {
+    label: "10 victorias",
+    description: "Gana 10 partidas rankeadas.",
+  },
+  "fifty-wins": {
+    label: "50 victorias",
+    description: "Gana 50 partidas rankeadas.",
+  },
+  veteran: {
+    label: "3+ temporadas jugadas",
+    description: "Juega en 3 o más temporadas del ladder.",
+  },
+  competitor: {
+    label: "Entraste a un torneo",
+    description: "Inscríbete a un torneo a través del sitio.",
+  },
+  "jack-of-trades": {
+    label: "Todoterreno",
+    description: "Gana una partida usando un personaje distinto cada juego.",
+  },
   "mirror-match": {
     label: "Espejo",
     description: "Gana una partida en la que tú y tu rival usaron exactamente el mismo personaje todo el tiempo.",
@@ -58,23 +79,38 @@ const ACHIEVEMENTS_ES: Record<string, { label: string; description: string }> = 
     description:
       "Usa el mismo personaje en los juegos 1-4 de una partida, cambia a otro personaje en el juego 5, y gánalo.",
   },
-  globetrotter: { label: "Trotamundos", description: "Gana al menos un juego en cada escenario legal." },
-  "grudge-match": { label: "Revancha", description: "Vence a un rival que te venció la última vez que jugaron." },
-  "beginners-luck": { label: "Suerte de principiante", description: "Gana la primera partida que juegues en un día." },
+  globetrotter: {
+    label: "Trotamundos",
+    description: "Gana al menos un juego en cada escenario legal.",
+  },
+  "grudge-match": {
+    label: "Revancha",
+    description: "Vence a un rival que te venció la última vez que jugaron.",
+  },
+  "beginners-luck": {
+    label: "Suerte de principiante",
+    description: "Gana la primera partida que juegues en un día.",
+  },
   "bounce-back": {
     label: "Recuperación",
     description: "Pierde la primera partida que juegues en un día, y gana la siguiente que juegues.",
   },
 };
 
-function achievementEs(a: { id: string; label: string; description: string }) {
-  const es = ACHIEVEMENTS_ES[a.id];
-  if (es) return es;
-  // Reached Elite/Master/Grandmaster/Legend — pull the threshold back out of
-  // the English description rather than re-deriving it.
+function localizeAchievement(a: { id: string; label: string; description: string }, lang: Lang): AchievementText {
+  if (lang === "en") return a;
+  const table = ACHIEVEMENTS_ES;
+  const hit = table[a.id];
+  if (hit) return hit;
+  // Reached Elite/Master/Grandmaster/Legend — the rank names stay in English
+  // because that is what the badges and the leaderboard call them. Pull the
+  // threshold back out of the English description rather than re-deriving it.
   const rating = a.description.match(/\d+/)?.[0] ?? "";
   const tier = a.label.replace("Reached ", "");
-  return { label: `Alcanzó ${tier}`, description: `Alcanza una clasificación de ${rating}.` };
+  return {
+    label: `Alcanzó ${tier}`,
+    description: `Alcanza una clasificación de ${rating}.`,
+  };
 }
 
 // The default tab: rating chart, season/career summary cards, rivals,
@@ -88,6 +124,8 @@ export async function ProfileOverviewSection({
   rating,
   gamesPlayed,
   practiceRating,
+  randittoRating,
+  randittoGamesPlayed,
   practiceGamesPlayed,
   isOwnProfile,
   isModerator,
@@ -101,6 +139,8 @@ export async function ProfileOverviewSection({
   rating: number;
   gamesPlayed: number;
   practiceRating: number;
+  randittoRating: number;
+  randittoGamesPlayed: number;
   practiceGamesPlayed: number;
   isOwnProfile: boolean;
   isModerator: boolean;
@@ -163,6 +203,7 @@ export async function ProfileOverviewSection({
   // window.
   const ratingVisible = isRatingVisible(gamesPlayed, isModerator);
   const practiceRatingVisible = isRatingVisible(practiceGamesPlayed, isModerator);
+  const randittoRatingVisible = isRatingVisible(randittoGamesPlayed, isModerator);
   const achievements = [
     ...computeAchievements(careerStats),
     ...computeRatingMilestoneAchievements(careerStats.peakRating),
@@ -176,11 +217,17 @@ export async function ProfileOverviewSection({
         <Card>
           <CardContent className="pt-4">
             <p className="text-sm font-medium">
-              {lang === "es" ? "Temporada actual" : "Current season"}
+              {tr(lang, {
+                en: "Current season",
+                es: "Temporada actual",
+              })}
               {seasonStats.seasonName && ` · ${seasonStats.seasonName}`}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {lang === "es" ? "Se reinicia al terminar la temporada." : "Resets when the season ends."}
+              {tr(lang, {
+                en: "Resets when the season ends.",
+                es: "Se reinicia al terminar la temporada.",
+              })}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
@@ -191,7 +238,12 @@ export async function ProfileOverviewSection({
                     <RatingHidden gamesPlayed={gamesPlayed} lang={lang} />
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación" : "Rating"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {tr(lang, {
+                    en: "Rating",
+                    es: "Clasificación",
+                  })}
+                </p>
               </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">
@@ -205,19 +257,30 @@ export async function ProfileOverviewSection({
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {lang === "es" ? "Posición en el ladder" : "Leaderboard rank"}
+                  {tr(lang, {
+                    en: "Leaderboard rank",
+                    es: "Posición en el ladder",
+                  })}
                 </p>
               </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">{seasonStats.setsPlayed}</p>
-                <p className="text-xs text-muted-foreground">{lang === "es" ? "Partidas jugadas" : "Sets played"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {tr(lang, {
+                    en: "Sets played",
+                    es: "Partidas jugadas",
+                  })}
+                </p>
               </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">
                   {seasonStats.totalWins}-{seasonStats.totalLosses}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {lang === "es" ? "Récord de temporada" : "Season record"}
+                  {tr(lang, {
+                    en: "Season record",
+                    es: "Récord de temporada",
+                  })}
                 </p>
               </div>
               <div>
@@ -225,13 +288,19 @@ export async function ProfileOverviewSection({
                   {seasonStats.peakRating != null ? formatRating(seasonStats.peakRating) : "—"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {lang === "es" ? "Clasificación máxima de temporada" : "Season peak rating"}
+                  {tr(lang, {
+                    en: "Season peak rating",
+                    es: "Clasificación máxima de temporada",
+                  })}
                 </p>
               </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">{seasonStats.bestWinStreak}</p>
                 <p className="text-xs text-muted-foreground">
-                  {lang === "es" ? "Mejor racha de temporada" : "Season best win streak"}
+                  {tr(lang, {
+                    en: "Season best win streak",
+                    es: "Mejor racha de temporada",
+                  })}
                 </p>
               </div>
               <div>
@@ -243,13 +312,46 @@ export async function ProfileOverviewSection({
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  {lang === "es" ? "Clasificación de práctica" : "Practice rating"}
+                  {tr(lang, {
+                    en: "Practice rating",
+                    es: "Clasificación de práctica",
+                  })}
                 </p>
               </div>
               <div>
                 <p className="text-lg font-semibold tabular-nums">{practiceGamesPlayed}</p>
                 <p className="text-xs text-muted-foreground">
-                  {lang === "es" ? "Partidas de práctica" : "Practice sets"}
+                  {tr(lang, {
+                    en: "Practice sets",
+                    es: "Partidas de práctica",
+                  })}
+                </p>
+              </div>
+              {/* Shown here and not only on its board: a randitto rating was
+                  otherwise invisible to the person who earned it until they
+                  had five sets and appeared on the leaderboard. */}
+              <div>
+                {randittoRatingVisible ? (
+                  <p className="text-lg font-semibold tabular-nums">{formatRating(randittoRating)}</p>
+                ) : (
+                  <p className="text-sm font-medium text-muted-foreground">
+                    <RatingHidden gamesPlayed={randittoGamesPlayed} lang={lang} practice />
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {tr(lang, {
+                    en: "Randitto rating",
+                    es: "Clasificación de Randitto",
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold tabular-nums">{randittoGamesPlayed}</p>
+                <p className="text-xs text-muted-foreground">
+                  {tr(lang, {
+                    en: "Randitto sets",
+                    es: "Partidas de Randitto",
+                  })}
                 </p>
               </div>
             </div>
@@ -261,30 +363,50 @@ export async function ProfileOverviewSection({
         <Card className="mt-4">
           <CardContent className="pt-4">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-medium">{lang === "es" ? "Clasificación en el tiempo" : "Rating over time"}</p>
+              <p className="text-sm font-medium">
+                {tr(lang, {
+                  en: "Rating over time",
+                  es: "Clasificación en el tiempo",
+                })}
+              </p>
               <div className="flex gap-2">
                 {winRate !== null && (
                   <Badge variant="outline" className="tabular-nums">
-                    {lang === "es" ? `${winRate}% de victorias` : `${winRate}% win rate`}
+                    {tr(lang, {
+                      en: `${winRate}% win rate`,
+                      es: `${winRate}% de victorias`,
+                    })}
                   </Badge>
                 )}
                 {streak > 0 && (
                   <Badge variant="success" className="tabular-nums">
-                    {lang === "es" ? `${streak} victorias seguidas` : `${streak} win streak`}
+                    {tr(lang, {
+                      en: `${streak} win streak`,
+                      es: `${streak} victorias seguidas`,
+                    })}
                   </Badge>
                 )}
               </div>
             </div>
-            <RatingChart points={chartPoints.map((p) => ({ date: p.date.toISOString(), rating: p.rating }))} />
+            <RatingChart
+              points={chartPoints.map((p) => ({
+                date: p.date.toISOString(),
+                rating: p.rating,
+              }))}
+              lang={lang}
+            />
           </CardContent>
         </Card>
       )}
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <p className="text-sm font-medium">{lang === "es" ? "Carrera" : "Career"}</p>
+          <p className="text-sm font-medium">{tr(lang, { en: "Career", es: "Carrera" })}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {lang === "es" ? "No se reinicia entre temporadas." : "Doesn't reset between seasons."}
+            {tr(lang, {
+              en: "Doesn't reset between seasons.",
+              es: "No se reinicia entre temporadas.",
+            })}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
@@ -292,31 +414,47 @@ export async function ProfileOverviewSection({
                 {careerStats.totalWins}-{careerStats.totalLosses}
               </p>
               <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Récord de por vida" : "Lifetime record"}
+                {tr(lang, {
+                  en: "Lifetime record",
+                  es: "Récord de por vida",
+                })}
               </p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">
                 {careerStats.peakRating != null ? formatRating(careerStats.peakRating) : "—"}
               </p>
-              <p className="text-xs text-muted-foreground">{lang === "es" ? "Clasificación máxima" : "Peak rating"}</p>
+              <p className="text-xs text-muted-foreground">
+                {tr(lang, {
+                  en: "Peak rating",
+                  es: "Clasificación máxima",
+                })}
+              </p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.bestWinStreak}</p>
               <p className="text-xs text-muted-foreground">
-                {lang === "es" ? "Mejor racha de victorias" : "Best win streak"}
+                {tr(lang, {
+                  en: "Best win streak",
+                  es: "Mejor racha de victorias",
+                })}
               </p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
-              <p className="text-xs text-muted-foreground">{lang === "es" ? "Temporadas jugadas" : "Seasons played"}</p>
+              <p className="text-xs text-muted-foreground">
+                {tr(lang, {
+                  en: "Seasons played",
+                  es: "Temporadas jugadas",
+                })}
+              </p>
             </div>
           </div>
 
-          <p className="mt-5 text-sm font-medium">{lang === "es" ? "Logros" : "Achievements"}</p>
+          <p className="mt-5 text-sm font-medium">{tr(lang, { en: "Achievements", es: "Logros" })}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {achievements.map((a, i) => {
-              const display = lang === "es" ? achievementEs(a) : a;
+              const display = localizeAchievement(a, lang);
               return (
                 <Tooltip key={a.id}>
                   <TooltipTrigger asChild>
@@ -341,13 +479,21 @@ export async function ProfileOverviewSection({
         <Card className="mt-4">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">{lang === "es" ? "Cara a Cara" : "Head 2 Heads"}</p>
+              <p className="text-sm font-medium">
+                {tr(lang, {
+                  en: "Head 2 Heads",
+                  es: "Cara a Cara",
+                })}
+              </p>
               <Link
                 href="?tab=headtohead"
                 prefetch={false}
                 className="shrink-0 text-xs text-muted-foreground hover:text-foreground hover:underline"
               >
-                {lang === "es" ? "Ver más →" : "View more →"}
+                {tr(lang, {
+                  en: "View more →",
+                  es: "Ver más →",
+                })}
               </Link>
             </div>
             <HeadToHeadList opponents={rivals} lang={lang} bordered={false} className="mt-2" />
@@ -363,7 +509,10 @@ export async function ProfileOverviewSection({
             prefetch={false}
             className="text-muted-foreground hover:text-foreground hover:underline"
           >
-            {lang === "es" ? "Ver detalles →" : "View details →"}
+            {tr(lang, {
+              en: "View details →",
+              es: "Ver detalles →",
+            })}
           </Link>
         </p>
       )}
@@ -372,13 +521,17 @@ export async function ProfileOverviewSection({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-medium text-muted-foreground">
-              {lang === "es" ? "Historial de partidas" : "Match history"}
+              {tr(lang, {
+                en: "Match history",
+                es: "Historial de partidas",
+              })}
             </h2>
             {totalMatchCount > 0 && (
               <Badge variant="outline">
-                {lang === "es"
-                  ? `${totalMatchCount} ${totalMatchCount === 1 ? "partida confirmada" : "partidas confirmadas"}`
-                  : `${totalMatchCount} confirmed match${totalMatchCount === 1 ? "" : "es"}`}
+                {tr(lang, {
+                  en: `${totalMatchCount} confirmed match${totalMatchCount === 1 ? "" : "es"}`,
+                  es: `${totalMatchCount} ${totalMatchCount === 1 ? "partida confirmada" : "partidas confirmadas"}`,
+                })}
               </Badge>
             )}
           </div>
@@ -388,14 +541,20 @@ export async function ProfileOverviewSection({
               prefetch={false}
               className="text-sm text-muted-foreground hover:text-foreground hover:underline"
             >
-              {lang === "es" ? "Ver más →" : "View more →"}
+              {tr(lang, {
+                en: "View more →",
+                es: "Ver más →",
+              })}
             </Link>
           )}
         </div>
 
         {recentMatchHistory.length === 0 && (
           <p className="mt-4 text-sm text-muted-foreground">
-            {lang === "es" ? "Aún no hay partidas confirmadas." : "No confirmed matches yet."}
+            {tr(lang, {
+              en: "No confirmed matches yet.",
+              es: "Aún no hay partidas confirmadas.",
+            })}
           </p>
         )}
 

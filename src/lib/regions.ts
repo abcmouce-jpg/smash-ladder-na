@@ -1,3 +1,5 @@
+import { DISTANCE_MATCHMAKING } from "@/lib/site";
+
 // USA/Canada broad regions predate state/province-level granularity below —
 // kept in place rather than removed because ~680 of ~785 existing players
 // already have one of these eight set, and removing them would silently
@@ -91,26 +93,31 @@ const REST_OF_WORLD = [
   "Other",
 ] as const;
 
-export const MATCH_REGIONS = [
-  ...USA_BROAD,
-  ...USA_STATES,
-  ...CANADA_BROAD,
-  ...CANADA_PROVINCES,
-  ...REST_OF_WORLD,
-] as const;
+const NA_REGIONS = [...USA_BROAD, ...USA_STATES, ...CANADA_BROAD, ...CANADA_PROVINCES, ...REST_OF_WORLD] as const;
 
-export type MatchRegion = (typeof MATCH_REGIONS)[number];
+/** Every region a player can store. */
+export type MatchRegion = (typeof NA_REGIONS)[number];
+
+// Matchmaking is distance-based, so the two pools have to be separated at the
+// catalog rather than filtered after the fact: a Japanese player must never
+// be offered a North American region, or the other way round. Each instance's
+// database only ever holds its own set.
+export const MATCH_REGIONS: readonly MatchRegion[] = NA_REGIONS;
 
 // Drives the picker's <optgroup> sections — purely presentational grouping,
 // doesn't affect matching (that's all distance math over REGION_COORDINATES
 // below, which doesn't care which group a region is in).
-export const MATCH_REGION_GROUPS: { label: string; regions: readonly MatchRegion[] }[] = [
+type MatchRegionGroup = { label: string; regions: readonly MatchRegion[] };
+
+const NA_REGION_GROUPS: MatchRegionGroup[] = [
   { label: "USA (broad)", regions: USA_BROAD },
   { label: "USA (state)", regions: USA_STATES },
   { label: "Canada (broad)", regions: CANADA_BROAD },
   { label: "Canada (province/territory)", regions: CANADA_PROVINCES },
   { label: "Elsewhere", regions: REST_OF_WORLD },
 ];
+
+export const MATCH_REGION_GROUPS: MatchRegionGroup[] = NA_REGION_GROUPS;
 
 // One level coarser than region, for players who think "which country" long
 // before they think "which state" — the leaderboard's country filter reads
@@ -119,10 +126,12 @@ export const MATCH_REGION_GROUPS: { label: string; regions: readonly MatchRegion
 // America/South America/Europe/Asia/Oceania/"Other" itself) since none of
 // those get individual-region granularity the way USA/Canada do; it isn't a
 // "country" so much as "not USA, Canada, or Mexico."
-export const MATCH_COUNTRIES = ["United States", "Canada", "Mexico", "Other"] as const;
-export type MatchCountry = (typeof MATCH_COUNTRIES)[number];
+const NA_COUNTRIES = ["United States", "Canada", "Mexico", "Other"] as const;
+export type MatchCountry = (typeof NA_COUNTRIES)[number];
 
-const COUNTRY_TO_REGIONS: Record<MatchCountry, readonly string[]> = {
+export const MATCH_COUNTRIES: readonly MatchCountry[] = NA_COUNTRIES;
+
+const COUNTRY_TO_REGIONS: Partial<Record<MatchCountry, readonly string[]>> = {
   "United States": [...USA_BROAD, ...USA_STATES],
   Canada: [...CANADA_BROAD, ...CANADA_PROVINCES],
   Mexico: ["Mexico North", "Mexico Central"],
@@ -134,7 +143,7 @@ const COUNTRY_TO_REGIONS: Record<MatchCountry, readonly string[]> = {
 // Copied into a plain mutable array since Prisma's `in` filter wants
 // string[], not the readonly array COUNTRY_TO_REGIONS holds.
 export function expandCountryForSearch(country: MatchCountry): string[] {
-  return [...COUNTRY_TO_REGIONS[country]];
+  return [...(COUNTRY_TO_REGIONS[country] ?? [])];
 }
 
 // Approximate representative coordinates per region, used only to rank
@@ -306,7 +315,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // Wide/Long-range/Very long-range (7,200–15,000km) collapses into one
 // coarser top step instead, since that distinction rarely mattered in
 // practice — past a few thousand miles, ping is bad either way.
-export const MATCH_DISTANCE_PRESETS = [
+const NA_DISTANCE_PRESETS = [
   { label: "Same region only", km: 0 },
   { label: "Very close (~150 mi)", km: 240 },
   { label: "Close (~400 mi)", km: 640 },
@@ -316,6 +325,14 @@ export const MATCH_DISTANCE_PRESETS = [
   { label: "Worldwide", km: null },
 ] as const;
 
+export const MATCH_DISTANCE_PRESETS: readonly {
+  label: string;
+  km: number | null;
+}[] = NA_DISTANCE_PRESETS;
+
+// Both default to roughly half their region's span — wide enough that a
+// brand-new ladder with few players online still finds someone, which
+// matters more at launch than shaving latency.
 export const DEFAULT_MATCH_DISTANCE_KM = 2400;
 
 // Includes the region itself, so callers can treat this as the whole set of
@@ -415,4 +432,29 @@ const BROAD_REGION_TO_SUBREGIONS: Record<string, readonly string[]> = {
 export function expandRegionForSearch(region: string): string[] {
   const subregions = BROAD_REGION_TO_SUBREGIONS[region];
   return subregions ? [region, ...subregions] : [region];
+}
+
+/**
+ * Whether `b` is reachable from `a`'s own region and chosen radius. This is
+ * the one place matchmaking asks about geography, so an instance that does not
+ * match on distance answers yes here and every caller follows.
+ *
+ * Note the asymmetry it preserves: a radius is a statement about one player's
+ * own connection tolerance, so both sides are asked separately and the
+ * narrower one wins. With DISTANCE_MATCHMAKING off, a missing region stops
+ * mattering too — there is nothing left for it to gate.
+ */
+export function regionReachAllows(aRegion: string | null, aMaxKm: number | null, bRegion: string | null): boolean {
+  if (!DISTANCE_MATCHMAKING) return true;
+  if (!aRegion || !bRegion) return false;
+  return getRegionsWithinDistance(aRegion, aMaxKm).includes(bRegion);
+}
+
+/**
+ * The region list to narrow a candidate query down to, or null meaning "do not
+ * narrow" — which is what an instance without distance matchmaking wants, so
+ * the filter is dropped from the query rather than passed a list of everything.
+ */
+export function regionReachFilter(region: string | null, maxKm: number | null): string[] | null {
+  return DISTANCE_MATCHMAKING ? getRegionsWithinDistance(region, maxKm) : null;
 }

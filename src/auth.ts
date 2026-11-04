@@ -13,6 +13,7 @@ import { UserStatus } from "@/generated/prisma/enums";
 import type { UserRole } from "@/generated/prisma/enums";
 import { extractClientIp, isIpBanned } from "@/lib/ip-bans";
 import { resolveReferrerId } from "@/lib/referrals";
+import { normalizeCampaignTag } from "@/lib/campaigns";
 import { defaultRegionFromGeoHeaders } from "@/lib/geo-region";
 import { checkGuildMembership } from "@/lib/discord-bot";
 import { isEffectiveSupporter } from "@/lib/supporters";
@@ -101,22 +102,29 @@ const providers = useDevCredentials ? [devCredentials] : [discordProvider];
 // going straight to it — callers should pass this explicitly.
 export const primaryProviderId = useDevCredentials ? "credentials" : "discord";
 
-const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
+const {
+  handlers,
+  auth: uncachedAuth,
+  signIn,
+  signOut,
+} = NextAuth({
   providers,
   session: { strategy: "jwt" },
   trustHost: true,
-  // Temporary — diagnosing the 2026-10-06 CallbackRouteError incident. Logs
-  // the full underlying cause (not just the generic wrapper message) for
-  // every auth request. Remove once root-caused; this is noisier than
-  // production logging should normally run.
-  debug: true,
+  // Was `debug: true` while the 2026-10-06 CallbackRouteError incident was
+  // being root-caused. Auth.js debug logging prints the OAuth exchange —
+  // profile payloads and token material among it — and on a deployment that
+  // goes to the runtime logs, so it is not something to leave on once the
+  // question it was answering has been answered. Still available locally by
+  // setting AUTH_DEBUG=1.
+  debug: process.env.NODE_ENV !== "production" && process.env.AUTH_DEBUG === "1",
   callbacks: {
     async signIn({ profile, credentials }) {
       // Checked before anything else, including the dev-credentials bypass —
       // this targets the network (ban-evasion via a fresh Discord account
       // from the same connection), not a specific account.
       const requestHeaders = await headers();
-      const ip = extractClientIp(requestHeaders.get("x-forwarded-for"));
+      const ip = extractClientIp(requestHeaders.get("x-forwarded-for"), requestHeaders.get("x-real-ip"));
       if (await isIpBanned(ip)) return false;
 
       if (credentials) return true; // dev credentials — user already created in authorize()
@@ -153,6 +161,12 @@ const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
       // referredById is set once, at creation, and never touched again, so
       // there's no point looking this up for a returning sign-in.
       const referredById = existing ? null : await resolveReferrerId((await cookies()).get("ref")?.value);
+
+      // Same once-at-creation rule as referredById, and read from the same
+      // cookie jar — which post or ad a player first arrived through is a
+      // fact about their signup, so a later visit under a different campaign
+      // must not rewrite it.
+      const signupSource = existing ? null : normalizeCampaignTag((await cookies()).get("src")?.value);
 
       // Same "only for a genuinely new account" reasoning as referredById —
       // pre-fills region from Vercel's geolocation headers so a new player
@@ -197,6 +211,7 @@ const { handlers, auth: uncachedAuth, signIn, signOut } = NextAuth({
           lastKnownIp: ip ?? undefined,
           lastSignInAt: new Date(),
           referredById,
+          signupSource,
           region: defaultRegion ?? undefined,
         },
       });

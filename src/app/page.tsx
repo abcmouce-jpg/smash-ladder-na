@@ -3,11 +3,11 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Activity, Users } from "lucide-react";
+import { Activity, Dices, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { formatRating } from "@/lib/rating-format";
-import { isRatingVisible } from "@/lib/rank-tier";
+import { isRatingVisible, PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { getMatchesPerDay, getPublicStats } from "@/lib/public-stats";
 import { getFriendliesPosts } from "@/lib/home-feed";
 import { getMatchFeed } from "@/lib/match-feed";
@@ -15,7 +15,6 @@ import { serializeSetEntry } from "@/lib/set-entry";
 import { Button } from "@/components/ui/button";
 import { DiscordIcon } from "@/components/discord-icon";
 import { RankBadge } from "@/components/rank-badge";
-import { RatingHidden } from "@/components/rating-hidden";
 import { FriendliesPosts } from "@/components/friendlies-posts";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,10 +22,12 @@ import { LiveStreamProvider } from "@/components/live-streams/selection";
 import { LiveStreamStage } from "@/components/live-streams/stage";
 import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
 import { prisma } from "@/lib/db";
-import { DISCORD_SERVER_URL } from "@/lib/links";
+import { X_ACCOUNT_URL, DISCORD_SERVER_URL } from "@/lib/links";
+import { tr, trNode } from "@/lib/lang";
+import { PUBLISHES_SPANISH, HAS_DISCORD_SERVER, SCENE_LABEL, SITE_NAME_PARTS } from "@/lib/site";
 
 export const metadata: Metadata = {
-  alternates: { languages: { "es-MX": "/es" } },
+  alternates: PUBLISHES_SPANISH ? { languages: { "es-MX": "/es" } } : undefined,
 };
 
 // Shared home section header: small-caps label with the accent tick on the
@@ -69,26 +70,38 @@ export default async function Home() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <h1 className="mt-4 text-4xl font-semibold tracking-tight text-balance">
-        Smash Ladder <span className="text-primary">NA</span>
+        {SITE_NAME_PARTS.lead && `${SITE_NAME_PARTS.lead} `}
+        <span className="text-primary">{SITE_NAME_PARTS.accent}</span>
       </h1>
       <p className="mt-3 max-w-md text-muted-foreground">
-        {lang === "es"
-          ? "Una liga clasificatoria y emparejamiento para la comunidad de Smash de Norteamérica."
-          : "A ranked ladder and matchmaking hub for the North American Smash community."}
+        {tr(lang, {
+          en: `A ranked ladder and matchmaking hub for the ${SCENE_LABEL.en} Smash community.`,
+          es: `Una liga clasificatoria y emparejamiento para la comunidad de Smash ${SCENE_LABEL.es}.`,
+        })}
       </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         {user ? (
           <>
             <Button asChild size="lg">
-              <Link href="/lobby">{lang === "es" ? "Ir a la Sala" : "Go to Lobby"}</Link>
+              <Link href="/lobby">
+                {tr(lang, {
+                  en: "Go to Lobby",
+                  es: "Ir a la Sala",
+                })}
+              </Link>
             </Button>
-            <Button asChild variant="outline" size="lg">
-              <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
-                <DiscordIcon className="size-4" />
-                {lang === "es" ? "Únete a nuestro servidor de Discord" : "Join Our Discord Server"}
-              </a>
-            </Button>
+            {HAS_DISCORD_SERVER && (
+              <Button asChild variant="outline" size="lg">
+                <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
+                  <DiscordIcon className="size-4" />
+                  {tr(lang, {
+                    en: "Join Our Discord Server",
+                    es: "Únete a nuestro servidor de Discord",
+                  })}
+                </a>
+              </Button>
+            )}
           </>
         ) : (
           <>
@@ -100,34 +113,65 @@ export default async function Home() {
             >
               <Button type="submit" size="lg">
                 <DiscordIcon className="size-4" />
-                {lang === "es" ? "Inicia sesión con Discord" : "Log in with Discord"}
+                {tr(lang, {
+                  en: "Log in with Discord",
+                  es: "Inicia sesión con Discord",
+                })}
               </Button>
             </form>
-            <Button asChild variant="outline" size="lg">
-              <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
-                <DiscordIcon className="size-4" />
-                {lang === "es" ? "Únete a nuestro servidor de Discord" : "Join Our Discord Server"}
-              </a>
-            </Button>
+            {HAS_DISCORD_SERVER && (
+              <Button asChild variant="outline" size="lg">
+                <a href={DISCORD_SERVER_URL} target="_blank" rel="noreferrer">
+                  <DiscordIcon className="size-4" />
+                  {tr(lang, {
+                    en: "Join Our Discord Server",
+                    es: "Únete a nuestro servidor de Discord",
+                  })}
+                </a>
+              </Button>
+            )}
           </>
         )}
       </div>
 
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
-          {!ratingVisible ? (
-            <RatingHidden gamesPlayed={me.gamesPlayed} lang={lang} />
-          ) : lang === "es" ? (
-            <>
-              Tienes una clasificación de <span className="font-medium text-foreground">{formatRating(me.rating)}</span>{" "}
-              en {me.gamesPlayed} partidas.
-            </>
-          ) : (
-            <>
-              You&apos;re <span className="font-medium text-foreground">{formatRating(me.rating)}</span> rated across{" "}
-              {me.gamesPlayed} sets.
-            </>
-          )}
+          {!ratingVisible
+            ? trNode(lang, {
+                en: (
+                  <>
+                    Your rating appears after {PROVISIONAL_GAMES_THRESHOLD} sets —{" "}
+                    <span className="font-medium text-foreground">
+                      {me.gamesPlayed}/{PROVISIONAL_GAMES_THRESHOLD}
+                    </span>{" "}
+                    so far.
+                  </>
+                ),
+                es: (
+                  <>
+                    Tu clasificación aparece a las {PROVISIONAL_GAMES_THRESHOLD} partidas —{" "}
+                    <span className="font-medium text-foreground">
+                      {me.gamesPlayed}/{PROVISIONAL_GAMES_THRESHOLD}
+                    </span>{" "}
+                    hasta ahora.
+                  </>
+                ),
+              })
+            : trNode(lang, {
+                en: (
+                  <>
+                    You&apos;re <span className="font-medium text-foreground">{formatRating(me.rating)}</span> rated
+                    across {me.gamesPlayed} sets.
+                  </>
+                ),
+                es: (
+                  <>
+                    Tienes una clasificación de{" "}
+                    <span className="font-medium text-foreground">{formatRating(me.rating)}</span> en {me.gamesPlayed}{" "}
+                    partidas.
+                  </>
+                ),
+              })}
         </p>
       )}
 
@@ -138,25 +182,85 @@ export default async function Home() {
               <span className="live-pulse absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="font-medium text-foreground">{stats.playingNow}</span>{" "}
-            {lang === "es" ? "jugando ahora" : "playing now"}
+            <span>
+              {trNode(lang, {
+                en: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.playingNow}</span> playing now
+                  </>
+                ),
+                es: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
+                  </>
+                ),
+              })}
+            </span>
+          </span>
+        )}
+        {stats.randittoPlayingNow > 0 && (
+          <span className="flex items-center gap-1.5 tabular-nums">
+            <Dices className="size-3.5" />
+            <span>
+              {trNode(lang, {
+                en: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.randittoPlayingNow}</span> in randitto
+                  </>
+                ),
+                es: (
+                  <>
+                    <span className="font-medium text-foreground">{stats.randittoPlayingNow}</span> en randitto
+                  </>
+                ),
+              })}
+            </span>
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.totalPlayers}</span>{" "}
-          {lang === "es" ? "jugadores" : "players"}
+          <span>
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{stats.totalPlayers}</span> players
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{stats.totalPlayers}</span> jugadores
+                </>
+              ),
+            })}
+          </span>
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.matchesToday}</span>{" "}
-          {lang === "es" ? "partidas hoy" : "matches today"}
+          <span>
+            {trNode(lang, {
+              en: (
+                <>
+                  <span className="font-medium text-foreground">{stats.matchesToday}</span> matches today
+                </>
+              ),
+              es: (
+                <>
+                  <span className="font-medium text-foreground">{stats.matchesToday}</span> partidas hoy
+                </>
+              ),
+            })}
+          </span>
         </span>
       </div>
 
       {liveEntries.length > 0 && (
         <div className="mt-10">
-          <SectionHeading label={lang === "es" ? "En vivo en Twitch" : "Live on Twitch"} />
+          <SectionHeading
+            label={tr(lang, {
+              en: "Live on Twitch",
+              es: "En vivo en Twitch",
+            })}
+          />
           <LiveStreamProvider>
             <div className="mt-3">
               <LiveStreamStage entries={liveEntries} parentHost={parentHost} />
@@ -169,13 +273,19 @@ export default async function Home() {
       {stats.topPlayers.length > 0 && (
         <div className="mt-10">
           <SectionHeading
-            label={lang === "es" ? "Los mejores de la liga" : "Top of the ladder"}
+            label={tr(lang, {
+              en: "Top of the ladder",
+              es: "Los mejores de la liga",
+            })}
             action={
               <Link
                 href="/leaderboard"
                 className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                {lang === "es" ? "Ver todos →" : "See all →"}
+                {tr(lang, {
+                  en: "See all →",
+                  es: "Ver todos →",
+                })}
               </Link>
             }
           />
@@ -198,9 +308,13 @@ export default async function Home() {
                       <p className="truncate text-sm font-medium">{p.username}</p>
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         <p className="text-xs tabular-nums text-muted-foreground">
-                          {formatRating(p.rating)} {lang === "es" ? "de clasificación" : "rating"}
+                          {formatRating(p.rating)}{" "}
+                          {tr(lang, {
+                            en: "rating",
+                            es: "de clasificación",
+                          })}
                         </p>
-                        <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
+                        <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} lang={lang} />
                       </div>
                     </div>
                   </CardContent>
@@ -212,13 +326,23 @@ export default async function Home() {
       )}
 
       <div className="mt-10">
-        <SectionHeading label={lang === "es" ? "Amistosos" : "Friendlies"} />
+        <SectionHeading
+          label={tr(lang, {
+            en: "Friendlies",
+            es: "Amistosos",
+          })}
+        />
         <FriendliesPosts
           posts={posts}
           lang={lang}
           emptyAction={
             <Button asChild variant="secondary" size="sm" className="mt-3">
-              <Link href="/friendlies">{lang === "es" ? "Abrir Amistosos" : "Open Friendlies"}</Link>
+              <Link href="/friendlies">
+                {tr(lang, {
+                  en: "Open Friendlies",
+                  es: "Abrir Amistosos",
+                })}
+              </Link>
             </Button>
           }
         />
@@ -227,22 +351,38 @@ export default async function Home() {
             href="/friendlies"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            {lang === "es" ? "Publica en Amistosos →" : "Post on Friendlies →"}
+            {tr(lang, {
+              en: "Post on Friendlies →",
+              es: "Publica en Amistosos →",
+            })}
           </Link>
         ) : (
           <a
-            href={DISCORD_SERVER_URL}
+            href={HAS_DISCORD_SERVER ? DISCORD_SERVER_URL : X_ACCOUNT_URL}
             target="_blank"
             rel="noreferrer"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            {lang === "es" ? "Únete a nuestro Discord para encontrar partidas" : "Join our Discord to find games"}
+            {HAS_DISCORD_SERVER
+              ? tr(lang, {
+                  en: "Join our Discord to find games",
+                  es: "Únete a nuestro Discord para encontrar partidas",
+                })
+              : tr(lang, {
+                  en: "Follow us on X for match-finding posts",
+                  es: "Síguenos en X para encontrar partidas",
+                })}
           </a>
         )}
       </div>
 
       <div className="mt-10">
-        <SectionHeading label={lang === "es" ? "Partidas por día" : "Matches per day"} />
+        <SectionHeading
+          label={tr(lang, {
+            en: "Matches per day",
+            es: "Partidas por día",
+          })}
+        />
         <Card className="mt-3">
           <CardContent className="pt-4">
             <MatchesPerDayChart timestamps={matchTimestamps} lang={lang} />

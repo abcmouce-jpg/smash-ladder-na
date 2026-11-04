@@ -3,6 +3,8 @@ import { CharacterIcon } from "@/components/character-icon";
 import { Badge } from "@/components/ui/badge";
 import { formatUsagePercent } from "@/lib/character-usage-display";
 import type { CharacterUsage } from "@/lib/players";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 export function winRateVariant(winRate: number): "success" | "warning" | "destructive" {
   if (winRate >= 55) return "success";
@@ -17,14 +19,14 @@ export function CharacterUsageCard({
 }: {
   usage: CharacterUsage[];
   mainCharacter: string | null;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   if (usage.length === 0) return null;
 
   return (
     <details className="group mt-4 rounded-xl border border-border bg-card text-card-foreground shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 [&::-webkit-details-marker]:hidden">
-        <span className="text-sm font-medium">{lang === "es" ? "Uso de personajes" : "Character Usage"}</span>
+        <span className="text-sm font-medium">{tr(lang, { en: "Character Usage", es: "Uso de personajes" })}</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
       <div className="max-h-80 divide-y divide-border overflow-y-auto border-t border-border">
@@ -50,9 +52,10 @@ export function CharacterUsageCard({
             </div>
             <div className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
               <div>
-                {lang === "es"
-                  ? `${formatUsagePercent(u.usagePercent)} · ${u.games} ${u.games === 1 ? "partida" : "partidas"}`
-                  : `${formatUsagePercent(u.usagePercent)} · ${u.games} game${u.games === 1 ? "" : "s"}`}
+                {tr(lang, {
+                  en: `${formatUsagePercent(u.usagePercent)} · ${u.games} game${u.games === 1 ? "" : "s"}`,
+                  es: `${formatUsagePercent(u.usagePercent)} · ${u.games} ${u.games === 1 ? "partida" : "partidas"}`,
+                })}
               </div>
               <div className="mt-0.5 flex items-center justify-end gap-1">
                 <span>

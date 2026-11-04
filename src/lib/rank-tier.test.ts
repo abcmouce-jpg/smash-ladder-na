@@ -287,9 +287,7 @@ describe("computeRatingMilestoneAchievements", () => {
 
   it("never runs off toward the (nonexistent) rating ceiling for a very high peak", () => {
     const result = computeRatingMilestoneAchievements(2450);
-    expect(result[result.length - 1]).toEqual(
-      expect.objectContaining({ id: "rating-2500", achieved: false }),
-    );
+    expect(result[result.length - 1]).toEqual(expect.objectContaining({ id: "rating-2500", achieved: false }));
     expect(result.every((a) => a.achieved || a.id === "rating-2500")).toBe(true);
   });
 });

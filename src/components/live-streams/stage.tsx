@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Radio } from "lucide-react";
+import { Dices, Radio } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
-import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
+import { LiveStreamEmbed } from "@/components/live-stream-embed";
+import { playerStreamLink } from "@/lib/stream-links";
 import { cn } from "@/lib/utils";
+import { tr } from "@/lib/lang";
 import type { Lang } from "@/lib/i18n";
 import type { FeedPlayer, SerializedSetEntry } from "@/lib/set-entry";
 import { resolveLiveStream, useLiveStreamSelection } from "./selection";
@@ -32,17 +34,30 @@ export function LiveStreamStage({
 }) {
   const { selection } = useLiveStreamSelection();
   const active = resolveLiveStream(entries, selection);
-  const channel = active?.player.twitchUsername;
-  if (!active || !channel) return null;
+  const link = active ? playerStreamLink(active.player) : null;
+  if (!active || !link) return null;
 
   const { entry, player } = active;
 
   return (
     <div>
-      <TwitchLiveEmbed
+      {/* Above the player, not only on the card below it: someone who tunes
+          into a randitto set sees two fighters neither player would have
+          picked and a rating that does not move, and without being told what
+          they are watching that reads as the site being broken. */}
+      {entry.mode === "RANDITTO" && (
+        <div className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+          <Dices className="size-4" />
+          {tr(lang, {
+            en: "Randitto — both fighters were assigned at random",
+            es: "Randitto — ambos personajes fueron asignados al azar",
+          })}
+        </div>
+      )}
+      <LiveStreamEmbed
         key={`${entry.id}:${player.id}`}
-        username={channel}
-        parentHost={parentHost}
+        embedUrl={link.embedUrl(parentHost)}
+        title={`${player.twitchDisplayName ?? player.username}`}
         collapsible={false}
       />
 

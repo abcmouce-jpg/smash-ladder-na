@@ -1,5 +1,6 @@
 import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { LocalizedError } from "@/lib/localized-error";
 
 // Identifiable prefix (like GitHub PATs) so a leaked token is recognizable
 // on sight. Only the hash is ever persisted — same reasoning as a password,
@@ -12,7 +13,11 @@ function hashToken(rawToken: string) {
 
 export async function generateApiToken(userId: string, name: string) {
   const trimmedName = name.trim();
-  if (!trimmedName) throw new Error("Give the token a name so you can tell it apart later.");
+  if (!trimmedName)
+    throw new LocalizedError({
+      en: "Give the token a name so you can tell it apart later.",
+      es: "Ponle un nombre al token para distinguirlo después.",
+    });
 
   const rawToken = TOKEN_PREFIX + randomBytes(32).toString("base64url");
   await prisma.apiToken.create({
@@ -56,7 +61,9 @@ export async function resolveApiUser(request: Request): Promise<string | null> {
 
   // Best-effort, same reasoning as auth.ts's lastSignInAt — must never block
   // or fail the actual request just because this bookkeeping write hiccups.
-  prisma.apiToken.update({ where: { tokenHash: hashToken(rawToken) }, data: { lastUsedAt: new Date() } }).catch(() => {});
+  prisma.apiToken
+    .update({ where: { tokenHash: hashToken(rawToken) }, data: { lastUsedAt: new Date() } })
+    .catch(() => {});
 
   return token.userId;
 }

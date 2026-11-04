@@ -34,6 +34,32 @@ function leaderboardEligibility(query?: string | null) {
   };
 }
 
+/**
+ * The people who have signed up but aren't on the board yet.
+ *
+ * The leaderboard only lists players past LEADERBOARD_MIN_GAMES, which is
+ * right for a ranking and wrong for a new instance: Japan launched with
+ * players registered and a page that said nobody was here, so there was no
+ * way for anyone — including whoever runs it — to see that a community had
+ * started. This is who has arrived, newest first.
+ *
+ * No ratings. A provisional rating isn't public (see isRatingVisible) and
+ * this doesn't make it so; what it shows is how far along someone is toward
+ * being ranked at all.
+ */
+export async function getUnrankedPlayers(take: number) {
+  return prisma.user.findMany({
+    where: {
+      gamesPlayed: { lt: LEADERBOARD_MIN_GAMES },
+      status: { not: UserStatus.BANNED },
+      username: { not: DELETED_USERNAME },
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true, username: true, mainCharacter: true, gamesPlayed: true, createdAt: true },
+  });
+}
+
 // Shared by the interactive /leaderboard page and the /stream broadcast
 // overlay so both agree on what counts as "ranked" and rank the same way.
 export async function getLeaderboardPlayers(
@@ -124,4 +150,110 @@ export async function getLeaderboardRank(userId: string) {
     user.gamesPlayed >= LEADERBOARD_MIN_GAMES;
 
   return { rank: qualifies ? above + 1 : null, totalPlayers };
+}
+
+/**
+ * The ranked population, for a consumer outside this site — specifically SPSP,
+ * which seeds offline brackets and wants to know what a player's online rating
+ * is before it builds one.
+ *
+ * Joins on start.gg, not on name. Every identifier here comes from start.gg's
+ * own OAuth (see lib/startgg-oauth.ts), which replaced a self-declared URL
+ * precisely so one player cannot claim another's results — so a seeder can
+ * trust the link rather than guessing from a gamer tag that two people share.
+ * Players who never connected start.gg are still listed, with `startgg: null`:
+ * a consumer that seeds from this can see them and skip them, which is better
+ * than silently omitting a top player.
+ *
+ * Ranked with a window function rather than by counting along the page.
+ * Competition ranking has to be computed over the whole population, not the
+ * slice: a tie that straddles a page boundary makes every later rank on that
+ * page too small if you count only the rows you can see. The filter repeats
+ * leaderboardEligibility()'s three conditions because raw SQL cannot take a
+ * Prisma `where`; the test below pins them to each other.
+ */
+export async function getRankingsForExport(take: number, skip: number) {
+  const rows = await prisma.$queryRaw<
+    {
+      id: string;
+      username: string;
+      rating: number;
+      gamesPlayed: number;
+      region: string | null;
+      mainCharacter: string | null;
+      startggUserId: string | null;
+      startggPlayerId: string | null;
+      startggSlug: string | null;
+      startggGamerTag: string | null;
+      rank: bigint;
+    }[]
+  >`
+    SELECT id, username, rating, "gamesPlayed", region, "mainCharacter",
+           "startggUserId", "startggPlayerId", "startggSlug", "startggGamerTag",
+           RANK() OVER (ORDER BY rating DESC) AS rank
+    FROM "User"
+    WHERE "gamesPlayed" >= ${LEADERBOARD_MIN_GAMES}
+      AND status <> 'BANNED'::"UserStatus"
+      AND username <> ${DELETED_USERNAME}
+    ORDER BY rating DESC, id ASC
+    LIMIT ${take} OFFSET ${skip}
+  `;
+  const totalCount = await prisma.user.count({ where: leaderboardEligibility() });
+  // How much of the ladder a start.gg-keyed consumer can actually join
+  // against. Without it they'd have to page the whole export to find out that
+  // a chunk of it carries no start.gg link at all, and can't be matched to a
+  // bracket entrant by anything but a gamer tag — which two people can share.
+  const startggLinkedCount = await prisma.user.count({
+    where: { ...leaderboardEligibility(), startggSlug: { not: null } },
+  });
+
+  const players = rows.map((u) => ({
+    rank: Number(u.rank),
+    username: u.username,
+    rating: Math.round(u.rating),
+    gamesPlayed: u.gamesPlayed,
+    region: u.region,
+    mainCharacter: u.mainCharacter,
+    profileUrl: `/players/${u.id}`,
+    startgg: u.startggSlug
+      ? {
+          userId: u.startggUserId,
+          playerId: u.startggPlayerId,
+          slug: u.startggSlug,
+          gamerTag: u.startggGamerTag,
+        }
+      : null,
+  }));
+
+  return { players, totalCount, startggLinkedCount };
+}
+
+/**
+ * The randitto board.
+ *
+ * Its own query rather than a filter on the main one, because it ranks a
+ * different column (`randittoRating`) against a different games floor
+ * (`randittoGamesPlayed`) — the same reason the track is separate columns.
+ * Deliberately lean: no character filter, no regions, no pagination. The mode
+ * is an experiment, and a board that duplicates the whole main leaderboard
+ * before anyone has played twenty sets on it is work spent on a page that may
+ * be deleted.
+ */
+export async function getRandittoLeaderboard(take = 100) {
+  const where = {
+    randittoGamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
+    status: { not: UserStatus.BANNED },
+    username: { not: DELETED_USERNAME },
+  };
+  const [totalCount, players] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      // Same stable tiebreaker as the main board — see the note there.
+      orderBy: [{ randittoRating: "desc" }, { id: "asc" }],
+      take,
+      select: { id: true, username: true, randittoRating: true, randittoGamesPlayed: true },
+    }),
+  ]);
+  return { totalCount, players };
 }

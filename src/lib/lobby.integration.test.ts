@@ -31,7 +31,7 @@ vi.mock("next/server", () => ({ after: (callback: () => unknown) => void callbac
 // DM. Stub the transport so tests never touch (or, with a real DISCORD_BOT_TOKEN
 // in a local .env, actually DM anyone through) Discord.
 beforeEach(() => {
-  vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue(undefined);
+  vi.spyOn(discordBot, "sendDiscordDM").mockResolvedValue("sent");
 });
 
 afterEach(() => {
@@ -749,6 +749,15 @@ describe("pairing notifications", () => {
     const b = await createTestUser({ region: "USA East" });
     await createWaitingEntry(a.id);
 
+    // Cleared immediately before the action, not just set up in beforeEach:
+    // these DMs are sent from a deferred, fire-and-forget callback, so one
+    // belonging to an earlier test can still be in flight when this one
+    // starts and land on the same spy. Asserting the spy's whole call list
+    // then fails on a DM this test never caused — a flake that showed up
+    // roughly one run in three once there were enough pairing tests ahead of
+    // it. Clearing here makes the assertion about this test's own DMs.
+    vi.mocked(discordBot.sendDiscordDM).mockClear();
+
     await joinLobbyAndTryPair(b.id);
 
     // The DM runs inside the deferred, fire-and-forget notification callback,
@@ -765,6 +774,7 @@ describe("notifyMatchFoundViaDiscord", () => {
     const a = await createTestUser();
     const b = await createTestUser();
     const dm = vi.mocked(discordBot.sendDiscordDM);
+    dm.mockClear(); // see the note on the pairing test above
 
     await notifyMatchFoundViaDiscord(a.id, b.id);
 
@@ -774,7 +784,7 @@ describe("notifyMatchFoundViaDiscord", () => {
 
   it("uses Spanish copy for a player whose preferredLanguage is es", async () => {
     const spanish = await createTestUser({ preferredLanguage: "es" });
-    const english = await createTestUser();
+    const english = await createTestUser({ preferredLanguage: "en" });
     const dm = vi.mocked(discordBot.sendDiscordDM);
 
     await notifyMatchFoundViaDiscord(spanish.id, english.id);

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Lang } from "@/lib/i18n";
+import { trNode } from "@/lib/lang";
 
 function msRemaining(deadlineMs: number) {
   return Math.max(0, deadlineMs - Date.now());
@@ -18,7 +20,7 @@ export function QueueCooldownGate({
 }: {
   cooldownUntil: string | null;
   children: React.ReactNode;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const deadlineMs = cooldownUntil ? new Date(cooldownUntil).getTime() : 0;
   const [remainingMs, setRemainingMs] = useState(() => msRemaining(deadlineMs));
@@ -46,11 +48,10 @@ export function QueueCooldownGate({
 
   return (
     <p className="text-sm text-muted-foreground">
-      {lang === "es" ? (
-        <>Perdiste tu última partida por tiempo — puedes volver a entrar a la cola en {countdown}.</>
-      ) : (
-        <>You timed out of your last match — you can queue again in {countdown}.</>
-      )}
+      {trNode(lang, {
+        en: <>You timed out of your last match — you can queue again in {countdown}.</>,
+        es: <>Perdiste tu última partida por tiempo — puedes volver a entrar a la cola en {countdown}.</>,
+      })}
     </p>
   );
 }

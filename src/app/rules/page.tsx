@@ -1,10 +1,22 @@
-import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
+import { LEADERBOARD_MIN_GAMES, PROVISIONAL_MIN_GAMES } from "@/lib/rank-tier";
 import { SEASON_PRIZE_POOL_USD, PRIZE_AMOUNTS_USD, approxMxn } from "@/lib/prizes";
 import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { getLang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
+import {
+  ALLOWS_LATENCY_MODS,
+  DISPLAY_TIME_ZONE,
+  HAS_PRIZE_POOL,
+  RATING_SYSTEM,
+  SITE_NAME,
+  instanceText,
+} from "@/lib/site";
+import { MAX_RATING_DELTA, SMASHMATE_K_FACTOR } from "@/lib/matches";
+import { STRIKING_STAGES } from "@/lib/stages";
+import { GAMES_TO_WIN } from "@/lib/match-games";
+import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 
-export const metadata = { title: "Rules — Smash Ladder NA" };
+export const metadata = { title: `${instanceText({ en: "Rules", es: "Reglas" })} — ${SITE_NAME}` };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -27,39 +39,87 @@ export default async function RulesPage() {
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <Section title="Format">
-          <p>All ranked matches are best-of-5. Stage hazards off. Standard stock/time settings.</p>
+          <p>All ranked matches are best-of-{GAMES_TO_WIN * 2 - 1}. Stage hazards off. Standard stock/time settings.</p>
         </Section>
 
-        <Section title="Season prize pool">
-          <p>
-            The top 3 finishers on the leaderboard when the season ends split a ${SEASON_PRIZE_POOL_USD} USD prize pool:
-            1st gets ${PRIZE_AMOUNTS_USD[0]}, 2nd ${PRIZE_AMOUNTS_USD[1]}, and 3rd ${PRIZE_AMOUNTS_USD[2]}. You need{" "}
-            {LEADERBOARD_MIN_GAMES}+ sets played to appear on the leaderboard at all.
-          </p>
-          <p>
-            The current preseason is a fixed {PRE_SEASON_DURATION_MONTHS}-month trial run, expected to end around{" "}
-            {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
-              timeZone: "America/New_York",
-              dateStyle: "long",
-            })}
-            . Ending a season resets everyone&apos;s rating for the next one.
-          </p>
-        </Section>
+        {HAS_PRIZE_POOL ? (
+          <Section title="Season prize pool">
+            <p>
+              The top 3 finishers on the leaderboard when the season ends split a ${SEASON_PRIZE_POOL_USD} USD prize
+              pool: 1st gets ${PRIZE_AMOUNTS_USD[0]}, 2nd ${PRIZE_AMOUNTS_USD[1]}, and 3rd ${PRIZE_AMOUNTS_USD[2]}. You
+              need {LEADERBOARD_MIN_GAMES}+ sets played to appear on the leaderboard at all.
+            </p>
+            <p>
+              The current preseason is a fixed {PRE_SEASON_DURATION_MONTHS}
+              -month trial run, expected to end around{" "}
+              {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
+                timeZone: DISPLAY_TIME_ZONE,
+                dateStyle: "long",
+              })}
+              . Ending a season resets everyone&apos;s rating for the next one.
+            </p>
+          </Section>
+        ) : (
+          <Section title="Seasons">
+            <p>
+              Seasons are ranking periods, not prize events — there is no prize money on this ladder. You need{" "}
+              {LEADERBOARD_MIN_GAMES}+ sets played to appear on the leaderboard at all, and ending a season resets
+              everyone&apos;s rating for the next one.
+            </p>
+          </Section>
+        )}
 
-        <Section title="Stage striking — game 1">
-          <p>
-            Game 1 draws from five stages: Battlefield, Small Battlefield, Pokémon Stadium 2, Smashville, and Town and
-            City. A randomly chosen player strikes 1, their opponent strikes 2, and the first striker picks the stage
-            from the two that remain.
-          </p>
-        </Section>
+        {!ALLOWS_LATENCY_MODS && (
+          <Section title="Mods">
+            <p>Low-latency firmware mods are not allowed. Play on unmodified hardware.</p>
+            <p>
+              If you want a better connection, a wired LAN adapter is the way to do it, and you can set Match settings
+              to only pair you with opponents who are also wired.
+            </p>
+          </Section>
+        )}
 
-        <Section title="Stage striking — games 2 and beyond">
-          <p>
-            Three counterpick stages are added — Final Destination, Hollow Bastion, and Kalos Pokémon League — for eight
-            total. The winner of the previous game strikes 3, and the loser picks the stage from what remains.
-          </p>
-        </Section>
+        {STRIKING_STAGES ? (
+          <>
+            <Section title="Stage striking — game 1">
+              <p>
+                Game 1 draws from five stages: Battlefield, Small Battlefield, Pokémon Stadium 2, Smashville, and Town
+                and City. A randomly chosen player strikes 1, their opponent strikes 2, and the first striker picks the
+                stage from the two that remain.
+              </p>
+            </Section>
+
+            <Section title="Stage striking — games 2 and beyond">
+              <p>
+                Three counterpick stages are added — Final Destination, Hollow Bastion, and Kalos Pokémon League — for
+                eight total. The winner of the previous game strikes 3, and the loser picks the stage from what remains.
+              </p>
+            </Section>
+          </>
+        ) : (
+          <>
+            <Section title="Stages — game 1">
+              <p>
+                Nobody strikes. Both players choose the stage they want in game and go with whatever the in-game lottery
+                lands on — do not pick Random.
+              </p>
+              <p>
+                Game 1 draws from six: Final Destination, Battlefield, Pokémon Stadium 2, Small Battlefield, Hollow
+                Bastion, and Town and City.
+              </p>
+            </Section>
+
+            <Section title="Stages — games 2 and 3">
+              <p>
+                The previous game&apos;s loser picks the stage, and the winner selects Random in game. Smashville joins
+                the list from game 2, for seven.
+              </p>
+              <p>
+                Final Destination and Battlefield may also be taken as the Ω form or Battlefield form of another stage.
+              </p>
+            </Section>
+          </>
+        )}
 
         <Section title="Room codes">
           <p>
@@ -133,17 +193,17 @@ export default async function RulesPage() {
             The free cancel stops working the moment a game has a decided winner or either side has reported one — at
             that point backing out always means Surrender, from either side, for the rest of the set. If your opponent
             goes quiet mid-set instead of surrendering yourself, you generally don&apos;t need to do anything: if they
-            stall their stage strikes or final pick, that turn is resolved for them after a few minutes — on game 1
-            with a random stage from what&apos;s left, and from game 2 onwards by continuing on the stage the previous
-            game was played on, so the set runs it back without erasing anything already decided. Character picks work
-            in two phases. Game 1&apos;s blind pick runs on one
-            countdown both players share: if it runs out with only one side locked in, the whole set is forfeited to
-            whoever locked in, not just the game they were on. From game 2 onwards a missed pick never ends the set —
-            whoever stalled falls back to the character they played in the previous game, on that game&apos;s stage,
-            while a pick their opponent already made stands. So you carry on playing rather than winning or losing to a
-            clock. If you&apos;d rather not wait, or you and your opponent both want to call the whole set off instead,
-            either of you can request a mutual cancel from the match screen; once the other side agrees, it cancels
-            immediately with no rating impact for either player, no matter how far the set got.
+            stall their stage strikes or final pick, that turn is resolved for them after a few minutes — on game 1 with
+            a random stage from what&apos;s left, and from game 2 onwards by continuing on the stage the previous game
+            was played on, so the set runs it back without erasing anything already decided. Character picks work in two
+            phases. Game 1&apos;s blind pick runs on one countdown both players share: if it runs out with only one side
+            locked in, the whole set is forfeited to whoever locked in, not just the game they were on. From game 2
+            onwards a missed pick never ends the set — whoever stalled falls back to the character they played in the
+            previous game, on that game&apos;s stage, while a pick their opponent already made stands. So you carry on
+            playing rather than winning or losing to a clock. If you&apos;d rather not wait, or you and your opponent
+            both want to call the whole set off instead, either of you can request a mutual cancel from the match
+            screen; once the other side agrees, it cancels immediately with no rating impact for either player, no
+            matter how far the set got.
           </p>
         </Section>
 
@@ -236,7 +296,7 @@ export default async function RulesPage() {
             {GEAR_RECOMMENDATIONS.map((item) => (
               <li key={item.url}>
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
-                  {item.label}
+                  {item.label[lang]}
                 </a>
               </li>
             ))}
@@ -267,40 +327,81 @@ function RulesPageEs() {
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <Section title="Formato">
           <p>
-            Todas las partidas rankeadas son al mejor de 5. Hazards de escenario desactivados. Configuración estándar de
-            stocks/tiempo.
+            Todas las partidas rankeadas son al mejor de {GAMES_TO_WIN * 2 - 1}. Hazards de escenario desactivados.
+            Configuración estándar de stocks/tiempo.
           </p>
         </Section>
 
-        <Section title="Bolsa de premios de temporada">
-          <p>
-            Los 3 primeros en la tabla de posiciones cuando termina la temporada se reparten una bolsa de $
-            {SEASON_PRIZE_POOL_USD} USD (≈ ${approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN, solo de
-            referencia — el pago siempre se hace en USD por PayPal): 1° recibe ${PRIZE_AMOUNTS_USD[0]}, 2°{" "}
-            ${PRIZE_AMOUNTS_USD[1]}, y 3° ${PRIZE_AMOUNTS_USD[2]}. Necesitas {LEADERBOARD_MIN_GAMES}+ partidas jugadas
-            para aparecer en la tabla de posiciones.
-          </p>
-          <p>
-            La preseason actual es una prueba fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor del{" "}
-            {endDate}. Terminar una temporada reinicia la clasificación de todos para la siguiente.
-          </p>
-        </Section>
+        {HAS_PRIZE_POOL ? (
+          <Section title="Bolsa de premios de temporada">
+            <p>
+              Los 3 primeros en la tabla de posiciones cuando termina la temporada se reparten una bolsa de $
+              {SEASON_PRIZE_POOL_USD} USD (≈ ${approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN, solo de
+              referencia — el pago siempre se hace en USD por PayPal): 1° recibe ${PRIZE_AMOUNTS_USD[0]}, 2° $
+              {PRIZE_AMOUNTS_USD[1]}, y 3° ${PRIZE_AMOUNTS_USD[2]}. Necesitas {LEADERBOARD_MIN_GAMES}+ partidas jugadas
+              para aparecer en la tabla de posiciones.
+            </p>
+            <p>
+              La preseason actual es una prueba fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor
+              del {endDate}. Terminar una temporada reinicia la clasificación de todos para la siguiente.
+            </p>
+          </Section>
+        ) : (
+          <Section title="Temporadas">
+            <p>
+              Las temporadas son periodos de clasificación, no eventos con premios — este ladder no reparte dinero.
+              Necesitas {LEADERBOARD_MIN_GAMES}+ partidas jugadas para aparecer en la tabla de posiciones, y terminar
+              una temporada reinicia la clasificación de todos para la siguiente.
+            </p>
+          </Section>
+        )}
 
-        <Section title="Descarte de escenario — juego 1">
-          <p>
-            El juego 1 se elige entre cinco escenarios: Battlefield, Small Battlefield, Pokémon Stadium 2, Smashville, y
-            Town and City. Un jugador elegido al azar descarta 1, su rival descarta 2, y el primero en descartar elige
-            el escenario entre los dos que quedan.
-          </p>
-        </Section>
+        {!ALLOWS_LATENCY_MODS && (
+          <Section title="Mods">
+            <p>No se permiten mods de baja latencia. Juega con hardware sin modificar.</p>
+            <p>
+              Si quieres mejor conexión, usa un adaptador LAN por cable; en Ajustes de partida puedes pedir que solo te
+              emparejen con rivales que también estén por cable.
+            </p>
+          </Section>
+        )}
 
-        <Section title="Descarte de escenario — juego 2 en adelante">
-          <p>
-            Se añaden tres escenarios de contra-selección — Final Destination, Hollow Bastion, y Kalos Pokémon League —
-            para ocho en total. Quien ganó el juego anterior descarta 3, y quien perdió elige el escenario entre lo que
-            queda.
-          </p>
-        </Section>
+        {STRIKING_STAGES ? (
+          <>
+            <Section title="Descarte de escenario — juego 1">
+              <p>
+                El juego 1 se elige entre cinco escenarios: Battlefield, Small Battlefield, Pokémon Stadium 2,
+                Smashville, y Town and City. Un jugador elegido al azar descarta 1, su rival descarta 2, y el primero en
+                descartar elige el escenario entre los dos que quedan.
+              </p>
+            </Section>
+
+            <Section title="Descarte de escenario — juego 2 en adelante">
+              <p>
+                Se añaden tres escenarios de contra-selección — Final Destination, Hollow Bastion, y Kalos Pokémon
+                League — para ocho en total. Quien ganó el juego anterior descarta 3, y quien perdió elige el escenario
+                entre lo que queda.
+              </p>
+            </Section>
+          </>
+        ) : (
+          <>
+            <Section title="Escenarios — juego 1">
+              <p>
+                Nadie descarta. Ambos eligen dentro del juego el escenario que quieren y aceptan lo que salga en el
+                sorteo — no elijan Aleatorio. El juego 1 se elige entre seis: Final Destination, Battlefield, Pokémon
+                Stadium 2, Small Battlefield, Hollow Bastion, y Town and City.
+              </p>
+            </Section>
+
+            <Section title="Escenarios — juegos 2 y 3">
+              <p>
+                Quien perdió el juego anterior elige el escenario, y el ganador elige Aleatorio en el juego. Smashville
+                se suma desde el juego 2, para siete.
+              </p>
+            </Section>
+          </>
+        )}
 
         <Section title="Códigos de sala">
           <p>
@@ -471,15 +572,15 @@ function RulesPageEs() {
 
         <Section title="Equipo recomendado para jugar por cable">
           <p>
-            Para tener una conexión por cable real (para la insignia de arriba) normalmente necesitas un adaptador
-            USB-C a Ethernet si juegas sin el dock, o simplemente un cable Ethernet al dock. Un control de GameCube es
-            la otra mejora común entre jugadores competitivos.
+            Para tener una conexión por cable real (para la insignia de arriba) normalmente necesitas un adaptador USB-C
+            a Ethernet si juegas sin el dock, o simplemente un cable Ethernet al dock. Un control de GameCube es la otra
+            mejora común entre jugadores competitivos.
           </p>
           <ul className="list-inside list-disc">
             {GEAR_RECOMMENDATIONS.map((item) => (
               <li key={item.url}>
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
-                  {item.label}
+                  {item.label.es}
                 </a>
               </li>
             ))}

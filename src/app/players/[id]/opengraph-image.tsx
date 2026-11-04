@@ -6,8 +6,10 @@ import { getRankTier, isRatingVisible, PROVISIONAL_GAMES_THRESHOLD } from "@/lib
 import { formatRating } from "@/lib/rating-format";
 import { getCareerStats, getHiddenRatingMatchIds } from "@/lib/players";
 import { characterIconSlug } from "@/lib/character-icons";
+import { SITE_NAME, instanceText } from "@/lib/site";
+import { japaneseOgFonts } from "@/lib/og-fonts";
 
-export const alt = "Smash Ladder NA rank card";
+export const alt = `${SITE_NAME} rank card`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -63,7 +65,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           fontSize: 40,
         }}
       >
-        Smash Ladder NA
+        {SITE_NAME}
       </div>,
       { ...size },
     );
@@ -82,6 +84,29 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const tierColor = tier ? (TIER_COLORS[tier.name] ?? "#ff6e50") : "#6b6b70";
   const characterIcon = characterIconDataUri(player.mainCharacter);
 
+  // Tier names (LEGEND, FIGHTER…) stay as they are in every language — they
+  // are the ladder's own labels, the way a rank name is.
+  const provisional = instanceText({ en: "PROVISIONAL", es: "PROVISIONAL" });
+  const ratingLine = ratingVisible
+    ? instanceText({
+        en: `${formatRating(player.rating)} rating`,
+        es: `${formatRating(player.rating)} de clasificación`,
+      })
+    : instanceText({
+        en: `${player.gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD} sets`,
+        es: `${player.gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD} partidas`,
+      });
+  const recordLabel = instanceText({ en: "LIFETIME RECORD", es: "RÉCORD HISTÓRICO" });
+  const streakLabel = instanceText({ en: "BEST STREAK", es: "MEJOR RACHA" });
+  const peakLabel = instanceText({ en: "PEAK RATING", es: "CLASIFICACIÓN MÁXIMA" });
+
+  // The username is whatever the player typed, so unlike the site card this
+  // can't ship a fixed subset — see lib/og-fonts.ts. Undefined (nothing
+  // outside Latin, or the fetch failed) renders on the bundled face.
+  const fonts = await japaneseOgFonts(
+    [player.username, provisional, ratingLine, recordLabel, streakLabel, peakLabel].join(""),
+  );
+
   return new ImageResponse(
     <div
       style={{
@@ -98,7 +123,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <img src={ICON_URI} width={36} height={36} style={{ borderRadius: 8 }} alt="" />
         <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: "#9a9a9e", letterSpacing: 1 }}>
-          SMASH LADDER NA
+          {SITE_NAME.toUpperCase()}
         </div>
       </div>
 
@@ -128,13 +153,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                 border: `2px solid ${tierColor}`,
               }}
             >
-              {tier ? tier.name.toUpperCase() : "PROVISIONAL"}
+              {tier ? tier.name.toUpperCase() : provisional}
             </div>
-            <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>
-              {ratingVisible
-                ? `${formatRating(player.rating)} rating`
-                : `${player.gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD} sets`}
-            </div>
+            <div style={{ display: "flex", fontSize: 32, color: "#9a9a9e" }}>{ratingLine}</div>
             {characterIcon && <img src={characterIcon} width={44} height={44} style={{ borderRadius: 8 }} alt="" />}
           </div>
         </div>
@@ -145,20 +166,20 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
             {career.totalWins}-{career.totalLosses}
           </div>
-          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>LIFETIME RECORD</div>
+          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>{recordLabel}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>{career.bestWinStreak}</div>
-          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>BEST STREAK</div>
+          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>{streakLabel}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "#f5f4f2" }}>
             {career.peakRating != null ? formatRating(career.peakRating) : "—"}
           </div>
-          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>PEAK RATING</div>
+          <div style={{ display: "flex", fontSize: 22, color: "#6b6b70" }}>{peakLabel}</div>
         </div>
       </div>
     </div>,
-    { ...size },
+    { ...size, ...(fonts ? { fonts } : {}) },
   );
 }

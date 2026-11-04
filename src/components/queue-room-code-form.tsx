@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useActionState } from "react";
 import { useFlashOnChange } from "@/lib/use-flash-on-change";
 import type { RoomCodeState } from "@/app/lobby/actions";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 // Idle time before a typed code is pushed to the server — long enough that a
 // code typed straight through only saves once, short enough that the value is
@@ -26,7 +28,7 @@ export function QueueRoomCodeForm({
 }: {
   initialValue: string;
   action: (prevState: RoomCodeState, formData: FormData) => Promise<RoomCodeState>;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, savedValue: null });
   const flashing = useFlashOnChange(state.savedValue);
@@ -58,7 +60,10 @@ export function QueueRoomCodeForm({
         autoComplete="off"
       >
         <label className="flex flex-col gap-1 text-sm">
-          {lang === "es" ? "¿Ya tienes una sala lista? (opcional)" : "Already have a room set up? (optional)"}
+          {tr(lang, {
+            en: "Already have a room set up? (optional)",
+            es: "¿Ya tienes una sala lista? (opcional)",
+          })}
           <input
             name="existingRoomCode"
             value={roomCode}
@@ -70,7 +75,7 @@ export function QueueRoomCodeForm({
                   .slice(0, 5),
               )
             }
-            placeholder="e.g. AB123"
+            placeholder={tr(lang, { en: "e.g. AB123", es: "ej. AB123" })}
             maxLength={5}
             pattern="[A-Z0-9]{5}"
             autoComplete="off"
@@ -84,16 +89,17 @@ export function QueueRoomCodeForm({
         </label>
       </form>
       <p className="text-xs text-muted-foreground">
-        {lang === "es"
-          ? "Si tu rival no trae una sala también, tú serás el anfitrión y la verá al instante. Déjalo vacío para quitarla."
-          : "As long as your opponent doesn't also bring one, you'll be host and they'll see this right away. Leave it empty to clear it."}
+        {tr(lang, {
+          en: "As long as your opponent doesn't also bring one, you'll be host and they'll see this right away. Leave it empty to clear it.",
+          es: "Si tu rival no trae una sala también, tú serás el anfitrión y la verá al instante. Déjalo vacío para quitarla.",
+        })}
       </p>
       {state.error ? (
         <p className="text-xs text-destructive">{state.error}</p>
       ) : isPending ? (
-        <p className="text-xs text-muted-foreground">{lang === "es" ? "Guardando…" : "Saving…"}</p>
+        <p className="text-xs text-muted-foreground">{tr(lang, { en: "Saving…", es: "Guardando…" })}</p>
       ) : (
-        flashing && <p className="text-xs text-muted-foreground">{lang === "es" ? "¡Guardado!" : "Saved!"}</p>
+        flashing && <p className="text-xs text-muted-foreground">{tr(lang, { en: "Saved!", es: "¡Guardado!" })}</p>
       )}
     </div>
   );

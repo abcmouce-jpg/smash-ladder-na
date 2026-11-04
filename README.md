@@ -32,6 +32,8 @@ and the moderation policies that govern ranked play are transparent rather than 
 - **Moderation** — conduct reports with threshold-based suspend/ban actions, and a disputed-game
   resolution queue for admins/mods.
 - **Region-aware matchmaking**, with an optional launch-region lock for a staged rollout.
+- **Public ranking export** — a read-only, unauthenticated endpoint so a tournament can seed a
+  bracket from the ladder, keyed on start.gg ids. See [docs/api.md](docs/api.md).
 
 ## Tech stack
 
@@ -79,6 +81,21 @@ The checked-in `.env.development` file has everything pre-configured for this lo
 you want to use a remote database or real Discord OAuth instead, copy `.env.example` to
 `.env.local` and fill in the values — it's the highest-precedence file, and Prisma's config reads
 the env files in the same order Next.js does (see `prisma.config.ts`), so migrations follow it too.
+
+Once `.env.local` holds a deployed environment's values, put your local overrides in
+`.env.development.local` (gitignored, read before `.env.local`) so `npm run dev` keeps pointing
+at the local database and the local instance.
+
+**`next build` and `next start` do not read `.env.development.local`** — both run in production
+mode, where Next.js reads `.env.production.local` → `.env.local` → `.env.production` → `.env`.
+So building and serving a production build locally picks up the deployed database and the
+deployed `NEXT_PUBLIC_*` values baked in at build time. Use these instead, which load the
+development files first and refuse to start if `DATABASE_URL` is not on localhost:
+
+```bash
+npm run build:local
+npm run start:local -- -p 3100
+```
 
 ### Working with realistic data locally
 

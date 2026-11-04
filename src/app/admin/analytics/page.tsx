@@ -9,6 +9,7 @@ import {
   getSignupsPerDay,
   getWeeklyRetentionCohorts,
 } from "@/lib/admin-analytics";
+import { getCampaignResults } from "@/lib/campaigns";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TimeSeriesChart } from "@/components/admin/time-series-chart";
@@ -31,15 +32,17 @@ export default async function AdminAnalyticsPage() {
     );
   }
 
-  const [signups, cancels, disputes, activeSnapshot, cohorts, referralRetention, ratingGapChurn] = await Promise.all([
-    getSignupsPerDay(),
-    getCancelsPerDay(),
-    getDisputesPerDay(),
-    getActiveUserSnapshot(),
-    getWeeklyRetentionCohorts(8),
-    getReferralRetentionComparison(),
-    getRatingGapChurnAnalysis(),
-  ]);
+  const [signups, cancels, disputes, activeSnapshot, cohorts, referralRetention, ratingGapChurn, campaigns] =
+    await Promise.all([
+      getSignupsPerDay(),
+      getCancelsPerDay(),
+      getDisputesPerDay(),
+      getActiveUserSnapshot(),
+      getWeeklyRetentionCohorts(8),
+      getReferralRetentionComparison(),
+      getRatingGapChurnAnalysis(),
+      getCampaignResults(),
+    ]);
 
   // "Determined" excludes still-pending signups (their own 7-day window
   // hasn't closed yet) from the rate's denominator — otherwise someone who
@@ -212,6 +215,53 @@ export default async function AdminAnalyticsPage() {
               {referralRetention.organic.cohortSize - referralRetention.organic.stillPending} decided)
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Where off-site posts actually landed. Signups is the vanity number:
+          74% of all signups never play a set, so a post that drew a crowd of
+          those did nothing. The two columns to its right are the real
+          result. */}
+      <Card className="mt-4">
+        <CardHeader>
+          <p className="text-sm font-medium">Campaign signups</p>
+          <p className="text-xs text-muted-foreground">
+            Players who first arrived through a <code className="font-mono">?src=</code> link (see lib/campaigns.ts).
+            Empty until a tagged link has been posted somewhere.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {campaigns.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No tagged signups yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs text-muted-foreground">
+                    <th className="py-2 text-left font-medium">Source</th>
+                    <th className="py-2 text-right font-medium">Signups</th>
+                    <th className="py-2 text-right font-medium">Played 1+</th>
+                    <th className="py-2 text-right font-medium">Reached 5</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaigns.map((c) => (
+                    <tr key={c.source} className="border-b border-border/50 last:border-0">
+                      <td className="py-2 font-mono text-xs">{c.source}</td>
+                      <td className="py-2 text-right tabular-nums">{c.signups}</td>
+                      <td className="py-2 text-right tabular-nums">
+                        {c.played} <span className="text-muted-foreground">({pct(c.played, c.signups)})</span>
+                      </td>
+                      <td className="py-2 text-right tabular-nums">
+                        {c.reachedFiveSets}{" "}
+                        <span className="text-muted-foreground">({pct(c.reachedFiveSets, c.signups)})</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

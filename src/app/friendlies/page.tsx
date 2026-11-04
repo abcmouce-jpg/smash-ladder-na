@@ -13,6 +13,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
+import { tr, trNode } from "@/lib/lang";
+import { HAS_DISCORD_SERVER, USES_REGIONS } from "@/lib/site";
 
 export default async function FriendliesPage() {
   const [session, lang, posts] = await Promise.all([auth(), getLang(), getFriendliesPosts(20)]);
@@ -21,18 +23,12 @@ export default async function FriendliesPage() {
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
       <PageHeading
         icon={Users}
-        title={lang === "es" ? "Amistosos" : "Friendlies"}
-        description={
-          lang === "es" ? (
-            <>
-              Publica lo que buscas y arma amistosos casuales sin clasificación — no hay puntos en juego ni
-              emparejamiento automático. Es lo opuesto a la cola rankeada de la{" "}
-              <Link href="/lobby" className="underline hover:text-foreground">
-                Sala
-              </Link>
-              : tú publicas lo que buscas y quien lo vea en Discord te contacta directamente.
-            </>
-          ) : (
+        title={tr(lang, {
+          en: "Friendlies",
+          es: "Amistosos",
+        })}
+        description={trNode(lang, {
+          en: (
             <>
               Post what you&apos;re looking for and get casual, unranked friendlies going — no rating on the line, and
               no auto-matching. It&apos;s the opposite of the{" "}
@@ -42,27 +38,40 @@ export default async function FriendliesPage() {
               &apos;s ranked queue: here, you post what you want and whoever sees it on Discord reaches out to you
               directly.
             </>
-          )
-        }
+          ),
+          es: (
+            <>
+              Publica lo que buscas y arma amistosos casuales sin clasificación — no hay puntos en juego ni
+              emparejamiento automático. Es lo opuesto a la cola rankeada de la{" "}
+              <Link href="/lobby" className="underline hover:text-foreground">
+                Sala
+              </Link>
+              : tú publicas lo que buscas y quien lo vea en Discord te contacta directamente.
+            </>
+          ),
+        })}
       >
         <ol className="mt-3 flex max-w-xl list-none flex-col gap-1 text-xs text-muted-foreground">
-          {lang === "es" ? (
-            <>
-              <li>1. Publica qué buscas (matchup, disponibilidad, etc).</li>
-              <li>2. Tu publicación se anuncia en el Discord de la comunidad.</li>
-              <li>3. Quien esté interesado te contacta por Discord — esta página solo hace la presentación.</li>
-              <li>
-                4. Las publicaciones expiran solas después de 24 horas; ciérrala y vuelve a publicar cuando quieras.
-              </li>
-            </>
-          ) : (
-            <>
-              <li>1. Post what you&apos;re looking for (matchup, availability, etc).</li>
-              <li>2. Your post gets announced in the community Discord.</li>
-              <li>3. Whoever&apos;s interested reaches out on Discord — this page just makes the introduction.</li>
-              <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
-            </>
-          )}
+          {trNode(lang, {
+            en: (
+              <>
+                <li>1. Post what you&apos;re looking for (matchup, availability, etc).</li>
+                <li>2. Your post gets announced in the community Discord.</li>
+                <li>3. Whoever&apos;s interested reaches out on Discord — this page just makes the introduction.</li>
+                <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
+              </>
+            ),
+            es: (
+              <>
+                <li>1. Publica qué buscas (matchup, disponibilidad, etc).</li>
+                <li>2. Tu publicación se anuncia en el Discord de la comunidad.</li>
+                <li>3. Quien esté interesado te contacta por Discord — esta página solo hace la presentación.</li>
+                <li>
+                  4. Las publicaciones expiran solas después de 24 horas; ciérrala y vuelve a publicar cuando quieras.
+                </li>
+              </>
+            ),
+          })}
         </ol>
       </PageHeading>
 
@@ -70,9 +79,10 @@ export default async function FriendliesPage() {
         <Card className="mt-6">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">
-              {lang === "es"
-                ? "Inicia sesión con Discord (arriba a la derecha) para publicar o unirte a un post."
-                : "Sign in with Discord (top right) to post or join a post."}
+              {tr(lang, {
+                en: "Sign in with Discord (top right) to post or join a post.",
+                es: "Inicia sesión con Discord (arriba a la derecha) para publicar o unirte a un post.",
+              })}
             </p>
           </CardContent>
         </Card>
@@ -81,7 +91,12 @@ export default async function FriendliesPage() {
       )}
 
       <div className="mt-10">
-        <SectionHeading label={lang === "es" ? "Publicaciones abiertas" : "Open posts"} />
+        <SectionHeading
+          label={tr(lang, {
+            en: "Open posts",
+            es: "Publicaciones abiertas",
+          })}
+        />
         <FriendliesPosts posts={posts} lang={lang} />
       </div>
     </main>
@@ -117,28 +132,33 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
       <CardContent className="pt-4">
         <form action={action} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm">
-            {lang === "es" ? "¿Qué estás buscando?" : "What are you looking for?"}
+            {tr(lang, {
+              en: "What are you looking for?",
+              es: "¿Qué estás buscando?",
+            })}
             <textarea
               name="comment"
               required
               rows={2}
-              placeholder={
-                lang === "es"
-                  ? "p. ej. Busco amistosos, Fox/Falco, tardes hora del centro"
-                  : "e.g. Looking for friendlies, Fox/Falco, EST evenings"
-              }
+              placeholder={tr(lang, {
+                en: "e.g. Looking for friendlies, Fox/Falco, EST evenings",
+                es: "p. ej. Busco amistosos, Fox/Falco, tardes hora del centro",
+              })}
               className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
             />
           </label>
           {selectableTiers.length > 0 && (
             <label className="flex flex-col gap-1 text-sm">
-              {lang === "es" ? "¿Quién puede unirse?" : "Who can join?"}
+              {tr(lang, {
+                en: "Who can join?",
+                es: "¿Quién puede unirse?",
+              })}
               <select
                 name="minTier"
                 defaultValue=""
                 className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
               >
-                <option value="">{lang === "es" ? "Cualquiera" : "Anyone"}</option>
+                <option value="">{tr(lang, { en: "Anyone", es: "Cualquiera" })}</option>
                 {selectableTiers.map((tier) => (
                   <option key={tier} value={tier}>
                     {tier}+
@@ -146,19 +166,28 @@ function PostForm({ lang, achievedTiers }: { lang: Lang; achievedTiers: FreeBatt
                 ))}
               </select>
               <span className="text-xs text-muted-foreground">
-                {lang === "es"
-                  ? "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse — y se anuncia en el canal de Discord de ese rango en vez del general."
-                  : "Everyone sees the post, but only players who've reached that rank can join — and it announces in that rank's Discord channel instead of the general one."}
+                {HAS_DISCORD_SERVER
+                  ? tr(lang, {
+                      en: "Everyone sees the post, but only players who've reached that rank can join — and it announces in that rank's Discord channel instead of the general one.",
+                      es: "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse — y se anuncia en el canal de Discord de ese rango en vez del general.",
+                    })
+                  : tr(lang, {
+                      en: "Everyone sees the post, but only players who've reached that rank can join.",
+                      es: "Todos ven la publicación, pero solo quienes hayan alcanzado ese rango pueden unirse.",
+                    })}
               </span>
             </label>
           )}
-          <p className="text-xs text-muted-foreground">
-            {lang === "es"
-              ? "La región se toma de tu perfil — configúrala en la página de Sala."
-              : "Region is pulled from your profile — set it on the Lobby page."}
-          </p>
+          {USES_REGIONS && (
+            <p className="text-xs text-muted-foreground">
+              {tr(lang, {
+                en: "Region is pulled from your profile — set it on the Lobby page.",
+                es: "La región se toma de tu perfil — configúrala en la página de Sala.",
+              })}
+            </p>
+          )}
           <Button type="submit" className="self-start">
-            {lang === "es" ? "Publicar" : "Post"}
+            {tr(lang, { en: "Post", es: "Publicar" })}
           </Button>
         </form>
       </CardContent>
@@ -178,14 +207,18 @@ async function OwnPostCard({
       <Card>
         <CardContent className="pt-4">
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Tu publicación está activa. Esperando a que alguien se una…"
-              : "Your post is live. Waiting for someone to join…"}
+            {tr(lang, {
+              en: "Your post is live. Waiting for someone to join…",
+              es: "Tu publicación está activa. Esperando a que alguien se una…",
+            })}
             {post.minTier && <Badge>{post.minTier}+</Badge>}
           </p>
           <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
             <Button type="submit" variant="outline" size="sm">
-              {lang === "es" ? "Cerrar publicación" : "Close post"}
+              {tr(lang, {
+                en: "Close post",
+                es: "Cerrar publicación",
+              })}
             </Button>
           </form>
         </CardContent>
@@ -198,7 +231,12 @@ async function OwnPostCard({
   return (
     <Card>
       <CardContent className="pt-4">
-        <Badge variant="success">{lang === "es" ? "¡Emparejado!" : "Matched!"}</Badge>
+        <Badge variant="success">
+          {tr(lang, {
+            en: "Matched!",
+            es: "¡Emparejado!",
+          })}
+        </Badge>
         {matchedWith && (
           <div className="mt-3 flex items-center gap-3">
             {matchedWith.avatarUrl && (
@@ -214,13 +252,22 @@ async function OwnPostCard({
           </div>
         )}
         <p className="mt-2 text-xs text-muted-foreground">
-          {lang === "es"
-            ? "Contáctalo por Discord para acordar el código de sala — esta página no lleva registro de la partida en sí."
-            : "Reach out to them on Discord to set up your room code — this page doesn't track the game itself."}
+          {HAS_DISCORD_SERVER
+            ? tr(lang, {
+                en: "Reach out to them on Discord to set up your room code — this page doesn't track the game itself.",
+                es: "Contáctalos en Discord para acordar el código de sala — esta página no registra la partida.",
+              })
+            : tr(lang, {
+                en: "Their Discord handle is on their profile — message them there to set up your room. This page doesn't track the game itself.",
+                es: "Su usuario de Discord está en su perfil — escríbele ahí para montar la sala. Esta página no registra la partida.",
+              })}
         </p>
         <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
           <Button type="submit" variant="outline" size="sm">
-            {lang === "es" ? "Listo — publicar de nuevo" : "Done — post again"}
+            {tr(lang, {
+              en: "Done — post again",
+              es: "Listo — publicar de nuevo",
+            })}
           </Button>
         </form>
       </CardContent>

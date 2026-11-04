@@ -59,7 +59,7 @@ afterEach(() => {
 // The queue-opportunity ping now delivers over Discord too — reset the DM
 // transport per test so its calls don't accumulate across the suite.
 beforeEach(() => {
-  vi.spyOn(discordBot, "sendDiscordDM").mockReset().mockResolvedValue(undefined);
+  vi.spyOn(discordBot, "sendDiscordDM").mockReset().mockResolvedValue("sent");
 });
 
 function subscribeUser(userId: string, endpoint: string) {
@@ -70,8 +70,10 @@ function subscribeUser(userId: string, endpoint: string) {
 
 describe("notifyMatchFoundToUsers", () => {
   it("sends to every subscription of both players, once each", async () => {
-    const a = await createTestUser();
-    const b = await createTestUser();
+    // Stated rather than left to the default, since the payload asserted below
+    // is the English one.
+    const a = await createTestUser({ preferredLanguage: "en" });
+    const b = await createTestUser({ preferredLanguage: "en" });
     await subscribeUser(a.id, "https://push.example.com/a1");
     await subscribeUser(a.id, "https://push.example.com/a2");
     await subscribeUser(b.id, "https://push.example.com/b1");
@@ -154,7 +156,7 @@ describe("notifyMatchFoundToUsers", () => {
 
 describe("sendTestPushToUser", () => {
   it("sends a test payload to every subscription on the account", async () => {
-    const user = await createTestUser();
+    const user = await createTestUser({ preferredLanguage: "en" });
     await subscribeUser(user.id, "https://push.example.com/t1");
     await subscribeUser(user.id, "https://push.example.com/t2");
     sendNotificationMock.mockResolvedValue({ statusCode: 201, body: "", headers: {} });
@@ -203,7 +205,9 @@ describe("sendTestPushToUser", () => {
 });
 
 describe("notifyQueueOpportunitySubscribers", () => {
-  function joinerParams(overrides: Partial<{ region: string; rating: number; maxMatchDistanceKm: number | null }> = {}) {
+  function joinerParams(
+    overrides: Partial<{ region: string; rating: number; maxMatchDistanceKm: number | null }> = {},
+  ) {
     return {
       region: "USA East",
       rating: 1500,
@@ -221,6 +225,7 @@ describe("notifyQueueOpportunitySubscribers", () => {
       gamesPlayed: 20,
       region: "USA East",
       notifyQueueOpportunities: true,
+      preferredLanguage: "en",
     });
     await subscribeUser(candidate.id, "https://push.example.com/opportunity");
     sendNotificationMock.mockResolvedValue({ statusCode: 201, body: "", headers: {} });

@@ -10,6 +10,7 @@ import { ExpandableTextarea } from "@/components/expandable-textarea";
 import { LADDER_TIME_ZONE } from "@/lib/timezone";
 import type { Lang } from "@/lib/i18n";
 import type { GuideActionState, GuideFormState } from "@/app/notes/actions";
+import { tr } from "@/lib/lang";
 
 export type Guide = {
   id: string;
@@ -79,11 +80,14 @@ export function CharacterGuideSection({
   return (
     <div className="mt-3 border-t border-border pt-3">
       <p className="text-xs font-medium text-muted-foreground">
-        {lang === "es" ? "Guías de la comunidad" : "Community guides"}
+        {tr(lang, { en: "Community guides", es: "Guías de la comunidad" })}
       </p>
       {guides.length === 0 && !writing && (
         <p className="mt-1 text-xs text-muted-foreground">
-          {lang === "es" ? "Nadie ha escrito una guía para este personaje todavía." : "No one's written a guide for this character yet."}
+          {tr(lang, {
+            en: "No one's written a guide for this character yet.",
+            es: "Nadie ha escrito una guía para este personaje todavía.",
+          })}
         </p>
       )}
       <ul className="mt-2 flex flex-col gap-2">
@@ -113,14 +117,14 @@ export function CharacterGuideSection({
           href={`/notes?tab=guides&character=${encodeURIComponent(character)}`}
           className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
         >
-          {lang === "es" ? "Ver más guías" : "Show more guides"}
+          {tr(lang, { en: "Show more guides", es: "Ver más guías" })}
           <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       )}
 
       {userId && !writing && (
         <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => setWriting(true)}>
-          {lang === "es" ? "Escribir una guía" : "Write a guide"}
+          {tr(lang, { en: "Write a guide", es: "Escribir una guía" })}
         </Button>
       )}
       {userId && writing && (
@@ -130,22 +134,21 @@ export function CharacterGuideSection({
             name="content"
             maxLength={maxLength}
             rows={8}
-            placeholder={
-              lang === "es"
-                ? "Matchups, consejos de escenario, lo que sea útil para otros jugando contra este personaje…"
-                : "Matchups, stage tips, anything useful for others playing against this character…"
-            }
+            placeholder={tr(lang, {
+              en: "Matchups, stage tips, anything useful for others playing against this character…",
+              es: "Matchups, consejos de escenario, lo que sea útil para otros jugando contra este personaje…",
+            })}
             className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
-            title={lang === "es" ? "Guía de la comunidad" : "Community guide"}
+            title={tr(lang, { en: "Community guide", es: "Guía de la comunidad" })}
           />
           <div className="flex items-center justify-between gap-2">
             {createState.error ? <p className="text-xs text-destructive">{createState.error}</p> : <span />}
             <div className="flex gap-2">
               <Button type="button" size="sm" variant="ghost" onClick={() => setWriting(false)}>
-                {lang === "es" ? "Cancelar" : "Cancel"}
+                {tr(lang, { en: "Cancel", es: "Cancelar" })}
               </Button>
               <Button type="submit" size="sm" disabled={createPending} onClick={() => (submittedRef.current = true)}>
-                {lang === "es" ? "Publicar" : "Post"}
+                {tr(lang, { en: "Post", es: "Publicar" })}
               </Button>
             </div>
           </div>
@@ -199,7 +202,7 @@ export function GuideCard({
 }) {
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [confirm, confirmDialog] = useConfirm();
+  const [confirm, confirmDialog] = useConfirm(lang);
   const boundEdit = editAction.bind(null, guide.id);
   const [editState, editFormAction, editPending] = useActionState(boundEdit, { error: null });
   const editSubmittedRef = useRef(false);
@@ -244,10 +247,11 @@ export function GuideCard({
   async function handleImport() {
     const ok = hasOwnNote
       ? await confirm(
-          lang === "es"
-            ? "Esto sobrescribirá tu nota privada actual para este personaje. ¿Continuar?"
-            : "This will overwrite your current private note for this character. Continue?",
-          { confirmLabel: lang === "es" ? "Sobrescribir" : "Overwrite", variant: "destructive" },
+          tr(lang, {
+            en: "This will overwrite your current private note for this character. Continue?",
+            es: "Esto sobrescribirá tu nota privada actual para este personaje. ¿Continuar?",
+          }),
+          { confirmLabel: tr(lang, { en: "Overwrite", es: "Sobrescribir" }), variant: "destructive" },
         )
       : true;
     if (!ok) return;
@@ -270,16 +274,16 @@ export function GuideCard({
             maxLength={maxLength}
             rows={8}
             className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
-            title={lang === "es" ? "Editar guía" : "Edit guide"}
+            title={tr(lang, { en: "Edit guide", es: "Editar guía" })}
           />
           <div className="flex items-center justify-between gap-2">
             {editState.error ? <p className="text-xs text-destructive">{editState.error}</p> : <span />}
             <div className="flex gap-2">
               <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                {lang === "es" ? "Cancelar" : "Cancel"}
+                {tr(lang, { en: "Cancel", es: "Cancelar" })}
               </Button>
               <Button type="submit" size="sm" disabled={editPending} onClick={() => (editSubmittedRef.current = true)}>
-                {lang === "es" ? "Guardar" : "Save"}
+                {tr(lang, { en: "Save", es: "Guardar" })}
               </Button>
             </div>
           </div>
@@ -304,12 +308,8 @@ export function GuideCard({
               className="mt-1 block text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
               {contentExpanded
-                ? lang === "es"
-                  ? "Mostrar menos"
-                  : "Show less"
-                : lang === "es"
-                  ? "Mostrar más"
-                  : "Show more"}
+                ? tr(lang, { en: "Show less", es: "Mostrar menos" })
+                : tr(lang, { en: "Show more", es: "Mostrar más" })}
             </button>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -322,7 +322,7 @@ export function GuideCard({
                   the SSR and hydrated output match without a LocalTime script. */}
               <span className="shrink-0 tabular-nums">
                 ·{" "}
-                {new Date(guide.createdAt).toLocaleDateString(lang === "es" ? "es-MX" : "en-US", {
+                {new Date(guide.createdAt).toLocaleDateString(tr(lang, { en: "en-US", es: "es-MX" }), {
                   timeZone: LADDER_TIME_ZONE,
                   dateStyle: "medium",
                 })}
@@ -333,7 +333,7 @@ export function GuideCard({
                 type="button"
                 disabled={!userId || isOwn || isPending}
                 onClick={() => runAction(() => voteOnGuide(guide.id, 1))}
-                aria-label={lang === "es" ? "Votar a favor" : "Upvote"}
+                aria-label={tr(lang, { en: "Upvote", es: "Votar a favor" })}
                 className={`rounded p-1 hover:bg-muted ${guide.myVote === 1 ? "text-primary" : ""}`}
               >
                 <ChevronUp className="size-3.5" />
@@ -343,27 +343,39 @@ export function GuideCard({
                 type="button"
                 disabled={!userId || isOwn || isPending}
                 onClick={() => runAction(() => voteOnGuide(guide.id, -1))}
-                aria-label={lang === "es" ? "Votar en contra" : "Downvote"}
+                aria-label={tr(lang, { en: "Downvote", es: "Votar en contra" })}
                 className={`rounded p-1 hover:bg-muted ${guide.myVote === -1 ? "text-destructive" : ""}`}
               >
                 <ChevronDown className="size-3.5" />
               </button>
             </span>
             {userId && (
-              <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={handleImport} disabled={isPending}>
-                {lang === "es" ? "Importar a mi nota" : "Import to my note"}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs"
+                onClick={handleImport}
+                disabled={isPending}
+              >
+                {tr(lang, { en: "Import to my note", es: "Importar a mi nota" })}
               </Button>
             )}
             {isOwn ? (
               <>
-                <button type="button" onClick={() => setEditing(true)} aria-label={lang === "es" ? "Editar" : "Edit"} className="rounded p-1 hover:bg-muted">
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  aria-label={tr(lang, { en: "Edit", es: "Editar" })}
+                  className="rounded p-1 hover:bg-muted"
+                >
                   <Pencil className="size-3.5" />
                 </button>
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={() => runAction(() => deleteGuide(guide.id))}
-                  aria-label={lang === "es" ? "Eliminar" : "Delete"}
+                  aria-label={tr(lang, { en: "Delete", es: "Eliminar" })}
                   className="rounded p-1 hover:bg-muted hover:text-destructive"
                 >
                   <Trash2 className="size-3.5" />
@@ -377,18 +389,12 @@ export function GuideCard({
                   onClick={() => runAction(() => flagGuideAction(guide.id))}
                   aria-label={
                     guide.myFlag
-                      ? lang === "es"
-                        ? "Reportado"
-                        : "Reported"
-                      : lang === "es"
-                        ? "Reportar"
-                        : "Flag"
+                      ? tr(lang, { en: "Reported", es: "Reportado" })
+                      : tr(lang, { en: "Flag", es: "Reportar" })
                   }
-                  title={guide.myFlag ? (lang === "es" ? "Ya reportado" : "Already reported") : undefined}
+                  title={guide.myFlag ? tr(lang, { en: "Already reported", es: "Ya reportado" }) : undefined}
                   className={
-                    guide.myFlag
-                      ? "rounded p-1 text-destructive"
-                      : "rounded p-1 hover:bg-muted hover:text-destructive"
+                    guide.myFlag ? "rounded p-1 text-destructive" : "rounded p-1 hover:bg-muted hover:text-destructive"
                   }
                 >
                   <Flag className="size-3.5" fill={guide.myFlag ? "currentColor" : "none"} />

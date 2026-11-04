@@ -7,6 +7,7 @@ import { resolveMatchCorrection } from "@/lib/matches";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { prisma } from "@/lib/db";
+import { SITE_NAME } from "@/lib/site";
 
 async function requireModerator() {
   const session = await auth();
@@ -51,7 +52,7 @@ export async function messageDisputedPlayer(playerId: string, formData: FormData
   if (isNotificationEnabled(player, "DM_MOD_MESSAGES")) {
     await sendDiscordDM(
       player.discordId,
-      `📨 A Smash Ladder NA mod sent you a message about your disputed match:\n\n${message}`,
+      `📨 A ${SITE_NAME} mod sent you a message about your disputed match:\n\n${message}`,
     );
   }
   revalidatePath("/admin/disputes");

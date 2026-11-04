@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { tr } from "@/lib/lang";
+import { getLang } from "@/lib/i18n";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -12,8 +14,10 @@ import {
   setNotificationsDisabled,
   setNotifyQueueOpportunities,
   setNotifyQueueOpportunitiesDm,
+  setLiveStreamUrl,
   setQuickMessages,
   setUsername,
+  setYoutubeChannelUrl,
 } from "@/lib/account";
 import { disabledKeysFromEnabled } from "@/lib/notifications";
 import { setArenaPassword } from "@/lib/arena";
@@ -22,10 +26,11 @@ import { generateApiToken, revokeApiToken } from "@/lib/api-tokens";
 import { sendTestPushToUser } from "@/lib/push-server";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
 import { disconnectTwitchAccount } from "@/lib/twitch-oauth";
+import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id) throw new LocalizedError({ en: "Not signed in", es: "No has iniciado sesión" });
   return session.user.id;
 }
 
@@ -43,7 +48,7 @@ export async function updateUserSettingsAction(
     await setUsername(userId, String(formData.get("username") ?? ""));
     await setHideDiscordUsername(userId, formData.get("hideDiscordUsername") === "on");
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", saved: false };
+    return { error: errorMessage(err, await getLang()), saved: false };
   }
   // "layout" here, not just the default "page" — the header showing this
   // player's name lives in the root layout, which a page-level revalidation
@@ -87,7 +92,7 @@ export async function updateLobbySettingsAction(
     await setAudioPingOnMatch(userId, formData.get("audioPingOnMatch") === "on");
     await setMatchFoundSound(userId, formData.get("matchFoundSound") === "CHIME" ? "CHIME" : "ANNOUNCER");
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", saved: false };
+    return { error: errorMessage(err, await getLang()), saved: false };
   }
   revalidatePath("/settings");
   revalidatePath("/lobby");
@@ -111,7 +116,7 @@ export async function updateNotificationSettingsAction(
     await setNotifyQueueOpportunities(userId, formData.get("notifyQueueOpportunities") === "on");
     await setNotifyQueueOpportunitiesDm(userId, formData.get("notifyQueueOpportunitiesDm") === "on");
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", saved: false };
+    return { error: errorMessage(err, await getLang()), saved: false };
   }
   revalidatePath("/settings");
   return { error: null, saved: true };
@@ -123,10 +128,22 @@ export async function savePushSubscriptionAction(sub: PushSubscriptionKeys) {
   const userId = await requireUserId();
   const { endpoint, p256dh, auth } = sub ?? {};
   if (!endpoint || !p256dh || !auth) {
-    return { success: false, error: "Missing subscription details." };
+    return {
+      success: false,
+      error: tr(await getLang(), {
+        en: "Missing subscription details.",
+        es: "Faltan los datos de la suscripción.",
+      }),
+    };
   }
   if (!/^https?:\/\//.test(endpoint)) {
-    return { success: false, error: "Invalid subscription endpoint." };
+    return {
+      success: false,
+      error: tr(await getLang(), {
+        en: "Invalid subscription endpoint.",
+        es: "Endpoint de suscripción inválido.",
+      }),
+    };
   }
   const userAgent = (await headers()).get("user-agent") ?? null;
   await prisma.pushSubscription.upsert({
@@ -152,7 +169,7 @@ export async function removePushSubscriptionAction(endpoint: string) {
 
 export async function sendTestPushAction() {
   const userId = await requireUserId();
-  return sendTestPushToUser(userId);
+  return sendTestPushToUser(userId, await getLang());
 }
 
 export async function disconnectStartggAction() {
@@ -184,7 +201,7 @@ export async function generateApiTokenAction(
     revalidatePath("/settings");
     return { error: null, rawToken };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", rawToken: null };
+    return { error: errorMessage(err, await getLang()), rawToken: null };
   }
 }
 
@@ -192,4 +209,39 @@ export async function revokeApiTokenAction(tokenId: string) {
   const userId = await requireUserId();
   await revokeApiToken(userId, tokenId);
   revalidatePath("/settings");
+}
+
+export async function updateStreamLinksAction(
+  _prev: SettingsSaveState,
+  formData: FormData,
+): Promise<SettingsSaveState> {
+  const userId = await requireUserId();
+
+  // The live link is checked first: if it is wrong, nothing is written, so a
+  // typo there can't silently save the channel field and look like a success.
+  const live = await setLiveStreamUrl(userId, String(formData.get("liveStreamUrl") ?? ""));
+  if (!live.ok) {
+    return {
+      error: tr(await getLang(), {
+        en: "That stream link isn't a Twitch or YouTube URL we can embed.",
+        es: "Ese enlace no es una URL de Twitch o YouTube que podamos insertar.",
+      }),
+      saved: false,
+    };
+  }
+
+  const channel = await setYoutubeChannelUrl(userId, String(formData.get("youtubeChannelUrl") ?? ""));
+  if (!channel.ok) {
+    return {
+      error: tr(await getLang(), {
+        en: "That channel link isn't a YouTube URL we recognise.",
+        es: "Ese enlace de canal no es una URL de YouTube que reconozcamos.",
+      }),
+      saved: false,
+    };
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/live");
+  return { error: null, saved: true };
 }

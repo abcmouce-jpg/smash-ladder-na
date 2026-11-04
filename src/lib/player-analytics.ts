@@ -16,7 +16,13 @@ export interface WinRateRow {
 
 function toWinRateRows(record: Map<string, { wins: number; losses: number }>): WinRateRow[] {
   return [...record.entries()]
-    .map(([label, { wins, losses }]) => ({ label, wins, losses, total: wins + losses, winRate: wins / (wins + losses) }))
+    .map(([label, { wins, losses }]) => ({
+      label,
+      wins,
+      losses,
+      total: wins + losses,
+      winRate: wins / (wins + losses),
+    }))
     .sort((a, b) => b.total - a.total);
 }
 

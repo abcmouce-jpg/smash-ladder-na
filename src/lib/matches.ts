@@ -2,6 +2,7 @@ import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import {
   LobbyEntryStatus,
+  MatchMode,
   MatchStatus,
   ConfirmationMethod,
   PairingMethod,
@@ -14,6 +15,7 @@ import {
   isCancelWarningThreshold,
   isWiredClaimUntrustworthy,
 } from "@/lib/account";
+import { isMainTrack, readTrack, trackFor, writeTrack, type RatingTrack } from "@/lib/rating-track";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
@@ -23,6 +25,8 @@ import { isNotificationEnabled } from "@/lib/notifications";
 import { computeTierChange, deferTierChange } from "@/lib/rank-roles";
 import { isEffectiveGoldSupporter } from "@/lib/supporters";
 import { deferMatchStreamCapture } from "@/lib/match-streams";
+import { NEXT_SEASON_ALGORITHM } from "@/lib/seasons";
+import { LocalizedError } from "@/lib/localized-error";
 
 // Free cancel is blocked for this long after a match is created, giving the
 // opponent a moment to actually show up before the other side can bail —
@@ -55,6 +59,9 @@ export const matchWithPlayers = {
       // for the main rating, it stays hidden from non-moderators until the
       // player has enough practice sets (see isRatingVisible).
       practiceGamesPlayed: true,
+      // Same role for the randitto ladder — see displayRating.
+      randittoRating: true,
+      randittoGamesPlayed: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -69,6 +76,9 @@ export const matchWithPlayers = {
       gamesPlayed: true,
       practiceRating: true,
       practiceGamesPlayed: true,
+      // Same role for the randitto ladder — see displayRating.
+      randittoRating: true,
+      randittoGamesPlayed: true,
       region: true,
       arenaPassword: true,
       zenMode: true,
@@ -173,35 +183,48 @@ export async function hasOpponentEngaged(matchId: string, opponentId: string): P
 // for a match they'd clearly lost.)
 export async function cancelMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
   // REPORTED is legacy (pre-BO3) status that nothing in the current app
   // writes anymore, but old rows can still carry it — treated the same as
   // PENDING_REPORT here so a match can never get permanently stuck just
   // because of its status value.
   if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
-    throw new Error("This match can no longer be cancelled");
+    throw new LocalizedError({
+      en: "This match can no longer be cancelled",
+      es: "Esta partida ya no se puede cancelar",
+    });
   }
 
   const gameInProgress = await prisma.matchGame.findFirst({
     where: { matchId, OR: [{ winnerId: { not: null } }, { reportedById: { not: null } }] },
   });
   if (gameInProgress) {
-    throw new Error("Can't cancel once a game has been decided or reported — report the result or dispute it instead.");
+    throw new LocalizedError({
+      en: "Can't cancel once a game has been decided or reported — report the result or dispute it instead.",
+      es: "No se puede cancelar una vez que un juego se decidió o se reportó — reporta el resultado o abre una disputa.",
+    });
   }
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
   if (await hasOpponentEngaged(matchId, opponentId)) {
-    throw new Error(
-      "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
-    );
+    throw new LocalizedError({
+      en: "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
+      es: "Tu rival ya empezó esta partida, así que cancelar ya no es gratis — usa Abandonar si quieres retirarte (cuenta como derrota).",
+    });
   }
 
   const cancelReadyAt = match.createdAt.getTime() + CANCEL_GRACE_PERIOD_SECONDS * 1000;
   if (Date.now() < cancelReadyAt) {
-    throw new Error("Give your opponent a moment to show up — you can cancel in a few seconds.");
+    throw new LocalizedError({
+      en: "Give your opponent a moment to show up — you can cancel in a few seconds.",
+      es: "Dale un momento a tu rival para aparecer — podrás cancelar en unos segundos.",
+    });
   }
 
   const [, updatedUser] = await prisma.$transaction([
@@ -265,12 +288,18 @@ export async function cancelMatch(userId: string, matchId: string) {
 // score even though the set stops short of a full report.
 export async function surrenderMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
   if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
-    throw new Error("This match can no longer be surrendered");
+    throw new LocalizedError({
+      en: "This match can no longer be surrendered",
+      es: "Esta partida ya no se puede abandonar",
+    });
   }
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
@@ -300,13 +329,19 @@ export async function surrenderMatch(userId: string, matchId: string) {
 // backing out unilaterally — both agreed.
 export async function requestMutualCancel(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
   // Same legacy-status handling as cancelMatch above.
   if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
-    throw new Error("This match can no longer be cancelled");
+    throw new LocalizedError({
+      en: "This match can no longer be cancelled",
+      es: "Esta partida ya no se puede cancelar",
+    });
   }
 
   const isPlayer1 = match.player1Id === userId;
@@ -337,9 +372,12 @@ export async function requestMutualCancel(userId: string, matchId: string) {
 // ever rendered for terminal matches, so this never gets called early.
 export async function leaveMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
 
   const isPlayer1 = match.player1Id === userId;
@@ -362,21 +400,30 @@ export async function leaveMatch(userId: string, matchId: string) {
 // the next match immediately.
 export async function requestRematch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
   if (
     match.status !== MatchStatus.CONFIRMED &&
     match.status !== MatchStatus.CANCELLED &&
     match.status !== MatchStatus.EXPIRED
   ) {
-    throw new Error("This match hasn't finished yet");
+    throw new LocalizedError({
+      en: "This match hasn't finished yet",
+      es: "Esta partida aún no termina",
+    });
   }
 
   const isPlayer1 = match.player1Id === userId;
   if (isPlayer1 ? match.player1LeftAt : match.player2LeftAt) {
-    throw new Error("You've left this match");
+    throw new LocalizedError({
+      en: "You've left this match",
+      es: "Dejaste esta partida",
+    });
   }
   if (isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt) return;
 
@@ -444,6 +491,7 @@ export async function requestRematch(userId: string, matchId: string) {
         PairingMethod.REMATCH,
         match.player1IsPracticing,
         match.player2IsPracticing,
+        match.mode,
       );
     }, TX_OPTIONS),
   );
@@ -459,6 +507,16 @@ export function kFactor(gamesPlayed: number) {
   return 24;
 }
 
+// Smashmate's own K, which it never published as a number — but its ladder
+// moved a rating by 16 on a win between equal ratings, and by 15/17 at a
+// 25-point gap, 14/18 at 50, 13/19 at 75. That is exactly what a flat K of 32
+// produces through expectedScore above, so the "every 25 points of gap shifts
+// the swing by one" rule players remember is the shape of plain Elo rather
+// than a step table. Flat is the point: a brand-new account and a veteran move
+// by the same amount, which is what made a Smashmate rating legible at a
+// glance (see smashmateDelta, and the lack of a provisional tier there).
+export const SMASHMATE_K_FACTOR = 32;
+
 export function expectedScore(ratingSelf: number, ratingOpp: number) {
   return 1 / (1 + 10 ** ((ratingOpp - ratingSelf) / 400));
 }
@@ -467,18 +525,42 @@ export function expectedScore(ratingSelf: number, ratingOpp: number) {
 // (the massive underdog wins, or the heavy favorite loses) swings close to
 // the full kFactor regardless of how lopsided the gap actually was — capped
 // here so no single set can move a rating by more than this no matter how
-// wide the gap or how few games either side has played.
+// wide the gap or how few games either side has played. Smashmate capped a
+// single set at 30 too, so this is shared by both.
 export const MAX_RATING_DELTA = 30;
 
-export function eloDelta(games: number, score: number, expected: number): number {
-  const raw = kFactor(games) * (score - expected);
+// Every rated set has to show a result. A win against a much lower-rated
+// opponent — or a loss to a much higher-rated one — computes to less than half
+// a point, and the rating players actually see is rounded (see formatRating),
+// so the set reported a change of 0 and read as broken even though the math was
+// right. 213 confirmed sides were in that state on 2026-11-02. Both sides now
+// move by at least this much, in the direction the result implies. Smashmate
+// floored a win at 1 the same way; the losing side used to be "left exactly as
+// computed", which is what produced the zeros.
+export const MIN_RATING_DELTA = 1;
+
+// The floor applied to a rating that has already been computed, whatever
+// produced it. Glicko-2 needs it in this shape rather than on a delta, because
+// its update is not expressed as one — so the rule lives here once instead of
+// being restated per algorithm.
+function withMinimumMove(before: number, after: number, won: boolean): number {
+  return won ? Math.max(after, before + MIN_RATING_DELTA) : Math.min(after, before - MIN_RATING_DELTA);
+}
+
+function clampDelta(raw: number, score: 0 | 1 | number): number {
   const clamped = Math.max(-MAX_RATING_DELTA, Math.min(MAX_RATING_DELTA, raw));
-  // A win against a much lower-rated opponent can have `raw` round all the
-  // way down to +0 — mathematically correct, but the victory screen ends up
-  // announcing "+0 rating" on a win, which reads as broken. score is always
-  // exactly 1 (win) or 0 (loss), never a draw, so this only ever floors the
-  // winning side; a loss is left exactly as computed.
-  return score === 1 ? Math.max(1, clamped) : clamped;
+  // score is always exactly 1 (win) or 0 (loss), never a draw.
+  return score === 1 ? Math.max(MIN_RATING_DELTA, clamped) : Math.min(-MIN_RATING_DELTA, clamped);
+}
+
+export function eloDelta(games: number, score: number, expected: number): number {
+  return clampDelta(kFactor(games) * (score - expected), score);
+}
+
+// No `games` parameter, and that is the whole difference from eloDelta: a
+// Smashmate rating swung by the same amount on set 1 as on set 400.
+export function smashmateDelta(score: number, expected: number): number {
+  return clampDelta(SMASHMATE_K_FACTOR * (score - expected), score);
 }
 
 // A player's full rating state at one moment: the number shown everywhere
@@ -498,19 +580,32 @@ function nextRatingStates(
   p1Games: number,
   p2Games: number,
 ): { p1: RatingState; p2: RatingState } {
+  const p1Won = p1Score === 1;
   if (algorithm === RatingAlgorithm.GLICKO2) {
-    return applyGlicko2Result(p1, p2, p1Score);
+    // Glicko-2 narrows a confident rating by fractions of a point against a
+    // far-off opponent, so this is the algorithm the zeros actually came from.
+    const next = applyGlicko2Result(p1, p2, p1Score);
+    return {
+      p1: { ...next.p1, rating: withMinimumMove(p1.rating, next.p1.rating, p1Won) },
+      p2: { ...next.p2, rating: withMinimumMove(p2.rating, next.p2.rating, !p1Won) },
+    };
   }
 
   const expected1 = expectedScore(p1.rating, p2.rating);
+  const flat = algorithm === RatingAlgorithm.SMASHMATE;
+  const delta1 = flat ? smashmateDelta(p1Score, expected1) : eloDelta(p1Games, p1Score, expected1);
+  const delta2 = flat ? smashmateDelta(1 - p1Score, 1 - expected1) : eloDelta(p2Games, 1 - p1Score, 1 - expected1);
+  // clampDelta already floors both deltas, so this only matters if a rating
+  // carried in from another algorithm is fractional — applied anyway so the
+  // guarantee holds by construction rather than by that argument.
   return {
     p1: {
-      rating: Math.round(p1.rating + eloDelta(p1Games, p1Score, expected1)),
+      rating: withMinimumMove(p1.rating, Math.round(p1.rating + delta1), p1Won),
       rd: p1.rd,
       volatility: p1.volatility,
     },
     p2: {
-      rating: Math.round(p2.rating + eloDelta(p2Games, 1 - p1Score, 1 - expected1)),
+      rating: withMinimumMove(p2.rating, Math.round(p2.rating + delta2), !p1Won),
       rd: p2.rd,
       volatility: p2.volatility,
     },
@@ -525,18 +620,29 @@ function nextRatingStates(
 async function lastRatedAt(
   tx: Prisma.TransactionClient,
   userId: string,
-  isPracticing: boolean,
+  track: RatingTrack,
   excludeMatchId: string,
 ): Promise<Date | null> {
+  // Each track ages on its own clock: a randitto set says nothing about how
+  // stale the main rating is, and vice versa. Randitto is decided by the
+  // match's mode, the other two by this side's practising flag on a standard
+  // one.
+  const scope: Prisma.RatingMatchWhereInput =
+    track === "randitto"
+      ? { mode: MatchMode.RANDITTO, OR: [{ player1Id: userId }, { player2Id: userId }] }
+      : {
+          mode: MatchMode.STANDARD,
+          OR: [
+            { player1Id: userId, player1IsPracticing: track === "practice" },
+            { player2Id: userId, player2IsPracticing: track === "practice" },
+          ],
+        };
   const row = await tx.ratingMatch.findFirst({
     where: {
       id: { not: excludeMatchId },
       status: MatchStatus.CONFIRMED,
       confirmedAt: { not: null },
-      OR: [
-        { player1Id: userId, player1IsPracticing: isPracticing },
-        { player2Id: userId, player2IsPracticing: isPracticing },
-      ],
+      ...scope,
     },
     orderBy: { confirmedAt: "desc" },
     select: { confirmedAt: true },
@@ -551,7 +657,7 @@ async function lastRatedAt(
 async function ageForGlicko2Inactivity(
   tx: Prisma.TransactionClient,
   userId: string,
-  isPracticing: boolean,
+  track: RatingTrack,
   excludeMatchId: string,
   state: RatingState,
   seasonStartsAt: Date | null,
@@ -561,7 +667,7 @@ async function ageForGlicko2Inactivity(
   // a rollover resets everyone's RD to maximum uncertainty, so a match from a
   // previous season says nothing about how stale this season's rating is (and
   // would otherwise over-age someone who simply sat out last season).
-  const lastMatchAt = await lastRatedAt(tx, userId, isPracticing, excludeMatchId);
+  const lastMatchAt = await lastRatedAt(tx, userId, track, excludeMatchId);
   const from = seasonStartsAt && (!lastMatchAt || seasonStartsAt > lastMatchAt) ? seasonStartsAt : lastMatchAt;
   if (!from) return state;
   const periods = glicko2InactivityPeriods(now.getTime() - from.getTime());
@@ -586,11 +692,12 @@ export async function applyEloAndConfirm(
   const season = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
   const matchRow = await tx.ratingMatch.findUniqueOrThrow({
     where: { id: match.id },
-    select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true },
+    select: { createdAt: true, player1IsPracticing: true, player2IsPracticing: true, mode: true },
   });
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
-  const seasonId = season?.id ?? (await tx.season.create({ data: { name: "Season 1" } })).id;
+  const seasonId =
+    season?.id ?? (await tx.season.create({ data: { name: "Season 1", algorithm: NEXT_SEASON_ALGORITHM } })).id;
   // Which math this match is rated with (see nextRatingStates). A season with
   // no algorithm can only be one that predates the column — treat it as Elo,
   // exactly the behavior such a season already had.
@@ -602,35 +709,27 @@ export async function applyEloAndConfirm(
   // same 1500-baseline scale, so comparing one side's practiceRating against
   // the other's main rating is valid math, not a units mismatch. Same split
   // applies to the Glicko-2 rd/volatility parameters.
-  let p1State: RatingState = matchRow.player1IsPracticing
-    ? { rating: p1.practiceRating, rd: p1.practiceRatingDeviation, volatility: p1.practiceRatingVolatility }
-    : { rating: p1.rating, rd: p1.ratingDeviation, volatility: p1.ratingVolatility };
-  let p2State: RatingState = matchRow.player2IsPracticing
-    ? { rating: p2.practiceRating, rd: p2.practiceRatingDeviation, volatility: p2.practiceRatingVolatility }
-    : { rating: p2.rating, rd: p2.ratingDeviation, volatility: p2.ratingVolatility };
-  const p1Games = matchRow.player1IsPracticing ? p1.practiceGamesPlayed : p1.gamesPlayed;
-  const p2Games = matchRow.player2IsPracticing ? p2.practiceGamesPlayed : p2.gamesPlayed;
+  const p1Track = trackFor(matchRow.mode, matchRow.player1IsPracticing);
+  const p2Track = trackFor(matchRow.mode, matchRow.player2IsPracticing);
+  const p1Columns = readTrack(p1, p1Track);
+  const p2Columns = readTrack(p2, p2Track);
+  let p1State: RatingState = {
+    rating: p1Columns.rating,
+    rd: p1Columns.ratingDeviation,
+    volatility: p1Columns.ratingVolatility,
+  };
+  let p2State: RatingState = {
+    rating: p2Columns.rating,
+    rd: p2Columns.ratingDeviation,
+    volatility: p2Columns.ratingVolatility,
+  };
+  const p1Games = p1Columns.gamesPlayed;
+  const p2Games = p2Columns.gamesPlayed;
 
   const now = new Date();
   if (algorithm === RatingAlgorithm.GLICKO2) {
-    p1State = await ageForGlicko2Inactivity(
-      tx,
-      p1.id,
-      matchRow.player1IsPracticing,
-      match.id,
-      p1State,
-      season?.startsAt ?? null,
-      now,
-    );
-    p2State = await ageForGlicko2Inactivity(
-      tx,
-      p2.id,
-      matchRow.player2IsPracticing,
-      match.id,
-      p2State,
-      season?.startsAt ?? null,
-      now,
-    );
+    p1State = await ageForGlicko2Inactivity(tx, p1.id, p1Track, match.id, p1State, season?.startsAt ?? null, now);
+    p2State = await ageForGlicko2Inactivity(tx, p2.id, p2Track, match.id, p2State, season?.startsAt ?? null, now);
   }
 
   const p1Won = winnerId === p1.id;
@@ -663,44 +762,14 @@ export async function applyEloAndConfirm(
     },
   });
 
-  await tx.user.update({
-    where: { id: p1.id },
-    data: matchRow.player1IsPracticing
-      ? {
-          practiceRating: p1Next.rating,
-          practiceRatingDeviation: p1Next.rd,
-          practiceRatingVolatility: p1Next.volatility,
-          practiceGamesPlayed: { increment: 1 },
-        }
-      : {
-          rating: p1Next.rating,
-          ratingDeviation: p1Next.rd,
-          ratingVolatility: p1Next.volatility,
-          gamesPlayed: { increment: 1 },
-        },
-  });
-  await tx.user.update({
-    where: { id: p2.id },
-    data: matchRow.player2IsPracticing
-      ? {
-          practiceRating: p2Next.rating,
-          practiceRatingDeviation: p2Next.rd,
-          practiceRatingVolatility: p2Next.volatility,
-          practiceGamesPlayed: { increment: 1 },
-        }
-      : {
-          rating: p2Next.rating,
-          ratingDeviation: p2Next.rd,
-          ratingVolatility: p2Next.volatility,
-          gamesPlayed: { increment: 1 },
-        },
-  });
+  await tx.user.update({ where: { id: p1.id }, data: writeTrack(p1Track, p1Next) });
+  await tx.user.update({ where: { id: p2.id }, data: writeTrack(p2Track, p2Next) });
 
   // RatingHistory backs the main "rating over time" chart and peak-rating
-  // stat — a practicing side's numbers have no business in there, so it
-  // just doesn't get a row this match (no practice-rating chart exists yet).
+  // stat, so only the main track writes to it — a practice or randitto
+  // number in there would read as the player's ladder rating having moved.
   const historyRows = [
-    ...(matchRow.player1IsPracticing
+    ...(!isMainTrack(p1Track)
       ? []
       : [
           {
@@ -711,7 +780,7 @@ export async function applyEloAndConfirm(
             delta: p1Next.rating - p1State.rating,
           },
         ]),
-    ...(matchRow.player2IsPracticing
+    ...(!isMainTrack(p2Track)
       ? []
       : [
           {
@@ -738,15 +807,16 @@ export async function applyEloAndConfirm(
   // deferred via after() to run once this transaction has actually
   // committed, never awaited inline here. Practicing sides are skipped:
   // practiceRating/practiceGamesPlayed never move the tier shown anywhere
-  // (see the practice-rating comment above), so there's nothing to sync.
+  // (see the practice-rating comment above), so there's nothing to sync —
+  // and the same goes for randitto, which has its own ladder and no tiers.
   // computeTierChange itself is pure/cheap — fine to call before the
   // transaction has committed, only the Discord side needs to wait.
-  if (!matchRow.player1IsPracticing) {
+  if (isMainTrack(p1Track)) {
     deferTierChange(
       computeTierChange(p1.id, p1.discordId, p1.username, match.id, p1State.rating, p1Next.rating, p1Games),
     );
   }
-  if (!matchRow.player2IsPracticing) {
+  if (isMainTrack(p2Track)) {
     deferTierChange(
       computeTierChange(p2.id, p2.discordId, p2.username, match.id, p2State.rating, p2Next.rating, p2Games),
     );
@@ -929,15 +999,24 @@ export async function isMostRecentConfirmedMatch(
 export async function requestResultCorrection(userId: string, matchId: string, winnerId: string) {
   return prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
+    if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
     if (match.player1Id !== userId && match.player2Id !== userId) {
-      throw new Error("Not a participant in this match");
+      throw new LocalizedError({
+        en: "Not a participant in this match",
+        es: "No participas en esta partida",
+      });
     }
     if (match.status !== MatchStatus.CONFIRMED) {
-      throw new Error("Only a confirmed match's result can be corrected");
+      throw new LocalizedError({
+        en: "Only a confirmed match's result can be corrected",
+        es: "Solo se puede corregir el resultado de una partida confirmada",
+      });
     }
     if (match.correctionDisputed) {
-      throw new Error("This match's correction is already disputed and awaiting a mod");
+      throw new LocalizedError({
+        en: "This match's correction is already disputed and awaiting a mod",
+        es: "La corrección de esta partida ya está en disputa y espera a un moderador",
+      });
     }
     await assertCorrectable(tx, match, winnerId);
 
@@ -974,12 +1053,16 @@ async function assertCorrectable(
   winnerId: string,
 ) {
   if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-    throw new Error("Winner must be one of the two players");
+    throw new LocalizedError({
+      en: "Winner must be one of the two players",
+      es: "El ganador debe ser uno de los dos jugadores",
+    });
   }
   if (!(await isMostRecentConfirmedMatch(tx, match))) {
-    throw new Error(
-      "Can't change this match — either a newer match has been confirmed since, or the season has ended.",
-    );
+    throw new LocalizedError({
+      en: "Can't change this match — either a newer match has been confirmed since, or the season has ended.",
+      es: "No se puede cambiar esta partida — o se confirmó una más reciente, o la temporada terminó.",
+    });
   }
 }
 
@@ -989,8 +1072,12 @@ async function assertCorrectable(
 export async function resolveMatchCorrection(matchId: string, winnerId: string) {
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
-    if (!match.correctionDisputed) throw new Error("This match has no disputed correction");
+    if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
+    if (!match.correctionDisputed)
+      throw new LocalizedError({
+        en: "This match has no disputed correction",
+        es: "Esta partida no tiene una corrección en disputa",
+      });
     await assertCorrectable(tx, match, winnerId);
     await applyCorrection(tx, match, winnerId);
   });
@@ -1004,9 +1091,12 @@ export async function resolveMatchCorrection(matchId: string, winnerId: string) 
 export async function adminOverrideMatchResult(matchId: string, winnerId: string) {
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
+    if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
     if (match.status !== MatchStatus.CONFIRMED) {
-      throw new Error("Only a confirmed match's result can be changed this way");
+      throw new LocalizedError({
+        en: "Only a confirmed match's result can be changed this way",
+        es: "Solo se puede cambiar así el resultado de una partida confirmada",
+      });
     }
     await assertCorrectable(tx, match, winnerId);
     await applyCorrection(tx, match, winnerId);
@@ -1030,15 +1120,24 @@ export async function adminOverrideMatchResult(matchId: string, winnerId: string
 export async function adminCorrectOldMatchResult(matchId: string, winnerId: string) {
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
+    if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
     if (match.status !== MatchStatus.CONFIRMED) {
-      throw new Error("Only a confirmed match's result can be corrected");
+      throw new LocalizedError({
+        en: "Only a confirmed match's result can be corrected",
+        es: "Solo se puede corregir el resultado de una partida confirmada",
+      });
     }
     if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-      throw new Error("Winner must be one of the two players");
+      throw new LocalizedError({
+        en: "Winner must be one of the two players",
+        es: "El ganador debe ser uno de los dos jugadores",
+      });
     }
     if (winnerId === match.reportedWinnerId) {
-      throw new Error("This match already has that winner recorded");
+      throw new LocalizedError({
+        en: "This match already has that winner recorded",
+        es: "Esta partida ya tiene ese ganador registrado",
+      });
     }
     if (
       match.player1RatingBefore === null ||
@@ -1046,7 +1145,10 @@ export async function adminCorrectOldMatchResult(matchId: string, winnerId: stri
       match.player2RatingBefore === null ||
       match.player2RatingAfter === null
     ) {
-      throw new Error("This match has no recorded rating change to reverse");
+      throw new LocalizedError({
+        en: "This match has no recorded rating change to reverse",
+        es: "Esta partida no tiene un cambio de clasificación registrado que revertir",
+      });
     }
 
     const p1OriginalDelta = match.player1RatingAfter - match.player1RatingBefore;
@@ -1131,12 +1233,18 @@ export async function adminCorrectOldMatchResult(matchId: string, winnerId: stri
 export async function adminForceConfirmMatch(matchId: string, winnerId: string) {
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-    if (!match) throw new Error("Match not found");
+    if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
     if (match.status === MatchStatus.CONFIRMED || match.status === MatchStatus.CANCELLED) {
-      throw new Error("This match is already closed out");
+      throw new LocalizedError({
+        en: "This match is already closed out",
+        es: "Esta partida ya está cerrada",
+      });
     }
     if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-      throw new Error("Winner must be one of the two players");
+      throw new LocalizedError({
+        en: "Winner must be one of the two players",
+        es: "El ganador debe ser uno de los dos jugadores",
+      });
     }
     // reportedWinnerId is what getPlayerMatchHistory's win/loss badge and
     // rivals record key off — applyEloAndConfirm itself doesn't set it
@@ -1157,4 +1265,124 @@ export async function listDisputedCorrections() {
     orderBy: { correctionSecondReportedAt: "desc" },
     include: matchWithPlayers,
   });
+}
+
+/**
+ * Whether a CANCELLED match can still be turned into a result.
+ *
+ * Only if neither player has had a rated match since. Every rating after this
+ * point was computed from numbers that did not include this set, so inserting
+ * it later would need the whole forward chain recomputed — which nothing here
+ * does, and which the rest of the admin surface avoids by only ever touching a
+ * player's most recent match (see isMostRecentConfirmedMatch). This keeps the
+ * same promise for a different starting state: a cancel is reversible right up
+ * until either player queues again, and not after.
+ *
+ * Also requires the set to belong to the season that is running now. A season
+ * stamps matches at confirm time, so a cancelled set from a finished season
+ * would otherwise be confirmed into the current one and rate players for
+ * games they played under different numbers.
+ */
+export async function cancelledMatchIsConvertible(
+  tx: Prisma.TransactionClient,
+  match: { id: string; player1Id: string; player2Id: string; status: MatchStatus; createdAt: Date },
+): Promise<boolean> {
+  if (match.status !== MatchStatus.CANCELLED) return false;
+  const activeSeason = await tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  if (!activeSeason || match.createdAt < activeSeason.startsAt) return false;
+  const newer = await tx.ratingMatch.findFirst({
+    where: {
+      id: { not: match.id },
+      status: MatchStatus.CONFIRMED,
+      confirmedAt: { gte: match.createdAt },
+      OR: [
+        { player1Id: match.player1Id },
+        { player2Id: match.player1Id },
+        { player1Id: match.player2Id },
+        { player2Id: match.player2Id },
+      ],
+    },
+    select: { id: true },
+  });
+  return newer === null;
+}
+
+/**
+ * Turns a cancelled set into a win, for the case a mod can actually vouch
+ * for: the opponent left and the reporter hit cancel instead of reporting it.
+ *
+ * This is the one gap the rest of the admin surface left open —
+ * adminForceConfirmMatch refuses a CANCELLED match outright, so until now
+ * every one of these had to be done by hand against the database, and the
+ * owner was the only person who could. Mods have the context; they just had
+ * no button.
+ *
+ * Rating, deviation, volatility, games played, the history row, the season
+ * standing and the streaks all come from applyEloAndConfirm, the same path a
+ * normal confirmation takes — doing any of it in SQL is how a match ends up
+ * rated correctly but still showing as a loss on the winner's own profile
+ * (see the reportedWinnerId note in adminForceConfirmMatch).
+ */
+export async function adminConfirmCancelledMatch(matchId: string, winnerId: string) {
+  await prisma.$transaction(async (tx) => {
+    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+    if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
+    if (match.status !== MatchStatus.CANCELLED) {
+      throw new LocalizedError({
+        en: "This match was not cancelled",
+        es: "Esta partida no fue cancelada",
+      });
+    }
+    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+      throw new LocalizedError({
+        en: "Winner must be one of the two players",
+        es: "El ganador debe ser uno de los dos jugadores",
+      });
+    }
+    // Re-checked inside the transaction, not just when the page was drawn:
+    // the window closes the moment either player's next set confirms, and a
+    // mod can be looking at a list that went stale while they read it.
+    if (!(await cancelledMatchIsConvertible(tx, match))) {
+      throw new LocalizedError({
+        en: "Too late — one of these players has played a rated set since, so changing this would mean recomputing every rating after it.",
+        es: "Demasiado tarde: uno de estos jugadores ya jugó una partida clasificatoria, así que cambiar esto exigiría recalcular todas las puntuaciones posteriores.",
+      });
+    }
+    // Same fields a report would have set, so the win/loss badge and the
+    // rivals record read right — applyEloAndConfirm does not set these.
+    await tx.ratingMatch.update({
+      where: { id: matchId },
+      data: { reportedWinnerId: winnerId, reportedById: winnerId, reportedAt: new Date() },
+    });
+    await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.ADMIN_RESOLVED, null);
+  });
+}
+
+/**
+ * Recent cancelled sets a mod could still convert, newest first.
+ *
+ * Deliberately only lists the convertible ones: a cancel that can no longer
+ * be undone is not something to offer and then refuse, and the list would
+ * otherwise fill with thousands of ordinary cancels nobody will ever touch.
+ */
+export async function listConvertibleCancelledMatches(take = 40) {
+  const activeSeason = await prisma.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  if (!activeSeason) return [];
+  const candidates = await prisma.ratingMatch.findMany({
+    where: { status: MatchStatus.CANCELLED, createdAt: { gte: activeSeason.startsAt } },
+    orderBy: { createdAt: "desc" },
+    // A generous read before filtering: most recent cancels have a later set
+    // behind them, so the convertible ones are a thin slice off the top.
+    take: take * 25,
+    include: {
+      player1: { select: { id: true, username: true, rating: true } },
+      player2: { select: { id: true, username: true, rating: true } },
+    },
+  });
+  const out: typeof candidates = [];
+  for (const m of candidates) {
+    if (out.length >= take) break;
+    if (await cancelledMatchIsConvertible(prisma, m)) out.push(m);
+  }
+  return out;
 }

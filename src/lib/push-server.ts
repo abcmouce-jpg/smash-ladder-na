@@ -5,11 +5,13 @@
 // configured — same "silently skip when unset" pattern as the Discord bot
 // token, so this is safe to ship ahead of key setup.
 import webpush from "web-push";
+import { asLang, type Lang, tr } from "@/lib/lang";
+import { DEFAULT_LANG } from "@/lib/site";
 import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, UserStatus } from "@/generated/prisma/enums";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
-import { getRegionsWithinDistance } from "@/lib/regions";
+import { regionReachAllows } from "@/lib/regions";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { siteOrigin } from "@/lib/site-url";
@@ -39,22 +41,37 @@ if (pushConfigured) {
 // message to remain relevant.
 const PUSH_TTL_SECONDS = 5 * 60;
 
-const MATCH_FOUND_MESSAGES = {
-  en: { title: "Match found!", body: "You've been paired — head to the Lobby." },
+// Typed Record<Lang, …> rather than an `as const` object read with
+// `=== "es" ? es : en`: that idiom silently sent English to every Japanese
+// player on this instance, which is exactly what lib/lang.ts was written to
+// make impossible. A missing language is now a compile error.
+type PushCopy = { title: string; body: string };
+
+const MATCH_FOUND_MESSAGES: Record<Lang, PushCopy> = {
+  en: {
+    title: "Match found!",
+    body: "You've been paired — head to the Lobby.",
+  },
   es: { title: "¡Partida encontrada!", body: "Te emparejaron — ve a la Sala." },
-} as const;
+};
 
-const QUEUE_OPPORTUNITY_MESSAGES = {
-  en: { title: "Opponent in your range just queued", body: "Jump in now while they're still waiting." },
-  es: { title: "Un rival en tu rango acaba de entrar a la cola", body: "Entra ahora mientras sigue esperando." },
-} as const;
+const QUEUE_OPPORTUNITY_MESSAGES: Record<Lang, PushCopy> = {
+  en: {
+    title: "Opponent in your range just queued",
+    body: "Jump in now while they're still waiting.",
+  },
+  es: {
+    title: "Un rival en tu rango acaba de entrar a la cola",
+    body: "Entra ahora mientras sigue esperando.",
+  },
+};
 
-const QUEUE_OPPORTUNITY_DM = {
+const QUEUE_OPPORTUNITY_DM: Record<Lang, (link: string) => string> = {
   en: (link: string) => `👀 Someone in your range just queued — jump in while they're still waiting: ${link}`,
   es: (link: string) => `👀 Alguien en tu rango acaba de entrar a la cola — entra mientras sigue esperando: ${link}`,
-} as const;
+};
 
-const TEST_MESSAGES = {
+const TEST_MESSAGES: Record<Lang, PushCopy> = {
   en: {
     title: "Test notification",
     body: "Push notifications are working — you'll get an alert here when you're matched.",
@@ -63,9 +80,14 @@ const TEST_MESSAGES = {
     title: "Notificación de prueba",
     body: "Las notificaciones push funcionan — te avisaremos aquí cuando te emparejen.",
   },
-} as const;
+};
 
-type StoredSubscription = { id: string; endpoint: string; p256dh: string; auth: string };
+type StoredSubscription = {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+};
 
 // Sends one payload to every subscription in the list. Best-effort by design:
 // a failure on one subscription never throws for the rest. Subscriptions the
@@ -77,7 +99,10 @@ async function sendPushPayload(subscriptions: StoredSubscription[], payload: str
   for (const sub of subscriptions) {
     try {
       await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
+        },
         payload,
         { TTL: PUSH_TTL_SECONDS },
       );
@@ -118,7 +143,7 @@ export async function notifyMatchFoundToUsers(player1Id: string, player2Id: stri
   for (const player of players) {
     if (player.pushSubscriptions.length === 0) continue;
     if (!isNotificationEnabled(player, "PUSH_MATCH_FOUND")) continue;
-    const copy = player.preferredLanguage === "es" ? MATCH_FOUND_MESSAGES.es : MATCH_FOUND_MESSAGES.en;
+    const copy = MATCH_FOUND_MESSAGES[asLang(player.preferredLanguage) ?? DEFAULT_LANG];
     sent += await sendPushPayload(
       player.pushSubscriptions,
       JSON.stringify({
@@ -157,13 +182,13 @@ const QUEUE_OPPORTUNITY_NOTIFY_COOLDOWN_MS = 20 * 60 * 1000;
 export async function notifyQueueOpportunitySubscribers(
   joinerId: string,
   joiner: {
-    region: string;
+    region: string | null;
     rating: number;
     maxMatchDistanceKm: number | null;
     wiredConnection: boolean;
     requireWiredOpponent: boolean;
   },
-  joinerReach: string[],
+  joinerReach: string[] | null,
   joinerEffectiveGap: number | null,
 ) {
   // Nothing to deliver over if neither channel is set up — skip the scan rather
@@ -177,13 +202,21 @@ export async function notifyQueueOpportunitySubscribers(
     where: {
       id: { notIn: [joinerId, ...blockedIds] },
       status: { not: UserStatus.BANNED },
-      lobbyEntries: { none: { status: { in: [LobbyEntryStatus.WAITING, LobbyEntryStatus.PAIRED] } } },
+      lobbyEntries: {
+        none: {
+          status: { in: [LobbyEntryStatus.WAITING, LobbyEntryStatus.PAIRED] },
+        },
+      },
       // Two separate ORs, so they're combined under AND rather than one key
       // overwriting the other: opted into either channel, and not inside the
       // per-candidate cooldown.
       AND: [
-        { OR: [{ notifyQueueOpportunities: true }, { notifyQueueOpportunitiesDm: true }] },
-        { OR: [{ queueOpportunityNotifiedAt: null }, { queueOpportunityNotifiedAt: { lt: cooldownCutoff } }] },
+        {
+          OR: [{ notifyQueueOpportunities: true }, { notifyQueueOpportunitiesDm: true }],
+        },
+        {
+          OR: [{ queueOpportunityNotifiedAt: null }, { queueOpportunityNotifiedAt: { lt: cooldownCutoff } }],
+        },
       ],
     },
     select: {
@@ -199,7 +232,9 @@ export async function notifyQueueOpportunitySubscribers(
       discordId: true,
       notifyQueueOpportunities: true,
       notifyQueueOpportunitiesDm: true,
-      pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
+      pushSubscriptions: {
+        select: { id: true, endpoint: true, p256dh: true, auth: true },
+      },
     },
   });
 
@@ -209,9 +244,8 @@ export async function notifyQueueOpportunitySubscribers(
   // one side having a wide radius doesn't override the other's tighter one.
   const eligible = candidates.filter(
     (c) =>
-      c.region !== null &&
-      joinerReach.includes(c.region) &&
-      getRegionsWithinDistance(c.region, c.maxMatchDistanceKm).includes(joiner.region) &&
+      (joinerReach === null || (c.region !== null && joinerReach.includes(c.region))) &&
+      regionReachAllows(c.region, c.maxMatchDistanceKm, joiner.region) &&
       ratingGapAllows(joiner.rating, c.rating, effectiveMaxRatingGap(c)) &&
       ratingGapAllows(joiner.rating, c.rating, joinerEffectiveGap) &&
       wiredRequirementAllows(joiner, c),
@@ -221,15 +255,20 @@ export async function notifyQueueOpportunitySubscribers(
   const link = `${siteOrigin()}/lobby`;
   let sent = 0;
   for (const candidate of eligible) {
-    const copy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_MESSAGES.es : QUEUE_OPPORTUNITY_MESSAGES.en;
+    const copy = QUEUE_OPPORTUNITY_MESSAGES[asLang(candidate.preferredLanguage) ?? DEFAULT_LANG];
     if (pushConfigured && candidate.notifyQueueOpportunities && candidate.pushSubscriptions.length > 0) {
       sent += await sendPushPayload(
         candidate.pushSubscriptions,
-        JSON.stringify({ title: copy.title, body: copy.body, url: "/lobby", icon: "/smash_ladder_icon.png" }),
+        JSON.stringify({
+          title: copy.title,
+          body: copy.body,
+          url: "/lobby",
+          icon: "/smash_ladder_icon.png",
+        }),
       );
     }
     if (isNotificationEnabled(candidate, "DM_QUEUE_OPPORTUNITY")) {
-      const dmCopy = candidate.preferredLanguage === "es" ? QUEUE_OPPORTUNITY_DM.es : QUEUE_OPPORTUNITY_DM.en;
+      const dmCopy = QUEUE_OPPORTUNITY_DM[asLang(candidate.preferredLanguage) ?? DEFAULT_LANG];
       await sendDiscordDM(candidate.discordId, dmCopy(link));
     }
   }
@@ -247,9 +286,15 @@ export async function notifyQueueOpportunitySubscribers(
 // every subscription on the account so a player with several devices can
 // verify all of them at once. Returns { error } instead of throwing so the
 // settings UI can show the reason inline.
-export async function sendTestPushToUser(userId: string): Promise<{ sent: number; error?: string }> {
+export async function sendTestPushToUser(userId: string, lang: Lang = "en"): Promise<{ sent: number; error?: string }> {
   if (!pushConfigured) {
-    return { sent: 0, error: "Push notifications aren't set up on this site yet." };
+    return {
+      sent: 0,
+      error: tr(lang, {
+        en: "Push notifications aren't set up on this site yet.",
+        es: "Las notificaciones push aún no están configuradas en este sitio.",
+      }),
+    };
   }
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -261,9 +306,15 @@ export async function sendTestPushToUser(userId: string): Promise<{ sent: number
     },
   });
   if (user.pushSubscriptions.length === 0) {
-    return { sent: 0, error: "No push subscriptions on this account — toggle notifications off and on again." };
+    return {
+      sent: 0,
+      error: tr(lang, {
+        en: "No push subscriptions on this account — toggle notifications off and on again.",
+        es: "Esta cuenta no tiene suscripciones push — apaga y vuelve a encender las notificaciones.",
+      }),
+    };
   }
-  const copy = user.preferredLanguage === "es" ? TEST_MESSAGES.es : TEST_MESSAGES.en;
+  const copy = TEST_MESSAGES[asLang(user.preferredLanguage) ?? DEFAULT_LANG];
   const sent = await sendPushPayload(
     user.pushSubscriptions,
     JSON.stringify({
@@ -274,7 +325,13 @@ export async function sendTestPushToUser(userId: string): Promise<{ sent: number
     }),
   );
   if (sent === 0) {
-    return { sent: 0, error: "Couldn't deliver a test notification — toggle notifications off and on again." };
+    return {
+      sent: 0,
+      error: tr(lang, {
+        en: "Couldn't deliver a test notification — toggle notifications off and on again.",
+        es: "No se pudo entregar una notificación de prueba — apaga y vuelve a encender las notificaciones.",
+      }),
+    };
   }
   return { sent };
 }

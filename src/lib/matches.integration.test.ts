@@ -420,6 +420,11 @@ describe("requestResultCorrection", () => {
   });
 
   it("reverses and reapplies Elo from the original pre-match ratings when both sides agree", async () => {
+    // Pin the season's algorithm: these assertions are Elo arithmetic, and
+    // until the Japanese instance was removed they only held because the
+    // local environment happened to configure that instance, whose seasons
+    // ran Elo. The instance a test runs under should not decide its math.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
     const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const match = await createConfirmedMatch(p1.id, p2.id); // p1 (player1) wins originally
@@ -524,6 +529,11 @@ describe("resolveMatchCorrection", () => {
 
 describe("adminOverrideMatchResult", () => {
   it("changes the winner and reapplies Elo without needing a prior dispute", async () => {
+    // Pin the season's algorithm: these assertions are Elo arithmetic, and
+    // until the Japanese instance was removed they only held because the
+    // local environment happened to configure that instance, whose seasons
+    // ran Elo. The instance a test runs under should not decide its math.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
     const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
     const match = await createConfirmedMatch(p1.id, p2.id); // p1 confirmed as winner
@@ -1043,6 +1053,57 @@ describe("surrenderMatch", () => {
   });
 });
 
+// The third branch of nextRatingStates: a Smashmate season, which is Elo with
+// a flat K rather than the tapering one the ELO branch uses.
+describe("applyEloAndConfirm — Smashmate season", () => {
+  async function startSmashmateSeason() {
+    return prisma.season.create({ data: { name: "1期", algorithm: RatingAlgorithm.SMASHMATE } });
+  }
+
+  async function rateOneSet(winnerRating: number, loserRating: number, gamesPlayed: number) {
+    const winner = await createTestUser({ rating: winnerRating, gamesPlayed });
+    const loser = await createTestUser({ rating: loserRating, gamesPlayed });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: winner.id, player2Id: loser.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, winner.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: winner.id,
+        reporterId: winner.id,
+      }),
+    );
+    return prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+  }
+
+  it("moves exactly 16 between two 1500s, the number Smashmate players know", async () => {
+    await startSmashmateSeason();
+    const rated = await rateOneSet(1500, 1500, 20);
+    expect(rated.player1RatingAfter).toBe(1516);
+    expect(rated.player2RatingAfter).toBe(1484);
+  });
+
+  it("moves the same 16 for a player on their very first set", async () => {
+    await startSmashmateSeason();
+    // An ELO season would give this player K=40 and a swing of 20.
+    const rated = await rateOneSet(1500, 1500, 0);
+    expect(rated.player1RatingAfter).toBe(1516);
+    expect(rated.player2RatingAfter).toBe(1484);
+  });
+
+  it("keeps ratings whole, unlike Glicko-2", async () => {
+    await startSmashmateSeason();
+    const rated = await rateOneSet(1537, 1491, 12);
+    expect(rated.player1RatingAfter! % 1).toBe(0);
+    expect(rated.player2RatingAfter! % 1).toBe(0);
+  });
+
+  it("caps a huge upset at 30, where Glicko-2 would not", async () => {
+    await startSmashmateSeason();
+    const rated = await rateOneSet(1000, 2500, 0);
+    expect(rated.player1RatingAfter! - rated.player1RatingBefore!).toBe(30);
+  });
+});
+
 describe("requestMutualCancel", () => {
   it("does nothing when only one side has requested", async () => {
     const p1 = await createTestUser();
@@ -1475,5 +1536,89 @@ describe("requestRematch", () => {
       where: { player1Id: player1.id, player2Id: player2.id, id: { not: match.id } },
     });
     expect(newMatches).toBe(0);
+  });
+});
+
+// A set that moves nobody is the one thing a ladder cannot report. Glicko-2
+// narrows a settled rating (low RD) by fractions of a point against a far-off
+// opponent, and the number players see is rounded — so 213 confirmed sides had
+// already been recorded with a change of 0 by 2026-11-02. Both sides must move
+// by at least MIN_RATING_DELTA in the direction the result implies.
+describe("every rated set moves both ratings by at least 1", () => {
+  async function ratedSet(
+    algorithm: RatingAlgorithm,
+    winnerAttrs: Record<string, unknown>,
+    loserAttrs: Record<string, unknown>,
+  ) {
+    await prisma.season.create({ data: { name: `Season ${algorithm} ${Math.random()}`, algorithm } });
+    const winner = await createTestUser(winnerAttrs);
+    const loser = await createTestUser(loserAttrs);
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: winner.id,
+        player2Id: loser.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, winner.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: winner.id,
+        reporterId: winner.id,
+      }),
+    );
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    return {
+      winnerBefore: updated.player1RatingBefore!,
+      winnerAfter: updated.player1RatingAfter!,
+      loserBefore: updated.player2RatingBefore!,
+      loserAfter: updated.player2RatingAfter!,
+    };
+  }
+
+  // The production shape: both ratings settled (low RD), a 900-point gap, and
+  // the favorite wins — the case that used to compute to under half a point.
+  it("Glicko-2: a settled favorite beating a far weaker player still moves both", async () => {
+    const r = await ratedSet(
+      RatingAlgorithm.GLICKO2,
+      { rating: 1900, gamesPlayed: 200, ratingDeviation: 40, ratingVolatility: 0.04 },
+      { rating: 1000, gamesPlayed: 200, ratingDeviation: 40, ratingVolatility: 0.04 },
+    );
+    expect(r.winnerAfter - r.winnerBefore).toBeGreaterThanOrEqual(1);
+    expect(r.loserBefore - r.loserAfter).toBeGreaterThanOrEqual(1);
+    // And the rounded numbers players read actually differ, which is the
+    // symptom that was reported.
+    expect(Math.round(r.winnerAfter)).not.toBe(Math.round(r.winnerBefore));
+    expect(Math.round(r.loserAfter)).not.toBe(Math.round(r.loserBefore));
+  });
+
+  it("Glicko-2: an ordinary even set is untouched by the floor", async () => {
+    const r = await ratedSet(
+      RatingAlgorithm.GLICKO2,
+      { rating: 1500, gamesPlayed: 50, ratingDeviation: 100 },
+      { rating: 1500, gamesPlayed: 50, ratingDeviation: 100 },
+    );
+    expect(r.winnerAfter - r.winnerBefore).toBeGreaterThan(5);
+    expect(r.loserBefore - r.loserAfter).toBeGreaterThan(5);
+  });
+
+  it("Elo: a huge favorite's win moves the loser too, not just the winner", async () => {
+    const r = await ratedSet(
+      RatingAlgorithm.ELO,
+      { rating: 2200, gamesPlayed: 200 },
+      { rating: 1200, gamesPlayed: 200 },
+    );
+    expect(r.winnerAfter - r.winnerBefore).toBeGreaterThanOrEqual(1);
+    expect(r.loserBefore - r.loserAfter).toBeGreaterThanOrEqual(1);
+  });
+
+  it("Smashmate: same floor on the losing side", async () => {
+    const r = await ratedSet(
+      RatingAlgorithm.SMASHMATE,
+      { rating: 2200, gamesPlayed: 200 },
+      { rating: 1200, gamesPlayed: 200 },
+    );
+    expect(r.winnerAfter - r.winnerBefore).toBeGreaterThanOrEqual(1);
+    expect(r.loserBefore - r.loserAfter).toBeGreaterThanOrEqual(1);
   });
 });

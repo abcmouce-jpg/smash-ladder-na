@@ -1,0 +1,515 @@
+import { describe, it, expect } from "vitest";
+import { prisma } from "@/lib/db";
+import { createTestUser } from "@/test/factories";
+import { LobbyEntryStatus, MatchMode, PairingMethod, RatingAlgorithm } from "@/generated/prisma/enums";
+import {
+  createDirectMatch,
+  getLobbyActivityStats,
+  joinLobbyAndTryPair,
+  retryPairForWaitingUser,
+  sweepLobbyPairing,
+} from "@/lib/lobby";
+import { getPublicStats } from "@/lib/public-stats";
+import { bothCharactersLocked, reportGameResult, startFirstGame } from "@/lib/match-games";
+import { adminForceConfirmMatch } from "@/lib/matches";
+import { RANDITTO_STAGE } from "@/lib/randitto";
+
+// Region is required to queue (see joinLobbyAndTryPair), and a wide rating gap
+// keeps these tests about the mode rather than about matchmaking.
+async function queuer(overrides: Record<string, unknown> = {}) {
+  return createTestUser({ region: "USA East", maxRatingGap: 5000, gamesPlayed: 20, ...overrides });
+}
+
+describe("randitto queue", () => {
+  it("pairs two randitto joins and marks the match RANDITTO", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).not.toBeNull();
+    expect(match?.mode).toBe(MatchMode.RANDITTO);
+  });
+
+  // The two modes are separate queues. Pairing across them would hand someone
+  // who asked for assigned fighters a normal set, or the reverse.
+  it("never pairs a randitto join with a standard one", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+
+    const matches = await prisma.ratingMatch.count({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(matches).toBe(0);
+    const entries = await prisma.ratingLobbyEntry.findMany({
+      where: { userId: { in: [a.id, b.id] } },
+      select: { status: true, mode: true },
+    });
+    expect(entries).toHaveLength(2);
+    for (const e of entries) expect(e.status).toBe(LobbyEntryStatus.WAITING);
+  });
+
+  // Randitto has its own track, so the practice flag has nothing to express
+  // on it — forced off even if the caller asked for it, so that a fourth
+  // "practising at randitto" ladder cannot come into existence.
+  it("never carries the practice flag", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, true, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, true, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match.player1IsPracticing).toBe(false);
+    expect(match.player2IsPracticing).toBe(false);
+  });
+
+  it("pairs players who avoid practice opponents", async () => {
+    const a = await queuer({ avoidPracticeOpponents: true });
+    const b = await queuer({ avoidPracticeOpponents: true });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).not.toBeNull();
+  });
+
+  it("starts game 1 with no fighters recorded — Smash rolls them", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+
+    await startFirstGame(a.id, match.id);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    // Nothing is stored: the players press Random in game, so the site has
+    // no fighter it could truthfully record.
+    expect(game.actorACharacter).toBeNull();
+    expect(game.actorBCharacter).toBeNull();
+    // And the set is not left waiting on a pick phase that never runs.
+    expect(game.finalStage).toBe(RANDITTO_STAGE);
+  });
+
+  // Reported as a bug on launch day: game 1 behaved, then game 2 presented a
+  // character picker. Every game of a randitto set has to open the same way.
+  it("opens game 2 the same way — no fighters, fixed stage, no strikes", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+
+    await startFirstGame(a.id, match.id);
+    await reportGameResult(a.id, match.id, 1, true);
+    await reportGameResult(b.id, match.id, 1, false);
+
+    const game2 = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2.actorACharacter).toBeNull();
+    expect(game2.actorBCharacter).toBeNull();
+    expect(game2.finalStage).toBe(RANDITTO_STAGE);
+    expect(game2.actorAStrikes).toBe(0);
+    expect(game2.actorBStrikes).toBe(0);
+    // And with nothing recorded, the set still counts as past its character
+    // phase — otherwise the picker comes back and the player fills it in.
+    expect(bothCharactersLocked(game2, MatchMode.RANDITTO)).toBe(true);
+    expect(bothCharactersLocked(game2, MatchMode.STANDARD)).toBe(false);
+  });
+
+  // The mode exists so nobody chooses; leaving the stage negotiated made it
+  // the slowest part of the fastest queue.
+  it("opens game 1 on the fixed stage with no strikes pending", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+
+    await startFirstGame(a.id, match.id);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.finalStage).toBe(RANDITTO_STAGE);
+    expect(game.actorAStrikes).toBe(0);
+    expect(game.actorBStrikes).toBe(0);
+    expect(game.struckStages).toEqual([]);
+  });
+
+  it("leaves a standard set's stage to be struck for, as before", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+
+    await startFirstGame(a.id, match.id);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.finalStage).toBeNull();
+    expect(game.actorAStrikes + game.actorBStrikes).toBeGreaterThan(0);
+  });
+
+  it("leaves a standard set's characters unassigned, as before", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+
+    await startFirstGame(a.id, match.id);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(match.mode).toBe(MatchMode.STANDARD);
+    expect(game.actorACharacter).toBeNull();
+    expect(game.actorBCharacter).toBeNull();
+  });
+});
+
+// The point of the separate track: three ladders that cannot bleed into each
+// other. A randitto result moving `rating` would silently rate people on
+// fighters they were handed; one moving `practiceRating` would make the
+// practice number mean two different things at once.
+describe("the randitto rating track", () => {
+  async function playedRandittoSet() {
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
+    const a = await queuer({ rating: 1500, gamesPlayed: 20 });
+    const b = await queuer({ rating: 1500, gamesPlayed: 20 });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    await adminForceConfirmMatch(match.id, a.id);
+    const [after, loser] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: a.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: b.id } }),
+    ]);
+    return { after, loser, match };
+  }
+
+  it("moves randittoRating and leaves the main ladder untouched", async () => {
+    const { after, loser } = await playedRandittoSet();
+    expect(after.randittoRating).toBeGreaterThan(1500);
+    expect(loser.randittoRating).toBeLessThan(1500);
+    expect(after.randittoGamesPlayed).toBe(1);
+    expect(loser.randittoGamesPlayed).toBe(1);
+
+    expect(after.rating).toBe(1500);
+    expect(loser.rating).toBe(1500);
+    expect(after.gamesPlayed).toBe(20);
+    expect(loser.gamesPlayed).toBe(20);
+  });
+
+  it("leaves the practice track untouched too", async () => {
+    const { after, loser } = await playedRandittoSet();
+    for (const u of [after, loser]) {
+      expect(u.practiceRating).toBe(1500);
+      expect(u.practiceGamesPlayed).toBe(0);
+    }
+  });
+
+  // RatingHistory backs the rating-over-time chart and the peak-rating stat.
+  it("writes no row to the main rating history", async () => {
+    const { match } = await playedRandittoSet();
+    const rows = await prisma.ratingHistory.count({ where: { matchId: match.id } });
+    expect(rows).toBe(0);
+  });
+
+  it("rates a standard set onto the main ladder, as before", async () => {
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
+    const a = await queuer({ rating: 1500, gamesPlayed: 20 });
+    const b = await queuer({ rating: 1500, gamesPlayed: 20 });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    await adminForceConfirmMatch(match.id, a.id);
+
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: a.id } });
+    expect(after.rating).toBeGreaterThan(1500);
+    expect(after.gamesPlayed).toBe(21);
+    expect(after.randittoRating).toBe(1500);
+    expect(after.randittoGamesPlayed).toBe(0);
+  });
+});
+
+// Join-time pairing is only one of three ways a match gets made. The sweep
+// that picks up whoever is still waiting, and the rematch path, each create
+// matches of their own — and a thinly-used new mode consists almost entirely
+// of people who are still waiting, so the sweep is the path that matters most
+// for it. Missing those two put real players who asked for randitto into
+// ordinary rated sets in production.
+describe("every pairing path keeps the mode", () => {
+  it("the sweep never pairs randitto with standard", async () => {
+    const r = await queuer();
+    const s = await queuer();
+    await joinLobbyAndTryPair(r.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(s.id, false, null, MatchMode.STANDARD);
+
+    await sweepLobbyPairing();
+
+    const matches = await prisma.ratingMatch.count({
+      where: { OR: [{ player1Id: r.id }, { player2Id: r.id }] },
+    });
+    expect(matches).toBe(0);
+  });
+
+  it("the sweep pairs two randitto waiters into a RANDITTO match", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    // Queued one at a time with the other already cancelled out of the way,
+    // so join-time pairing finds nobody and the sweep is what pairs them.
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await prisma.ratingLobbyEntry.updateMany({
+      where: { userId: a.id },
+      data: { status: "WAITING", matchId: null, pairedEntryId: null },
+    });
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    if (match) {
+      expect(match.mode).toBe(MatchMode.RANDITTO);
+      return;
+    }
+    await sweepLobbyPairing();
+    const swept = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(swept.mode).toBe(MatchMode.RANDITTO);
+  });
+
+  it("a rematch out of a randitto set stays randitto", async () => {
+    const a = await queuer({ rating: 1500, gamesPlayed: 20 });
+    const b = await queuer({ rating: 1500, gamesPlayed: 20 });
+    const direct = await prisma.$transaction((tx) =>
+      createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH, false, false, MatchMode.RANDITTO),
+    );
+    expect(direct.mode).toBe(MatchMode.RANDITTO);
+    const entries = await prisma.ratingLobbyEntry.findMany({ where: { userId: { in: [a.id, b.id] } } });
+    expect(entries).toHaveLength(2);
+    for (const e of entries) expect(e.mode).toBe(MatchMode.RANDITTO);
+  });
+
+  it("a rematch out of a standard set stays standard", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    const direct = await prisma.$transaction((tx) => createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH));
+    expect(direct.mode).toBe(MatchMode.STANDARD);
+  });
+});
+
+// "playing now" is the number the site leads with. Merging the two queues
+// into it would tell a visitor there is activity in a queue they cannot join
+// from the one they are looking at — the standard count would be carried by
+// randitto players and vice versa.
+describe("activity counts are per queue", () => {
+  it("counts a randitto match only under randitto", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const stats = await getLobbyActivityStats();
+    expect(stats.randittoInMatch).toBe(2);
+    expect(stats.inMatch).toBe(0);
+
+    const pub = await getPublicStats();
+    expect(pub.randittoPlayingNow).toBe(2);
+    expect(pub.playingNow).toBe(0);
+  });
+
+  it("counts a standard match only under standard", async () => {
+    const a = await queuer();
+    const b = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+
+    const stats = await getLobbyActivityStats();
+    expect(stats.inMatch).toBe(2);
+    expect(stats.randittoInMatch).toBe(0);
+  });
+
+  it("counts waiting players under their own queue", async () => {
+    const a = await queuer();
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+
+    const stats = await getLobbyActivityStats();
+    expect(stats.randittoWaiting).toBe(1);
+    expect(stats.waiting).toBe(0);
+  });
+});
+
+// Matchmaking restrictions have to read the ladder the queue is on. Gating
+// randitto on the 1v1 rating kept two players who are both 1500 at randitto
+// apart because one of them is 2300 on the main board.
+describe("randitto matchmaking uses the randitto rating", () => {
+  it("pairs two players far apart on the main ladder but level at randitto", async () => {
+    const a = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      rating: 2300,
+      randittoRating: 1500,
+      maxRatingGap: 300,
+    });
+    const b = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      rating: 1500,
+      randittoRating: 1500,
+      maxRatingGap: 300,
+    });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match, "an 800-point main-ladder gap should not block a randitto set").not.toBeNull();
+  });
+
+  it("still keeps the main queue on the main rating", async () => {
+    const a = await createTestUser({ region: "USA East", gamesPlayed: 50, rating: 2300, maxRatingGap: 300 });
+    const b = await createTestUser({ region: "USA East", gamesPlayed: 50, rating: 1500, maxRatingGap: 300 });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.STANDARD);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.STANDARD);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).toBeNull();
+  });
+
+  it("separates players who are far apart on the randitto ladder", async () => {
+    const a = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      randittoGamesPlayed: 50,
+      randittoRating: 2300,
+      maxRatingGap: 300,
+    });
+    const b = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      randittoGamesPlayed: 50,
+      randittoRating: 1500,
+      maxRatingGap: 300,
+    });
+    await joinLobbyAndTryPair(a.id, false, null, MatchMode.RANDITTO);
+    await joinLobbyAndTryPair(b.id, false, null, MatchMode.RANDITTO);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).toBeNull();
+  });
+});
+
+// The lobby page's 5s poll retries pairing for anyone left WAITING, and it is
+// the path that actually runs for a thinly-used new mode: by definition its
+// players sit in the queue rather than finding someone the instant they join.
+// Join-time pairing had the mode check from the start, which is why these
+// crossed sets still appeared in production after the sweep was fixed.
+describe("the waiting-poll retry keeps the mode too", () => {
+  // Seeds a second waiter without going through join-time pairing, so the
+  // retry below is the thing under test rather than the join that preceded it.
+  async function waiterInQueue(mode: MatchMode) {
+    const u = await queuer();
+    await prisma.ratingLobbyEntry.create({
+      data: {
+        userId: u.id,
+        mode,
+        status: LobbyEntryStatus.WAITING,
+        pairingMethod: PairingMethod.MANUAL,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    return u;
+  }
+
+  async function matchesFor(userId: string) {
+    return prisma.ratingMatch.findMany({
+      where: { OR: [{ player1Id: userId }, { player2Id: userId }] },
+    });
+  }
+
+  // The positive control: without this the two negatives below would pass for
+  // any reason at all, including the retry never pairing anyone.
+  it("pairs a waiting standard player with another standard one", async () => {
+    const me = await queuer();
+    await joinLobbyAndTryPair(me.id, false, null, MatchMode.STANDARD);
+    await waiterInQueue(MatchMode.STANDARD);
+
+    await retryPairForWaitingUser(me.id);
+
+    const matches = await matchesFor(me.id);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.mode).toBe(MatchMode.STANDARD);
+  });
+
+  it("pairs a waiting randitto player with another randitto one", async () => {
+    const me = await queuer();
+    await joinLobbyAndTryPair(me.id, false, null, MatchMode.RANDITTO);
+    await waiterInQueue(MatchMode.RANDITTO);
+
+    await retryPairForWaitingUser(me.id);
+
+    const matches = await matchesFor(me.id);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.mode).toBe(MatchMode.RANDITTO);
+  });
+
+  // The production failure this covers, six times over on launch day: every
+  // crossed set had a standard player polling and a randitto waiter as the
+  // candidate, so the match came out STANDARD and the randitto player was
+  // handed an ordinary rated set.
+  it("never pairs a waiting standard player with a randitto one", async () => {
+    const me = await queuer();
+    await joinLobbyAndTryPair(me.id, false, null, MatchMode.STANDARD);
+    await waiterInQueue(MatchMode.RANDITTO);
+
+    await retryPairForWaitingUser(me.id);
+
+    expect(await matchesFor(me.id)).toHaveLength(0);
+  });
+
+  it("never pairs a waiting randitto player with a standard one", async () => {
+    const me = await queuer();
+    await joinLobbyAndTryPair(me.id, false, null, MatchMode.RANDITTO);
+    await waiterInQueue(MatchMode.STANDARD);
+
+    await retryPairForWaitingUser(me.id);
+
+    expect(await matchesFor(me.id)).toHaveLength(0);
+  });
+});

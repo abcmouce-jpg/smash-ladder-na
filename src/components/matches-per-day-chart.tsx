@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useBrowserTimeZone } from "@/hooks/use-browser-time-zone";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const WIDTH = 560;
 const HEIGHT = 160;
@@ -15,8 +16,13 @@ const DAY_MS = 86_400_000;
 // The timezone only shifts which matches land in which local day; the bucket
 // counts are unchanged. See useBrowserTimeZone for the SSR/UTC-first approach.
 
-const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+// Japanese writes the month as a number (see dateLabel), so its row is never
+// read — it's here because a Record<Lang, …> is what makes the next language
+// a compile error instead of a silent fall back to English.
+const MONTHS: Record<Lang, readonly string[]> = {
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  es: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+};
 
 export function MatchesPerDayChart({
   timestamps,
@@ -60,23 +66,28 @@ export function MatchesPerDayChart({
   const dayEntries = keys.map((key) => ({ key, count: counts.get(key)! }));
   const total = dayEntries.reduce((sum, d) => sum + d.count, 0);
 
-  const months = lang === "es" ? MONTHS_ES : MONTHS_EN;
+  const months = MONTHS[lang];
   const dateLabel = (key: string) => {
     const [year, month, day] = key.split("-").map(Number);
-    if (lang === "es") return `${day} ${months[month - 1]} ${year}`;
-    return `${months[month - 1]} ${day}, ${year}`;
+    // Each language orders a date its own way, so the whole string branches.
+    return tr(lang, {
+      en: `${months[month - 1]} ${day}, ${year}`,
+      es: `${day} ${months[month - 1]} ${year}`,
+    });
   };
   const countLabel = (count: number) =>
-    lang === "es"
-      ? `${count} ${count === 1 ? "partida" : "partidas"}`
-      : `${count} ${count === 1 ? "match" : "matches"}`;
+    tr(lang, {
+      en: `${count} ${count === 1 ? "match" : "matches"}`,
+      es: `${count} ${count === 1 ? "partida" : "partidas"}`,
+    });
 
   if (total === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es"
-          ? `Aún no hay partidas confirmadas en los últimos ${days} días.`
-          : `No confirmed matches in the last ${days} days yet.`}
+        {tr(lang, {
+          en: `No confirmed matches in the last ${days} days yet.`,
+          es: `Aún no hay partidas confirmadas en los últimos ${days} días.`,
+        })}
       </p>
     );
   }
@@ -113,9 +124,10 @@ export function MatchesPerDayChart({
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverIndex(null)}
         role="img"
-        aria-label={
-          lang === "es" ? `Partidas por día en los últimos ${days} días` : `Matches per day over the last ${days} days`
-        }
+        aria-label={tr(lang, {
+          en: `Matches per day over the last ${days} days`,
+          es: `Partidas por día en los últimos ${days} días`,
+        })}
       >
         {gridLines.map((g) => (
           <g key={g}>
@@ -191,7 +203,10 @@ export function MatchesPerDayChart({
               className="fill-muted-foreground"
               style={{ fontSize: 9 }}
             >
-              {lang === "es" ? `${day} ${months[month - 1]}` : `${months[month - 1]} ${day}`}
+              {tr(lang, {
+                en: `${months[month - 1]} ${day}`,
+                es: `${day} ${months[month - 1]}`,
+              })}
             </text>
           );
         })}
@@ -200,23 +215,26 @@ export function MatchesPerDayChart({
       <div className="flex h-5 items-center justify-center text-xs text-muted-foreground">
         {hovered && hoverIndex !== null
           ? `${dateLabel(dayEntries[hoverIndex].key)} — ${countLabel(dayEntries[hoverIndex].count)}`
-          : lang === "es"
-            ? `${total} partidas confirmadas en los últimos ${days} días`
-            : `${total} confirmed matches in the last ${days} days`}
+          : tr(lang, {
+              en: `${total} confirmed matches in the last ${days} days`,
+              es: `${total} partidas confirmadas en los últimos ${days} días`,
+            })}
       </div>
 
       {/* Hover is undiscoverable on touch devices, which is what the
           rating chart's table fallback is for too. */}
       <details className="mt-2 text-xs">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          {lang === "es" ? "Ver como tabla" : "View as table"}
+          {tr(lang, { en: "View as table", es: "Ver como tabla" })}
         </summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="text-muted-foreground">
-                <th className="py-1 font-medium">{lang === "es" ? "Fecha" : "Date"}</th>
-                <th className="py-1 text-right font-medium tabular-nums">{lang === "es" ? "Partidas" : "Matches"}</th>
+                <th className="py-1 font-medium">{tr(lang, { en: "Date", es: "Fecha" })}</th>
+                <th className="py-1 text-right font-medium tabular-nums">
+                  {tr(lang, { en: "Matches", es: "Partidas" })}
+                </th>
               </tr>
             </thead>
             <tbody>

@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import type { MatchHistoryEntryData, MatchStreamSummary } from "@/lib/players";
 import { formatRating } from "@/lib/rating-format";
 import { formatTwitchTime } from "@/lib/twitch-vod";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
+import { PROVISIONAL_LABEL } from "@/components/rank-badge";
 
 // The page hands this component the same entry getPlayerMatchHistory
 // returns, except confirmedAt must be serialized to an ISO string first
@@ -68,12 +71,12 @@ function CharacterGroup({ names }: { names: string[] }) {
 // Character line: "your characters vs their characters", icons and names.
 // Wraps rather than clips, so three long-ish names on a narrow phone still
 // read in full instead of pushing the opponent's side out of view.
-function CharactersLine({ mine, theirs, lang }: { mine: string[]; theirs: string[]; lang?: "en" | "es" }) {
+function CharactersLine({ mine, theirs, lang = "en" }: { mine: string[]; theirs: string[]; lang?: Lang }) {
   if (mine.length === 0 && theirs.length === 0) return null;
   return (
     <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
       <CharacterGroup names={mine} />
-      <span className="shrink-0 text-muted-foreground/60">{lang === "es" ? "contra" : "vs"}</span>
+      <span className="shrink-0 text-muted-foreground/60">{tr(lang, { en: "vs", es: "contra" })}</span>
       <CharacterGroup names={theirs} />
     </span>
   );
@@ -106,7 +109,7 @@ export function MatchHistoryEntry({
   /** Moderator override: show even the match's own hidden rating trail (see ratingRevealed). */
   canSeeHiddenRatings?: boolean;
   children?: ReactNode;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -127,7 +130,8 @@ export function MatchHistoryEntry({
   // their numbers. Moderators see everything. The arrow needs both ends; a
   // match with no post-rating recorded falls back to the bare delta rather than
   // drawing "1500 → null". A hidden set — a provisional one — reads
-  // "Provisional" in the slot, so the row doesn't look like it's missing data.
+  // PROVISIONAL_LABEL in the slot, so the row doesn't look like it's missing
+  // data.
   const trailVisible = canSeeHiddenRatings || (match.ratingRevealed ?? true);
   const hasRatingTrail = trailVisible && match.ratingBefore != null && match.ratingAfter != null;
   const deltaClass = cn(
@@ -141,12 +145,11 @@ export function MatchHistoryEntry({
           : "text-muted-foreground",
   );
   const ratingTrailTitle = match.isPracticing
-    ? lang === "es"
-      ? "Clasificación de práctica antes → después"
-      : "Practice rating before → after"
-    : lang === "es"
-      ? "Clasificación antes → después"
-      : "Rating before → after";
+    ? tr(lang, {
+        en: "Practice rating before → after",
+        es: "Clasificación de práctica antes → después",
+      })
+    : tr(lang, { en: "Rating before → after", es: "Clasificación antes → después" });
 
   return (
     <div className="px-3 py-2 sm:px-4 sm:py-2.5">
@@ -185,7 +188,7 @@ export function MatchHistoryEntry({
               </Link>
               {match.isPracticing && (
                 <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                  {lang === "es" ? "Práctica" : "Practice"}
+                  {tr(lang, { en: "Practice", es: "Práctica" })}
                 </Badge>
               )}
               {hasVod && (
@@ -221,7 +224,7 @@ export function MatchHistoryEntry({
                 </span>
               )
             ) : (
-              <span className="text-xs text-muted-foreground">Provisional</span>
+              <span className="text-xs text-muted-foreground">{tr(lang, PROVISIONAL_LABEL)}</span>
             )}
             {match.confirmedAt && (
               <span className="text-xs tabular-nums text-muted-foreground">
@@ -279,7 +282,7 @@ function MatchDetailsModal({
   vodStreams: readonly (MatchStreamSummary & { vodId: string })[];
   chatLogAction?: ComponentProps<typeof MatchChatLog>["action"];
   onClose: () => void;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   // Close on Escape.
   useEffect(() => {
@@ -310,12 +313,12 @@ function MatchDetailsModal({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-sm font-medium text-card-foreground">
-              {lang === "es" ? "Detalles de la partida" : "Match details"}
+              {tr(lang, { en: "Match details", es: "Detalles de la partida" })}
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              {match.isPracticing && <Badge variant="outline">{lang === "es" ? "Práctica" : "Practice"}</Badge>}
+              {match.isPracticing && <Badge variant="outline">{tr(lang, { en: "Practice", es: "Práctica" })}</Badge>}
               <span className="font-medium">
-                {viewedPlayerName} <span className="text-muted-foreground">{lang === "es" ? "contra" : "vs"}</span>{" "}
+                {viewedPlayerName} <span className="text-muted-foreground">{tr(lang, { en: "vs", es: "contra" })}</span>{" "}
                 {match.opponent.username}
               </span>
               {hasScore && (
@@ -337,15 +340,19 @@ function MatchDetailsModal({
         <div className="mt-4 flex flex-col gap-2">
           {match.games.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              {lang === "es"
-                ? "No se registró ningún juego para esta partida."
-                : "No games were recorded for this set."}
+              {tr(lang, {
+                en: "No games were recorded for this set.",
+                es: "No se registró ningún juego para esta partida.",
+              })}
             </p>
           )}
           {match.games.map((game) => (
             <div key={game.gameNumber} className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs font-medium text-muted-foreground">
-                {lang === "es" ? `Juego ${game.gameNumber}` : `Game ${game.gameNumber}`}
+                {tr(lang, {
+                  en: `Game ${game.gameNumber}`,
+                  es: `Juego ${game.gameNumber}`,
+                })}
                 {game.stage ? `: ${game.stage}` : ""}
               </p>
               <div className="mt-2 flex items-center justify-between gap-2">
@@ -436,7 +443,7 @@ function MatchDetailsModal({
 
         <div className="mt-4 flex justify-end">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
-            {lang === "es" ? "Cerrar" : "Close"}
+            {tr(lang, { en: "Close", es: "Cerrar" })}
           </Button>
         </div>
       </div>

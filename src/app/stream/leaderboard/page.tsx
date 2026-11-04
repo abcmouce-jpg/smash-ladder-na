@@ -7,6 +7,7 @@ import { RankBadge } from "@/components/rank-badge";
 import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 import { getLang } from "@/lib/i18n";
 import { formatRating } from "@/lib/rating-format";
+import { tr } from "@/lib/lang";
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -68,7 +69,7 @@ export default async function StreamLeaderboardPage({
                 </div>
               </td>
               <td className="py-1 pr-2">
-                <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+                <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} lang={lang} />
               </td>
               <td className="py-1 text-right font-medium tabular-nums">{formatRating(player.rating)}</td>
             </tr>
@@ -77,7 +78,10 @@ export default async function StreamLeaderboardPage({
       </table>
       {players.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? "Aún no hay jugadores rankeados." : "No ranked players yet."}
+          {tr(lang, {
+            en: "No ranked players yet.",
+            es: "Aún no hay jugadores rankeados.",
+          })}
         </p>
       )}
     </div>

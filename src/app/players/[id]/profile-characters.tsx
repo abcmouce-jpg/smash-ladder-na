@@ -8,10 +8,14 @@ import { getCharacterMatchups } from "@/lib/profile-stats";
 import { formatUsagePercent } from "@/lib/character-usage-display";
 import type { CharacterUsage } from "@/lib/players";
 import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 function gamesLabel(count: number, lang: Lang) {
-  if (lang === "es") return count === 1 ? "partida" : "partidas";
-  return count === 1 ? "game" : "games";
+  // Japanese has no plural, so the count alone carries it.
+  return tr(lang, {
+    en: count === 1 ? "game" : "games",
+    es: count === 1 ? "partida" : "partidas",
+  });
 }
 
 // Per-character matchup breakdowns. The character list on the left is the
@@ -35,7 +39,10 @@ export async function ProfileCharactersSection({
   if (usage.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {lang === "es" ? "Aún no hay partidas rankeadas registradas." : "No ranked games recorded yet."}
+        {tr(lang, {
+          en: "No ranked games recorded yet.",
+          es: "Aún no hay partidas rankeadas registradas.",
+        })}
       </p>
     );
   }
@@ -59,7 +66,7 @@ export async function ProfileCharactersSection({
   return (
     <div className="grid items-start gap-6 sm:grid-cols-[220px_1fr]">
       <nav
-        aria-label={lang === "es" ? "Personajes" : "Characters"}
+        aria-label={tr(lang, { en: "Characters", es: "Personajes" })}
         className="flex flex-col gap-1 sm:max-h-128 sm:overflow-y-auto sm:pr-1"
       >
         {usage.map((u) => {
@@ -122,14 +129,14 @@ export async function ProfileCharactersSection({
                 ·
               </span>
               <span className="tabular-nums">
-                {formatUsagePercent(selectedUsage.usagePercent)} {lang === "es" ? "de uso" : "usage"}
+                {formatUsagePercent(selectedUsage.usagePercent)} {tr(lang, { en: "usage", es: "de uso" })}
               </span>
             </p>
           </div>
         </div>
 
         <div className="mt-6">
-          <SectionHeading>{lang === "es" ? "Enfrentamientos" : "Matchups"}</SectionHeading>
+          <SectionHeading>{tr(lang, { en: "Matchups", es: "Enfrentamientos" })}</SectionHeading>
         </div>
 
         {breakdown && breakdown.matchups.length > 0 ? (
@@ -175,7 +182,10 @@ export async function ProfileCharactersSection({
           </ul>
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">
-            {lang === "es" ? "Aún no hay enfrentamientos registrados." : "No recorded matchups yet."}
+            {tr(lang, {
+              en: "No recorded matchups yet.",
+              es: "Aún no hay enfrentamientos registrados.",
+            })}
           </p>
         )}
       </section>

@@ -12,7 +12,15 @@ function secondsUntil(deadlineMs: number) {
 // (forfeit, etc.); this only makes the display itself smooth in between.
 // suppressHydrationWarning for the same one-paint SSR/CSR clock mismatch
 // reason as LocalTime.
-export function Countdown({ deadline }: { deadline: string }) {
+/**
+ * `format="clock"` renders mm:ss instead of a raw second count.
+ *
+ * For the prominent timer blocks, where a five-minute window read as "296s"
+ * — a number nobody converts in their head. In a sentence ("pick within
+ * {n}s") the plain count stays, because a clock reading doesn't take a unit
+ * and the sentence needs one.
+ */
+export function Countdown({ deadline, format = "seconds" }: { deadline: string; format?: "seconds" | "clock" }) {
   const deadlineMs = new Date(deadline).getTime();
   const [seconds, setSeconds] = useState(() => secondsUntil(deadlineMs));
 
@@ -26,5 +34,10 @@ export function Countdown({ deadline }: { deadline: string }) {
     return () => clearInterval(id);
   }, [deadlineMs]);
 
+  if (format === "clock") {
+    const mm = Math.floor(seconds / 60);
+    const ss = String(seconds % 60).padStart(2, "0");
+    return <span suppressHydrationWarning>{`${mm}:${ss}`}</span>;
+  }
   return <span suppressHydrationWarning>{seconds}</span>;
 }

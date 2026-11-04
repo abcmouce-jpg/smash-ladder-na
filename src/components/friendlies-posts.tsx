@@ -10,6 +10,8 @@ import { LocalTime } from "@/components/local-time";
 import { RatingHidden } from "@/components/rating-hidden";
 import { formatRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
+import { tr } from "@/lib/lang";
+import { USES_REGIONS } from "@/lib/site";
 
 // Shared "who's looking for a game" card. The home page's Friendlies section
 // and the Friendlies page itself render the same list, so an open post looks
@@ -30,9 +32,10 @@ export function FriendliesPosts({
       <Card className="mt-3">
         <CardContent className="pt-4">
           <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Nadie está buscando partida ahora mismo — sé el primero en publicar."
-              : "No one's looking for a game right now — be the first to post."}
+            {tr(lang, {
+              en: "No one's looking for a game right now — be the first to post.",
+              es: "Nadie está buscando partida ahora mismo — sé el primero en publicar.",
+            })}
           </p>
           {emptyAction}
         </CardContent>
@@ -73,9 +76,9 @@ export function FriendliesPosts({
             </span>
           </div>
           <p className="mt-1 text-sm leading-snug">{post.comment}</p>
-          {(post.region || post.minTier) && (
+          {((USES_REGIONS && post.region) || post.minTier) && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {post.region && (
+              {USES_REGIONS && post.region && (
                 <Badge variant="outline">
                   <MapPin className="size-3" />
                   {post.region}

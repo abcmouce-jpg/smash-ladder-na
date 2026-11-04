@@ -4,6 +4,7 @@ import { useRef, type ReactNode } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import type { VariantProps } from "class-variance-authority";
+import type { Lang } from "@/lib/lang";
 
 type BoundAction = (formData: FormData) => Promise<void> | void;
 
@@ -19,6 +20,7 @@ export function ConfirmSubmitButton({
   disabled,
   variant,
   size,
+  lang = "en",
 }: {
   action: BoundAction;
   confirmMessage: string;
@@ -26,8 +28,9 @@ export function ConfirmSubmitButton({
   disabled?: boolean;
   variant?: VariantProps<typeof buttonVariants>["variant"];
   size?: VariantProps<typeof buttonVariants>["size"];
+  lang?: Lang;
 }) {
-  const [confirm, confirmDialog] = useConfirm();
+  const [confirm, confirmDialog] = useConfirm(lang);
   const confirmReadyRef = useRef(false);
 
   return (

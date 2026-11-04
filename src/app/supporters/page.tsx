@@ -7,12 +7,17 @@ import { getSupporterCount } from "@/lib/public-stats";
 import { GOLD_SUPPORTER_MIN_AMOUNT_USD } from "@/lib/supporters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { tr } from "@/lib/lang";
+import { PUBLISHES_SPANISH, HAS_KOFI } from "@/lib/site";
+import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
-  alternates: { languages: { "es-MX": "/es" } },
+  alternates: PUBLISHES_SPANISH ? { languages: { "es-MX": "/es" } } : undefined,
 };
 
 export default async function SupportersPage() {
+  if (!HAS_KOFI) notFound();
+
   const [lang, supporterCount] = await Promise.all([getLang(), getSupporterCount()]);
 
   // Only donors who left is_public: true on Ko-fi's end are shown here — see
@@ -39,20 +44,23 @@ export default async function SupportersPage() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
         <Heart className="size-6 text-primary" />
-        {lang === "es" ? "Colaboradores" : "Supporters"}
+        {tr(lang, { en: "Supporters", es: "Colaboradores" })}
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {lang === "es"
-          ? "Hosting y dominio se pagan de nuestro bolsillo — estas son las personas que ayudan a cubrirlo."
-          : "Hosting and domain costs come out of pocket — these are the people who help cover that."}
+        {tr(lang, {
+          en: "Hosting and domain costs come out of pocket — these are the people who help cover that.",
+          es: "Hosting y dominio se pagan de nuestro bolsillo — estas son las personas que ayudan a cubrirlo.",
+        })}
       </p>
       {supporterCount > 0 && (
         <p className="mt-1 text-sm font-medium text-foreground">
-          {lang === "es"
-            ? supporterCount === 1
-              ? "1 persona ha colaborado hasta ahora."
-              : `${supporterCount} personas han colaborado hasta ahora.`
-            : `${supporterCount} ${supporterCount === 1 ? "person has" : "people have"} chipped in so far.`}
+          {tr(lang, {
+            en: `${supporterCount} ${supporterCount === 1 ? "person has" : "people have"} chipped in so far.`,
+            es:
+              supporterCount === 1
+                ? "1 persona ha colaborado hasta ahora."
+                : `${supporterCount} personas han colaborado hasta ahora.`,
+          })}
         </p>
       )}
 
@@ -60,11 +68,14 @@ export default async function SupportersPage() {
         <Card className="transition-colors hover:border-foreground/30">
           <CardHeader>
             <Coffee className="size-5 text-muted-foreground" />
-            <CardTitle className="text-base">{lang === "es" ? "Apóyanos en Ko-fi" : "Support us on Ko-fi"}</CardTitle>
+            <CardTitle className="text-base">
+              {tr(lang, { en: "Support us on Ko-fi", es: "Apóyanos en Ko-fi" })}
+            </CardTitle>
             <CardDescription>
-              {lang === "es"
-                ? "Pega tu código de colaborador (en Ajustes) en el mensaje de la donación para quitar los anuncios y obtener la insignia de colaborador."
-                : "Paste your supporter code (in Settings) into the donation message to remove ads and get the supporter badge."}
+              {tr(lang, {
+                en: "Paste your supporter code (in Settings) into the donation message to remove ads and get the supporter badge.",
+                es: "Pega tu código de colaborador (en Ajustes) en el mensaje de la donación para quitar los anuncios y obtener la insignia de colaborador.",
+              })}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -73,7 +84,10 @@ export default async function SupportersPage() {
       <div className="mt-8">
         {donations.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {lang === "es" ? "Todavía no hay colaboradores públicos que mostrar." : "No public supporters to show yet."}
+            {tr(lang, {
+              en: "No public supporters to show yet.",
+              es: "Todavía no hay colaboradores públicos que mostrar.",
+            })}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -106,7 +120,7 @@ export default async function SupportersPage() {
         <Button asChild variant="outline" size="sm">
           <a href={KOFI_URL} target="_blank" rel="noreferrer">
             <Coffee className="size-3.5" />
-            {lang === "es" ? "Ir a Ko-fi" : "Go to Ko-fi"}
+            {tr(lang, { en: "Go to Ko-fi", es: "Ir a Ko-fi" })}
           </a>
         </Button>
       </div>

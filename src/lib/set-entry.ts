@@ -1,4 +1,5 @@
 import type { MatchFeedEntry } from "@/lib/match-feed";
+import type { Lang } from "@/lib/lang";
 
 // Dates can't cross the server→client boundary, so match-feed entries are
 // serialized before being handed to the client rows, player, and thumbnails.
@@ -17,7 +18,7 @@ export function serializeSetEntry(entry: MatchFeedEntry): SerializedSetEntry {
   };
 }
 
-export const STATUS_LABEL: Record<string, { en: string; es: string }> = {
+export const STATUS_LABEL: Record<string, Record<Lang, string>> = {
   PENDING_REPORT: { en: "In progress", es: "En curso" },
   REPORTED: { en: "In progress", es: "En curso" },
   DISPUTED: { en: "Disputed", es: "En disputa" },

@@ -1,6 +1,8 @@
 "use client";
 
 import { CharacterSelect } from "@/components/character-select";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 /**
  * Wraps CharacterSelect in a label so it slots into the leaderboard's
@@ -13,21 +15,22 @@ export function CharacterFilterSelect({
   className,
 }: {
   defaultValue: string;
-  lang?: "en" | "es";
+  lang?: Lang;
   /** Forwarded to CharacterSelect's trigger — see its className doc. */
   className?: string;
 }) {
   return (
     <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
-      {lang === "es" ? "Personaje" : "Character"}
+      {tr(lang, { en: "Character", es: "Personaje" })}
       {/* key forces remount so defaultValue syncs when searchParams change */}
       <CharacterSelect
         key={defaultValue}
         name="character"
         defaultValue={defaultValue}
-        placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
-        clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
+        placeholder={tr(lang, { en: "All characters", es: "Todos los personajes" })}
+        clearLabel={tr(lang, { en: "All Characters", es: "Todos los personajes" })}
         className={className}
+        lang={lang}
       />
     </label>
   );

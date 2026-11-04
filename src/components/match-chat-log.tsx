@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ChatMessages } from "@/components/chat-messages";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 type Comment = {
   id: string;
@@ -15,7 +17,7 @@ type Comment = {
 // first expand, via the passed-in server action. Rendered inside the
 // match-details modal, which scrolls as a whole, so the log itself doesn't
 // cap its own height (a nested scrollbar in a scrolling panel is janky).
-export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Comment[]>; lang?: "en" | "es" }) {
+export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Comment[]>; lang?: Lang }) {
   const [state, setState] = useState<
     { status: "collapsed" } | { status: "loading" } | { status: "error" } | { status: "loaded"; comments: Comment[] }
   >({ status: "collapsed" });
@@ -37,7 +39,7 @@ export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Co
         onClick={expand}
         className="mt-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
       >
-        {lang === "es" ? "Ver registro de chat" : "View chat log"}
+        {tr(lang, { en: "View chat log", es: "Ver registro de chat" })}
       </button>
     );
   }
@@ -45,11 +47,14 @@ export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Co
   return (
     <div className="mt-1.5 rounded-lg border border-border bg-muted/30 p-2">
       {state.status === "loading" && (
-        <p className="text-xs text-muted-foreground">{lang === "es" ? "Cargando…" : "Loading…"}</p>
+        <p className="text-xs text-muted-foreground">{tr(lang, { en: "Loading…", es: "Cargando…" })}</p>
       )}
       {state.status === "error" && (
         <p className="text-xs text-destructive">
-          {lang === "es" ? "No se pudo cargar el chat — inténtalo de nuevo." : "Couldn't load chat log — try again."}
+          {tr(lang, {
+            en: "Couldn't load chat log — try again.",
+            es: "No se pudo cargar el chat — inténtalo de nuevo.",
+          })}
         </p>
       )}
       {state.status === "loaded" && (
@@ -57,7 +62,10 @@ export function MatchChatLog({ action, lang = "en" }: { action: () => Promise<Co
           comments={state.comments}
           empty={
             <p className="text-xs text-muted-foreground">
-              {lang === "es" ? "No se envió ningún mensaje en esta partida." : "No messages were sent in this set."}
+              {tr(lang, {
+                en: "No messages were sent in this set.",
+                es: "No se envió ningún mensaje en esta partida.",
+              })}
             </p>
           }
         />

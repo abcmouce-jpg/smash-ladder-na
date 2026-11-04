@@ -9,13 +9,10 @@
 // matches.ts), because normal admin edits are only allowed on a player's
 // most-recent CONFIRMED match precisely to avoid needing this.
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
-import { eloDelta, expectedScore } from "@/lib/matches";
+import { MatchStatus, ConfirmationMethod, RatingAlgorithm } from "@/generated/prisma/enums";
+import { eloDelta, expectedScore, smashmateDelta } from "@/lib/matches";
 
-export async function findAffectedChain(
-  tx: Prisma.TransactionClient,
-  targetMatchId: string,
-) {
+export async function findAffectedChain(tx: Prisma.TransactionClient, targetMatchId: string) {
   const target = await tx.ratingMatch.findUniqueOrThrow({ where: { id: targetMatchId } });
   if (target.status !== MatchStatus.CONFIRMED || !target.confirmedAt) {
     throw new Error("Target match is not CONFIRMED");
@@ -75,6 +72,25 @@ export async function applyEloChainFix(
   if (winnerId !== target.player1Id && winnerId !== target.player2Id) {
     throw new Error("winnerId must be a participant in the target match");
   }
+  // Which math to replay the chain with. Both Elo ladders can be replayed from
+  // ratings alone, so the only difference is which K applies: ELO tapers it by
+  // games played, SMASHMATE is flat. Glicko-2 needs each side's rd and
+  // volatility at the time to replay at all, and those aren't recorded per
+  // match, so recomputing one here would quietly write wrong ratings over real
+  // ones — it refuses instead of guessing.
+  const seasonAlgorithm = target.seasonId
+    ? ((await tx.season.findUnique({ where: { id: target.seasonId }, select: { algorithm: true } }))?.algorithm ??
+      RatingAlgorithm.ELO)
+    : RatingAlgorithm.ELO;
+  if (seasonAlgorithm === RatingAlgorithm.GLICKO2) {
+    throw new Error(`This tool can't recompute a ${seasonAlgorithm} season; the target match is in one`);
+  }
+  // gamesBefore is ignored on a flat-K ladder, which is the whole of what
+  // separates the two (see smashmateDelta).
+  const delta =
+    seasonAlgorithm === RatingAlgorithm.SMASHMATE
+      ? (_gamesBefore: number, score: number, expected: number) => smashmateDelta(score, expected)
+      : eloDelta;
 
   // gamesPlayed-before-cutoff, per affected user, counted only over their
   // own NON-practicing CONFIRMED matches (kFactor tier depends on this, and
@@ -115,14 +131,14 @@ export async function applyEloChainFix(
     if (!p1Practicing) {
       const gamesBefore = (gamesBeforeCutoff.get(m.player1Id) ?? 0) + (gamesProcessed.get(m.player1Id) ?? 0);
       const expected = expectedScore(p1Before, p2Before);
-      p1After = Math.round(p1Before + eloDelta(gamesBefore, p1Won ? 1 : 0, expected));
+      p1After = Math.round(p1Before + delta(gamesBefore, p1Won ? 1 : 0, expected));
       currentRating.set(m.player1Id, p1After);
       gamesProcessed.set(m.player1Id, (gamesProcessed.get(m.player1Id) ?? 0) + 1);
     }
     if (!p2Practicing) {
       const gamesBefore = (gamesBeforeCutoff.get(m.player2Id) ?? 0) + (gamesProcessed.get(m.player2Id) ?? 0);
       const expected = expectedScore(p2Before, p1Before);
-      p2After = Math.round(p2Before + eloDelta(gamesBefore, p1Won ? 0 : 1, expected));
+      p2After = Math.round(p2Before + delta(gamesBefore, p1Won ? 0 : 1, expected));
       currentRating.set(m.player2Id, p2After);
       gamesProcessed.set(m.player2Id, (gamesProcessed.get(m.player2Id) ?? 0) + 1);
     }
@@ -135,7 +151,11 @@ export async function applyEloChainFix(
         player2RatingBefore: p2Before,
         player2RatingAfter: p2After,
         ...(isTarget
-          ? { reportedWinnerId: winnerId, secondReportWinnerId: winnerId, confirmationMethod: ConfirmationMethod.CORRECTED }
+          ? {
+              reportedWinnerId: winnerId,
+              secondReportWinnerId: winnerId,
+              confirmationMethod: ConfirmationMethod.CORRECTED,
+            }
           : {}),
       },
     });

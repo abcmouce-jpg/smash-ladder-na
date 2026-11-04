@@ -1,14 +1,16 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { ConfirmationMethod, MatchStatus, UserRole } from "@/generated/prisma/enums";
+import { ConfirmationMethod, MatchMode, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
-import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { GAME_ONE_STAGES, COUNTERPICK_STAGES, STRIKING_STAGES } from "@/lib/stages";
+import { RANDITTO_STAGE } from "@/lib/randitto";
 import { SMASH_CHARACTERS, isMiiCharacter, MOVESET_PATTERN } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
 import { isNotificationEnabled } from "@/lib/notifications";
+import { LocalizedError } from "@/lib/localized-error";
 
-export const GAMES_TO_WIN = 3; // best of 5
+export const GAMES_TO_WIN = 3; // best-of-5
 const MAX_GAMES = 2 * GAMES_TO_WIN - 1;
 
 // Indirection so `Date.now()` isn't called directly in a component's render
@@ -20,7 +22,10 @@ export function secondsUntil(deadline: Date) {
 
 function requireParticipant(match: { player1Id: string; player2Id: string }, userId: string) {
   if (match.player1Id !== userId && match.player2Id !== userId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
 }
 
@@ -82,6 +87,7 @@ async function autoResolveStaleTurn(matchId: string) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId, winnerId: null, finalStage: null },
     orderBy: { gameNumber: "desc" },
+    include: { match: { select: { mode: true } } },
   });
   if (!game) return;
   // The strike/pick clock doesn't apply until both characters are locked in
@@ -90,7 +96,7 @@ async function autoResolveStaleTurn(matchId: string) {
   // creation timestamp) should never trigger an auto-resolve here. Stalling
   // on character selection itself is handled separately, by
   // autoResolveStaleCharacterPick.
-  if (!bothCharactersLocked(game)) return;
+  if (!bothCharactersLocked(game, game.match.mode)) return;
   if (Date.now() - game.turnStartedAt.getTime() < STRIKE_TIMEOUT_MS) return;
 
   // The stage the previous game was played on, if it's still on the table —
@@ -100,8 +106,7 @@ async function autoResolveStaleTurn(matchId: string) {
   // stage as pickSameStage.
   const allGames = await prisma.matchGame.findMany({ where: { matchId } });
   const previousStage = lastPlayedStage(allGames, game.gameNumber);
-  const repeatStage =
-    previousStage && game.stagesRemaining.includes(previousStage) ? previousStage : null;
+  const repeatStage = previousStage && game.stagesRemaining.includes(previousStage) ? previousStage : null;
 
   const striker = actorForStrike(game);
   if (striker) {
@@ -123,9 +128,7 @@ async function autoResolveStaleTurn(matchId: string) {
     // it resolves at its single deadline. The next actor gets a fresh clock.
     const count = game.struckStages.length;
     const owed =
-      striker === game.actorAId
-        ? game.actorAStrikes - count
-        : game.actorAStrikes + game.actorBStrikes - count;
+      striker === game.actorAId ? game.actorAStrikes - count : game.actorAStrikes + game.actorBStrikes - count;
     const strikes = randomStages(game.stagesRemaining, owed);
     if (strikes.length === 0) return;
     const struckStages = [...game.struckStages, ...strikes];
@@ -134,9 +137,7 @@ async function autoResolveStaleTurn(matchId: string) {
       data: {
         stagesRemaining: game.stagesRemaining.filter((s) => !strikes.includes(s)),
         struckStages,
-        ...(turnPassesToNextActor(game, struckStages, striker)
-          ? { turnStartedAt: new Date() }
-          : {}),
+        ...(turnPassesToNextActor(game, struckStages, striker) ? { turnStartedAt: new Date() } : {}),
       },
     });
     return;
@@ -253,13 +254,18 @@ async function replayPreviousGame(
 //   matchup instead of someone losing to a clock. Nothing is forfeited and no
 //   cooldown is charged for it; a player who stays quiet through the game itself
 //   is still handled by the report clock below.
-async function autoResolveStaleCharacterPick(match: { id: string; player1Id: string; player2Id: string }) {
+async function autoResolveStaleCharacterPick(match: {
+  id: string;
+  player1Id: string;
+  player2Id: string;
+  mode: MatchMode;
+}) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId: match.id, winnerId: null, finalStage: null },
     orderBy: { gameNumber: "desc" },
   });
   if (!game) return;
-  if (bothCharactersLocked(game)) return;
+  if (bothCharactersLocked(game, match.mode)) return;
   if (Date.now() < game.characterPickDeadline.getTime()) return;
 
   const aLocked = game.actorACharacter !== null;
@@ -418,7 +424,7 @@ export async function getMatchGames(matchId: string) {
   await autoResolveStaleTurn(matchId);
   const match = await prisma.ratingMatch.findUnique({
     where: { id: matchId },
-    select: { id: true, player1Id: true, player2Id: true, status: true },
+    select: { id: true, player1Id: true, player2Id: true, status: true, mode: true },
   });
   if (match) {
     await autoResolveStaleCharacterPick(match);
@@ -433,7 +439,7 @@ export async function getCurrentGame(matchId: string) {
 
 export async function startFirstGame(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   requireParticipant(match, userId);
 
   const existing = await prisma.matchGame.findUnique({
@@ -449,11 +455,16 @@ export async function startFirstGame(userId: string, matchId: string) {
       matchId,
       gameNumber: 1,
       actorAId,
-      actorAStrikes: 1,
+      actorAStrikes: STRIKING_STAGES ? 1 : 0,
       actorBId,
-      actorBStrikes: 2,
+      actorBStrikes: STRIKING_STAGES ? 2 : 0,
       stagesRemaining: [...GAME_ONE_STAGES],
       characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
+      // Randitto hands out the fighters, so the pick phase has nothing to ask.
+      // Writing them at creation means every downstream check that waits on
+      // "both characters locked in" is already satisfied, rather than each of
+      // them needing to learn about the mode.
+      ...randittoSeats(match.mode),
     },
   });
 }
@@ -484,7 +495,7 @@ function picker(game: { actorAId: string; actorBId: string; actorAStrikes: numbe
 function turnPassesToNextActor(
   game: { actorAId: string; actorBId: string; actorAStrikes: number; actorBStrikes: number },
   struckStages: string[],
-  currentActor: string
+  currentActor: string,
 ) {
   return actorForStrike({ ...game, struckStages }) !== currentActor;
 }
@@ -494,7 +505,20 @@ function turnPassesToNextActor(
 // game 1) while the other side still hasn't picked at all, letting the
 // strike-timeout clock tick down against someone who hasn't even reached
 // the character screen yet.
-export function bothCharactersLocked(game: { actorACharacter: string | null; actorBCharacter: string | null }) {
+//
+// Randitto has no character phase at all: Smash hands out the fighters, so
+// there is nothing for a player to lock in and nothing for the site to know.
+// Answering "yes, done" is what keeps the phase that does not apply from
+// being presented — it was still showing a picker, and players were filling
+// it in by hand (one of them picked the literal "Random" entry), which is
+// precisely the chore the mode exists to remove. The mode is required rather
+// than defaulted: a silently-defaulted mode is the shape of the pairing bug
+// this same queue already produced.
+export function bothCharactersLocked(
+  game: { actorACharacter: string | null; actorBCharacter: string | null },
+  mode: MatchMode,
+) {
+  if (mode === MatchMode.RANDITTO) return true;
   return game.actorACharacter !== null && game.actorBCharacter !== null;
 }
 
@@ -645,20 +669,37 @@ export async function pickGameCharacter(
 ) {
   const game = await requireGame(matchId, gameNumber);
   if (userId !== game.actorAId && userId !== game.actorBId) {
-    throw new Error("Not a participant in this game");
+    throw new LocalizedError({
+      en: "Not a participant in this game",
+      es: "No participas en este juego",
+    });
   }
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
-    throw new Error("Not a recognized character");
+    throw new LocalizedError({
+      en: "Not a recognized character",
+      es: "Personaje no reconocido",
+    });
   }
   const isMii = isMiiCharacter(character);
   if (isMii && !MOVESET_PATTERN.test(moveset ?? "")) {
-    throw new Error("Moveset must be 4 digits, each 1-4");
+    throw new LocalizedError({
+      en: "Moveset must be 4 digits, each 1-4",
+      es: "El moveset debe tener 4 dígitos, cada uno de 1 a 4",
+    });
   }
   const storedMoveset = isMii ? moveset! : null;
 
   const { canPickNow, yourCharacter } = characterPickState(game, userId);
-  if (yourCharacter !== null) throw new Error("You already picked your character for this game");
-  if (!canPickNow) throw new Error("Wait for your opponent to pick their character first");
+  if (yourCharacter !== null)
+    throw new LocalizedError({
+      en: "You already picked your character for this game",
+      es: "Ya elegiste tu personaje para este juego",
+    });
+  if (!canPickNow)
+    throw new LocalizedError({
+      en: "Wait for your opponent to pick their character first",
+      es: "Espera a que tu rival elija su personaje primero",
+    });
 
   const isActorA = userId === game.actorAId;
   const opponentAlreadyLocked = (isActorA ? game.actorBCharacter : game.actorACharacter) !== null;
@@ -693,19 +734,42 @@ export async function pickGameCharacter(
 async function requireGame(matchId: string, gameNumber: number) {
   const game = await prisma.matchGame.findUnique({
     where: { matchId_gameNumber: { matchId, gameNumber } },
+    // The set's mode decides whether a character phase exists at all, and
+    // every guard below that asks about one needs it (see bothCharactersLocked).
+    include: { match: { select: { mode: true } } },
   });
-  if (!game) throw new Error("Game not found");
+  if (!game) throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado" });
   return game;
 }
 
 export async function strikeGameStage(userId: string, matchId: string, gameNumber: number, stage: string) {
   const game = await requireGame(matchId, gameNumber);
-  if (game.finalStage) throw new Error("Stage already decided");
+  if (game.finalStage)
+    throw new LocalizedError({
+      en: "Stage already decided",
+      es: "El escenario ya está decidido",
+    });
   const actor = actorForStrike(game);
-  if (!actor) throw new Error("Striking is done — waiting on a pick");
-  if (actor !== userId) throw new Error("Not your turn to strike");
-  if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before striking a stage");
-  if (!game.stagesRemaining.includes(stage)) throw new Error("Stage already struck or invalid");
+  if (!actor)
+    throw new LocalizedError({
+      en: "Striking is done — waiting on a pick",
+      es: "El veto terminó — falta la selección",
+    });
+  if (actor !== userId)
+    throw new LocalizedError({
+      en: "Not your turn to strike",
+      es: "No es tu turno de vetar",
+    });
+  if (!bothCharactersLocked(game, game.match.mode))
+    throw new LocalizedError({
+      en: "Both players must lock in their character before striking a stage",
+      es: "Ambos deben confirmar su personaje antes de vetar un escenario",
+    });
+  if (!game.stagesRemaining.includes(stage))
+    throw new LocalizedError({
+      en: "Stage already struck or invalid",
+      es: "Escenario ya vetado o inválido",
+    });
 
   // Conditional on struckStages still matching what we read, so a racing
   // duplicate click can't apply against stale state. The turn clock only
@@ -716,9 +780,7 @@ export async function strikeGameStage(userId: string, matchId: string, gameNumbe
     data: {
       stagesRemaining: game.stagesRemaining.filter((s) => s !== stage),
       struckStages: [...game.struckStages, stage],
-      ...(turnPassesToNextActor(game, [...game.struckStages, stage], actor)
-        ? { turnStartedAt: new Date() }
-        : {}),
+      ...(turnPassesToNextActor(game, [...game.struckStages, stage], actor) ? { turnStartedAt: new Date() } : {}),
     },
   });
 }
@@ -728,12 +790,24 @@ export async function strikeGameStage(userId: string, matchId: string, gameNumbe
 // yours is locked in; you can't reach back and change it.
 export async function unstrikeLastGameStage(userId: string, matchId: string, gameNumber: number) {
   const game = await requireGame(matchId, gameNumber);
-  if (game.finalStage) throw new Error("Stage already decided");
-  if (game.struckStages.length === 0) throw new Error("Nothing to undo yet");
+  if (game.finalStage)
+    throw new LocalizedError({
+      en: "Stage already decided",
+      es: "El escenario ya está decidido",
+    });
+  if (game.struckStages.length === 0)
+    throw new LocalizedError({
+      en: "Nothing to undo yet",
+      es: "Nada que deshacer todavía",
+    });
 
   const lastIndex = game.struckStages.length - 1;
   const actorOfLastStrike = lastIndex < game.actorAStrikes ? game.actorAId : game.actorBId;
-  if (actorOfLastStrike !== userId) throw new Error("You can only undo your own most recent strike");
+  if (actorOfLastStrike !== userId)
+    throw new LocalizedError({
+      en: "You can only undo your own most recent strike",
+      es: "Solo puedes deshacer tu veto más reciente",
+    });
 
   const lastStage = game.struckStages[lastIndex];
   // The turn goes back to the same player, so the whole-turn clock keeps
@@ -754,21 +828,51 @@ export async function unstrikeLastGameStage(userId: string, matchId: string, gam
 // than a partial-fill.
 export async function strikeSameBans(userId: string, matchId: string, gameNumber: number) {
   const game = await requireGame(matchId, gameNumber);
-  if (game.finalStage) throw new Error("Stage already decided");
+  if (game.finalStage)
+    throw new LocalizedError({
+      en: "Stage already decided",
+      es: "El escenario ya está decidido",
+    });
   const actor = actorForStrike(game);
-  if (!actor) throw new Error("Striking is done — waiting on a pick");
-  if (actor !== userId) throw new Error("Not your turn to strike");
-  if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before striking a stage");
+  if (!actor)
+    throw new LocalizedError({
+      en: "Striking is done — waiting on a pick",
+      es: "El veto terminó — falta la selección",
+    });
+  if (actor !== userId)
+    throw new LocalizedError({
+      en: "Not your turn to strike",
+      es: "No es tu turno de vetar",
+    });
+  if (!bothCharactersLocked(game, game.match.mode))
+    throw new LocalizedError({
+      en: "Both players must lock in their character before striking a stage",
+      es: "Ambos deben confirmar su personaje antes de vetar un escenario",
+    });
   if (game.actorAId !== userId || game.actorAStrikes !== 3) {
-    throw new Error("Same Bans only applies to a 3-stage strike turn");
+    throw new LocalizedError({
+      en: "Same Bans only applies to a 3-stage strike turn",
+      es: "Mismos vetos solo aplica a un turno de 3 escenarios",
+    });
   }
-  if (game.struckStages.length !== 0) throw new Error("Already struck this turn");
+  if (game.struckStages.length !== 0)
+    throw new LocalizedError({
+      en: "Already struck this turn",
+      es: "Ya vetaste en este turno",
+    });
 
   const allGames = await prisma.matchGame.findMany({ where: { matchId } });
   const sameBans = lastSameBans(allGames, userId);
-  if (!sameBans) throw new Error("No prior bans to repeat");
+  if (!sameBans)
+    throw new LocalizedError({
+      en: "No prior bans to repeat",
+      es: "No hay vetos previos que repetir",
+    });
   if (!sameBans.stages.every((s) => game.stagesRemaining.includes(s))) {
-    throw new Error("Prior bans are no longer available");
+    throw new LocalizedError({
+      en: "Prior bans are no longer available",
+      es: "Los vetos previos ya no están disponibles",
+    });
   }
 
   await prisma.matchGame.updateMany({
@@ -785,11 +889,31 @@ export async function strikeSameBans(userId: string, matchId: string, gameNumber
 
 export async function pickGameStage(userId: string, matchId: string, gameNumber: number, stage: string) {
   const game = await requireGame(matchId, gameNumber);
-  if (game.finalStage) throw new Error("Stage already decided");
-  if (actorForStrike(game) !== null) throw new Error("Striking isn't finished yet");
-  if (picker(game) !== userId) throw new Error("Not your turn to pick");
-  if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before picking a stage");
-  if (!game.stagesRemaining.includes(stage)) throw new Error("Not a valid remaining stage");
+  if (game.finalStage)
+    throw new LocalizedError({
+      en: "Stage already decided",
+      es: "El escenario ya está decidido",
+    });
+  if (actorForStrike(game) !== null)
+    throw new LocalizedError({
+      en: "Striking isn't finished yet",
+      es: "El veto aún no termina",
+    });
+  if (picker(game) !== userId)
+    throw new LocalizedError({
+      en: "Not your turn to pick",
+      es: "No es tu turno de elegir",
+    });
+  if (!bothCharactersLocked(game, game.match.mode))
+    throw new LocalizedError({
+      en: "Both players must lock in their character before picking a stage",
+      es: "Ambos deben confirmar su personaje antes de elegir un escenario",
+    });
+  if (!game.stagesRemaining.includes(stage))
+    throw new LocalizedError({
+      en: "Not a valid remaining stage",
+      es: "No es un escenario válido de los que quedan",
+    });
 
   // turnStartedAt is the report clock's anchor: whoever picks the final stage
   // starts the REPORT_TIMEOUT_MS window to report this game's result.
@@ -805,15 +929,39 @@ export async function pickGameStage(userId: string, matchId: string, gameNumber:
 // taken it off the table).
 export async function pickSameStage(userId: string, matchId: string, gameNumber: number) {
   const game = await requireGame(matchId, gameNumber);
-  if (game.finalStage) throw new Error("Stage already decided");
-  if (actorForStrike(game) !== null) throw new Error("Striking isn't finished yet");
-  if (picker(game) !== userId) throw new Error("Not your turn to pick");
-  if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before picking a stage");
+  if (game.finalStage)
+    throw new LocalizedError({
+      en: "Stage already decided",
+      es: "El escenario ya está decidido",
+    });
+  if (actorForStrike(game) !== null)
+    throw new LocalizedError({
+      en: "Striking isn't finished yet",
+      es: "El veto aún no termina",
+    });
+  if (picker(game) !== userId)
+    throw new LocalizedError({
+      en: "Not your turn to pick",
+      es: "No es tu turno de elegir",
+    });
+  if (!bothCharactersLocked(game, game.match.mode))
+    throw new LocalizedError({
+      en: "Both players must lock in their character before picking a stage",
+      es: "Ambos deben confirmar su personaje antes de elegir un escenario",
+    });
 
   const allGames = await prisma.matchGame.findMany({ where: { matchId } });
   const stage = lastPlayedStage(allGames, gameNumber);
-  if (!stage) throw new Error("No previous game to repeat");
-  if (!game.stagesRemaining.includes(stage)) throw new Error("That stage isn't available this game");
+  if (!stage)
+    throw new LocalizedError({
+      en: "No previous game to repeat",
+      es: "No hay juego previo que repetir",
+    });
+  if (!game.stagesRemaining.includes(stage))
+    throw new LocalizedError({
+      en: "That stage isn't available this game",
+      es: "Ese escenario no está disponible este juego",
+    });
 
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
@@ -829,12 +977,20 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
 // game 1's blind pick, where Run it back/Same Bans don't apply).
 export async function proposeGameStage(userId: string, matchId: string, gameNumber: number, stage: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   requireParticipant(match, userId);
 
   const game = await requireGame(matchId, gameNumber);
-  if (game.finalStage) throw new Error("Stage already decided");
-  if (!game.stagesRemaining.includes(stage)) throw new Error("Stage already struck or invalid");
+  if (game.finalStage)
+    throw new LocalizedError({
+      en: "Stage already decided",
+      es: "El escenario ya está decidido",
+    });
+  if (!game.stagesRemaining.includes(stage))
+    throw new LocalizedError({
+      en: "Stage already struck or invalid",
+      es: "Escenario ya vetado o inválido",
+    });
 
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
@@ -844,7 +1000,11 @@ export async function proposeGameStage(userId: string, matchId: string, gameNumb
 
 export async function withdrawProposedStage(userId: string, matchId: string, gameNumber: number) {
   const game = await requireGame(matchId, gameNumber);
-  if (game.proposedById !== userId) throw new Error("No pending proposal of yours to withdraw");
+  if (game.proposedById !== userId)
+    throw new LocalizedError({
+      en: "No pending proposal of yours to withdraw",
+      es: "No tienes ninguna propuesta pendiente que retirar",
+    });
 
   await prisma.matchGame.updateMany({
     where: { id: game.id, proposedById: userId },
@@ -856,8 +1016,16 @@ export async function withdrawProposedStage(userId: string, matchId: string, gam
 // striking/picking, same as if nothing had been proposed.
 export async function declineProposedStage(userId: string, matchId: string, gameNumber: number) {
   const game = await requireGame(matchId, gameNumber);
-  if (!game.proposedById) throw new Error("No pending proposal to decline");
-  if (game.proposedById === userId) throw new Error("You can't decline your own proposal — withdraw it instead");
+  if (!game.proposedById)
+    throw new LocalizedError({
+      en: "No pending proposal to decline",
+      es: "No hay propuesta pendiente que rechazar",
+    });
+  if (game.proposedById === userId)
+    throw new LocalizedError({
+      en: "You can't decline your own proposal — withdraw it instead",
+      es: "No puedes rechazar tu propia propuesta — retírala",
+    });
 
   await prisma.matchGame.updateMany({
     where: { id: game.id, proposedById: game.proposedById },
@@ -867,13 +1035,28 @@ export async function declineProposedStage(userId: string, matchId: string, game
 
 export async function acceptProposedStage(userId: string, matchId: string, gameNumber: number) {
   const game = await requireGame(matchId, gameNumber);
-  if (game.finalStage) throw new Error("Stage already decided");
-  if (!game.proposedById) throw new Error("No pending proposal to accept");
-  if (game.proposedById === userId) throw new Error("You can't accept your own proposal");
+  if (game.finalStage)
+    throw new LocalizedError({
+      en: "Stage already decided",
+      es: "El escenario ya está decidido",
+    });
+  if (!game.proposedById)
+    throw new LocalizedError({
+      en: "No pending proposal to accept",
+      es: "No hay propuesta pendiente que aceptar",
+    });
+  if (game.proposedById === userId)
+    throw new LocalizedError({
+      en: "You can't accept your own proposal",
+      es: "No puedes aceptar tu propia propuesta",
+    });
   // The other side may have struck the proposed stage in the race between
   // proposing and accepting — re-check rather than trusting the stale value.
   if (!game.stagesRemaining.includes(game.proposedStage!)) {
-    throw new Error("That stage isn't available anymore — ask for a new proposal");
+    throw new LocalizedError({
+      en: "That stage isn't available anymore — ask for a new proposal",
+      es: "Ese escenario ya no está disponible — pide una nueva propuesta",
+    });
   }
 
   // turnStartedAt anchors the report clock, same as a normal pick.
@@ -897,7 +1080,7 @@ type ReportOutcome =
 
 export async function reportGameResult(userId: string, matchId: string, gameNumber: number, won: boolean) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   requireParticipant(match, userId);
 
   const outcome = await withTransientRetry(() =>
@@ -905,9 +1088,17 @@ export async function reportGameResult(userId: string, matchId: string, gameNumb
       const game = await tx.matchGame.findUnique({
         where: { matchId_gameNumber: { matchId, gameNumber } },
       });
-      if (!game) throw new Error("Game not found");
-      if (!game.finalStage) throw new Error("Pick a stage before reporting a result");
-      if (game.winnerId) throw new Error("This game is already decided");
+      if (!game) throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado" });
+      if (!game.finalStage)
+        throw new LocalizedError({
+          en: "Pick a stage before reporting a result",
+          es: "Elige un escenario antes de reportar un resultado",
+        });
+      if (game.winnerId)
+        throw new LocalizedError({
+          en: "This game is already decided",
+          es: "Este juego ya está decidido",
+        });
 
       const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
       const winnerId = won ? userId : opponentId;
@@ -923,12 +1114,19 @@ export async function reportGameResult(userId: string, matchId: string, gameNumb
 
       // Once a game's been escalated, reports no longer apply — it resolves
       // via dispute resolution (or a mod's ruling) instead.
-      if (game.disputeRequestedAt) throw new Error("This game is already being reviewed by a mod");
+      if (game.disputeRequestedAt)
+        throw new LocalizedError({
+          en: "This game is already being reviewed by a mod",
+          es: "Este juego ya lo está revisando un moderador",
+        });
 
       // The first reporter re-clicking while the opponent still hasn't
       // reported is a duplicate, not a reconciliation.
       if (game.reportedById === userId && !game.secondReportById) {
-        throw new Error("You already reported this game");
+        throw new LocalizedError({
+          en: "You already reported this game",
+          es: "Ya reportaste este juego",
+        });
       }
 
       const myStoredClaim = game.reportedById === userId ? game.reportedWinnerId : game.secondReportWinnerId;
@@ -1064,14 +1262,22 @@ export async function escalateGameDispute(userId: string, matchId: string, gameN
   const result = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
       const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
-      if (!match) throw new Error("Match not found");
+      if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
       requireParticipant(match, userId);
       const game = await tx.matchGame.findUnique({
         where: { matchId_gameNumber: { matchId, gameNumber } },
       });
-      if (!game) throw new Error("Game not found");
-      if (game.winnerId) throw new Error("This game is already decided");
-      if (!game.secondReportById) throw new Error("This game isn't contested");
+      if (!game) throw new LocalizedError({ en: "Game not found", es: "Juego no encontrado" });
+      if (game.winnerId)
+        throw new LocalizedError({
+          en: "This game is already decided",
+          es: "Este juego ya está decidido",
+        });
+      if (!game.secondReportById)
+        throw new LocalizedError({
+          en: "This game isn't contested",
+          es: "Este juego no está en disputa",
+        });
       if (game.disputeRequestedAt) return null; // already under review — no-op
       return escalateContestedGame(tx, match, game.id, gameNumber);
     }, TX_OPTIONS),
@@ -1220,7 +1426,10 @@ export async function autoConfirmStaleGameReport(
         data: { reportedWinnerId, reportedById: reportedWinnerId, reportedAt: now },
       });
       if (claim.count === 0) return false;
-      await tx.matchGame.updateMany({ where: { id: hangingGame.id, winnerId: null }, data: { winnerId: reportedWinnerId } });
+      await tx.matchGame.updateMany({
+        where: { id: hangingGame.id, winnerId: null },
+        data: { winnerId: reportedWinnerId },
+      });
       await applyEloAndConfirm(tx, match, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT, null);
       await applyTimeoutCooldown(tx, nonReporterId, now);
       return true;
@@ -1305,7 +1514,7 @@ function getSetWinnerId(wins: Record<string, number>) {
 
 async function progressSet(
   tx: Prisma.TransactionClient,
-  match: { id: string; player1Id: string; player2Id: string },
+  match: { id: string; player1Id: string; player2Id: string; mode: MatchMode },
   decidedGameNumber: number,
   gameWinnerId: string,
   confirmationMethod: ConfirmationMethod = ConfirmationMethod.SELF_CONFIRMED,
@@ -1364,11 +1573,14 @@ async function progressSet(
       matchId: match.id,
       gameNumber: nextGameNumber,
       actorAId: gameWinnerId, // previous game's winner strikes first
-      actorAStrikes: 3,
+      actorAStrikes: STRIKING_STAGES ? 3 : 0,
       actorBId: loserId,
       actorBStrikes: 0,
       stagesRemaining: [...COUNTERPICK_STAGES],
       characterPickDeadline: new Date(Date.now() + CHARACTER_TIMEOUT_MS),
+      // Re-drawn per game, not once per set: a fighter you cannot play costs
+      // one game instead of the whole thing.
+      ...randittoSeats(match.mode),
     },
   });
   return null;
@@ -1408,4 +1620,22 @@ export async function realignNextGameActors(
     where: { id: nextGame.id },
     data: { actorAId: gameWinnerId, actorBId: loserId },
   });
+}
+
+/**
+ * The columns a new game starts with when the queue decides them.
+ *
+ * Randitto and the modes like it skip the pick and strike phases entirely:
+ * the fighters come from Smash's own Random option, which the players press
+ * themselves, and the stage is fixed. Writing the stage and zeroing the
+ * strike allowances at creation is what lets those phases be skipped without
+ * each of them learning about the mode — actorForStrike returns null once the
+ * allowances are spent, so the set opens straight on the reporting step.
+ *
+ * Characters stay null on purpose: the game rolled them, not the site, so
+ * there is nothing truthful to record.
+ */
+function randittoSeats(mode: MatchMode) {
+  if (mode !== MatchMode.RANDITTO) return {};
+  return { finalStage: RANDITTO_STAGE, actorAStrikes: 0, actorBStrikes: 0, turnStartedAt: new Date() };
 }

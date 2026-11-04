@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, UserStatus } from "@/generated/prisma/enums";
+import { MatchMode, MatchStatus, UserStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { DELETED_USERNAME } from "@/lib/account";
 import { getActiveSeason } from "@/lib/seasons";
@@ -46,7 +46,7 @@ export async function getSupporterCount() {
 // Deliberately narrower than admin-stats.ts — no dispute/report/ban counts
 // here, since this feeds the public homepage, not the mod dashboard.
 export async function getPublicStats() {
-  const [totalPlayers, matchesToday, topPlayers, activeMatchCount] = await Promise.all([
+  const [totalPlayers, matchesToday, topPlayers, activeMatchCount, randittoMatchCount] = await Promise.all([
     prisma.user.count(),
     getMatchesTodayCount(),
     prisma.user.findMany({
@@ -64,13 +64,20 @@ export async function getPublicStats() {
     // and made it disagree with the Lobby page's own "currently playing"
     // count for the same real-time state.
     prisma.ratingMatch.count({
-      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] } },
+      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] }, mode: MatchMode.STANDARD },
+    }),
+    // Counted apart from the ladder, for the same reason the queues are
+    // separate: folding randitto into one figure would make the homepage
+    // claim activity in a queue a visitor cannot actually join from it.
+    prisma.ratingMatch.count({
+      where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] }, mode: MatchMode.RANDITTO },
     }),
   ]);
 
   const playingNow = activeMatchCount * 2;
+  const randittoPlayingNow = randittoMatchCount * 2;
 
-  return { totalPlayers, matchesToday, topPlayers, playingNow };
+  return { totalPlayers, matchesToday, topPlayers, playingNow, randittoPlayingNow };
 }
 
 // Volume side of the homepage's "make status visible" rows — top players by

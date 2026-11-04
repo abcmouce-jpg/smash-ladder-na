@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { USES_REGIONS } from "@/lib/site";
 
 // 9 of the first 13 real sign-ups never set a region — meaning they
 // couldn't queue for a ranked match at all, silently, with no indication
@@ -12,6 +13,8 @@ import { prisma } from "@/lib/db";
 // before that shipped, and dev-credentials logins (no real IP). Kept
 // site-wide so it's still seen regardless of which page someone lands on.
 export async function RegionSetupBanner() {
+  if (!USES_REGIONS) return null;
+
   const session = await auth();
   if (!session?.user?.id) return null;
 

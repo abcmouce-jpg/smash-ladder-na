@@ -5,6 +5,10 @@ import { MATCH_RATING_GAP_PRESETS } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { DEFAULT_QUICK_MESSAGES, MAX_QUICK_MESSAGE_LENGTH } from "@/lib/quick-messages";
 import { CONFIGURABLE_NOTIFICATION_KEYS } from "@/lib/notifications";
+import type { Lang } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/site";
+import { parseStreamUrl } from "@/lib/stream-links";
+import { LocalizedError } from "@/lib/localized-error";
 
 // Small-start launch control: while set, only players who've declared this
 // exact region can join the ranked lobby or free battle. Unset (the default)
@@ -13,9 +17,10 @@ const LAUNCH_REGION_LOCK = process.env.LAUNCH_REGION_LOCK?.trim() || null;
 
 function requireRegionUnlocked(region: string | null) {
   if (LAUNCH_REGION_LOCK && region !== LAUNCH_REGION_LOCK) {
-    throw new Error(
-      `Smash Ladder NA is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
-    );
+    throw new LocalizedError({
+      en: `${SITE_NAME} is ${LAUNCH_REGION_LOCK}-only while we ramp up — set your region to ${LAUNCH_REGION_LOCK} on the Lobby page to join in.`,
+      es: `${SITE_NAME} es solo para ${LAUNCH_REGION_LOCK} mientras arrancamos — elige ${LAUNCH_REGION_LOCK} como tu región en la Sala para participar.`,
+    });
   }
 }
 
@@ -55,7 +60,10 @@ export async function requireNotBanned(userId: string) {
     select: { status: true, region: true, suspendedUntil: true },
   });
   if (user.status === UserStatus.BANNED) {
-    throw new Error("Your account has been banned.");
+    throw new LocalizedError({
+      en: "Your account has been banned.",
+      es: "Tu cuenta ha sido baneada.",
+    });
   }
   requireRegionUnlocked(user.region);
 }
@@ -66,13 +74,17 @@ export async function requireActiveUser(userId: string) {
     select: { status: true, region: true, suspendedUntil: true },
   });
   if (user.status === UserStatus.BANNED) {
-    throw new Error("Your account has been banned.");
+    throw new LocalizedError({
+      en: "Your account has been banned.",
+      es: "Tu cuenta ha sido baneada.",
+    });
   }
   const status = await liftExpiredSuspension(userId, user);
   if (status === UserStatus.SUSPENDED) {
-    throw new Error(
-      "Your account is suspended — posting on Friendlies and reporting are unavailable, but ranked play still works.",
-    );
+    throw new LocalizedError({
+      en: "Your account is suspended — posting on Friendlies and reporting are unavailable, but ranked play still works.",
+      es: "Tu cuenta está suspendida — no puedes publicar en Amistosos ni reportar, pero el juego clasificatorio sigue disponible.",
+    });
   }
   requireRegionUnlocked(user.region);
 }
@@ -84,9 +96,16 @@ const USERNAME_MAX_LENGTH = 32;
 // players' Discord name doesn't match the tag they actually go by.
 export async function setUsername(userId: string, username: string) {
   const trimmed = username.trim();
-  if (!trimmed) throw new Error("Username is required");
+  if (!trimmed)
+    throw new LocalizedError({
+      en: "Username is required",
+      es: "El nombre de usuario es obligatorio",
+    });
   if (trimmed.length > USERNAME_MAX_LENGTH) {
-    throw new Error(`Username must be ${USERNAME_MAX_LENGTH} characters or fewer`);
+    throw new LocalizedError({
+      en: `Username must be ${USERNAME_MAX_LENGTH} characters or fewer`,
+      es: `El nombre de usuario debe tener ${USERNAME_MAX_LENGTH} caracteres o menos`,
+    });
   }
 
   await prisma.user.update({ where: { id: userId }, data: { username: trimmed } });
@@ -94,7 +113,10 @@ export async function setUsername(userId: string, username: string) {
 
 export async function setUserRegion(userId: string, region: string | null) {
   if (region !== null && !(MATCH_REGIONS as readonly string[]).includes(region)) {
-    throw new Error("Not a recognized region");
+    throw new LocalizedError({
+      en: "Not a recognized region",
+      es: "Región no reconocida",
+    });
   }
   await prisma.user.update({ where: { id: userId }, data: { region } });
 }
@@ -105,7 +127,10 @@ export async function setUserRegion(userId: string, region: string | null) {
 export async function setMaxMatchDistance(userId: string, maxMatchDistanceKm: number | null) {
   const isValidPreset = MATCH_DISTANCE_PRESETS.some((preset) => preset.km === maxMatchDistanceKm);
   if (!isValidPreset) {
-    throw new Error("Not a recognized match distance");
+    throw new LocalizedError({
+      en: "Not a recognized match distance",
+      es: "Formato de partida no reconocido",
+    });
   }
   await prisma.user.update({ where: { id: userId }, data: { maxMatchDistanceKm } });
 }
@@ -115,7 +140,10 @@ export async function setMaxMatchDistance(userId: string, maxMatchDistanceKm: nu
 export async function setMaxRatingGap(userId: string, maxRatingGap: number | null) {
   const isValidPreset = MATCH_RATING_GAP_PRESETS.some((preset) => preset.gap === maxRatingGap);
   if (!isValidPreset) {
-    throw new Error("Not a recognized rating gap");
+    throw new LocalizedError({
+      en: "Not a recognized rating gap",
+      es: "Diferencia de clasificación no reconocida",
+    });
   }
   await prisma.user.update({ where: { id: userId }, data: { maxRatingGap } });
 }
@@ -125,7 +153,10 @@ export async function setMaxRatingGap(userId: string, maxRatingGap: number | nul
 export async function setRematchCooldown(userId: string, rematchCooldownHours: number | null) {
   const isValidPreset = REMATCH_COOLDOWN_PRESETS.some((preset) => preset.hours === rematchCooldownHours);
   if (!isValidPreset) {
-    throw new Error("Not a recognized rematch cooldown");
+    throw new LocalizedError({
+      en: "Not a recognized rematch cooldown",
+      es: "Espera de revancha no reconocida",
+    });
   }
   await prisma.user.update({ where: { id: userId }, data: { rematchCooldownHours } });
 }
@@ -213,7 +244,10 @@ export async function setMatchFoundSound(userId: string, matchFoundSound: "CHIME
 export async function setQuickMessages(userId: string, messages: string[]) {
   const trimmed = messages.slice(0, DEFAULT_QUICK_MESSAGES.length).map((m) => m.trim());
   if (trimmed.some((m) => m.length > MAX_QUICK_MESSAGE_LENGTH)) {
-    throw new Error(`Each quick message can't be longer than ${MAX_QUICK_MESSAGE_LENGTH} characters`);
+    throw new LocalizedError({
+      en: `Each quick message can't be longer than ${MAX_QUICK_MESSAGE_LENGTH} characters`,
+      es: `Cada mensaje rápido no puede pasar de ${MAX_QUICK_MESSAGE_LENGTH} caracteres`,
+    });
   }
   const allBlank = trimmed.every((m) => m.length === 0);
   await prisma.user.update({ where: { id: userId }, data: { quickMessages: allBlank ? [] : trimmed } });
@@ -223,7 +257,8 @@ export async function setQuickMessages(userId: string, messages: string[]) {
 // bounces to — see the field's own comment in schema.prisma. `null` means
 // English (the default); anything else falls back to English too, so a
 // future removed-language value can't strand someone on a 404.
-export async function setPreferredLanguage(userId: string, language: "es" | null) {
+// null = English (the default), so the column stays empty for most rows.
+export async function setPreferredLanguage(userId: string, language: Exclude<Lang, "en"> | null) {
   await prisma.user.update({ where: { id: userId }, data: { preferredLanguage: language } });
 }
 
@@ -283,14 +318,16 @@ export async function setWiredConnection(userId: string, wired: boolean) {
       select: { cancelCount: true, gamesPlayed: true, _count: { select: { connectionReportsReceived: true } } },
     });
     if (isWiredClaimUntrustworthy(user.cancelCount, user.gamesPlayed)) {
-      throw new Error(
-        `Too many cancelled matches relative to games played (${user.cancelCount} cancelled, ${user.gamesPlayed} played) to self-declare a wired connection.`,
-      );
+      throw new LocalizedError({
+        en: `Too many cancelled matches relative to games played (${user.cancelCount} cancelled, ${user.gamesPlayed} played) to self-declare a wired connection.`,
+        es: `Demasiadas partidas canceladas en relación con las jugadas (${user.cancelCount} canceladas, ${user.gamesPlayed} jugadas) para declarar una conexión por cable.`,
+      });
     }
     if (isWiredClaimDisputedByOpponents(user._count.connectionReportsReceived, user.gamesPlayed)) {
-      throw new Error(
-        `Too many opponents have reported connection issues with you (${user._count.connectionReportsReceived} reports, ${user.gamesPlayed} games played) to self-declare a wired connection.`,
-      );
+      throw new LocalizedError({
+        en: `Too many opponents have reported connection issues with you (${user._count.connectionReportsReceived} reports, ${user.gamesPlayed} games played) to self-declare a wired connection.`,
+        es: `Demasiados rivales han reportado problemas de conexión contigo (${user._count.connectionReportsReceived} reportes, ${user.gamesPlayed} partidas) para declarar una conexión por cable.`,
+      });
     }
   }
   await prisma.user.update({ where: { id: userId }, data: { wiredConnection: wired } });
@@ -387,4 +424,47 @@ export async function getAccountRestriction(userId: string): Promise<AccountRest
     reason: report?.reason ?? null,
     at: report?.actionedAt ?? null,
   };
+}
+
+/**
+ * Records the stream a player says they are running right now, or clears it.
+ *
+ * Validated through parseStreamUrl so only a link this site can actually embed
+ * is stored — a Kick or niconico URL would otherwise be saved and then quietly
+ * render nothing. The timestamp is what makes the declaration expire, so it is
+ * rewritten on every save, including a re-save of the same URL: that is how a
+ * player extends a long session.
+ */
+export async function setLiveStreamUrl(userId: string, rawUrl: string | null) {
+  if (rawUrl === null || rawUrl.trim() === "") {
+    await prisma.user.update({ where: { id: userId }, data: { liveStreamUrl: null, liveStreamAt: null } });
+    return { ok: true as const };
+  }
+
+  const link = parseStreamUrl(rawUrl);
+  if (!link) return { ok: false as const, error: "unsupported" as const };
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { liveStreamUrl: link.watchUrl, liveStreamAt: new Date() },
+  });
+  return { ok: true as const };
+}
+
+/**
+ * The channel link shown on a player's profile. Stored as the normalised watch
+ * URL of whatever they pasted, so a /live link and a /watch link settle to the
+ * same thing, and anything unembeddable is refused rather than stored.
+ */
+export async function setYoutubeChannelUrl(userId: string, rawUrl: string | null) {
+  if (rawUrl === null || rawUrl.trim() === "") {
+    await prisma.user.update({ where: { id: userId }, data: { youtubeChannelUrl: null } });
+    return { ok: true as const };
+  }
+
+  const link = parseStreamUrl(rawUrl);
+  if (!link || link.platform !== "youtube") return { ok: false as const, error: "unsupported" as const };
+
+  await prisma.user.update({ where: { id: userId }, data: { youtubeChannelUrl: link.watchUrl } });
+  return { ok: true as const };
 }

@@ -1,8 +1,14 @@
-import { DISCORD_SERVER_URL } from "@/lib/links";
+import { X_ACCOUNT_URL, DISCORD_SERVER_URL } from "@/lib/links";
 import { getLang } from "@/lib/i18n";
 import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
+import { SITE_NAME, instanceText } from "@/lib/site";
+import { MATCH_TTL_MS } from "@/lib/match-games";
+import { MAX_RATING_DELTA, SMASHMATE_K_FACTOR } from "@/lib/matches";
+import { PROVISIONAL_MIN_GAMES } from "@/lib/rank-tier";
 
-export const metadata = { title: "Q&A — Smash Ladder NA" };
+const MATCH_TTL_HOURS = MATCH_TTL_MS / (60 * 60 * 1000);
+
+export const metadata = { title: `${instanceText({ en: "Q&A", es: "Preguntas" })} — ${SITE_NAME}` };
 
 function QA({ q, children }: { q: string; children: React.ReactNode }) {
   return (
@@ -43,9 +49,9 @@ export default async function FaqPage() {
             same player, report them.
           </QA>
           <QA q="I only reported and my opponent never did. Does the match still count?">
-            Yes. If your opponent never reports, your report is accepted automatically 24 hours after the match started,
-            and they&apos;re charged a no-show. If neither of you reports within 24 hours, the match closes with no
-            rating change for either player.
+            Yes. If your opponent never reports, your report is accepted automatically {MATCH_TTL_HOURS} hours after the
+            match started, and they&apos;re charged a no-show. If neither of you reports within {MATCH_TTL_HOURS} hours,
+            the match closes with no rating change for either player.
           </QA>
           <QA q="I reported the wrong winner by mistake.">
             Report again with the correct result before your opponent reports — the two of you just need to agree. If
@@ -70,7 +76,7 @@ export default async function FaqPage() {
               <span key={item.url}>
                 {i > 0 && " · "}
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
-                  {item.label}
+                  {item.label[lang]}
                 </a>
               </span>
             ))}
@@ -142,9 +148,9 @@ export default async function FaqPage() {
             for exactly what&apos;s kept and why.
           </QA>
           <QA q="Can I undo an account deletion, or merge it into a new account?">
-            Signing back in with the same Discord account resumes your original account — same rating and match
-            history — rather than starting a fresh one, but your username, avatar, and email stay scrubbed until you
-            change them yourself. There&apos;s no way to merge a deletion into a different, separate account.
+            Signing back in with the same Discord account resumes your original account — same rating and match history
+            — rather than starting a fresh one, but your username, avatar, and email stay scrubbed until you change them
+            yourself. There&apos;s no way to merge a deletion into a different, separate account.
           </QA>
           <QA q="Is matchmaking open worldwide?">
             Yes — anyone can join. Set your region and a match distance on the Lobby page; the defaults match you with
@@ -173,9 +179,8 @@ export default async function FaqPage() {
             reach out in the Discord server above.
           </QA>
           <QA q="Is this affiliated with Japan's Smash Ladder / Smashmate?">
-            No — this is an independent, separately-run project built for the NA scene. It borrows its name as a
-            hat-tip to Japan&apos;s long-running online matchmaking platform, but the two projects are not connected in
-            any way.
+            No — this is an independent, separately-run project built for the NA scene. It borrows its name as a hat-tip
+            to Japan&apos;s long-running online matchmaking platform, but the two projects are not connected in any way.
           </QA>
           <QA q="Do you use AI to help build and run this site?">
             Yes. A lot of the code, bug fixes, and day-to-day maintenance (deploys, moderation tooling, this FAQ entry
@@ -207,9 +212,9 @@ function FaqPageEs() {
             mismo jugador, repórtalo.
           </QA>
           <QA q="Solo yo reporté y mi rival nunca lo hizo. ¿La partida sigue contando?">
-            Sí. Si tu rival nunca reporta, tu reporte se acepta automáticamente 24 horas después de que empezó la
-            partida, y se le marca un no-show. Si ninguno de los dos reporta dentro de 24 horas, la partida se cierra
-            sin cambio de clasificación para ninguno.
+            Sí. Si tu rival nunca reporta, tu reporte se acepta automáticamente {MATCH_TTL_HOURS} horas después de que
+            empezó la partida, y se le marca un no-show. Si ninguno de los dos reporta dentro de {MATCH_TTL_HOURS}{" "}
+            horas, la partida se cierra sin cambio de clasificación para ninguno.
           </QA>
           <QA q="Reporté al ganador equivocado por error.">
             Reporta de nuevo con el resultado correcto antes de que tu rival reporte — solo necesitan ponerse de
@@ -235,7 +240,7 @@ function FaqPageEs() {
               <span key={item.url}>
                 {i > 0 && " · "}
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" className="underline">
-                  {item.label}
+                  {item.label.es}
                 </a>
               </span>
             ))}
@@ -288,8 +293,8 @@ function FaqPageEs() {
           <QA q="¿Cuál es la diferencia real entre suspendido y baneado?">
             Suspendido (Nivel 1) todavía te deja jugar rankeado — esa es la actividad principal, y las disputas ya le
             dan a los malos resultados su propio camino de corrección — pero bloquea publicar en Amistosos y presentar
-            nuevos reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó.
-            Baneado (Nivel 2) bloquea todo.
+            nuevos reportes, para que un jugador suspendido no pueda tomar represalias contra quien lo reportó. Baneado
+            (Nivel 2) bloquea todo.
           </QA>
         </Category>
 

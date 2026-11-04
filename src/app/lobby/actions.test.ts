@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// The language getLang() is pinned to below, so the wording this test asserts
+// on doesn't depend on which language the instance running the suite publishes.
+const LANG = "en";
+
 // Only the auth/session, cache and DB-touching edges are faked — the subject
 // under test is joinLobby's own control flow (it must revalidate the lobby even
 // when the pairing step throws).
@@ -20,10 +24,18 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/rate-limit")>()),
   enforceRateLimit: vi.fn(),
 }));
+// Pinned so the wording this test asserts on doesn't depend on which language
+// the instance running the suite happens to publish.
+vi.mock("@/lib/i18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/i18n")>()),
+  getLang: vi.fn(async () => LANG),
+}));
 
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { joinLobbyAndTryPair } from "@/lib/lobby";
+import { GENERIC_ERROR } from "@/lib/localized-error";
+import { tr } from "@/lib/lang";
 import { joinLobby } from "./actions";
 
 function joinForm() {
@@ -43,7 +55,9 @@ describe("joinLobby", () => {
 
     const state = await joinLobby({ error: null }, joinForm());
 
-    expect(state.error).toBe("pairing exploded");
+    // A plain Error is something that wasn't meant to be read by a player, so
+    // the page gets GENERIC_ERROR rather than its message (see errorMessage).
+    expect(state.error).toBe(tr(LANG, GENERIC_ERROR));
     // A Server Action that returns without revalidating doesn't re-render the
     // current route at all, so the client would keep the pre-join tree — where
     // shouldPollLobby() is false and /lobby mounts no poller — even though this

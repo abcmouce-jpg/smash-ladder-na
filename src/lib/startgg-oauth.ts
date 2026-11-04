@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import { LocalizedError } from "@/lib/localized-error";
 
 // https://developer.start.gg/docs/oauth/oauth-overview
 const AUTHORIZE_URL = "https://start.gg/oauth/authorize";
@@ -18,7 +19,10 @@ function requireClientCredentials() {
   const clientId = process.env.STARTGG_OAUTH_CLIENT_ID;
   const clientSecret = process.env.STARTGG_OAUTH_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    throw new Error("start.gg OAuth isn't configured on this deployment");
+    throw new LocalizedError({
+      en: "start.gg OAuth isn't configured on this deployment",
+      es: "start.gg OAuth no está configurado en este despliegue",
+    });
   }
   return { clientId, clientSecret };
 }
@@ -49,10 +53,18 @@ async function exchangeCodeForToken(code: string, redirectUri: string): Promise<
       redirect_uri: redirectUri,
     }),
   });
-  if (!res.ok) throw new Error("start.gg rejected the authorization code");
+  if (!res.ok)
+    throw new LocalizedError({
+      en: "start.gg rejected the authorization code",
+      es: "start.gg rechazó el código de autorización",
+    });
 
   const json = (await res.json()) as { access_token?: string };
-  if (!json.access_token) throw new Error("start.gg didn't return an access token");
+  if (!json.access_token)
+    throw new LocalizedError({
+      en: "start.gg didn't return an access token",
+      es: "start.gg no devolvió un token de acceso",
+    });
   return json.access_token;
 }
 
@@ -72,7 +84,11 @@ async function fetchCurrentStartggUser(accessToken: string): Promise<StartggIden
     },
     body: JSON.stringify({ query: "{ currentUser { id slug player { id gamerTag } } }" }),
   });
-  if (!res.ok) throw new Error("Couldn't reach start.gg's API");
+  if (!res.ok)
+    throw new LocalizedError({
+      en: "Couldn't reach start.gg's API",
+      es: "No se pudo contactar la API de start.gg",
+    });
 
   const json = (await res.json()) as {
     // start.gg's GraphQL API serializes `currentUser.id` as a JSON number,
@@ -89,7 +105,11 @@ async function fetchCurrentStartggUser(accessToken: string): Promise<StartggIden
     };
     errors?: unknown;
   };
-  if (json.errors || !json.data?.currentUser) throw new Error("start.gg didn't return a user");
+  if (json.errors || !json.data?.currentUser)
+    throw new LocalizedError({
+      en: "start.gg didn't return a user",
+      es: "start.gg no devolvió un usuario",
+    });
 
   const { id, slug, player } = json.data.currentUser;
   return {
@@ -108,7 +128,10 @@ export async function connectStartggAccount(userId: string, code: string, redire
 
   const claimedByOther = await prisma.user.findUnique({ where: { startggUserId: identity.id } });
   if (claimedByOther && claimedByOther.id !== userId) {
-    throw new Error("That start.gg account is already linked to a different ladder account");
+    throw new LocalizedError({
+      en: "That start.gg account is already linked to a different ladder account",
+      es: "Esa cuenta de start.gg ya está vinculada a otra cuenta",
+    });
   }
 
   try {
@@ -127,7 +150,10 @@ export async function connectStartggAccount(userId: string, code: string, redire
     // flow for the same start.gg account at nearly the same instant would
     // both pass the check above and then collide on the unique constraint.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      throw new Error("That start.gg account is already linked to a different ladder account");
+      throw new LocalizedError({
+        en: "That start.gg account is already linked to a different ladder account",
+        es: "Esa cuenta de start.gg ya está vinculada a otra cuenta",
+      });
     }
     throw err;
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { HAS_COMMUNITY_GUIDES } from "@/lib/site";
 import { useActionState } from "react";
 import { Bell, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
@@ -18,6 +19,7 @@ import type {
   ToggleSubscriptionState,
   UpdateMatchupNoteState,
 } from "@/app/notes/actions";
+import { tr } from "@/lib/lang";
 
 type Note = { character: string; note: string };
 
@@ -67,17 +69,21 @@ export function MatchupNotesList({
     const q = search.trim().toLowerCase();
     if (!q) return notes;
     // Matches the group label rather than the raw character so a search for
-    // "Daisy" still finds the Peach/Daisy row it's folded into.
-    return notes.filter((n) => echoGroupLabel(n.character as SmashCharacter).toLowerCase().includes(q));
-  }, [notes, search]);
+    // "Daisy" still finds the Peach/Daisy row it's folded into — and both
+    // spellings of it, since a Japanese player may type either カービィ or
+    // "kirby" depending on what their keyboard is in.
+    return notes.filter((n) => {
+      const character = n.character as SmashCharacter;
+      return (
+        echoGroupLabel(character, lang).toLowerCase().includes(q) || echoGroupLabel(character).toLowerCase().includes(q)
+      );
+    });
+  }, [notes, search, lang]);
 
   // Characters with an existing note surface first, so the page opens on
   // "what have I already written" rather than an alphabetical wall of
   // ~90 empty entries.
-  const sorted = useMemo(
-    () => [...filtered].sort((a, b) => (a.note ? 0 : 1) - (b.note ? 0 : 1)),
-    [filtered],
-  );
+  const sorted = useMemo(() => [...filtered].sort((a, b) => (a.note ? 0 : 1) - (b.note ? 0 : 1)), [filtered]);
 
   return (
     <div className="mt-6">
@@ -85,7 +91,7 @@ export function MatchupNotesList({
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder={lang === "es" ? "Buscar personaje…" : "Search character…"}
+        placeholder={tr(lang, { en: "Search character…", es: "Buscar personaje…" })}
         className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
       />
       <ul className="mt-3 flex flex-col gap-2">
@@ -114,7 +120,10 @@ export function MatchupNotesList({
         ))}
         {sorted.length === 0 && (
           <p className="mt-4 text-sm text-muted-foreground">
-            {lang === "es" ? "Ningún personaje coincide con esa búsqueda." : "No characters match that search."}
+            {tr(lang, {
+              en: "No characters match that search.",
+              es: "Ningún personaje coincide con esa búsqueda.",
+            })}
           </p>
         )}
       </ul>
@@ -172,7 +181,7 @@ function MatchupNoteRow({
     setSubError(null);
     try {
       if (!subscribed && !(await getPushSubscription())) {
-        const result = await subscribeToPush();
+        const result = await subscribeToPush(lang);
         if ("error" in result) {
           setSubError(result.error);
           return;
@@ -192,7 +201,12 @@ function MatchupNoteRow({
       }
       setSubscribed(result.subscribed);
     } catch {
-      setSubError(lang === "es" ? "Algo salió mal — inténtalo de nuevo." : "Something went wrong — try again.");
+      setSubError(
+        tr(lang, {
+          en: "Something went wrong — try again.",
+          es: "Algo salió mal — inténtalo de nuevo.",
+        }),
+      );
     } finally {
       setSubBusy(false);
     }
@@ -202,36 +216,35 @@ function MatchupNoteRow({
     <Card className="py-0">
       <CardContent className="py-2.5">
         <div className="flex w-full items-center gap-2">
-          <button
-            type="button"
-            onClick={onToggle}
-            className="flex min-w-0 flex-1 items-center gap-3 text-left"
-          >
+          <button type="button" onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-3 text-left">
             <CharacterIcon name={character} size={28} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{echoGroupLabel(character as SmashCharacter)}</p>
+              <p className="text-sm font-medium">{echoGroupLabel(character as SmashCharacter, lang)}</p>
               {!expanded && note && <p className="truncate text-xs text-muted-foreground">{note}</p>}
             </div>
           </button>
-          {userId && (
+          {userId && HAS_COMMUNITY_GUIDES && (
             <button
               type="button"
               onClick={handleToggleSubscription}
               disabled={subBusy}
               aria-label={
                 subscribed
-                  ? lang === "es"
-                    ? "Dejar de recibir notificaciones de nuevas guías"
-                    : "Stop notifying me of new guides"
-                  : lang === "es"
-                    ? "Recibir notificaciones de nuevas guías"
-                    : "Notify me of new guides"
+                  ? tr(lang, {
+                      en: "Stop notifying me of new guides",
+                      es: "Dejar de recibir notificaciones de nuevas guías",
+                    })
+                  : tr(lang, {
+                      en: "Notify me of new guides",
+                      es: "Recibir notificaciones de nuevas guías",
+                    })
               }
               title={
                 subscribed
-                  ? lang === "es"
-                    ? "Recibirás una notificación cuando alguien publique una nueva guía"
-                    : "You'll be notified when someone posts a new guide"
+                  ? tr(lang, {
+                      en: "You'll be notified when someone posts a new guide",
+                      es: "Recibirás una notificación cuando alguien publique una nueva guía",
+                    })
                   : undefined
               }
               className={
@@ -263,23 +276,22 @@ function MatchupNoteRow({
               defaultValue={note}
               maxLength={maxLength}
               rows={6}
-              placeholder={lang === "es" ? "Tu nota privada para este personaje…" : "Your private note for this character…"}
+              placeholder={tr(lang, {
+                en: "Your private note for this character…",
+                es: "Tu nota privada para este personaje…",
+              })}
               className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
               title={character}
             />
             <div className="flex items-center justify-between">
-              {state.error ? (
-                <p className="text-xs text-destructive">{state.error}</p>
-              ) : (
-                <span />
-              )}
+              {state.error ? <p className="text-xs text-destructive">{state.error}</p> : <span />}
               <Button type="submit" size="sm" disabled={isPending}>
-                {lang === "es" ? "Guardar" : "Save"}
+                {tr(lang, { en: "Save", es: "Guardar" })}
               </Button>
             </div>
           </form>
         )}
-        {expanded && (
+        {expanded && HAS_COMMUNITY_GUIDES && (
           <CharacterGuideSection
             character={character}
             guides={guides}

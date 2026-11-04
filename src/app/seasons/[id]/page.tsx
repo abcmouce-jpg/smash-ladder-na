@@ -11,6 +11,7 @@ import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { RankBadge } from "@/components/rank-badge";
 import { formatRating } from "@/lib/rating-format";
 import { getLang, type Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 // A season's standings can run long (the preseason snapshots everyone who
@@ -37,7 +38,7 @@ export default async function SeasonStandingsPage({
     getSeasonStandings(id, { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     getLang(),
   ]);
-  const dateLocale = lang === "es" ? "es-MX" : "en-US";
+  const dateLocale = tr(lang, { en: "en-US", es: "es-MX" });
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   // Live/all-time usage, same as the leaderboard's — this season's standings
@@ -56,7 +57,7 @@ export default async function SeasonStandingsPage({
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {season.startsAt.toLocaleDateString(dateLocale)} –{" "}
-        {season.endsAt?.toLocaleDateString(dateLocale) ?? (lang === "es" ? "actualidad" : "present")}
+        {season.endsAt?.toLocaleDateString(dateLocale) ?? tr(lang, { en: "present", es: "actualidad" })}
       </p>
 
       {totalCount > 0 && (
@@ -64,40 +65,56 @@ export default async function SeasonStandingsPage({
       )}
 
       <Card className="mt-4 overflow-hidden py-0">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="py-2 pl-4 font-medium">#</th>
-              <th className="py-2 font-medium">{lang === "es" ? "Jugador" : "Player"}</th>
-              <th className="py-2 font-medium">{lang === "es" ? "Rango" : "Tier"}</th>
-              <th className="py-2 font-medium text-right tabular-nums">
-                {lang === "es" ? "Clasificación final" : "Final rating"}
-              </th>
-              <th className="py-2 pr-4 font-medium text-right tabular-nums">{lang === "es" ? "Partidas" : "Sets"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((s) => (
-              <tr key={s.id} className="border-b border-border/60 last:border-0">
-                <td className="py-2 pl-4 tabular-nums text-muted-foreground">{MEDALS[s.rank - 1] ?? s.rank}</td>
-                <td className="py-2">
-                  <Link href={`/players/${s.user.id}`} className="flex items-center gap-2 hover:underline">
-                    {s.user.username}
-                    <CharacterUsageIcons usage={usageByPlayerId.get(s.user.id) ?? []} />
-                  </Link>
-                </td>
-                <td className="py-2">
-                  <RankBadge rating={s.finalRating} gamesPlayed={s.gamesPlayed} tiers={rankTiersFor(season.algorithm)} />
-                </td>
-                <td className="py-2 text-right font-medium tabular-nums">{formatRating(s.finalRating)}</td>
-                <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{s.gamesPlayed}</td>
+        {/* Scrolls horizontally instead of clipping columns on narrow viewports —
+            the Card's own overflow-hidden would otherwise cut the rating and
+            sets columns off a phone with no way to reach them. Same wrapper
+            /leaderboard uses for the same five-column table. */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="py-2 pl-4 font-medium">#</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Player", es: "Jugador" })}</th>
+                <th className="py-2 font-medium">{tr(lang, { en: "Tier", es: "Rango" })}</th>
+                <th className="py-2 font-medium text-right tabular-nums">
+                  {tr(lang, { en: "Final rating", es: "Clasificación final" })}
+                </th>
+                <th className="py-2 pr-4 font-medium text-right tabular-nums">
+                  {tr(lang, { en: "Sets", es: "Partidas" })}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {standings.map((s) => (
+                <tr key={s.id} className="border-b border-border/60 last:border-0">
+                  <td className="py-2 pl-4 tabular-nums text-muted-foreground">{MEDALS[s.rank - 1] ?? s.rank}</td>
+                  <td className="py-2">
+                    <Link href={`/players/${s.user.id}`} className="flex items-center gap-2 hover:underline">
+                      {s.user.username}
+                      <CharacterUsageIcons usage={usageByPlayerId.get(s.user.id) ?? []} />
+                    </Link>
+                  </td>
+                  <td className="py-2">
+                    <RankBadge
+                      rating={s.finalRating}
+                      gamesPlayed={s.gamesPlayed}
+                      tiers={rankTiersFor(season.algorithm)}
+                      lang={lang}
+                    />
+                  </td>
+                  <td className="py-2 text-right font-medium tabular-nums">{formatRating(s.finalRating)}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{s.gamesPlayed}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {standings.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">
-            {lang === "es" ? "Nadie jugó rankeado esa temporada." : "No ranked players that season."}
+            {tr(lang, {
+              en: "No ranked players that season.",
+              es: "Nadie jugó rankeado esa temporada.",
+            })}
           </p>
         )}
       </Card>
@@ -121,20 +138,24 @@ function PaginationBar({
   return (
     <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
       <Badge variant="outline">
-        {lang === "es"
-          ? `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`
-          : `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`}
+        {tr(lang, {
+          en: `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`,
+          es: `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`,
+        })}
       </Badge>
       {totalPages > 1 && (
         <div className="flex items-center gap-2 text-sm">
           <PageLink id={id} page={page - 1} disabled={page <= 1}>
-            {lang === "es" ? "← Anterior" : "← Previous"}
+            {tr(lang, { en: "← Previous", es: "← Anterior" })}
           </PageLink>
           <span className="text-muted-foreground tabular-nums">
-            {lang === "es" ? `Página ${page} de ${totalPages}` : `Page ${page} of ${totalPages}`}
+            {tr(lang, {
+              en: `Page ${page} of ${totalPages}`,
+              es: `Página ${page} de ${totalPages}`,
+            })}
           </span>
           <PageLink id={id} page={page + 1} disabled={page >= totalPages}>
-            {lang === "es" ? "Siguiente →" : "Next →"}
+            {tr(lang, { en: "Next →", es: "Siguiente →" })}
           </PageLink>
         </div>
       )}

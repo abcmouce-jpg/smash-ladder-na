@@ -9,6 +9,7 @@ import { GuideCard, type Guide } from "@/components/character-guide-section";
 import { echoGroupCanonical, echoGroupLabel, MATCHUP_CHARACTERS, type SmashCharacter } from "@/lib/characters";
 import type { Lang } from "@/lib/i18n";
 import type { GuideActionState, GuideFormState } from "@/app/notes/actions";
+import { tr } from "@/lib/lang";
 
 // Guides per page on the ungrouped tab. Guides can run long, so this is set
 // well below the leaderboard's 50 to keep a page scannable.
@@ -118,13 +119,13 @@ export function GuidesExplorer({
             setSearch(e.target.value);
             setPage(1);
           }}
-          placeholder={lang === "es" ? "Buscar guías…" : "Search guides…"}
+          placeholder={tr(lang, { en: "Search guides…", es: "Buscar guías…" })}
           className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
         />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           {tags.length > 0 && (
             <label className="flex w-full flex-col gap-1 text-sm sm:w-56">
-              {lang === "es" ? "Personaje" : "Character"}
+              {tr(lang, { en: "Character", es: "Personaje" })}
               <CharacterSelect
                 value={activeTag ?? ""}
                 onChange={(value) => {
@@ -132,20 +133,21 @@ export function GuidesExplorer({
                   setPage(1);
                 }}
                 characters={tags}
-                placeholder={lang === "es" ? "Todos los personajes" : "All characters"}
-                clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
+                placeholder={tr(lang, { en: "All characters", es: "Todos los personajes" })}
+                clearLabel={tr(lang, { en: "All Characters", es: "Todos los personajes" })}
                 className="w-full"
+                lang={lang}
               />
             </label>
           )}
           <label className="flex w-full flex-col gap-1 text-sm sm:w-56">
-            {lang === "es" ? "Ordenar por" : "Sort by"}
+            {tr(lang, { en: "Sort by", es: "Ordenar por" })}
             <OptionSelect
               name="guide-sort"
               defaultValue="newest"
               options={[
-                { value: "newest", label: lang === "es" ? "Más recientes" : "Newest" },
-                { value: "rating", label: lang === "es" ? "Mejor valoradas" : "Top rated" },
+                { value: "newest", label: tr(lang, { en: "Newest", es: "Más recientes" }) },
+                { value: "rating", label: tr(lang, { en: "Top rated", es: "Mejor valoradas" }) },
               ]}
               onChange={(value) => {
                 setSort(value as SortKey);
@@ -158,13 +160,17 @@ export function GuidesExplorer({
 
       {guides.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {lang === "es"
-            ? "Nadie ha escrito una guía todavía. Sé el primero."
-            : "No one's written a guide yet — be the first."}
+          {tr(lang, {
+            en: "No one's written a guide yet — be the first.",
+            es: "Nadie ha escrito una guía todavía. Sé el primero.",
+          })}
         </p>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {lang === "es" ? "Ninguna guía coincide con esos filtros." : "No guides match those filters."}
+          {tr(lang, {
+            en: "No guides match those filters.",
+            es: "Ninguna guía coincide con esos filtros.",
+          })}
         </p>
       ) : (
         <>
@@ -182,7 +188,7 @@ export function GuidesExplorer({
                 voteOnGuide={voteOnGuideAction}
                 flagGuideAction={flagGuideAction}
                 importGuide={importGuideAction}
-                tagLabel={echoGroupLabel(guide.character as SmashCharacter)}
+                tagLabel={echoGroupLabel(guide.character as SmashCharacter, lang)}
                 tagIconName={echoGroupCanonical(guide.character as SmashCharacter)}
                 lang={lang}
               />
@@ -190,9 +196,10 @@ export function GuidesExplorer({
           </ul>
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
             <span className="text-xs text-muted-foreground">
-              {lang === "es"
-                ? `${filtered.length} ${filtered.length === 1 ? "guía" : "guías"}`
-                : `${filtered.length} guide${filtered.length === 1 ? "" : "s"}`}
+              {tr(lang, {
+                en: `${filtered.length} guide${filtered.length === 1 ? "" : "s"}`,
+                es: `${filtered.length} ${filtered.length === 1 ? "guía" : "guías"}`,
+              })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -203,10 +210,13 @@ export function GuidesExplorer({
                   disabled={currentPage <= 1}
                   onClick={() => setPage(currentPage - 1)}
                 >
-                  {lang === "es" ? "← Anterior" : "← Previous"}
+                  {tr(lang, { en: "← Previous", es: "← Anterior" })}
                 </Button>
                 <span className="text-muted-foreground tabular-nums">
-                  {lang === "es" ? `Página ${currentPage} de ${totalPages}` : `Page ${currentPage} of ${totalPages}`}
+                  {tr(lang, {
+                    en: `Page ${currentPage} of ${totalPages}`,
+                    es: `Página ${currentPage} de ${totalPages}`,
+                  })}
                 </span>
                 <Button
                   type="button"
@@ -215,7 +225,7 @@ export function GuidesExplorer({
                   disabled={currentPage >= totalPages}
                   onClick={() => setPage(currentPage + 1)}
                 >
-                  {lang === "es" ? "Siguiente →" : "Next →"}
+                  {tr(lang, { en: "Next →", es: "Siguiente →" })}
                 </Button>
               </div>
             )}
@@ -229,36 +239,36 @@ export function GuidesExplorer({
             <CharacterSelect
               name="character"
               characters={MATCHUP_CHARACTERS}
-              placeholder={lang === "es" ? "Elige un personaje" : "Select a character"}
+              placeholder={tr(lang, { en: "Select a character", es: "Elige un personaje" })}
               className="w-full sm:w-56"
+              lang={lang}
             />
             <ExpandableTextarea
               name="content"
               maxLength={maxLength}
               rows={8}
-              placeholder={
-                lang === "es"
-                  ? "Matchups, consejos de escenario, lo que sea útil para otros…"
-                  : "Matchups, stage tips, anything useful for others…"
-              }
+              placeholder={tr(lang, {
+                en: "Matchups, stage tips, anything useful for others…",
+                es: "Matchups, consejos de escenario, lo que sea útil para otros…",
+              })}
               className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 pr-8 text-sm text-foreground outline-none focus-visible:border-ring"
-              title={lang === "es" ? "Guía de la comunidad" : "Community guide"}
+              title={tr(lang, { en: "Community guide", es: "Guía de la comunidad" })}
             />
             <div className="flex items-center justify-between gap-2">
               {createState.error ? <p className="text-xs text-destructive">{createState.error}</p> : <span />}
               <div className="flex gap-2">
                 <Button type="button" size="sm" variant="ghost" onClick={() => setWriting(false)}>
-                  {lang === "es" ? "Cancelar" : "Cancel"}
+                  {tr(lang, { en: "Cancel", es: "Cancelar" })}
                 </Button>
                 <Button type="submit" size="sm" disabled={createPending} onClick={() => (submittedRef.current = true)}>
-                  {lang === "es" ? "Publicar" : "Post"}
+                  {tr(lang, { en: "Post", es: "Publicar" })}
                 </Button>
               </div>
             </div>
           </form>
         ) : (
           <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => setWriting(true)}>
-            {lang === "es" ? "Escribir una guía" : "Write a guide"}
+            {tr(lang, { en: "Write a guide", es: "Escribir una guía" })}
           </Button>
         ))}
     </div>

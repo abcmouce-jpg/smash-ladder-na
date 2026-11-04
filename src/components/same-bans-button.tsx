@@ -4,6 +4,8 @@ import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 export function SameBansButton({
   action,
@@ -16,14 +18,17 @@ export function SameBansButton({
   gameNumber: number;
   stages: string[];
   canAct: boolean;
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const isTouch = useIsTouchDevice();
   const stagesText = stages.join(", ");
 
   const button = (
     <Button type="submit" size="sm" variant="default" disabled={!canAct}>
-      {lang === "es" ? `Mismos bans que el juego ${gameNumber}` : `Same bans as Game ${gameNumber}`}
+      {tr(lang, {
+        en: `Same bans as Game ${gameNumber}`,
+        es: `Mismos bans que el juego ${gameNumber}`,
+      })}
     </Button>
   );
 

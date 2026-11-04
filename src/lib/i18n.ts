@@ -2,7 +2,13 @@ import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { setPreferredLanguage } from "@/lib/account";
 
-export type Lang = "en" | "es";
+// Lang and the string lookup live in lib/lang.ts, which stays free of the
+// server-only imports above so client components can use them. Re-exported
+// here because 65 files already import the type from this path.
+import { asLang, type Lang } from "@/lib/lang";
+import { SITE_LANGS, DEFAULT_LANG } from "@/lib/site";
+
+export type { Lang };
 
 const LANG_COOKIE = "lang";
 
@@ -12,8 +18,13 @@ const LANG_COOKIE = "lang";
 // account, while still staying in sync with Settings for signed-in users
 // (see setLangAction below).
 export async function getLang(): Promise<Lang> {
-  const cookieLang = (await cookies()).get(LANG_COOKIE)?.value;
-  if (cookieLang === "en" || cookieLang === "es") return cookieLang;
+  // One language published means nothing to resolve: a cookie or a stored
+  // preference brought over from another instance must not put this one into
+  // a language it does not serve.
+  if (SITE_LANGS.length === 1) return DEFAULT_LANG;
+
+  const cookieLang = asLang((await cookies()).get(LANG_COOKIE)?.value);
+  if (cookieLang) return cookieLang;
 
   const session = await auth();
   if (session?.user?.id) {
@@ -22,10 +33,11 @@ export async function getLang(): Promise<Lang> {
       where: { id: session.user.id },
       select: { preferredLanguage: true },
     });
-    if (user?.preferredLanguage === "es") return "es";
+    const stored = asLang(user?.preferredLanguage);
+    if (stored) return stored;
   }
 
-  return "en";
+  return DEFAULT_LANG;
 }
 
 // Shared server action for the header's language toggle. Sets the cookie so
@@ -42,5 +54,7 @@ export async function setLangAction(lang: Lang) {
   });
 
   const session = await auth();
-  if (session?.user?.id) await setPreferredLanguage(session.user.id, lang === "es" ? "es" : null);
+  // null means "English", the default, so the column stays empty for the
+  // majority rather than storing "en" on every row.
+  if (session?.user?.id) await setPreferredLanguage(session.user.id, lang === "en" ? null : lang);
 }

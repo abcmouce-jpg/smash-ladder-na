@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useRef, useCallback } from "react";
+import { useActionState, useRef, useCallback, startTransition, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_QUICK_MESSAGES } from "@/lib/quick-messages";
+import type { Lang } from "@/lib/i18n";
+import { tr } from "@/lib/lang";
 
 type SendCommentState = { error: string | null };
 
@@ -20,7 +22,7 @@ export function CommentForm({
   // resolveQuickMessages in lib/quick-messages.ts. Falls back to the site
   // default here too so callers that haven't been updated still work.
   quickMessages?: string[];
-  lang?: "en" | "es";
+  lang?: Lang;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const lastTypingSignal = useRef(0);
@@ -42,9 +44,22 @@ export function CommentForm({
     formRef.current.requestSubmit();
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    // Clear the field the instant Send is pressed. We dispatch the action
+    // manually (rather than via the form's `action` prop) so React doesn't also
+    // run its post-action form reset and clear the field — wiping anything
+    // typed while the message was in flight — a second time.
+    if (inputRef.current) inputRef.current.value = "";
+    startTransition(() => formAction(formData));
+  }
+
   return (
     <div className="mt-3 flex flex-col gap-1">
       <div className="flex flex-wrap gap-1">
+        {/* An instance with no preset messages renders no row — see
+            HAS_QUICK_MESSAGES. */}
         {quickMessages.map((message) => (
           <Button
             key={message}
@@ -58,18 +73,18 @@ export function CommentForm({
           </Button>
         ))}
       </div>
-      <form ref={formRef} action={formAction} className="flex gap-2" autoComplete="off">
+      <form ref={formRef} onSubmit={handleSubmit} className="flex gap-2" autoComplete="off">
         <input
           ref={inputRef}
           name="body"
-          placeholder={lang === "es" ? "Escribe algo…" : "Say something…"}
+          placeholder={tr(lang, { en: "Say something…", es: "Escribe algo…" })}
           maxLength={500}
           autoComplete="off"
           onInput={handleInput}
           className="h-8 flex-1 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
         <Button type="submit" size="sm" disabled={isPending}>
-          {lang === "es" ? "Enviar" : "Send"}
+          {tr(lang, { en: "Send", es: "Enviar" })}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

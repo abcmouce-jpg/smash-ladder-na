@@ -55,3 +55,6 @@ next-env.d.ts
 
 # per-machine MCP server config, not shared across contributors
 .mcp.json
+
+# Nested git worktrees live here; they are checkouts, not content.
+.claude/worktrees/

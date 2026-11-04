@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, MapPin, Radio } from "lucide-react";
+import { Check, ChevronDown, Dices, MapPin, Radio } from "lucide-react";
 import type { MatchFeedEntry } from "@/lib/match-feed";
 import type { Lang } from "@/lib/i18n";
 import { CharacterIcon } from "@/components/character-icon";
@@ -24,6 +24,9 @@ import {
 } from "@/lib/set-entry";
 import { useLiveStreamSelection } from "@/components/live-streams/selection";
 import { TwitchIcon } from "@/components/twitch-icon";
+import { tr } from "@/lib/lang";
+import { playerStreamLink } from "@/lib/stream-links";
+import { USES_REGIONS } from "@/lib/site";
 
 // Expandable feed row. The collapsed header summarizes the set (both
 // players, current score, status); clicking anywhere except the player-name
@@ -78,6 +81,8 @@ export function SetRow({
             align="left"
             viewerIsModerator={viewerIsModerator}
             className="col-start-1 row-start-1"
+            lang={lang}
+            randitto={entry.mode === "RANDITTO"}
           />
 
           <div className="col-start-2 row-span-2 row-start-1 flex shrink-0 flex-col items-center gap-1">
@@ -95,6 +100,8 @@ export function SetRow({
             align="right"
             viewerIsModerator={viewerIsModerator}
             className="col-start-1 row-start-2"
+            lang={lang}
+            randitto={entry.mode === "RANDITTO"}
           />
         </div>
 
@@ -110,12 +117,21 @@ export function SetRow({
         <div className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground sm:px-4">
           <span className="flex min-w-0 items-center gap-1.5">
             <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"} className="shrink-0 px-1.5 py-0 text-[10px]">
-              {lang === "es" ? label?.es : label?.en}
+              {label?.[lang]}
             </Badge>
+            {/* Named rather than left to inference: a randitto set shows
+                fighters neither player chose and a rating that did not move,
+                which reads as a bug to anyone watching without being told. */}
+            {entry.mode === "RANDITTO" && (
+              <Badge variant="outline" className="flex shrink-0 items-center gap-1 px-1.5 py-0 text-[10px]">
+                <Dices className="size-2.5" />
+                Randitto
+              </Badge>
+            )}
             {entry.hasLiveStreamer && (
               <span className="flex shrink-0 items-center gap-1 font-medium text-red-500">
                 <Radio className="size-3" />
-                {lang === "es" ? "En vivo" : "Live"}
+                {tr(lang, { en: "Live", es: "En vivo" })}
               </span>
             )}
           </span>
@@ -150,9 +166,10 @@ export function SetRow({
           ) : (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
-              {lang === "es"
-                ? "Aún no se ha jugado ningún juego — esta partida no ha empezado."
-                : "No games played yet — this set hasn't started."}
+              {tr(lang, {
+                en: "No games played yet — this set hasn't started.",
+                es: "Aún no se ha jugado ningún juego — esta partida no ha empezado.",
+              })}
             </p>
           )}
         </div>
@@ -167,9 +184,15 @@ export function SetRow({
 // a clock is still running on a finished set.
 function unfinishedGameLabel({ gameNumber, inProgress }: UnfinishedGame, lang: Lang) {
   if (inProgress) {
-    return lang === "es" ? `Juego ${gameNumber} en curso…` : `Game ${gameNumber} in progress…`;
+    return tr(lang, {
+      en: `Game ${gameNumber} in progress…`,
+      es: `Juego ${gameNumber} en curso…`,
+    });
   }
-  return lang === "es" ? `Juego ${gameNumber} — sin terminar` : `Game ${gameNumber} — not finished`;
+  return tr(lang, {
+    en: `Game ${gameNumber} — not finished`,
+    es: `Juego ${gameNumber} — sin terminar`,
+  });
 }
 
 // Streams a side's channel in the pinned player: the Twitch mark plus the
@@ -179,7 +202,7 @@ function unfinishedGameLabel({ gameNumber, inProgress }: UnfinishedGame, lang: L
 // pill that fills in while this side is the one embedded up top.
 function OpenStreamButton({ player, matchId, lang }: { player: FeedPlayer; matchId: string; lang: Lang }) {
   const { selection, select } = useLiveStreamSelection();
-  if (!player.twitchUsername) return null;
+  if (!playerStreamLink(player)) return null;
   const name = player.twitchDisplayName ?? player.username;
   const selected = selection?.matchId === matchId && selection?.playerId === player.id;
   return (
@@ -192,7 +215,7 @@ function OpenStreamButton({ player, matchId, lang }: { player: FeedPlayer; match
       }}
       onKeyDown={(event) => event.stopPropagation()}
       aria-pressed={selected}
-      aria-label={`${lang === "es" ? "Abrir stream" : "Open stream"}: ${name}`}
+      aria-label={`${tr(lang, { en: "Open stream", es: "Abrir stream" })}: ${name}`}
       className={cn(
         "inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
         selected
@@ -216,22 +239,41 @@ function Side({
   align,
   viewerIsModerator = false,
   className,
+  lang,
+  randitto = false,
 }: {
   player: FeedPlayer;
   align: "left" | "right";
   viewerIsModerator?: boolean;
   className?: string;
+  lang: Lang;
+  /** Randitto reads off a different ladder and nobody picked their fighter. */
+  randitto?: boolean;
 }) {
   const isRight = align === "right";
   // A provisional player's rating isn't public (see isRatingVisible) — the
   // feed would otherwise be the easiest place to read a brand-new player's
   // number off. Moderators keep seeing it. The tier badge beside the name
-  // already reads "Provisional" for them, so the number line drops the word
-  // rather than repeating it.
-  const ratingVisible = isRatingVisible(player.gamesPlayed, viewerIsModerator);
+  // already carries PROVISIONAL_LABEL for them, so the number line drops the
+  // word rather than repeating it.
+  // Randitto has its own ladder and its own games count, so both the number
+  // and whether it is public yet come from that track rather than the 1v1 one.
+  const shownRating = randitto ? player.randittoRating : player.rating;
+  const shownGames = randitto ? player.randittoGamesPlayed : player.gamesPlayed;
+  const ratingVisible = isRatingVisible(shownGames, viewerIsModerator);
   return (
     <div className={cn("flex min-w-0 flex-1 items-center gap-2", isRight && "sm:flex-row-reverse", className)}>
-      {player.currentCharacter ? (
+      {/* The fighter icon says "this is what they play". In randitto it was
+          handed to them, so showing it claims something untrue about the
+          player — a question mark says the site is not telling you. */}
+      {randitto ? (
+        <span
+          aria-hidden
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-xs font-medium text-muted-foreground"
+        >
+          ?
+        </span>
+      ) : player.currentCharacter ? (
         <CharacterIcon name={player.currentCharacter} size={28} />
       ) : (
         <span aria-hidden className="size-7 shrink-0 rounded-full border border-dashed border-border" />
@@ -249,16 +291,17 @@ function Side({
         <span className={cn("flex min-w-0 items-center gap-1", isRight && "sm:justify-end")}>
           <span className="min-w-0 truncate font-medium">{player.username}</span>
           <RankBadge
-            rating={player.rating}
-            gamesPlayed={player.gamesPlayed}
+            rating={shownRating}
+            gamesPlayed={shownGames}
             className={cn("px-1.5 py-0 text-[10px]", isRight && "sm:order-first")}
+            lang={lang}
           />
         </span>
         <span
           className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "sm:justify-end")}
         >
-          {ratingVisible && <span className="tabular-nums">{formatRating(player.rating)}</span>}
-          {player.region && (
+          {ratingVisible && <span className="tabular-nums">{formatRating(shownRating)}</span>}
+          {USES_REGIONS && player.region && (
             <span className="flex min-w-0 items-center gap-0.5">
               <MapPin className="size-3 shrink-0" />
               <span className="truncate">{player.region}</span>
@@ -296,7 +339,7 @@ function GameLine({
     <div className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm sm:gap-3 sm:px-3">
       <span className="flex w-14 shrink-0 flex-col sm:w-24">
         <span className="text-xs tabular-nums text-muted-foreground">
-          {lang === "es" ? `Juego ${game.gameNumber}` : `Game ${game.gameNumber}`}
+          {tr(lang, { en: `Game ${game.gameNumber}`, es: `Juego ${game.gameNumber}` })}
         </span>
         {game.finalStage && (
           <span title={game.finalStage} className="truncate text-[10px] leading-4 text-muted-foreground/60">

@@ -7,7 +7,12 @@ describe("resolveQuickMessages", () => {
   });
 
   it("uses saved values where present", () => {
-    expect(resolveQuickMessages(["yo", "gg"])).toEqual(["yo", "gg", DEFAULT_QUICK_MESSAGES[2], DEFAULT_QUICK_MESSAGES[3]]);
+    expect(resolveQuickMessages(["yo", "gg"])).toEqual([
+      "yo",
+      "gg",
+      DEFAULT_QUICK_MESSAGES[2],
+      DEFAULT_QUICK_MESSAGES[3],
+    ]);
   });
 
   it("falls back per-slot on a blank in the middle, without shifting later slots", () => {
@@ -20,6 +25,11 @@ describe("resolveQuickMessages", () => {
   });
 
   it("trims whitespace-only slots back to the default", () => {
-    expect(resolveQuickMessages(["  ", "gg"])).toEqual([DEFAULT_QUICK_MESSAGES[0], "gg", DEFAULT_QUICK_MESSAGES[2], DEFAULT_QUICK_MESSAGES[3]]);
+    expect(resolveQuickMessages(["  ", "gg"])).toEqual([
+      DEFAULT_QUICK_MESSAGES[0],
+      "gg",
+      DEFAULT_QUICK_MESSAGES[2],
+      DEFAULT_QUICK_MESSAGES[3],
+    ]);
   });
 });

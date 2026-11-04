@@ -1,15 +1,23 @@
 import { prisma } from "@/lib/db";
 import { ConductAction, LobbyEntryStatus, ReportStatus, UserStatus } from "@/generated/prisma/enums";
 import { isWiredClaimDisputedByOpponents, liftExpiredSuspension } from "@/lib/account";
+import { LocalizedError } from "@/lib/localized-error";
 
 export async function fileMatchReport(reporterId: string, matchId: string, reason: string) {
   const trimmed = reason.trim().slice(0, 1000);
-  if (!trimmed) throw new Error("Please describe what happened");
+  if (!trimmed)
+    throw new LocalizedError({
+      en: "Please describe what happened",
+      es: "Describe lo que pasó",
+    });
 
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== reporterId && match.player2Id !== reporterId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
   const reportedUserId = match.player1Id === reporterId ? match.player2Id : match.player1Id;
 
@@ -23,9 +31,12 @@ export async function fileMatchReport(reporterId: string, matchId: string, reaso
 // makes a repeat click a no-op instead of an error.
 export async function fileConnectionReport(reporterId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
+  if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
   if (match.player1Id !== reporterId && match.player2Id !== reporterId) {
-    throw new Error("Not a participant in this match");
+    throw new LocalizedError({
+      en: "Not a participant in this match",
+      es: "No participas en esta partida",
+    });
   }
   const reportedUserId = match.player1Id === reporterId ? match.player2Id : match.player1Id;
 
@@ -130,7 +141,7 @@ export async function actionReport(
   options: { suspensionHours?: number | null; skipThreshold?: boolean } = {},
 ) {
   const report = await prisma.conductReport.findUnique({ where: { id: reportId } });
-  if (!report) throw new Error("Report not found");
+  if (!report) throw new LocalizedError({ en: "Report not found", es: "Reporte no encontrado" });
 
   if (!options.skipThreshold) {
     const totalReports = await prisma.conductReport.count({
@@ -138,9 +149,10 @@ export async function actionReport(
     });
     const threshold = ACTION_THRESHOLDS[newStatus];
     if (totalReports < threshold) {
-      throw new Error(
-        `This player has only been reported ${totalReports} time${totalReports === 1 ? "" : "s"} — ${newStatus.toLowerCase()} requires at least ${threshold} (or use Insta).`,
-      );
+      throw new LocalizedError({
+        en: `This player has only been reported ${totalReports} time${totalReports === 1 ? "" : "s"} — ${newStatus.toLowerCase()} requires at least ${threshold} (or use Insta).`,
+        es: `Este jugador solo ha sido reportado ${totalReports} ${totalReports === 1 ? "vez" : "veces"} — ${newStatus.toLowerCase()} requiere al menos ${threshold} (o usa Insta).`,
+      });
     }
   }
 
@@ -229,7 +241,11 @@ export async function moderateUserDirectly(
   // explicit mod action here (extending/refreshing a suspension), not a
   // stale-report replay, so it's allowed through.
   const isDowngrade = STATUS_RANK[newStatus] < STATUS_RANK[currentStatus];
-  if (isDowngrade) throw new Error(`This player is already ${currentStatus.toLowerCase()}`);
+  if (isDowngrade)
+    throw new LocalizedError({
+      en: `This player is already ${currentStatus.toLowerCase()}`,
+      es: `Este jugador ya está ${currentStatus.toLowerCase()}`,
+    });
 
   const suspendedUntil =
     newStatus === UserStatus.SUSPENDED && options.suspensionHours != null
