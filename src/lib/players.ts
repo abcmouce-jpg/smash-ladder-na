@@ -783,23 +783,41 @@ export async function getCharacterUsage(
   userId: string,
   client: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<CharacterUsage[]> {
-  const games = await client.matchGame.findMany({
-    where: {
-      winnerId: { not: null },
-      match: { status: MatchStatus.CONFIRMED, OR: notPracticingFor(userId) },
-      OR: [{ actorAId: userId }, { actorBId: userId }],
-    },
-    select: { actorAId: true, actorACharacter: true, actorBId: true, actorBCharacter: true, winnerId: true },
-  });
+  // Counted in SQL rather than by reading the rows. This is the lobby's
+  // hottest query — /lobby calls getTopCharacters twice per render, once for
+  // each player, and every render is a 5-second poll — and it used to pull
+  // every game the player had ever played to work out their top three
+  // characters. elfy's account alone is 2,889 rows, so two of those per
+  // render is most of a megabyte leaving Postgres for thirty bytes of answer.
+  // Measured 2026-11-04: Neon moved 109 GB in three days against a 500 GB
+  // monthly allowance, which this was the bulk of.
+  //
+  // Raw because the character depends on which seat the player sat in, and
+  // Prisma's groupBy cannot group on a CASE. Same filters as before:
+  // confirmed sets only, this player's own side not practising, games with a
+  // winner. Runs on the transaction client when recomputeCharacterUsage
+  // passes one, so a just-confirmed match is still counted.
+  const rows = await client.$queryRaw<{ character: string | null; games: bigint; wins: bigint }[]>`
+    SELECT
+      CASE WHEN g."actorAId" = ${userId} THEN g."actorACharacter" ELSE g."actorBCharacter" END AS character,
+      count(*) AS games,
+      count(*) FILTER (WHERE g."winnerId" = ${userId}) AS wins
+    FROM "MatchGame" g
+    JOIN "RatingMatch" m ON m.id = g."matchId"
+    WHERE g."winnerId" IS NOT NULL
+      AND m.status = 'CONFIRMED'::"MatchStatus"
+      AND (
+        (m."player1Id" = ${userId} AND m."player1IsPracticing" = false)
+        OR (m."player2Id" = ${userId} AND m."player2IsPracticing" = false)
+      )
+      AND (g."actorAId" = ${userId} OR g."actorBId" = ${userId})
+    GROUP BY 1
+  `;
 
   const stats = new Map<string, { games: number; wins: number }>();
-  for (const g of games) {
-    const character = g.actorAId === userId ? g.actorACharacter : g.actorBCharacter;
-    if (!character) continue;
-    const entry = stats.get(character) ?? { games: 0, wins: 0 };
-    entry.games++;
-    if (g.winnerId === userId) entry.wins++;
-    stats.set(character, entry);
+  for (const r of rows) {
+    if (!r.character) continue;
+    stats.set(r.character, { games: Number(r.games), wins: Number(r.wins) });
   }
 
   const totalGames = [...stats.values()].reduce((sum, s) => sum + s.games, 0);
