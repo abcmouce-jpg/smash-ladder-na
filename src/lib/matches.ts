@@ -1348,6 +1348,124 @@ export async function adminConfirmCancelledMatch(matchId: string, winnerId: stri
 }
 
 /**
+ * Credits a cancelled set that is no longer convertible, at today's ratings.
+ *
+ * adminConfirmCancelledMatch refuses once either player has confirmed a set
+ * since, because inserting a result *at its original place* would mean
+ * recomputing every rating after it. This does not try to: the set is rated
+ * now, against both players' current numbers, exactly as if they had played
+ * it today. Nothing earlier is rewritten, so no later match moves.
+ *
+ * What that costs is chronology — a set from two days ago lands on the
+ * history with today's deltas — and that is the honest trade for the case
+ * this exists to serve: the result is not in doubt, only late. The first one
+ * was a set whose game 4 was played but never reported, where both players
+ * then left and the match expired into a cancel; the winner had five rated
+ * sets behind it by the time a mod looked. The alternative on offer was
+ * hand-written SQL, which is how a set ends up rated right and still
+ * displaying as a loss (see adminForceConfirmMatch).
+ *
+ * Deliberately a separate entry point rather than a flag on the one above:
+ * the guard there is correct for the ordinary case and should keep refusing
+ * by default, so taking the chronology hit has to be something a mod picks.
+ */
+export async function adminCreditLateCancelledMatch(matchId: string, winnerId: string) {
+  await prisma.$transaction(async (tx) => {
+    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+    if (!match) throw new LocalizedError({ en: "Match not found", es: "Partida no encontrada" });
+    if (match.status !== MatchStatus.CANCELLED) {
+      throw new LocalizedError({
+        en: "This match was not cancelled",
+        es: "Esta partida no fue cancelada",
+      });
+    }
+    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+      throw new LocalizedError({
+        en: "Winner must be one of the two players",
+        es: "El ganador debe ser uno de los dos jugadores",
+      });
+    }
+    // Use the ordinary path while it is still open: it keeps the set in its
+    // own place on the ladder, which is strictly better than crediting it late.
+    if (await cancelledMatchIsConvertible(tx, match)) {
+      throw new LocalizedError({
+        en: "This set is still convertible normally — use that instead, it keeps the original rating order.",
+        es: "Este set todavía se puede convertir normalmente — usa esa opción, conserva el orden original.",
+      });
+    }
+    await tx.ratingMatch.update({
+      where: { id: matchId },
+      data: { reportedWinnerId: winnerId, reportedById: winnerId, reportedAt: new Date() },
+    });
+    await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.ADMIN_RESOLVED, null);
+  });
+}
+
+/**
+ * Cancelled sets from this season that can no longer be converted normally,
+ * newest first — the ones adminCreditLateCancelledMatch is for. Listing them
+ * is half the point on its own: a cancelled set is invisible everywhere else,
+ * which is how an ordinary unreported game 4 turned into a public accusation
+ * that a mod had deleted their own loss.
+ */
+export async function listLateCancelledMatches(take = 25) {
+  const activeSeason = await prisma.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } });
+  if (!activeSeason) return [];
+  const candidates = await prisma.ratingMatch.findMany({
+    where: { status: MatchStatus.CANCELLED, createdAt: { gte: activeSeason.startsAt } },
+    orderBy: { createdAt: "desc" },
+    take: take * 4,
+    include: {
+      player1: { select: { id: true, username: true, rating: true } },
+      player2: { select: { id: true, username: true, rating: true } },
+      games: { select: { gameNumber: true, winnerId: true }, orderBy: { gameNumber: "asc" } },
+    },
+  });
+  const out: typeof candidates = [];
+  for (const m of candidates) {
+    if (out.length >= take) break;
+    // Only the ones the normal button cannot take — the other list has those.
+    if (!(await cancelledMatchIsConvertible(prisma, m))) out.push(m);
+  }
+  return out;
+}
+
+/**
+ * Cancelled sets involving a named player, newest first.
+ *
+ * The list above only reaches the most recent handful, and the set someone
+ * asks about is usually further back — there were 2,528 cancels in the
+ * season by 2026-11-04, 68 of them newer than the one that got questioned.
+ * Searching by name is what a mod actually does when a player says "where
+ * did my set go", and being unable to do it is what let an unreported game 4
+ * look like a moderator deleting their own loss.
+ */
+export async function findCancelledMatchesForPlayer(query: string, take = 20) {
+  const name = query.trim();
+  if (name.length < 2) return [];
+  const players = await prisma.user.findMany({
+    where: { username: { contains: name, mode: "insensitive" } },
+    select: { id: true },
+    take: 25,
+  });
+  if (players.length === 0) return [];
+  const ids = players.map((p) => p.id);
+  return prisma.ratingMatch.findMany({
+    where: {
+      status: MatchStatus.CANCELLED,
+      OR: [{ player1Id: { in: ids } }, { player2Id: { in: ids } }],
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    include: {
+      player1: { select: { id: true, username: true, rating: true } },
+      player2: { select: { id: true, username: true, rating: true } },
+      games: { select: { gameNumber: true, winnerId: true }, orderBy: { gameNumber: "asc" } },
+    },
+  });
+}
+
+/**
  * Recent cancelled sets a mod could still convert, newest first.
  *
  * Deliberately only lists the convertible ones: a cancel that can no longer
