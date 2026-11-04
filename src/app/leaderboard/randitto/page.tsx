@@ -3,6 +3,7 @@ import { Dices } from "lucide-react";
 import { getLang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 import { getRandittoLeaderboard } from "@/lib/leaderboard";
+import { formatTrackRating } from "@/lib/rating-format";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 
 // Randitto's own board. Separate from /leaderboard rather than a tab on it
@@ -48,7 +49,7 @@ export default async function RandittoLeaderboardPage() {
                   </Link>
                 </span>
                 <span className="text-muted-foreground tabular-nums">
-                  {Math.round(player.randittoRating)}{" "}
+                  {formatTrackRating(player.randittoRating, "randitto")}{" "}
                   <span className="text-xs">
                     {tr(lang, {
                       en: `· ${player.randittoGamesPlayed} sets`,

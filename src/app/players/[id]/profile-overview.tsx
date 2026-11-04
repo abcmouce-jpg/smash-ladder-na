@@ -28,7 +28,7 @@ import {
   computeRatingMilestoneAchievements,
   isRatingVisible,
 } from "@/lib/rank-tier";
-import { formatRating } from "@/lib/rating-format";
+import { formatRating, formatTrackRating } from "@/lib/rating-format";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 
@@ -298,7 +298,7 @@ export async function ProfileOverviewSection({
               </div>
               <div>
                 {practiceRatingVisible ? (
-                  <p className="text-lg font-semibold tabular-nums">{formatRating(practiceRating)}</p>
+                  <p className="text-lg font-semibold tabular-nums">{formatTrackRating(practiceRating, "practice")}</p>
                 ) : (
                   <p className="text-sm font-medium text-muted-foreground">
                     <RatingHidden gamesPlayed={practiceGamesPlayed} lang={lang} practice />
@@ -325,10 +325,10 @@ export async function ProfileOverviewSection({
                   had five sets and appeared on the leaderboard. */}
               <div>
                 {randittoRatingVisible ? (
-                  <p className="text-lg font-semibold tabular-nums">{formatRating(randittoRating)}</p>
+                  <p className="text-lg font-semibold tabular-nums">{formatTrackRating(randittoRating, "randitto")}</p>
                 ) : (
                   <p className="text-sm font-medium text-muted-foreground">
-                    <RatingHidden gamesPlayed={randittoGamesPlayed} lang={lang} practice />
+                    <RatingHidden gamesPlayed={randittoGamesPlayed} lang={lang} randitto />
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">

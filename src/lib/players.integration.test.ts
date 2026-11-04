@@ -16,7 +16,7 @@ import {
   getTopRivals,
   isCurrentlyInMatch,
 } from "@/lib/players";
-import { MatchStatus } from "@/generated/prisma/enums";
+import { MatchMode, MatchStatus } from "@/generated/prisma/enums";
 import { DELETED_USERNAME } from "@/lib/account";
 import { createTestUser } from "@/test/factories";
 
@@ -512,7 +512,7 @@ describe("getHiddenRatingMatchIds", () => {
     p2: string,
     seasonId: string,
     confirmedAt: Date,
-    options: { player1IsPracticing?: boolean } = {},
+    options: { player1IsPracticing?: boolean; mode?: MatchMode } = {},
   ) {
     return prisma.ratingMatch.create({
       data: {
@@ -524,6 +524,7 @@ describe("getHiddenRatingMatchIds", () => {
         reportedWinnerId: p1,
         confirmedAt,
         player1IsPracticing: options.player1IsPracticing ?? false,
+        mode: options.mode ?? MatchMode.STANDARD,
       },
     });
   }
@@ -546,19 +547,55 @@ describe("getHiddenRatingMatchIds", () => {
       });
       practice.push(m.id);
     }
+    const randitto: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const m = await confirmedMatchInSeason(player.id, opponent.id, active.id, new Date(base + 20_000 + i * 1000), {
+        mode: MatchMode.RANDITTO,
+      });
+      randitto.push(m.id);
+    }
 
     const { changeIds, valueIds } = await getHiddenRatingMatchIds(player.id);
 
     // The first five sets on each track hide their change; the sixth does not.
-    expect(changeIds).toEqual(expect.arrayContaining([...ranked.slice(0, 5), ...practice.slice(0, 5)]));
+    expect(changeIds).toEqual(
+      expect.arrayContaining([...ranked.slice(0, 5), ...practice.slice(0, 5), ...randitto.slice(0, 5)]),
+    );
     expect(changeIds).not.toContain(ranked[5]);
     expect(changeIds).not.toContain(practice[5]);
+    expect(changeIds).not.toContain(randitto[5]);
 
     // The value window is one shorter (the graduation rating is public), and
-    // practice sets never have a value window — RatingHistory holds no practice rows.
+    // non-main tracks never have one — RatingHistory holds no practice or
+    // randitto rows.
     expect(valueIds).toEqual(expect.arrayContaining(ranked.slice(0, 4)));
     expect(valueIds).not.toContain(ranked[4]);
     expect(valueIds).not.toContain(practice[0]);
+    expect(valueIds).not.toContain(randitto[0]);
+  });
+
+  it("counts randitto sets against the randitto window, not the ranked one", async () => {
+    const active = await createSeason("Season 1", null);
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+
+    const randitto: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const m = await confirmedMatchInSeason(player.id, opponent.id, active.id, new Date(base + i * 1000), {
+        mode: MatchMode.RANDITTO,
+      });
+      randitto.push(m.id);
+    }
+    // The first ranked set must still be treated as ranked #1, not as this
+    // player's sixth set overall.
+    const firstRanked = await confirmedMatchInSeason(player.id, opponent.id, active.id, new Date(base + 10_000));
+
+    const { changeIds, valueIds } = await getHiddenRatingMatchIds(player.id);
+
+    expect(changeIds).toEqual(expect.arrayContaining([...randitto, firstRanked.id]));
+    expect(valueIds).toContain(firstRanked.id);
+    expect(valueIds).not.toContain(randitto[0]);
   });
 
   it("never hides a match from an earlier season", async () => {

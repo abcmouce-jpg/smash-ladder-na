@@ -11,23 +11,28 @@ import { PROVISIONAL_LABEL } from "@/components/rank-badge";
 // how much further they have to go. Rendered in the same slot the rating occupies
 // on each surface, so layouts don't shift between the hidden and shown states.
 //
-// `practice` only picks the hover-tooltip wording, for the separate practice
-// track (gated on practiceGamesPlayed but sharing the same threshold).
+// `practice` and `randitto` only pick the hover-tooltip wording, for the
+// separate non-ladder tracks (each gated on its own games count but sharing
+// the same threshold).
 export function RatingHidden({
   gamesPlayed,
   lang = "en",
   className,
   practice = false,
+  randitto = false,
 }: {
   gamesPlayed: number;
   lang?: Lang;
   className?: string;
   practice?: boolean;
+  randitto?: boolean;
 }) {
   const progress = `${gamesPlayed}/${PROVISIONAL_GAMES_THRESHOLD}`;
-  const noun = practice
-    ? tr(lang, { en: "Practice rating", es: "Clasificación de práctica" })
-    : tr(lang, { en: "Rating", es: "Clasificación" });
+  const noun = randitto
+    ? tr(lang, { en: "Randitto rating", es: "Clasificación de randitto" })
+    : practice
+      ? tr(lang, { en: "Practice rating", es: "Clasificación de práctica" })
+      : tr(lang, { en: "Rating", es: "Clasificación" });
   const rule = tr(lang, {
     en: `${noun} is shown after ${PROVISIONAL_GAMES_THRESHOLD} sets`,
     es: `${noun} se muestra después de ${PROVISIONAL_GAMES_THRESHOLD} partidas`,
