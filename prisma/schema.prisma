@@ -197,7 +197,7 @@ model User {
   secondaryCharacters        String[]        @default([]) // same source as mainCharacter
   region                     String? // self-declared match region; drives distance-based matchmaking
   preferredLanguage          String? // "es" | "ja" | null (English, the default). Keep in step with Lang in lib/i18n.ts, which is the source of truth; "ja" added 2026-10-23 for the Japanese version. Stored null rather than "en" so the column stays empty for the majority. Drives getLang() for signed-in viewers and which landing page "/" bounces to.
-  maxMatchDistanceKm         Int?            @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
+  maxMatchDistanceKm         Int?            @default(5600) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. THIS is the default players get, not any constant in regions.ts. Default matches MATCH_DISTANCE_PRESETS' "Extended" tier — raised from "Moderate" (2400) on 2026-11-12, see the note there.
   maxRatingGap               Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
   rematchCooldownHours       Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
   wiredConnection            Boolean         @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge

@@ -330,10 +330,21 @@ export const MATCH_DISTANCE_PRESETS: readonly {
   km: number | null;
 }[] = NA_DISTANCE_PRESETS;
 
-// Both default to roughly half their region's span — wide enough that a
-// brand-new ladder with few players online still finds someone, which
-// matters more at launch than shaving latency.
-export const DEFAULT_MATCH_DISTANCE_KM = 2400;
+// The default radius is the column default on User.maxMatchDistanceKm, not
+// a constant here — a DEFAULT_MATCH_DISTANCE_KM used to sit at this spot,
+// read by nothing, and quietly disagreeing with the schema is a worse
+// starting point for the next person than no constant at all.
+//
+// It is "Extended" (5,600 km) as of 2026-11-12, raised from "Moderate"
+// (2,400). Of 14,078 confirmed sets over the preceding 30 days with both
+// regions known, 1,791 (12.7%) span more than 2,400 km, so they only
+// happened because somebody had widened their own radius by hand; actual
+// set distance runs to a median of 1,333 km and a p90 of 2,727, which puts
+// 2,400 at about the 87th percentile and 5,600 at the 99.9th. Of the
+// players who moved the setting at all, 80% loosened it. 2,395 queue sits
+// that failed had a candidate waiting, unpaired, within 5,600 km but
+// outside 2,400 — 18.9% of all failures, second only to nobody else being
+// in the queue.
 
 // Includes the region itself, so callers can treat this as the whole set of
 // regions worth matching against without a separate same-region check.

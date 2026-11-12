@@ -211,7 +211,7 @@ describe("notifyQueueOpportunitySubscribers", () => {
     return {
       region: "USA East",
       rating: 1500,
-      maxMatchDistanceKm: 2400,
+      maxMatchDistanceKm: 5600,
       wiredConnection: false,
       requireWiredOpponent: false,
       ...overrides,
