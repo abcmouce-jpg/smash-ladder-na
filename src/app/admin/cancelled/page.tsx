@@ -1,15 +1,20 @@
 import { Undo2 } from "lucide-react";
 import { auth } from "@/auth";
-import { listConvertibleCancelledMatches } from "@/lib/matches";
+import {
+  findCancelledMatchesForPlayer,
+  listConvertibleCancelledMatches,
+  listLateCancelledMatches,
+} from "@/lib/matches";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { confirmCancelled } from "./actions";
+import { confirmCancelled, creditLateCancelled } from "./actions";
 
 // Only lists sets that can still be converted — see
 // cancelledMatchIsConvertible. A cancel stops being reversible the moment
 // either player's next rated set confirms, so this page empties itself as
 // people keep playing rather than offering buttons that would be refused.
-export default async function CancelledPage() {
+export default async function CancelledPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const q = (await searchParams).q?.trim() ?? "";
   const session = await auth();
   const role = session?.user?.role;
 
@@ -22,7 +27,11 @@ export default async function CancelledPage() {
     );
   }
 
-  const matches = await listConvertibleCancelledMatches();
+  const [matches, late, found] = await Promise.all([
+    listConvertibleCancelledMatches(),
+    listLateCancelledMatches(),
+    q ? findCancelledMatchesForPlayer(q) : Promise.resolve([]),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-10">
@@ -38,6 +47,70 @@ export default async function CancelledPage() {
         Only sets neither player has played a rated set since are listed. After that, the result can&apos;t be inserted
         without recomputing every rating that came after it, so the set drops off this list for good.
       </p>
+
+      {/* The list below only reaches the newest few, and the set a player asks
+          about is usually further back — 2,528 cancels in the season by the
+          time this was written. */}
+      <form className="mt-8 flex gap-2" action="/admin/cancelled">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Find a cancelled set by player name"
+          className="h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 text-sm"
+        />
+        <Button type="submit" size="sm" variant="secondary">
+          Search
+        </Button>
+      </form>
+
+      {q && (
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold tracking-tight">Results for &ldquo;{q}&rdquo;</h2>
+          {found.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No cancelled set for that name.</p>
+          ) : (
+            <div className="mt-3 flex flex-col gap-3">
+              {found.map((match) => {
+                const p1Games = match.games.filter((g) => g.winnerId === match.player1Id).length;
+                const p2Games = match.games.filter((g) => g.winnerId === match.player2Id).length;
+                const unreported = match.games.filter((g) => g.winnerId === null).length;
+                return (
+                  <Card key={match.id}>
+                    <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-sm">
+                        <div className="font-medium">
+                          {match.player1.username} <span className="text-muted-foreground">vs</span>{" "}
+                          {match.player2.username}
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                          {match.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC · games reported {p1Games}–
+                          {p2Games}
+                          {unreported > 0 ? ` · ${unreported} unreported` : ""}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <form action={creditLateCancelled.bind(null, match.id, match.player1Id)}>
+                          <Button type="submit" size="sm" variant="ghost">
+                            Credit {match.player1.username}
+                          </Button>
+                        </form>
+                        <form action={creditLateCancelled.bind(null, match.id, match.player2Id)}>
+                          <Button type="submit" size="sm" variant="ghost">
+                            Credit {match.player2.username}
+                          </Button>
+                        </form>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      <h2 className="mt-12 text-lg font-semibold tracking-tight">Still reversible</h2>
 
       {matches.length === 0 ? (
         <p className="mt-8 text-sm text-muted-foreground">Nothing here — no cancelled set is still reversible.</p>
@@ -70,6 +143,59 @@ export default async function CancelledPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Everything else that was cancelled this season. Listing these at all
+          is the point as much as the buttons are: a cancelled set shows up
+          nowhere else, so when one is questioned there is no way to answer
+          except from the database — which is how an unreported game 4 became
+          a public accusation that a mod had deleted their own loss. */}
+      <h2 className="mt-12 text-lg font-semibold tracking-tight">Already built on</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Cancelled sets one of the players has since played past. Crediting one now rates it against both players&apos;
+        ratings <em>today</em>, not the ones they had at the time — nothing earlier is rewritten, so no later set moves.
+        Use it when the result isn&apos;t in doubt, only late.
+      </p>
+
+      {late.length === 0 ? (
+        <p className="mt-6 text-sm text-muted-foreground">Nothing here.</p>
+      ) : (
+        <div className="mt-6 flex flex-col gap-3">
+          {late.map((match) => {
+            const p1Games = match.games.filter((g) => g.winnerId === match.player1Id).length;
+            const p2Games = match.games.filter((g) => g.winnerId === match.player2Id).length;
+            const unreported = match.games.filter((g) => g.winnerId === null).length;
+            return (
+              <Card key={match.id}>
+                <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm">
+                    <div className="font-medium">
+                      {match.player1.username} <span className="text-muted-foreground">vs</span>{" "}
+                      {match.player2.username}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                      {match.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC · games reported {p1Games}–
+                      {p2Games}
+                      {unreported > 0 ? ` · ${unreported} unreported` : ""}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <form action={creditLateCancelled.bind(null, match.id, match.player1Id)}>
+                      <Button type="submit" size="sm" variant="ghost">
+                        Credit {match.player1.username}
+                      </Button>
+                    </form>
+                    <form action={creditLateCancelled.bind(null, match.id, match.player2Id)}>
+                      <Button type="submit" size="sm" variant="ghost">
+                        Credit {match.player2.username}
+                      </Button>
+                    </form>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </main>

@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { createTestUser } from "@/test/factories";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
-import { adminConfirmCancelledMatch, cancelledMatchIsConvertible } from "@/lib/matches";
+import {
+  adminConfirmCancelledMatch,
+  adminCreditLateCancelledMatch,
+  cancelledMatchIsConvertible,
+  listLateCancelledMatches,
+} from "@/lib/matches";
 
 async function activeSeason() {
   const existing = await prisma.season.findFirst({ where: { endsAt: null } });
@@ -107,5 +112,82 @@ describe("converting a cancelled set into a win", () => {
     const still = await prisma.user.findUniqueOrThrow({ where: { id: p1.id } });
     expect(still.rating).toBe(1500);
     expect(still.gamesPlayed).toBe(0);
+  });
+});
+
+// The set this exists for: game 4 was played but never reported, both players
+// left, the match expired into a cancel, and by the time a mod looked the
+// winner had already played several rated sets — which closes the window the
+// ordinary conversion needs.
+describe("crediting a cancelled set that has already been built on", () => {
+  beforeEach(async () => {
+    await activeSeason();
+  });
+
+  async function playedSince(a: string, b: string) {
+    await prisma.ratingMatch.create({
+      data: {
+        player1Id: a,
+        player2Id: b,
+        expiresAt: new Date(),
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(),
+      },
+    });
+  }
+
+  it("rates it at today's ratings once the normal window has closed", async () => {
+    const p1 = await createTestUser({ rating: 1500 });
+    const p2 = await createTestUser({ rating: 1500 });
+    const other = await createTestUser();
+    const match = await cancelledMatch(p1.id, p2.id, new Date(Date.now() - 3_600_000));
+    await playedSince(p1.id, other.id);
+    expect(await cancelledMatchIsConvertible(prisma, match)).toBe(false);
+
+    await adminCreditLateCancelledMatch(match.id, p1.id);
+
+    const after = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(after.status).toBe(MatchStatus.CONFIRMED);
+    expect(after.reportedWinnerId).toBe(p1.id);
+    const [w, l] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    expect(w.rating).toBeGreaterThan(1500);
+    expect(l.rating).toBeLessThan(1500);
+  });
+
+  // The ordinary path keeps the set in its own place on the ladder, so it has
+  // to stay the one a mod reaches for while it is still available.
+  it("refuses while the set is still convertible normally", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await cancelledMatch(p1.id, p2.id);
+    expect(await cancelledMatchIsConvertible(prisma, match)).toBe(true);
+    await expect(adminCreditLateCancelledMatch(match.id, p1.id)).rejects.toThrow();
+  });
+
+  it("refuses a winner who was not in the set", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const other = await createTestUser();
+    const match = await cancelledMatch(p1.id, p2.id, new Date(Date.now() - 3_600_000));
+    await playedSince(p1.id, other.id);
+    await expect(adminCreditLateCancelledMatch(match.id, other.id)).rejects.toThrow();
+  });
+
+  // Listing them is half the fix: a cancelled set is invisible everywhere
+  // else, which is what let an unreported game 4 look like a deleted loss.
+  it("lists the built-on sets, and leaves the still-convertible ones to the other list", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const other = await createTestUser();
+    const stale = await cancelledMatch(p1.id, p2.id, new Date(Date.now() - 3_600_000));
+    await playedSince(p1.id, other.id);
+    const fresh = await cancelledMatch(other.id, p2.id);
+
+    const ids = (await listLateCancelledMatches()).map((m) => m.id);
+    expect(ids).toContain(stale.id);
+    expect(ids).not.toContain(fresh.id);
   });
 });

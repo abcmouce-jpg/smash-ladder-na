@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Trophy } from "lucide-react";
 import { playTierUpChime, playVictoryChime } from "@/lib/sound";
-import { formatRating } from "@/lib/rating-format";
+import { formatRating, formatTrackRating } from "@/lib/rating-format";
+import type { RatingTrack } from "@/lib/rating-track";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 
@@ -79,12 +80,15 @@ export function VictoryCelebration({
   ratingAfter,
   tierUp,
   tierName,
+  track = "main",
   lang = "en",
 }: {
   ratingBefore: number;
   ratingAfter: number;
   tierUp: boolean;
   tierName?: string;
+  /** The ladder the counted-up number belongs to — prefixes P/R when it isn't the main one. */
+  track?: RatingTrack;
   lang?: Lang;
 }) {
   const displayRating = useCountUp(ratingBefore, ratingAfter);
@@ -111,7 +115,7 @@ export function VictoryCelebration({
               })
             : tr(lang, { en: "Victory!", es: "¡Victoria!" })}
         </p>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">{displayRating}</p>
+        <p className="mt-1 text-3xl font-semibold tabular-nums">{formatTrackRating(displayRating, track)}</p>
         <p className="text-sm font-medium tabular-nums text-primary">
           {tr(lang, { en: `+${delta} rating`, es: `+${delta} de clasificación` })}
         </p>

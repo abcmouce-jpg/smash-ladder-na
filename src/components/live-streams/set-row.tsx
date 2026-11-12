@@ -11,7 +11,7 @@ import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { formatRating } from "@/lib/rating-format";
+import { formatTrackRating } from "@/lib/rating-format";
 import { isRatingVisible } from "@/lib/rank-tier";
 import {
   STATUS_LABEL,
@@ -300,7 +300,9 @@ function Side({
         <span
           className={cn("flex min-w-0 items-center gap-1 text-xs text-muted-foreground", isRight && "sm:justify-end")}
         >
-          {ratingVisible && <span className="tabular-nums">{formatRating(shownRating)}</span>}
+          {ratingVisible && (
+            <span className="tabular-nums">{formatTrackRating(shownRating, randitto ? "randitto" : "main")}</span>
+          )}
           {USES_REGIONS && player.region && (
             <span className="flex min-w-0 items-center gap-0.5">
               <MapPin className="size-3 shrink-0" />

@@ -13,11 +13,13 @@ import { TwitchIcon } from "@/components/twitch-icon";
 import { TwitchVodEmbed } from "@/components/twitch-vod-embed";
 import { cn } from "@/lib/utils";
 import type { MatchHistoryEntryData, MatchStreamSummary } from "@/lib/players";
-import { formatRating } from "@/lib/rating-format";
+import { formatRating, formatTrackRating } from "@/lib/rating-format";
+import { trackFor } from "@/lib/rating-track";
 import { formatTwitchTime } from "@/lib/twitch-vod";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 import { PROVISIONAL_LABEL } from "@/components/rank-badge";
+import { MatchMode } from "@/generated/prisma/enums";
 
 // The page hands this component the same entry getPlayerMatchHistory
 // returns, except confirmedAt must be serialized to an ISO string first
@@ -134,9 +136,10 @@ export function MatchHistoryEntry({
   // data.
   const trailVisible = canSeeHiddenRatings || (match.ratingRevealed ?? true);
   const hasRatingTrail = trailVisible && match.ratingBefore != null && match.ratingAfter != null;
+  const track = trackFor(match.mode, match.isPracticing);
   const deltaClass = cn(
     "text-xs tabular-nums",
-    match.isPracticing
+    track !== "main"
       ? "text-muted-foreground"
       : delta > 0
         ? "text-emerald-600 dark:text-emerald-400"
@@ -144,12 +147,18 @@ export function MatchHistoryEntry({
           ? "text-destructive"
           : "text-muted-foreground",
   );
-  const ratingTrailTitle = match.isPracticing
-    ? tr(lang, {
-        en: "Practice rating before → after",
-        es: "Clasificación de práctica antes → después",
-      })
-    : tr(lang, { en: "Rating before → after", es: "Clasificación antes → después" });
+  const ratingTrailTitle =
+    track === "practice"
+      ? tr(lang, {
+          en: "Practice rating before → after",
+          es: "Clasificación de práctica antes → después",
+        })
+      : track === "randitto"
+        ? tr(lang, {
+            en: "Randitto rating before → after",
+            es: "Clasificación de randitto antes → después",
+          })
+        : tr(lang, { en: "Rating before → after", es: "Clasificación antes → después" });
 
   return (
     <div className="px-3 py-2 sm:px-4 sm:py-2.5">
@@ -191,6 +200,11 @@ export function MatchHistoryEntry({
                   {tr(lang, { en: "Practice", es: "Práctica" })}
                 </Badge>
               )}
+              {match.mode === MatchMode.RANDITTO && (
+                <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                  {tr(lang, { en: "Randitto", es: "Randitto" })}
+                </Badge>
+              )}
               {hasVod && (
                 <TwitchIcon
                   className="size-3.5 shrink-0 text-[#9146FF]"
@@ -209,7 +223,8 @@ export function MatchHistoryEntry({
               // doesn't say what ±12 meant at that point in the ladder.
               <span className="flex items-baseline gap-1.5 text-xs tabular-nums" title={ratingTrailTitle}>
                 <span className="text-muted-foreground">
-                  {formatRating(match.ratingBefore ?? 0)} → {formatRating(match.ratingAfter ?? 0)}
+                  {formatTrackRating(match.ratingBefore ?? 0, track)} →{" "}
+                  {formatTrackRating(match.ratingAfter ?? 0, track)}
                 </span>
                 <span className={deltaClass}>
                   {delta > 0 ? "+" : ""}
@@ -317,6 +332,9 @@ function MatchDetailsModal({
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               {match.isPracticing && <Badge variant="outline">{tr(lang, { en: "Practice", es: "Práctica" })}</Badge>}
+              {match.mode === MatchMode.RANDITTO && (
+                <Badge variant="outline">{tr(lang, { en: "Randitto", es: "Randitto" })}</Badge>
+              )}
               <span className="font-medium">
                 {viewedPlayerName} <span className="text-muted-foreground">{tr(lang, { en: "vs", es: "contra" })}</span>{" "}
                 {match.opponent.username}
