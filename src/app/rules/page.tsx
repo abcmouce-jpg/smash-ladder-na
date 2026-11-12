@@ -34,7 +34,12 @@ export default async function RulesPage() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Rules</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Covers ranked play. Friendlies and start.gg tournaments are separate — see the notes at the bottom.
+        Covers ranked play. Friendlies and start.gg tournaments are separate — see the notes at the bottom. For what the
+        result then does to your rating, see{" "}
+        <a href="/rating" className="underline">
+          how the rating works
+        </a>
+        .
       </p>
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
@@ -49,15 +54,22 @@ export default async function RulesPage() {
               pool: 1st gets ${PRIZE_AMOUNTS_USD[0]}, 2nd ${PRIZE_AMOUNTS_USD[1]}, and 3rd ${PRIZE_AMOUNTS_USD[2]}. You
               need {LEADERBOARD_MIN_GAMES}+ sets played to appear on the leaderboard at all.
             </p>
-            <p>
-              The current preseason is a fixed {PRE_SEASON_DURATION_MONTHS}
-              -month trial run, expected to end around{" "}
-              {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
-                timeZone: DISPLAY_TIME_ZONE,
-                dateStyle: "long",
-              })}
-              . Ending a season resets everyone&apos;s rating for the next one.
-            </p>
+            {/* Only while it is actually the preseason. Left unconditional, this
+                kept telling everyone a trial run was "current" for weeks after
+                Season 1 had started. */}
+            {PRE_SEASON_EXPECTED_END_AT > new Date() ? (
+              <p>
+                The current preseason is a fixed {PRE_SEASON_DURATION_MONTHS}
+                -month trial run, expected to end around{" "}
+                {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
+                  timeZone: DISPLAY_TIME_ZONE,
+                  dateStyle: "long",
+                })}
+                . Ending a season resets everyone&apos;s rating for the next one.
+              </p>
+            ) : (
+              <p>Ending a season resets everyone&apos;s rating for the next one.</p>
+            )}
           </Section>
         ) : (
           <Section title="Seasons">
@@ -341,10 +353,14 @@ function RulesPageEs() {
               {PRIZE_AMOUNTS_USD[1]}, y 3° ${PRIZE_AMOUNTS_USD[2]}. Necesitas {LEADERBOARD_MIN_GAMES}+ partidas jugadas
               para aparecer en la tabla de posiciones.
             </p>
-            <p>
-              La preseason actual es una prueba fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor
-              del {endDate}. Terminar una temporada reinicia la clasificación de todos para la siguiente.
-            </p>
+            {PRE_SEASON_EXPECTED_END_AT > new Date() ? (
+              <p>
+                La preseason actual es una prueba fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado alrededor
+                del {endDate}. Terminar una temporada reinicia la clasificación de todos para la siguiente.
+              </p>
+            ) : (
+              <p>Terminar una temporada reinicia la clasificación de todos para la siguiente.</p>
+            )}
           </Section>
         ) : (
           <Section title="Temporadas">

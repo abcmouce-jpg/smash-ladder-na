@@ -39,7 +39,11 @@ export default async function FaqPage() {
         <a href="/rules" className="underline">
           Rules page
         </a>{" "}
-        for the actual match rules this refers back to.
+        for the actual match rules this refers back to, and{" "}
+        <a href="/rating" className="underline">
+          how the rating works
+        </a>{" "}
+        for what moves the number on your profile.
       </p>
 
       <div className="mt-8 flex flex-col gap-8">
@@ -61,10 +65,11 @@ export default async function FaqPage() {
             Don&apos;t just resubmit and hope — this puts the match in a disputed state where a mod steps in to resolve
             it based on both reports. If it was deliberate, file a conduct report too.
           </QA>
-          <QA q="My rating didn't change after a confirmed match.">
-            Rounding can occasionally produce a 0-point change at the extreme ends of a rating gap — that&apos;s
-            expected, not a bug. If both reports clearly matched and the winner looks wrong on your profile, report the
-            match as a dispute.
+          <QA q="My rating barely changed after a confirmed match.">
+            Beating someone far below you, or losing to someone far above you, is close to what the rating already
+            predicted, so it moves very little — a point or two. It can never be nothing: every confirmed set moves both
+            ratings by at least 1, the winner up and the loser down. If the change looks like 0 or the winner is wrong
+            on your profile, report the match as a dispute.
           </QA>
           <QA q="What do I need for a 'wired connection' badge?">
             A USB-C-to-Ethernet adapter if you play undocked, or just an Ethernet cable into the dock. See the{" "}
@@ -225,10 +230,11 @@ function FaqPageEs() {
             donde un mod interviene para resolverla según ambos reportes. Si fue deliberado, presenta también un reporte
             de conducta.
           </QA>
-          <QA q="Mi clasificación no cambió después de una partida confirmada.">
-            El redondeo puede ocasionalmente producir un cambio de 0 puntos en los extremos de una diferencia de
-            clasificación grande — eso es esperado, no un bug. Si ambos reportes coincidían claramente y el ganador se
-            ve mal en tu perfil, reporta la partida como disputa.
+          <QA q="Mi clasificación apenas cambió después de una partida confirmada.">
+            Ganarle a alguien muy por debajo de ti, o perder contra alguien muy por encima, es casi lo que la
+            clasificación ya predecía, así que se mueve muy poco — un punto o dos. Nunca puede ser nada: cada set
+            confirmado mueve ambas clasificaciones al menos 1, el ganador hacia arriba y el perdedor hacia abajo. Si el
+            cambio se ve como 0 o el ganador está mal en tu perfil, reporta la partida como disputa.
           </QA>
           <QA q="¿Qué necesito para la insignia de 'conexión por cable'?">
             Un adaptador USB-C a Ethernet si juegas sin el dock, o simplemente un cable Ethernet al dock. Ve la{" "}
