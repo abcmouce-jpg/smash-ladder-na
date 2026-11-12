@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus } from "@/generated/prisma/enums";
+import { MatchMode, MatchStatus } from "@/generated/prisma/enums";
 import { liftExpiredSuspension, isDeletedAccountUsername } from "@/lib/account";
 import { isEffectiveSupporter, isEffectiveGoldSupporter } from "@/lib/supporters";
 import { getActiveSeason } from "@/lib/seasons";
 import { formatRating } from "@/lib/rating-format";
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
+import { trackFor } from "@/lib/rating-track";
 import { startOfDayInTimeZone } from "@/lib/timezone";
 
 // The rating a player has ever reached, not their current one — same
@@ -38,11 +39,12 @@ export async function getUserRegion(userId: string): Promise<string | null> {
 //
 // Two sets, because a value and a change have slightly different boundaries:
 //   - changeIds: matches whose before→after (and delta) stay hidden — the whole
-//     opening window, on either track.
+//     opening window, counted separately on each track (main, practice,
+//     randitto).
 //   - valueIds: matches whose *rating value* stays hidden — one fewer, since
 //     the match that graduates the player produces the first public rating
 //     (the number the current-rating gate starts showing at that point).
-//     Ranked only; RatingHistory holds no practice rows.
+//     Ranked only; RatingHistory holds no practice or randitto rows.
 export async function getHiddenRatingMatchIds(userId: string): Promise<{ changeIds: string[]; valueIds: string[] }> {
   const activeSeason = await getActiveSeason();
   if (!activeSeason) return { changeIds: [], valueIds: [] };
@@ -54,22 +56,32 @@ export async function getHiddenRatingMatchIds(userId: string): Promise<{ changeI
       OR: [{ player1Id: userId }, { player2Id: userId }],
     },
     orderBy: [{ confirmedAt: "asc" }, { id: "asc" }],
-    select: { id: true, player1Id: true, player1IsPracticing: true, player2IsPracticing: true },
+    select: { id: true, mode: true, player1Id: true, player1IsPracticing: true, player2IsPracticing: true },
   });
 
   const changeIds: string[] = [];
   const valueIds: string[] = [];
   let ranked = 0;
   let practice = 0;
+  let randitto = 0;
   for (const m of matches) {
     const practicing = m.player1Id === userId ? m.player1IsPracticing : m.player2IsPracticing;
-    if (practicing) {
-      practice++;
-      if (practice <= PROVISIONAL_GAMES_THRESHOLD) changeIds.push(m.id);
-    } else {
-      ranked++;
-      if (ranked <= PROVISIONAL_GAMES_THRESHOLD) changeIds.push(m.id);
-      if (ranked < PROVISIONAL_GAMES_THRESHOLD) valueIds.push(m.id);
+    // Each track keeps its own opening window. Counting randitto alongside
+    // ranked would let a player's first five randitto sets hide (or, once
+    // they graduate, expose) main-ladder numbers they never played for.
+    switch (trackFor(m.mode, practicing)) {
+      case "practice":
+        practice++;
+        if (practice <= PROVISIONAL_GAMES_THRESHOLD) changeIds.push(m.id);
+        break;
+      case "randitto":
+        randitto++;
+        if (randitto <= PROVISIONAL_GAMES_THRESHOLD) changeIds.push(m.id);
+        break;
+      default:
+        ranked++;
+        if (ranked <= PROVISIONAL_GAMES_THRESHOLD) changeIds.push(m.id);
+        if (ranked < PROVISIONAL_GAMES_THRESHOLD) valueIds.push(m.id);
     }
   }
   return { changeIds, valueIds };
@@ -305,6 +317,7 @@ export interface MatchHistoryEntryData {
   id: string;
   opponent: { id: string; username: string };
   won: boolean;
+  mode: MatchMode;
   isPracticing: boolean;
   ratingBefore: number | null;
   ratingAfter: number | null;
@@ -413,6 +426,7 @@ export async function getPlayerMatchHistory(
       id: match.id,
       opponent,
       won,
+      mode: match.mode,
       isPracticing,
       ratingBefore,
       ratingAfter,
