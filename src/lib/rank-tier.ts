@@ -171,20 +171,24 @@ export function rankTiersFor(algorithm: SeasonAlgorithm): readonly RankTier[] {
 export const FREE_BATTLE_TIERS = ["Grandmaster", "Master", "Elite"] as const;
 export type FreeBattleTier = (typeof FREE_BATTLE_TIERS)[number];
 
-// Sets played before a rating is trusted enough to name a tier — and, by the
-// same rule, before the number itself is shown to anyone but moderators (see
-// isRatingVisible). Named here rather than left as a literal so the Info popup
-// can state the number without hardcoding a second copy of it. Deliberately NOT
-// shared with kFactor in matches.ts, which still tapers over a longer run of
-// games and is a separate rating-math decision — collapsing them would
-// silently couple two unrelated rules together.
-export const PROVISIONAL_MIN_GAMES = 5;
-
 // Rating is noisy under this many games, so a provisional player gets no tier
 // yet rather than a misleadingly precise one. Also used by lobby.ts to cap how
 // wide a rating gap a provisional player can be matched across, and by
-// isRatingVisible to decide whether the number is public at all.
-export const PROVISIONAL_GAMES_THRESHOLD = 5;
+// isRatingVisible to decide whether the number is public at all. The pages
+// that tell players the rule read it from here rather than printing their own
+// literal.
+//
+// A PROVISIONAL_MIN_GAMES used to sit beside this with the same value and the
+// same meaning, one feeding the copy and one feeding the logic. That is the
+// second copy the comment on it was trying to avoid, and raising the rule
+// would have moved the behaviour while leaving every page still promising
+// the old number, so the two are now one name.
+//
+// Raised 5 -> 10 on 2026-11-13. Deliberately NOT shared with kFactor in
+// matches.ts, which still tapers over a longer run of games and is a separate
+// rating-math decision — collapsing them would silently couple two unrelated
+// rules together.
+export const PROVISIONAL_GAMES_THRESHOLD = 10;
 
 // Whether a player's rating may be shown to a given viewer. A brand-new
 // player's number is still swinging wildly (see kFactor), so it stays hidden
@@ -246,7 +250,16 @@ export function pointsToNextTier(
 // shown to anyone but moderators until a player is past provisional (see
 // isRatingVisible), so the floor can't sit below that threshold without
 // leaving hidden numbers on a public board.
-export const LEADERBOARD_MIN_GAMES = 5;
+//
+// Raised 5 -> 10 alongside that threshold on 2026-11-13. Measured against
+// production the day it changed: 1,361 active players cleared 5 sets and 963
+// clear 10, so this takes 398 players (29% of the board) off it until they
+// play five more. The randitto board shares this floor and is far younger —
+// 9 players cleared 5 randitto sets and 2 clear 10 — so it is close to empty
+// at this number. If that board should start lower it needs a floor of its
+// own, and the invariant above means the provisional threshold has to come
+// down with it or it will list ratings nobody is allowed to see.
+export const LEADERBOARD_MIN_GAMES = 10;
 
 // True only when a match's rating gain crossed into a strictly higher tier
 // — used to surface a special "tier up" moment rather than the regular win

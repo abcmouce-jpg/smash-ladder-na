@@ -10,17 +10,18 @@ import {
   LEGACY_RANK_TIERS,
   achievementComparator,
   computeRatingMilestoneAchievements,
+  PROVISIONAL_GAMES_THRESHOLD,
   type Achievement,
 } from "./rank-tier";
 
 describe("getRankTier", () => {
-  it("returns null for provisional players (< 5 games)", () => {
-    expect(getRankTier(2000, 4)).toBeNull();
+  it("returns null for provisional players", () => {
+    expect(getRankTier(2000, PROVISIONAL_GAMES_THRESHOLD - 1)).toBeNull();
     expect(getRankTier(1500, 0)).toBeNull();
   });
 
-  it("returns a tier as soon as a player is past provisional (5 games)", () => {
-    expect(getRankTier(1500, 5)?.name).toBe("Fighter");
+  it("returns a tier as soon as a player is past provisional", () => {
+    expect(getRankTier(1500, PROVISIONAL_GAMES_THRESHOLD)?.name).toBe("Fighter");
   });
 
   it("returns Legend at 2200+", () => {
@@ -81,17 +82,17 @@ describe("didTierUp", () => {
 describe("isRatingVisible", () => {
   it("hides the rating while a player is still provisional", () => {
     expect(isRatingVisible(0, false)).toBe(false);
-    expect(isRatingVisible(4, false)).toBe(false);
+    expect(isRatingVisible(PROVISIONAL_GAMES_THRESHOLD - 1, false)).toBe(false);
   });
 
   it("shows the rating once a player is past provisional", () => {
-    expect(isRatingVisible(5, false)).toBe(true);
+    expect(isRatingVisible(PROVISIONAL_GAMES_THRESHOLD, false)).toBe(true);
     expect(isRatingVisible(50, false)).toBe(true);
   });
 
   it("always shows the rating to a moderator", () => {
     expect(isRatingVisible(0, true)).toBe(true);
-    expect(isRatingVisible(4, true)).toBe(true);
+    expect(isRatingVisible(PROVISIONAL_GAMES_THRESHOLD - 1, true)).toBe(true);
   });
 });
 
