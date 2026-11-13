@@ -3,15 +3,19 @@
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CharacterIcon } from "@/components/character-icon";
 import { LocalTime } from "@/components/local-time";
 import { MatchChatLog } from "@/components/match-chat-log";
+import { TwitchIcon } from "@/components/twitch-icon";
+import { TwitchVodEmbed } from "@/components/twitch-vod-embed";
 import { cn } from "@/lib/utils";
-import type { MatchHistoryEntryData } from "@/lib/players";
+import type { MatchHistoryEntryData, MatchStreamSummary } from "@/lib/players";
 import { formatRating, formatTrackRating } from "@/lib/rating-format";
 import { trackFor } from "@/lib/rating-track";
+import { formatTwitchTime } from "@/lib/twitch-vod";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 import { PROVISIONAL_LABEL } from "@/components/rank-badge";
@@ -91,6 +95,7 @@ function CharactersLine({ mine, theirs, lang = "en" }: { mine: string[]; theirs:
 export function MatchHistoryEntry({
   match,
   viewedPlayerName,
+  parentHost,
   chatLogAction,
   canSeeHiddenRatings = false,
   children,
@@ -99,6 +104,8 @@ export function MatchHistoryEntry({
   match: SerializedMatchHistoryEntryData;
   /** Username of the player whose profile this is — labels their side of each game card. */
   viewedPlayerName: string;
+  /** Hostname the Twitch replay iframe requires as its `parent` query param. */
+  parentHost: string;
   /** Bound server action for loading the match's chat, when the viewer may see it. */
   chatLogAction?: ComponentProps<typeof MatchChatLog>["action"];
   /** Moderator override: show even the match's own hidden rating trail (see ratingRevealed). */
@@ -108,6 +115,14 @@ export function MatchHistoryEntry({
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
+
+  // A set can have at most two captured streams (one per side), but only the
+  // ones whose VOD has actually been resolved can be replayed — that's what the
+  // row's Twitch mark and the modal's embeds both key off of.
+  const vodStreams = (match.streams ?? []).filter(
+    (s): s is MatchStreamSummary & { vodId: string } => s.vodId !== null,
+  );
+  const hasVod = vodStreams.length > 0;
 
   const { score, delta } = match;
   const hasScore = score.wins > 0 || score.losses > 0;
@@ -190,6 +205,14 @@ export function MatchHistoryEntry({
                   {tr(lang, { en: "Randitto", es: "Randitto" })}
                 </Badge>
               )}
+              {hasVod && (
+                <TwitchIcon
+                  className="size-3.5 shrink-0 text-[#9146FF]"
+                  // Just a marker, not a link — the replay itself is one click
+                  // deeper, in the expanded set.
+                  aria-hidden
+                />
+              )}
             </p>
             <CharactersLine mine={match.characters} theirs={match.opponentCharacters} lang={lang} />
           </div>
@@ -233,6 +256,8 @@ export function MatchHistoryEntry({
         <MatchDetailsModal
           match={match}
           viewedPlayerName={viewedPlayerName}
+          parentHost={parentHost}
+          vodStreams={vodStreams}
           chatLogAction={chatLogAction}
           onClose={close}
           lang={lang}
@@ -251,15 +276,25 @@ export function MatchHistoryEntry({
 // modal reflects the full set that was played. Kept as a plain internal
 // function (not exported) so its onClose callback never looks like a
 // server-action prop to Next's client-boundary checks.
+// Public Twitch replay link, opening at the same point as the embed.
+function twitchReplayUrl(vodId: string, offsetSeconds: number | null) {
+  const base = `https://www.twitch.tv/videos/${vodId}`;
+  return offsetSeconds && offsetSeconds > 0 ? `${base}?t=${formatTwitchTime(offsetSeconds)}` : base;
+}
+
 function MatchDetailsModal({
   match,
   viewedPlayerName,
+  parentHost,
+  vodStreams,
   chatLogAction,
   onClose,
   lang = "en",
 }: {
   match: SerializedMatchHistoryEntryData;
   viewedPlayerName: string;
+  parentHost: string;
+  vodStreams: readonly (MatchStreamSummary & { vodId: string })[];
   chatLogAction?: ComponentProps<typeof MatchChatLog>["action"];
   onClose: () => void;
   lang?: Lang;
@@ -374,6 +409,49 @@ function MatchDetailsModal({
             </div>
           ))}
         </div>
+
+        {vodStreams.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs font-medium text-muted-foreground">
+              {lang === "es" ? "Repetición en Twitch" : "Twitch replay"}
+            </p>
+            <div className="mt-2 flex flex-col gap-3">
+              {vodStreams.map((stream) => {
+                // The streamer is one of the two players, so its name is already
+                // on hand — no need to store it alongside the capture.
+                const streamerName = stream.userId === match.opponent.id ? match.opponent.username : viewedPlayerName;
+                const replayUrl = twitchReplayUrl(stream.vodId, stream.vodOffsetSeconds);
+                return (
+                  <div key={stream.userId} className="rounded-lg border border-border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                      <span className="flex items-center gap-1.5 text-xs font-medium">
+                        <TwitchIcon className="size-3.5 text-[#9146FF]" aria-hidden />
+                        {lang === "es" ? `Repetición de ${streamerName}` : `${streamerName}'s stream`}
+                      </span>
+                      <a
+                        href={replayUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs font-medium text-[#9146FF] hover:underline"
+                      >
+                        {lang === "es" ? "Ver en Twitch" : "Watch on Twitch"}
+                        <ExternalLink className="size-3" aria-hidden />
+                      </a>
+                    </div>
+                    <div className="mt-2">
+                      <TwitchVodEmbed
+                        videoId={stream.vodId}
+                        offsetSeconds={stream.vodOffsetSeconds ?? 0}
+                        parentHost={parentHost}
+                        title={lang === "es" ? `Repetición de ${streamerName}` : `${streamerName}'s Twitch replay`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {chatLogAction && (
           <div className="mt-4">

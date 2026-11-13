@@ -176,4 +176,57 @@ describe("Twitch Helix lookups", () => {
     await expect(getLiveTwitchUsernames(["SomeChannel"])).resolves.toEqual(new Set());
     await expect(isTwitchLive("SomeChannel")).resolves.toBe(false);
   });
+
+  it("fetches a channel's archived VODs and parses their window", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = input.toString();
+        if (url.includes("/oauth2/token")) return json({ access_token: "token-1", expires_in: 5_000_000 });
+        calls.push(url);
+        return json({
+          data: [
+            {
+              id: "123",
+              user_id: "42",
+              user_login: "SomeChannel",
+              created_at: "2026-01-01T20:00:00Z",
+              duration: "1h2m3s",
+              url: "https://www.twitch.tv/videos/123",
+            },
+          ],
+        });
+      }),
+    );
+
+    const { getTwitchVideos } = await loadRealHelix();
+
+    const videos = await getTwitchVideos("42");
+    expect(videos).toHaveLength(1);
+    expect(videos?.[0]).toMatchObject({
+      id: "123",
+      userId: "42",
+      userLogin: "somechannel",
+      durationSeconds: 3723,
+      url: "https://www.twitch.tv/videos/123",
+    });
+    expect(calls[0]).toContain("type=archive");
+    expect(calls[0]).toContain("user_id=42");
+  });
+
+  it("fails closed to null when the videos endpoint errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = input.toString();
+        if (url.includes("/oauth2/token")) return json({ access_token: "token-1", expires_in: 5_000_000 });
+        return json({ error: "server error" }, 500);
+      }),
+    );
+
+    const { getTwitchVideos } = await loadRealHelix();
+
+    await expect(getTwitchVideos("42")).resolves.toBeNull();
+  });
 });

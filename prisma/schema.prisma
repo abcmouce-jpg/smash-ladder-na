@@ -288,6 +288,7 @@ model User {
   characterGuideSubscriptions CharacterGuideSubscription[]
   apiTokens                   ApiToken[]
   kofiDonationsMatched        KofiDonation[]
+  matchStreams                MatchStream[]
 
   @@index([rating])
   @@index([mainCharacter])
@@ -396,6 +397,7 @@ model RatingMatch {
   games             MatchGame[] // best-of-5: game 1 decides the stage via strike+pick, games 2-5 are counterpicks
   conductReports    ConductReport[]
   connectionReports ConnectionReport[]
+  streams           MatchStream[]
 
   @@index([status])
   // The activity charts (home + Stats overview) filter on exactly this pair —
@@ -473,6 +475,35 @@ model MatchGame {
 
   @@unique([matchId, gameNumber])
   @@index([matchId])
+}
+
+// One side of a RatingMatch that was live on Twitch while the set was played
+// — captured (best-effort) when the match confirms, keyed to the streamer's
+// stable Twitch user id so a later ladder re-link/rename can't orphan it.
+// Twitch only publishes a past broadcast once the stream ends, so the replay
+// can't be known at confirm time: vodId / vodOffsetSeconds are filled in
+// lazily the first time the set is viewed in a profile's match history (see
+// lib/match-streams.ts). The row's existence alone is what marks the set as
+// "streamed"; the VOD fields are what make the replay available.
+model MatchStream {
+  id           String      @id @default(cuid())
+  matchId      String
+  match        RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  twitchUserId String // the streamer's Twitch user id at capture time (stable across Twitch renames)
+  twitchLogin  String // lowercase login, used to build the replay/embed URL
+  capturedAt   DateTime    @default(now()) // when the live-status check ran (≈ match end)
+  // VOD resolution — null until a past broadcast covering this set is found.
+  vodId            String?
+  vodOffsetSeconds Int? // seconds into the VOD where the set starts
+  vodResolvedAt    DateTime? // set once a covering VOD is found
+  vodCheckedAt     DateTime? // throttles re-lookups so a render doesn't hammer Helix
+  createdAt        DateTime  @default(now())
+
+  @@unique([matchId, userId])
+  @@index([matchId])
+  @@index([userId])
 }
 
 // Tracks when each player last typed in a match's chat. Updated via server

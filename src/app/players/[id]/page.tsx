@@ -125,6 +125,7 @@ export default async function PlayerProfilePage({
             practiceGamesPlayed={player.practiceGamesPlayed}
             isOwnProfile={isOwnProfile}
             isModerator={isModerator}
+            parentHost={parentHost}
             lang={lang}
           />
         )}
@@ -149,6 +150,7 @@ export default async function PlayerProfilePage({
             againstParam={againstParam}
             isOwnProfile={isOwnProfile}
             isModerator={isModerator}
+            parentHost={parentHost}
             lang={lang}
           />
         )}

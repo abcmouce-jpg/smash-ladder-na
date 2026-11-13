@@ -334,6 +334,26 @@ export interface MatchHistoryEntryData {
   characters: string[];
   opponentCharacters: string[];
   games: MatchHistoryGame[];
+  /**
+   * Twitch replays captured for this set, if any. Empty by default — it's only
+   * populated by attachMatchStreams (see lib/match-streams.ts), which the
+   * profile's history callers run and the lobby's streak badge / stream
+   * overlay don't. Entries here mark the set as streamed; `vodId` is null
+   * until a covering past broadcast has been resolved.
+   */
+  streams: MatchStreamSummary[];
+}
+
+/** One captured Twitch stream of a set, reduced to what the replay UI needs. */
+export interface MatchStreamSummary {
+  /** Ladder user id of the streamer — the viewed player or their opponent. */
+  userId: string;
+  /** Lowercase Twitch login, for the replay URL. */
+  twitchLogin: string;
+  /** Resolved VOD id, or null while no covering past broadcast is known. */
+  vodId: string | null;
+  /** Seconds into the VOD where the set starts. */
+  vodOffsetSeconds: number | null;
 }
 
 export async function getPlayerMatchHistory(
@@ -439,6 +459,10 @@ export async function getPlayerMatchHistory(
       characters,
       opponentCharacters,
       games,
+      // Empty by default — the profile's history callers fill this in via
+      // attachMatchStreams. Every other caller gets a stream-free entry and
+      // pays no extra query for it.
+      streams: [],
     };
   });
 }
