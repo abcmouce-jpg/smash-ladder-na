@@ -5,6 +5,7 @@ import { useFlashOnChange } from "@/lib/use-flash-on-change";
 import type { RoomCodeState } from "@/app/lobby/actions";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
+import { writeLastRoomCode } from "@/lib/last-room-code";
 
 // Idle time before a typed code is pushed to the server — long enough that a
 // code typed straight through only saves once, short enough that the value is
@@ -42,6 +43,10 @@ export function QueueRoomCodeForm({
     if (roomCode !== "" && !COMPLETE_ROOM_CODE.test(roomCode)) return;
     const timer = setTimeout(() => {
       syncedRef.current = roomCode;
+      // Remember it for the next join too. Without this the two room-code
+      // fields disagree: a player who changed arenas mid-queue would be
+      // handed the previous code back the moment they requeued.
+      writeLastRoomCode(roomCode);
       const formData = new FormData();
       formData.set("existingRoomCode", roomCode);
       formAction(formData);
