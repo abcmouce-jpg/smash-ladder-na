@@ -8,6 +8,7 @@
 // `time` param in "1h2m3s" form. Autoplay defaults to true on the embed, so
 // it's explicitly disabled — opening a match's details shouldn't start a video.
 import { formatTwitchTime } from "@/lib/twitch-vod";
+import { twitchParent } from "@/lib/stream-links";
 
 export function TwitchVodEmbed({
   videoId,
@@ -20,7 +21,7 @@ export function TwitchVodEmbed({
   parentHost: string;
   title?: string;
 }) {
-  const params = new URLSearchParams({ video: `v${videoId}`, parent: parentHost, autoplay: "false" });
+  const params = new URLSearchParams({ video: `v${videoId}`, parent: twitchParent(parentHost), autoplay: "false" });
   if (offsetSeconds > 0) params.set("time", formatTwitchTime(offsetSeconds));
 
   return (
