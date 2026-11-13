@@ -1,3 +1,4 @@
+import type { Lang } from "@/lib/lang";
 import { DISTANCE_MATCHMAKING } from "@/lib/site";
 
 // USA/Canada broad regions predate state/province-level granularity below —
@@ -293,6 +294,15 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // most of a large country in NA, but nearly all of Europe), so a label
 // claiming to match a specific unit reads wrong for a lot of players.
 //
+// The adjectives that used to lead each label ("Close", "Moderate",
+// "Extended", and "Worldwide" for no limit) were dropped on 2026-11-13.
+// Moderate compared to what? The word carried no information the distance
+// beside it did not already carry, and "Worldwide" oversold the top step
+// on a ladder whose population is NA — it reads as "match me to Japan"
+// rather than "do not filter on distance". What is left is the shape the
+// other two match filters already use: a concrete bound, and an "Any" for
+// no bound (see MATCH_RATING_GAP_PRESETS' "Within 300" / "Any rating").
+//
 // Displayed in miles since the target audience is NA — the underlying
 // `km` values are what's actually stored and compared against, unchanged.
 //
@@ -316,17 +326,17 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // coarser top step instead, since that distinction rarely mattered in
 // practice — past a few thousand miles, ping is bad either way.
 const NA_DISTANCE_PRESETS = [
-  { label: "Same region only", km: 0 },
-  { label: "Very close (~150 mi)", km: 240 },
-  { label: "Close (~400 mi)", km: 640 },
-  { label: "Nearby (~800 mi)", km: 1300 },
-  { label: "Moderate (~1,500 mi)", km: 2400 },
-  { label: "Extended (~3,500 mi)", km: 5600 },
-  { label: "Worldwide", km: null },
+  { label: { en: "Same region only", es: "Solo mi región" }, km: 0 },
+  { label: { en: "Within ~150 mi", es: "Hasta ~150 mi" }, km: 240 },
+  { label: { en: "Within ~400 mi", es: "Hasta ~400 mi" }, km: 640 },
+  { label: { en: "Within ~800 mi", es: "Hasta ~800 mi" }, km: 1300 },
+  { label: { en: "Within ~1,500 mi", es: "Hasta ~1,500 mi" }, km: 2400 },
+  { label: { en: "Within ~3,500 mi", es: "Hasta ~3,500 mi" }, km: 5600 },
+  { label: { en: "Any distance", es: "Cualquier distancia" }, km: null },
 ] as const;
 
 export const MATCH_DISTANCE_PRESETS: readonly {
-  label: string;
+  label: Record<Lang, string>;
   km: number | null;
 }[] = NA_DISTANCE_PRESETS;
 

@@ -647,7 +647,7 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
             disabled={disabled}
             options={MATCH_DISTANCE_PRESETS.map((preset) => ({
               value: String(preset.km ?? WORLDWIDE_VALUE),
-              label: preset.label,
+              label: preset.label[lang],
             }))}
           />
         )}
