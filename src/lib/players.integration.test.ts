@@ -18,6 +18,7 @@ import {
 } from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { DELETED_USERNAME } from "@/lib/account";
+import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { createTestUser } from "@/test/factories";
 
 async function createConfirmedMatch(
@@ -534,14 +535,17 @@ describe("getHiddenRatingMatchIds", () => {
     const opponent = await createTestUser();
     const base = Date.now();
 
+    // One past the threshold on each track, so the first set that is public
+    // again is in the fixture too.
+    const perTrack = PROVISIONAL_GAMES_THRESHOLD + 1;
     const ranked: string[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < perTrack; i++) {
       const m = await confirmedMatchInSeason(player.id, opponent.id, active.id, new Date(base + i * 1000));
       ranked.push(m.id);
     }
     const practice: string[] = [];
-    for (let i = 0; i < 6; i++) {
-      const m = await confirmedMatchInSeason(player.id, opponent.id, active.id, new Date(base + 10_000 + i * 1000), {
+    for (let i = 0; i < perTrack; i++) {
+      const m = await confirmedMatchInSeason(player.id, opponent.id, active.id, new Date(base + 100_000 + i * 1000), {
         player1IsPracticing: true,
       });
       practice.push(m.id);
@@ -549,15 +553,21 @@ describe("getHiddenRatingMatchIds", () => {
 
     const { changeIds, valueIds } = await getHiddenRatingMatchIds(player.id);
 
-    // The first five sets on each track hide their change; the sixth does not.
-    expect(changeIds).toEqual(expect.arrayContaining([...ranked.slice(0, 5), ...practice.slice(0, 5)]));
-    expect(changeIds).not.toContain(ranked[5]);
-    expect(changeIds).not.toContain(practice[5]);
+    // Every set up to the threshold hides its change on each track; the one
+    // after it does not.
+    expect(changeIds).toEqual(
+      expect.arrayContaining([
+        ...ranked.slice(0, PROVISIONAL_GAMES_THRESHOLD),
+        ...practice.slice(0, PROVISIONAL_GAMES_THRESHOLD),
+      ]),
+    );
+    expect(changeIds).not.toContain(ranked[PROVISIONAL_GAMES_THRESHOLD]);
+    expect(changeIds).not.toContain(practice[PROVISIONAL_GAMES_THRESHOLD]);
 
     // The value window is one shorter (the graduation rating is public), and
     // practice sets never have a value window — RatingHistory holds no practice rows.
-    expect(valueIds).toEqual(expect.arrayContaining(ranked.slice(0, 4)));
-    expect(valueIds).not.toContain(ranked[4]);
+    expect(valueIds).toEqual(expect.arrayContaining(ranked.slice(0, PROVISIONAL_GAMES_THRESHOLD - 1)));
+    expect(valueIds).not.toContain(ranked[PROVISIONAL_GAMES_THRESHOLD - 1]);
     expect(valueIds).not.toContain(practice[0]);
   });
 
