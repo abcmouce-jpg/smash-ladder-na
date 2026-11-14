@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { SITE_NAME, instanceText } from "@/lib/site";
 import Image from "next/image";
 import Link from "next/link";
 import { Users } from "lucide-react";
@@ -15,6 +17,19 @@ import { closeFreeBattlePost, postFreeBattle } from "./actions";
 import { getLang, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
 import { HAS_DISCORD_SERVER, USES_REGIONS } from "@/lib/site";
+
+// Its own title and description rather than the layout's site-wide pair,
+// so this page is not one more of several thousand that introduce
+// themselves to a crawler with the same two lines. The canonical pins the
+// filtered and paginated variants of this URL to the plain one.
+export const metadata: Metadata = {
+  title: `${instanceText({ en: "Friendlies", es: "Amistosos" })} — ${SITE_NAME}`,
+  description: instanceText({
+    en: "Unrated games, posted by players looking for someone to play right now. Nothing here moves a rating.",
+    es: "Partidas no clasificatorias, publicadas por jugadores que buscan con quién jugar ahora mismo.",
+  }),
+  alternates: { canonical: "/friendlies" },
+};
 
 export default async function FriendliesPage() {
   const [session, lang, posts] = await Promise.all([auth(), getLang(), getFriendliesPosts(20)]);

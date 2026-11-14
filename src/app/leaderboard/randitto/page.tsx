@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { SITE_NAME, instanceText } from "@/lib/site";
 import Link from "next/link";
 import { Dices } from "lucide-react";
 import { getLang } from "@/lib/i18n";
@@ -10,6 +12,19 @@ import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 // because it ranks a different number: a rating earned on fighters you were
 // handed is not comparable with one earned on the fighter you chose, and
 // showing them in one table invites exactly that comparison.
+// Its own title and description rather than the layout's site-wide pair,
+// so this page is not one more of several thousand that introduce
+// themselves to a crawler with the same two lines. The canonical pins the
+// filtered and paginated variants of this URL to the plain one.
+export const metadata: Metadata = {
+  title: `${instanceText({ en: "Randitto leaderboard", es: "Clasificación de randitto" })} — ${SITE_NAME}`,
+  description: instanceText({
+    en: "The separate ladder for randitto sets, where both players are handed a random fighter. Its rating never touches the main one.",
+    es: "La clasificación aparte para partidas de randitto, donde ambos jugadores reciben un personaje aleatorio.",
+  }),
+  alternates: { canonical: "/leaderboard/randitto" },
+};
+
 export default async function RandittoLeaderboardPage() {
   const lang = await getLang();
   const { totalCount, players } = await getRandittoLeaderboard();

@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { SITE_NAME, instanceText } from "@/lib/site";
 import Link from "next/link";
 import { CalendarClock, Dices, Trophy } from "lucide-react";
 import { auth } from "@/auth";
@@ -50,6 +52,19 @@ const COUNTRY_OPTIONS: OptionSelectOption[] = MATCH_COUNTRIES.map((c) => ({
   value: c,
   label: c,
 }));
+
+// Its own title and description rather than the layout's site-wide pair,
+// so this page is not one more of several thousand that introduce
+// themselves to a crawler with the same two lines. The canonical pins the
+// filtered and paginated variants of this URL to the plain one.
+export const metadata: Metadata = {
+  title: `${instanceText({ en: "Leaderboard", es: "Clasificación" })} — ${SITE_NAME}`,
+  description: instanceText({
+    en: `Every player past the ${LEADERBOARD_MIN_GAMES}-set floor, ranked by rating — filter by fighter, region or name, and see who is climbing this season.`,
+    es: `Todos los jugadores que superan el mínimo de ${LEADERBOARD_MIN_GAMES} sets, ordenados por clasificación — filtra por personaje, región o nombre.`,
+  }),
+  alternates: { canonical: "/leaderboard" },
+};
 
 export default async function LeaderboardPage({
   searchParams,

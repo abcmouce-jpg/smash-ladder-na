@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { SITE_NAME, instanceText } from "@/lib/site";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { auth } from "@/auth";
@@ -25,6 +27,19 @@ const STATUS_LABELS: Record<Lang, Record<string, string> | null> = {
 export function tournamentStatusLabel(status: string, lang: Lang): string {
   return STATUS_LABELS[lang]?.[status] ?? status.toLowerCase();
 }
+
+// Its own title and description rather than the layout's site-wide pair,
+// so this page is not one more of several thousand that introduce
+// themselves to a crawler with the same two lines. The canonical pins the
+// filtered and paginated variants of this URL to the plain one.
+export const metadata: Metadata = {
+  title: `${instanceText({ en: "Tournaments", es: "Torneos" })} — ${SITE_NAME}`,
+  description: instanceText({
+    en: "Community-run brackets on the ladder: open signups, events in progress, and the ones already decided.",
+    es: "Torneos organizados por la comunidad: inscripciones abiertas, eventos en curso y los ya decididos.",
+  }),
+  alternates: { canonical: "/tournaments" },
+};
 
 export default async function TournamentsPage() {
   const session = await auth();
