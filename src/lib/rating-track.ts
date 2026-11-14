@@ -78,36 +78,49 @@ export function readTrack(
   }
 }
 
+/** What a write does to the track's set counter. */
+export type TrackGamesChange = "increment" | "decrement" | "keep";
+
 /**
- * The `data` for a user update that writes a result onto one track.
+ * The `data` for a user update that writes a rating onto one track.
  *
  * Returning the whole object (rather than a column-name map the caller
  * assembles) keeps the three shapes in one place: a track that gained a
  * column and was only updated in two of three branches is the failure this
- * is shaped to prevent.
+ * is shaped to prevent. That is also why reversals go through here rather
+ * than writing `rating` directly — a cancel that restored the main columns
+ * from a set played on the practice track is how a 2163 ladder rating was
+ * replaced by the practice track's untouched 1500 (2026-11-11).
+ *
+ * `rd`/`volatility` are optional: an Elo season stores no Glicko-2 snapshot,
+ * and a relative-delta correction has no honest one to write, so omitting
+ * them (or passing null) leaves those columns alone.
  */
-export function writeTrack(track: RatingTrack, next: { rating: number; rd: number; volatility: number }) {
+export function writeTrack(
+  track: RatingTrack,
+  next: { rating: number; rd?: number | null; volatility?: number | null },
+  games: TrackGamesChange = "increment",
+) {
+  const count = games === "increment" ? { increment: 1 } : games === "decrement" ? { decrement: 1 } : undefined;
+  const state = next.rd != null && next.volatility != null ? { rd: next.rd, volatility: next.volatility } : null;
   switch (track) {
     case "practice":
       return {
         practiceRating: next.rating,
-        practiceRatingDeviation: next.rd,
-        practiceRatingVolatility: next.volatility,
-        practiceGamesPlayed: { increment: 1 },
+        ...(state && { practiceRatingDeviation: state.rd, practiceRatingVolatility: state.volatility }),
+        ...(count && { practiceGamesPlayed: count }),
       };
     case "randitto":
       return {
         randittoRating: next.rating,
-        randittoRatingDeviation: next.rd,
-        randittoRatingVolatility: next.volatility,
-        randittoGamesPlayed: { increment: 1 },
+        ...(state && { randittoRatingDeviation: state.rd, randittoRatingVolatility: state.volatility }),
+        ...(count && { randittoGamesPlayed: count }),
       };
     default:
       return {
         rating: next.rating,
-        ratingDeviation: next.rd,
-        ratingVolatility: next.volatility,
-        gamesPlayed: { increment: 1 },
+        ...(state && { ratingDeviation: state.rd, ratingVolatility: state.volatility }),
+        ...(count && { gamesPlayed: count }),
       };
   }
 }

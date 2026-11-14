@@ -847,6 +847,9 @@ export async function applyCorrection(
     player1Id: string;
     player2Id: string;
     seasonId: string | null;
+    mode: MatchMode;
+    player1IsPracticing: boolean;
+    player2IsPracticing: boolean;
     player1RatingBefore: number | null;
     player2RatingBefore: number | null;
     player1RdBefore: number | null;
@@ -866,25 +869,32 @@ export async function applyCorrection(
     : null;
   const algorithm = seasonAlgorithm ?? RatingAlgorithm.ELO;
 
+  // Each side is corrected on the track it played on, same as the original
+  // confirmation wrote it (see the comment in applyEloAndConfirm).
+  const p1Track = trackFor(match.mode, match.player1IsPracticing);
+  const p2Track = trackFor(match.mode, match.player2IsPracticing);
+  const p1Columns = readTrack(p1, p1Track);
+  const p2Columns = readTrack(p2, p2Track);
+
   // gamesPlayed already carries this match's own +1 from the original
   // confirmation — subtract it back out to match the kFactor tier the
   // original calculation used.
-  const p1GamesBefore = Math.max(0, p1.gamesPlayed - 1);
-  const p2GamesBefore = Math.max(0, p2.gamesPlayed - 1);
+  const p1GamesBefore = Math.max(0, p1Columns.gamesPlayed - 1);
+  const p2GamesBefore = Math.max(0, p2Columns.gamesPlayed - 1);
 
   // Full pre-match state as recorded at confirmation. For Glicko-2 this is the
   // only way back to an exact recompute — a plain rating delta doesn't capture
   // how RD/volatility moved. Falls back to the live values for a row with no
   // snapshots (any match confirmed before those columns existed).
   const p1Before: RatingState = {
-    rating: match.player1RatingBefore ?? p1.rating,
-    rd: match.player1RdBefore ?? p1.ratingDeviation,
-    volatility: match.player1VolatilityBefore ?? p1.ratingVolatility,
+    rating: match.player1RatingBefore ?? p1Columns.rating,
+    rd: match.player1RdBefore ?? p1Columns.ratingDeviation,
+    volatility: match.player1VolatilityBefore ?? p1Columns.ratingVolatility,
   };
   const p2Before: RatingState = {
-    rating: match.player2RatingBefore ?? p2.rating,
-    rd: match.player2RdBefore ?? p2.ratingDeviation,
-    volatility: match.player2VolatilityBefore ?? p2.ratingVolatility,
+    rating: match.player2RatingBefore ?? p2Columns.rating,
+    rd: match.player2RdBefore ?? p2Columns.ratingDeviation,
+    volatility: match.player2VolatilityBefore ?? p2Columns.ratingVolatility,
   };
 
   const p1Won = winnerId === p1.id;
@@ -919,33 +929,39 @@ export async function applyCorrection(
     },
   });
 
-  await tx.user.update({
-    where: { id: p1.id },
-    data: { rating: p1Next.rating, ratingDeviation: p1Next.rd, ratingVolatility: p1Next.volatility },
-  });
-  await tx.user.update({
-    where: { id: p2.id },
-    data: { rating: p2Next.rating, ratingDeviation: p2Next.rd, ratingVolatility: p2Next.volatility },
-  });
+  // "keep": a correction replaces this match's own result, it isn't a new
+  // game, so neither track's set counter moves.
+  await tx.user.update({ where: { id: p1.id }, data: writeTrack(p1Track, p1Next, "keep") });
+  await tx.user.update({ where: { id: p2.id }, data: writeTrack(p2Track, p2Next, "keep") });
 
-  await tx.ratingHistory.createMany({
-    data: [
-      {
-        userId: p1.id,
-        matchId: match.id,
-        ratingBefore: p1.rating,
-        ratingAfter: p1Next.rating,
-        delta: p1Next.rating - p1.rating,
-      },
-      {
-        userId: p2.id,
-        matchId: match.id,
-        ratingBefore: p2.rating,
-        ratingAfter: p2Next.rating,
-        delta: p2Next.rating - p2.rating,
-      },
-    ],
-  });
+  // Only the main track feeds the rating chart — see applyEloAndConfirm.
+  const correctionRows = [
+    ...(isMainTrack(p1Track)
+      ? [
+          {
+            userId: p1.id,
+            matchId: match.id,
+            ratingBefore: p1Columns.rating,
+            ratingAfter: p1Next.rating,
+            delta: p1Next.rating - p1Columns.rating,
+          },
+        ]
+      : []),
+    ...(isMainTrack(p2Track)
+      ? [
+          {
+            userId: p2.id,
+            matchId: match.id,
+            ratingBefore: p2Columns.rating,
+            ratingAfter: p2Next.rating,
+            delta: p2Next.rating - p2Columns.rating,
+          },
+        ]
+      : []),
+  ];
+  if (correctionRows.length > 0) {
+    await tx.ratingHistory.createMany({ data: correctionRows });
+  }
 }
 
 // A CONFIRMED match is only correctable while it's still each side's most
@@ -1147,8 +1163,14 @@ export async function adminCorrectOldMatchResult(matchId: string, winnerId: stri
       tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
       tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
     ]);
-    const p1NewRating = Math.round(p1.rating - 2 * p1OriginalDelta);
-    const p2NewRating = Math.round(p2.rating - 2 * p2OriginalDelta);
+    // The original delta moved whichever track each side played on, so the
+    // doubled reversal has to come off that same one — see adminCancelMatch.
+    const p1Track = trackFor(match.mode, match.player1IsPracticing);
+    const p2Track = trackFor(match.mode, match.player2IsPracticing);
+    const p1Current = readTrack(p1, p1Track).rating;
+    const p2Current = readTrack(p2, p2Track).rating;
+    const p1NewRating = Math.round(p1Current - 2 * p1OriginalDelta);
+    const p2NewRating = Math.round(p2Current - 2 * p2OriginalDelta);
 
     await tx.ratingMatch.update({
       where: { id: matchId },
@@ -1161,9 +1183,9 @@ export async function adminCorrectOldMatchResult(matchId: string, winnerId: stri
         // these columns directly, not the RatingHistory rows below, so
         // leaving them at their pre-correction values would display a
         // winner next to a rating line that still reflects them losing.
-        player1RatingBefore: p1.rating,
+        player1RatingBefore: p1Current,
         player1RatingAfter: p1NewRating,
-        player2RatingBefore: p2.rating,
+        player2RatingBefore: p2Current,
         player2RatingAfter: p2NewRating,
       },
     });
@@ -1187,27 +1209,38 @@ export async function adminCorrectOldMatchResult(matchId: string, winnerId: stri
       data: { winnerId: match.player1Id },
     });
 
-    await tx.user.update({ where: { id: p1.id }, data: { rating: p1NewRating } });
-    await tx.user.update({ where: { id: p2.id }, data: { rating: p2NewRating } });
+    // "keep": flipping a result is not a new game for either side.
+    await tx.user.update({ where: { id: p1.id }, data: writeTrack(p1Track, { rating: p1NewRating }, "keep") });
+    await tx.user.update({ where: { id: p2.id }, data: writeTrack(p2Track, { rating: p2NewRating }, "keep") });
 
-    await tx.ratingHistory.createMany({
-      data: [
-        {
-          userId: p1.id,
-          matchId: match.id,
-          ratingBefore: p1.rating,
-          ratingAfter: p1NewRating,
-          delta: p1NewRating - p1.rating,
-        },
-        {
-          userId: p2.id,
-          matchId: match.id,
-          ratingBefore: p2.rating,
-          ratingAfter: p2NewRating,
-          delta: p2NewRating - p2.rating,
-        },
-      ],
-    });
+    // Only the main track feeds the rating chart — see applyEloAndConfirm.
+    const correctionRows = [
+      ...(isMainTrack(p1Track)
+        ? [
+            {
+              userId: p1.id,
+              matchId: match.id,
+              ratingBefore: p1Current,
+              ratingAfter: p1NewRating,
+              delta: p1NewRating - p1Current,
+            },
+          ]
+        : []),
+      ...(isMainTrack(p2Track)
+        ? [
+            {
+              userId: p2.id,
+              matchId: match.id,
+              ratingBefore: p2Current,
+              ratingAfter: p2NewRating,
+              delta: p2NewRating - p2Current,
+            },
+          ]
+        : []),
+    ];
+    if (correctionRows.length > 0) {
+      await tx.ratingHistory.createMany({ data: correctionRows });
+    }
   });
 }
 
