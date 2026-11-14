@@ -97,8 +97,8 @@ export default async function CharacterPage({ params }: { params: Promise<Params
       <p className="mt-6 text-sm leading-relaxed">
         {usage && usage.games > 0
           ? tr(lang, {
-              en: `${usage.players} ranked ${usage.players === 1 ? "player" : "players"} on ${SITE_NAME} play ${label}, ${usage.mains} of them as their main. They have played ${usage.games.toLocaleString("en-US")} ranked games with the fighter this season and won ${usage.winRate}% of them${usage.avgRating ? `, at an average rating of ${usage.avgRating}` : ""}.`,
-              es: `${usage.players} ${usage.players === 1 ? "jugador clasificado" : "jugadores clasificados"} de ${SITE_NAME} usan ${label}, ${usage.mains} como personaje principal. Han jugado ${usage.games.toLocaleString("es-ES")} partidas clasificatorias con el personaje esta temporada y ganaron el ${usage.winRate}%${usage.avgRating ? `, con una clasificación media de ${usage.avgRating}` : ""}.`,
+              en: `${usage.players} ${usage.players === 1 ? "player" : "players"} on ${SITE_NAME} play ${label}, ${usage.mains} of them as their main. They have played ${usage.games.toLocaleString("en-US")} ranked games with the fighter this season and won ${usage.winRate}% of them${usage.avgRating ? `, at an average rating of ${usage.avgRating}` : ""}.`,
+              es: `${usage.players} ${usage.players === 1 ? "jugador" : "jugadores"} de ${SITE_NAME} usan ${label}, ${usage.mains} como personaje principal. Han jugado ${usage.games.toLocaleString("es-ES")} partidas clasificatorias con el personaje esta temporada y ganaron el ${usage.winRate}%${usage.avgRating ? `, con una clasificación media de ${usage.avgRating}` : ""}.`,
             })
           : tr(lang, {
               en: `No ranked games have been played on ${label} this season yet, so there is no win rate for the fighter to report.`,

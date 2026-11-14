@@ -35,11 +35,7 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
           label={tr(lang, { en: "Matches all time", es: "Partidas en total" })}
           value={totals.matchesAllTime}
         />
-        <StatCard
-          icon={Users}
-          label={tr(lang, { en: "Ranked players", es: "Jugadores clasificados" })}
-          value={totals.rankedPlayers}
-        />
+        <StatCard icon={Users} label={tr(lang, { en: "Players", es: "Jugadores" })} value={totals.players} />
       </div>
 
       <section>
