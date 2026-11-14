@@ -152,13 +152,13 @@ export default async function LeaderboardPage({
               const placeClause = isValidRegion ? region : isValidCountry ? country : null;
               return tr(lang, {
                 en:
-                  `Ranked players with ${LEADERBOARD_MIN_GAMES}+ sets played` +
+                  `Players with ${LEADERBOARD_MIN_GAMES}+ sets played` +
                   (characterClause ? ` who play ${characterClause} as a main or secondary` : "") +
                   (placeClause ? ` in ${placeClause}` : "") +
                   (query ? ` matching "${query}"` : "") +
                   ".",
                 es:
-                  `Jugadores rankeados con ${LEADERBOARD_MIN_GAMES}+ partidas jugadas` +
+                  `Jugadores con ${LEADERBOARD_MIN_GAMES}+ partidas jugadas` +
                   (characterClause ? ` que usan a ${characterClause} como main o secundario` : "") +
                   (placeClause ? ` en ${placeClause}` : "") +
                   (query ? ` que coinciden con "${query}"` : "") +
@@ -440,8 +440,8 @@ export default async function LeaderboardPage({
         {players.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">
             {tr(lang, {
-              en: "No ranked players yet.",
-              es: "Aún no hay jugadores rankeados.",
+              en: "No players here yet.",
+              es: "Aún no hay jugadores aquí.",
             })}
           </p>
         )}
@@ -507,8 +507,8 @@ function PaginationBar({
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
       <Badge variant="outline">
         {tr(lang, {
-          en: `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`,
-          es: `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`,
+          en: `${totalCount} player${totalCount === 1 ? "" : "s"}`,
+          es: `${totalCount} ${totalCount === 1 ? "jugador" : "jugadores"}`,
         })}
       </Badge>
       {totalPages > 1 && (

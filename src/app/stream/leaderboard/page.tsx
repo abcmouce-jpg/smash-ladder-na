@@ -79,8 +79,8 @@ export default async function StreamLeaderboardPage({
       {players.length === 0 && (
         <p className="text-sm text-muted-foreground">
           {tr(lang, {
-            en: "No ranked players yet.",
-            es: "Aún no hay jugadores rankeados.",
+            en: "No players here yet.",
+            es: "Aún no hay jugadores aquí.",
           })}
         </p>
       )}

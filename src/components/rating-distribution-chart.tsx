@@ -26,8 +26,8 @@ export function RatingDistributionChart({
     return (
       <p className="text-sm text-muted-foreground">
         {tr(lang, {
-          en: "Not enough ranked players to chart a distribution yet.",
-          es: "Aún no hay suficientes jugadores clasificados para trazar una distribución.",
+          en: "Not enough players with a rating to chart a distribution yet.",
+          es: "Aún no hay suficientes jugadores con clasificación para trazar una distribución.",
         })}
       </p>
     );
@@ -85,8 +85,8 @@ export function RatingDistributionChart({
 
       <p className="mt-3 text-xs text-muted-foreground tabular-nums">
         {tr(lang, {
-          en: `${total} ranked players — median ${median}, average ${average}`,
-          es: `${total} jugadores clasificados — mediana ${median}, promedio ${average}`,
+          en: `${total} players — median ${median}, average ${average}`,
+          es: `${total} jugadores — mediana ${median}, promedio ${average}`,
         })}
       </p>
 
