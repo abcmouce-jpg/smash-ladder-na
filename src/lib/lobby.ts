@@ -10,7 +10,12 @@ import { queueGames, queueRating } from "@/lib/rating-track";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
 import { MATCH_TTL_MS, getMatchGames } from "@/lib/match-games";
 import { notifyMatchFoundToUsers, notifyQueueOpportunitySubscribers } from "@/lib/push-server";
-import { ratingGapAllows, effectiveMaxRatingGap, wiredRequirementAllows } from "@/lib/match-compat";
+import {
+  ratingGapAllows,
+  effectiveMaxRatingGap,
+  effectiveMaxMatchDistanceKm,
+  wiredRequirementAllows,
+} from "@/lib/match-compat";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { siteOrigin } from "@/lib/site-url";
 import { isNotificationEnabled } from "@/lib/notifications";
@@ -303,6 +308,7 @@ async function attemptPairing(params: {
               wiredConnection: true,
               requireWiredOpponent: true,
               avoidPracticeOpponents: true,
+              widenFiltersWhileWaiting: true,
             },
           },
         },
@@ -328,7 +334,15 @@ async function attemptPairing(params: {
       const candidate = candidates.find(
         (c) =>
           c.mode === myEntry.mode &&
-          regionReachAllows(c.user.region, c.user.maxMatchDistanceKm, myRegion) &&
+          // Measured from the candidate's own joinedAt, not mine: each side's
+          // filters widen on their own wait, so a candidate who just arrived
+          // is still judged by their strict radius while one who has been
+          // sitting here for ten minutes is judged by their widened one.
+          regionReachAllows(
+            c.user.region,
+            effectiveMaxMatchDistanceKm(c.user, Date.now() - c.joinedAt.getTime()),
+            myRegion,
+          ) &&
           // Compared on the rating the queue actually uses. Randitto has its
           // own ladder, so gating it on the 1v1 one kept two players who are
           // both 1500 at randitto apart because one of them is 2300 on the
@@ -338,7 +352,11 @@ async function attemptPairing(params: {
             queueRating(me, myEntry.mode),
             queueRating(c.user, myEntry.mode),
             effectiveMaxRatingGap(
-              { maxRatingGap: c.user.maxRatingGap, gamesPlayed: queueGames(c.user, myEntry.mode) },
+              {
+                maxRatingGap: c.user.maxRatingGap,
+                gamesPlayed: queueGames(c.user, myEntry.mode),
+                widenFiltersWhileWaiting: c.user.widenFiltersWhileWaiting,
+              },
               Date.now() - c.joinedAt.getTime(),
             ),
           ) &&
@@ -516,6 +534,7 @@ export async function joinLobbyAndTryPair(
         wiredConnection: true,
         requireWiredOpponent: true,
         avoidPracticeOpponents: true,
+        widenFiltersWhileWaiting: true,
         queueCooldownUntil: true,
       },
     }),
@@ -597,7 +616,10 @@ export async function joinLobbyAndTryPair(
     throw err;
   }
 
-  const myReach = regionReachFilter(myRegion, me.maxMatchDistanceKm);
+  // Zero wait at join time, so neither of these widens anything yet; they go
+  // through the same helpers as the retry path below purely so a future change
+  // to the schedule cannot apply to one path and not the other.
+  const myReach = regionReachFilter(myRegion, effectiveMaxMatchDistanceKm(me));
   const myEffectiveGap = effectiveMaxRatingGap(me);
 
   const paired = await attemptPairing({
@@ -757,6 +779,7 @@ export async function retryPairForWaitingUser(userId: string) {
           wiredConnection: true,
           requireWiredOpponent: true,
           avoidPracticeOpponents: true,
+          widenFiltersWhileWaiting: true,
         },
       }),
       getBlockedEitherWayIds(userId),
@@ -766,12 +789,14 @@ export async function retryPairForWaitingUser(userId: string) {
     // it does not, a player without one is perfectly matchable.
     if (DISTANCE_MATCHMAKING && !me.region) return;
 
-    const myReach = regionReachFilter(me.region, me.maxMatchDistanceKm);
     // This is the retry path for someone already sitting in the queue, so
     // their own wait is exactly what the provisional cap should widen
     // against — without it a provisional player searched with the strict
-    // ±300 band forever, which is the case the widening exists to fix.
-    const myEffectiveGap = effectiveMaxRatingGap(me, Date.now() - entry.joinedAt.getTime());
+    // ±300 band forever, which is the case the widening exists to fix. The
+    // same wait drives their own opted-in distance/gap widening.
+    const waitedMs = Date.now() - entry.joinedAt.getTime();
+    const myReach = regionReachFilter(me.region, effectiveMaxMatchDistanceKm(me, waitedMs));
+    const myEffectiveGap = effectiveMaxRatingGap(me, waitedMs);
 
     const paired = await attemptPairing({
       userId,
@@ -872,6 +897,7 @@ type MatchCandidate = {
   rematchCooldownHours: number | null;
   wiredConnection: boolean;
   requireWiredOpponent: boolean;
+  widenFiltersWhileWaiting: boolean;
 };
 
 function canMatch(
@@ -880,12 +906,13 @@ function canMatch(
   lastMatchAt: Date | undefined,
   // How long each side has been queued, so a provisional player's rating-gap
   // cap can relax the longer the strict band has failed them (see
-  // effectiveMaxRatingGap). Defaults to 0 = the original strict behaviour.
+  // effectiveMaxRatingGap), and so an opted-in player's own distance and gap
+  // widen on their own wait. Defaults to 0 = the original strict behaviour.
   waits: { a: number; b: number } = { a: 0, b: 0 },
 ) {
   return (
-    regionReachAllows(a.region, a.maxMatchDistanceKm, b.region) &&
-    regionReachAllows(b.region, b.maxMatchDistanceKm, a.region) &&
+    regionReachAllows(a.region, effectiveMaxMatchDistanceKm(a, waits.a), b.region) &&
+    regionReachAllows(b.region, effectiveMaxMatchDistanceKm(b, waits.b), a.region) &&
     ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(a, waits.a)) &&
     ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(b, waits.b)) &&
     rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours) &&
@@ -928,6 +955,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           wiredConnection: true,
           requireWiredOpponent: true,
           avoidPracticeOpponents: true,
+          widenFiltersWhileWaiting: true,
         },
       },
     },

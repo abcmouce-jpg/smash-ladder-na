@@ -860,6 +860,96 @@ describe("sweepLobbyPairing", () => {
   });
 });
 
+describe("filters loosen the longer a player waits", () => {
+  // WIDEN_SCHEDULE's first step is 2 minutes; these back-date joinedAt rather
+  // than waiting for it. The whole point is the pairing paths reading each
+  // side's own wait, so the clock is the fixture here.
+  const PAST_FIRST_STEP = 3 * 60 * 1000;
+
+  it("pairs two players whose own rating bands were too tight at join time", async () => {
+    // 180 points apart with both bands at 100: nobody pairs at join time, and
+    // on a queue this thin nobody ever would.
+    const a = await createTestUser({ region: "USA East", rating: 1500, gamesPlayed: 50, maxRatingGap: 100 });
+    const b = await createTestUser({ region: "USA East", rating: 1680, gamesPlayed: 50, maxRatingGap: 100 });
+
+    await joinLobbyAndTryPair(a.id);
+    await joinLobbyAndTryPair(b.id);
+    expect(
+      await prisma.ratingMatch.findFirst({ where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] } }),
+    ).toBeNull();
+
+    // Two steps in (5 minutes), both bands have reached 200, which covers 180.
+    const waited = new Date(Date.now() - 6 * 60 * 1000);
+    await prisma.ratingLobbyEntry.updateMany({
+      where: { userId: { in: [a.id, b.id] }, status: LobbyEntryStatus.WAITING },
+      data: { joinedAt: waited },
+    });
+
+    expect(await sweepLobbyPairing()).toBe(1);
+    expect(
+      await prisma.ratingMatch.findFirst({ where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] } }),
+    ).not.toBeNull();
+  });
+
+  it("leaves the pair apart when either side opted out", async () => {
+    const a = await createTestUser({ region: "USA East", rating: 1500, gamesPlayed: 50, maxRatingGap: 100 });
+    const b = await createTestUser({
+      region: "USA East",
+      rating: 1680,
+      gamesPlayed: 50,
+      maxRatingGap: 100,
+      widenFiltersWhileWaiting: false,
+    });
+    await createWaitingEntry(a.id, null, new Date(Date.now() - PAST_FIRST_STEP));
+    await createWaitingEntry(b.id, null, new Date(Date.now() - PAST_FIRST_STEP));
+
+    // a's band widened, b's did not — and a match needs both sides to allow
+    // it, so the tighter one still decides.
+    expect(await sweepLobbyPairing()).toBe(0);
+    expect(
+      await prisma.ratingMatch.findFirst({ where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] } }),
+    ).toBeNull();
+  });
+
+  it("reaches a region outside the radius both players set", async () => {
+    // USA East to USA Central is ~957 km, outside the ~400 mi (640 km) radius
+    // both of them chose, inside the ~800 mi (1,300 km) one step widens to.
+    const a = await createTestUser({ region: "USA East", gamesPlayed: 50, maxMatchDistanceKm: 640 });
+    const b = await createTestUser({ region: "USA Central", gamesPlayed: 50, maxMatchDistanceKm: 640 });
+
+    await joinLobbyAndTryPair(a.id);
+    await joinLobbyAndTryPair(b.id);
+    expect(
+      await prisma.ratingMatch.findFirst({ where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] } }),
+    ).toBeNull();
+
+    const waited = new Date(Date.now() - PAST_FIRST_STEP);
+    await prisma.ratingLobbyEntry.updateMany({
+      where: { userId: { in: [a.id, b.id] }, status: LobbyEntryStatus.WAITING },
+      data: { joinedAt: waited },
+    });
+
+    // The poll path, not the sweep: this is the one that runs on every lobby
+    // render, so it is where a waiting player's widened radius has to be read.
+    await retryPairForWaitingUser(a.id);
+    expect(
+      await prisma.ratingMatch.findFirst({ where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] } }),
+    ).not.toBeNull();
+  });
+
+  it("keeps a radius a radius — a long wait never reaches worldwide", async () => {
+    // Hawaii to Ontario is far past every finite preset, so the widest option
+    // a player could have picked still doesn't cover it. Only "Any distance",
+    // which widening deliberately never reaches, would.
+    const a = await createTestUser({ region: "Hawaii", gamesPlayed: 50, maxMatchDistanceKm: 2400 });
+    const b = await createTestUser({ region: "Ontario", gamesPlayed: 50, maxMatchDistanceKm: 2400 });
+    await createWaitingEntry(a.id, null, new Date(Date.now() - 60 * 60 * 1000));
+    await createWaitingEntry(b.id, null, new Date(Date.now() - 60 * 60 * 1000));
+
+    expect(await sweepLobbyPairing()).toBe(0);
+  });
+});
+
 describe("banned accounts are excluded from matchmaking", () => {
   // Regression: banning only blocked *joining* the queue. Someone already
   // waiting stayed a live candidate, so mods banned a player and watched

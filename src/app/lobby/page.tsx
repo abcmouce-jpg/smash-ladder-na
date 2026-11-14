@@ -51,7 +51,7 @@ import {
 } from "@/lib/match-games";
 import { STRIKING_STAGES, stageImagePath, stageLabel, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { RANDITTO_STAGE } from "@/lib/randitto";
-import { displayRating, trackFor } from "@/lib/rating-track";
+import { displayRating, queueGames, trackFor } from "@/lib/rating-track";
 import { MatchMode } from "@/generated/prisma/enums";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { referralLink } from "@/lib/referrals";
@@ -61,6 +61,7 @@ import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier, isRatingVisible } fro
 import { formatRating, formatTrackRating } from "@/lib/rating-format";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
+import { WIDEN_SCHEDULE, effectiveMaxMatchDistanceKm, effectiveMaxRatingGap } from "@/lib/match-compat";
 import { SMASH_CHARACTERS, characterLabel, type SmashCharacter } from "@/lib/characters";
 import { cn } from "@/lib/utils";
 import { PageHeading } from "@/components/page-heading";
@@ -76,6 +77,7 @@ import { QueueRoomCodeForm } from "@/components/queue-room-code-form";
 import { FlashOnChange } from "@/components/flash-on-change";
 import { Countdown } from "@/components/countdown";
 import { QueueTimer } from "@/components/queue-timer";
+import { QueueWidening, type WideningStep } from "@/components/queue-widening";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { type MatchFoundSound } from "@/lib/sound";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
@@ -125,6 +127,7 @@ import {
   updateRegion,
   updateRematchCooldown,
   updateRequireWiredOpponent,
+  updateWidenFiltersWhileWaiting,
   updateWiredConnection,
   updateZenMode,
 } from "./actions";
@@ -196,6 +199,12 @@ export default async function LobbyPage() {
       queueCooldownUntil: true,
       audioPingOnMatch: true,
       matchFoundSound: true,
+      // For the "the search has loosened" line while waiting (wideningSteps).
+      maxMatchDistanceKm: true,
+      maxRatingGap: true,
+      gamesPlayed: true,
+      randittoGamesPlayed: true,
+      widenFiltersWhileWaiting: true,
       // Only whether one exists, never the rows: this decides how often a
       // backgrounded wait re-renders the page (see lib/lobby-poll.ts), and
       // _count keeps it to a COUNT on the userId index.
@@ -303,6 +312,24 @@ export default async function LobbyPage() {
                         es: " para no perderte la partida.",
                       })}
                     </CardDescription>
+                    {/* Only appears once the wait has actually loosened
+                        something, so a widened opponent is explained before
+                        they arrive rather than looking like the settings were
+                        ignored. */}
+                    <QueueWidening
+                      joinedAt={entry.joinedAt.toISOString()}
+                      steps={wideningSteps(
+                        {
+                          maxMatchDistanceKm: me?.maxMatchDistanceKm ?? null,
+                          maxRatingGap: me?.maxRatingGap ?? null,
+                          gamesPlayed: me?.gamesPlayed ?? 0,
+                          randittoGamesPlayed: me?.randittoGamesPlayed ?? 0,
+                          widenFiltersWhileWaiting: me?.widenFiltersWhileWaiting ?? false,
+                        },
+                        entry.mode,
+                        lang,
+                      )}
+                    />
                   </div>
                   <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Clock className="size-3.5" />
@@ -546,6 +573,67 @@ const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group)
   })),
 );
 
+// ~miles, rounded the way the distance presets' own labels are (~150 / 400 /
+// 800 / 1,500 / 3,500 mi), so the two can never disagree about what 640 km is.
+function approxMiles(km: number) {
+  return (Math.round(km / 1.609 / 50) * 50).toLocaleString("en-US");
+}
+
+/**
+ * What the search will have loosened to at each step of WIDEN_SCHEDULE, for a
+ * player who opted into widening (see User.widenFiltersWhileWaiting).
+ *
+ * Run through the same two functions the matcher itself calls, so this can't
+ * advertise a reach pairing isn't actually using — including the provisional
+ * rating-gap cap, which still tightens whatever the widening arrives at.
+ * Steps that change nothing (a player already at "any rating" and the widest
+ * radius) are dropped, so an opted-in player with nothing to widen sees no
+ * line at all rather than an empty promise.
+ */
+function wideningSteps(
+  me: {
+    maxMatchDistanceKm: number | null;
+    maxRatingGap: number | null;
+    gamesPlayed: number;
+    randittoGamesPlayed: number;
+    widenFiltersWhileWaiting: boolean;
+  },
+  mode: MatchMode,
+  lang: Lang,
+): WideningStep[] {
+  if (!me.widenFiltersWhileWaiting) return [];
+  const gapUser = {
+    maxRatingGap: me.maxRatingGap,
+    gamesPlayed: queueGames(me, mode),
+    widenFiltersWhileWaiting: true,
+  };
+  const baseGap = effectiveMaxRatingGap(gapUser);
+  const baseKm = effectiveMaxMatchDistanceKm(me);
+  const steps: WideningStep[] = [];
+  // WIDEN_SCHEDULE is ordered longest wait first (it reads as a lookup table);
+  // QueueWidening walks its steps in ascending order.
+  for (const { afterMs } of [...WIDEN_SCHEDULE].reverse()) {
+    const gap = effectiveMaxRatingGap(gapUser, afterMs);
+    const km = effectiveMaxMatchDistanceKm(me, afterMs);
+    const parts: string[] = [];
+    if (gap !== null && gap !== baseGap) {
+      parts.push(tr(lang, { en: `rating ±${gap}`, es: `clasificación ±${gap}` }));
+    }
+    if (DISTANCE_MATCHMAKING && km !== null && km !== baseKm) {
+      parts.push(tr(lang, { en: `distance ~${approxMiles(km)} mi`, es: `distancia ~${approxMiles(km)} mi` }));
+    }
+    if (parts.length === 0) continue;
+    steps.push({
+      afterMs,
+      summary: tr(lang, {
+        en: `No one in range yet — widened to ${parts.join(", ")}.`,
+        es: `Nadie en tu rango todavía — ampliado a ${parts.join(", ")}.`,
+      }),
+    });
+  }
+  return steps;
+}
+
 async function MatchmakingForm({ userId, lang, disabled = false }: { userId: string; lang: Lang; disabled?: boolean }) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
@@ -557,6 +645,7 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
       wiredConnection: true,
       requireWiredOpponent: true,
       avoidPracticeOpponents: true,
+      widenFiltersWhileWaiting: true,
       zenMode: true,
     },
   });
@@ -574,6 +663,7 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
       await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
       const rematchCooldown = String(formData.get("rematchCooldownHours") ?? "");
       await updateRematchCooldown(rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown));
+      await updateWidenFiltersWhileWaiting(formData.get("widenFiltersWhileWaiting") === "on");
       await updateRequireWiredOpponent(formData.get("requireWiredOpponent") === "on");
       await updateAvoidPracticeOpponents(formData.get("avoidPracticeOpponents") === "on");
       await updateZenMode(formData.get("zenMode") === "on");
@@ -684,6 +774,22 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
       </div>
 
       <div className="flex flex-col gap-3">
+        {/* Sits first, right under the two limits it loosens, because it only
+            ever modifies those — grouping it with the switches below would
+            read as a fourth independent filter. */}
+        <MatchSettingToggle
+          name="widenFiltersWhileWaiting"
+          checked={me?.widenFiltersWhileWaiting ?? true}
+          label={tr(lang, {
+            en: "Loosen the limits above if I'm waiting a while",
+            es: "Flexibilizar los límites de arriba si llevo rato esperando",
+          })}
+          hint={tr(lang, {
+            en: "One step wider after 2 minutes with no opponent, two after 5, three after 10. Never goes past the widest option you could have picked yourself, and the other player's own limits still have to allow the match.",
+            es: "Un paso más amplio tras 2 minutos sin rival, dos tras 5 y tres tras 10. Nunca pasa de la opción más amplia que podrías haber elegido, y los límites del otro jugador también tienen que permitir la partida.",
+          })}
+          disabled={disabled}
+        />
         <div className="rounded-lg border border-border p-3">
           <label className="flex cursor-pointer items-center gap-2.5 text-sm font-medium">
             <input
