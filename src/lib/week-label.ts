@@ -32,9 +32,15 @@ export function weekLabelShort(start: Date, end: Date, lang: Lang): string {
   }).formatRange(start, last);
 }
 
-/** Weekday + day for the per-day table: "Mon 9". */
+/**
+ * Weekday + day for the per-day table: "Mon 9".
+ *
+ * Composed rather than formatted in one pass: asking Intl for weekday and day
+ * together gives "9 Mon" in en-US, which reads as a date nobody writes.
+ */
 export function dayLabel(dayKey: string, lang: Lang): string {
   const [y, m, d] = dayKey.split("-").map(Number);
   const noon = new Date(Date.UTC(y, m - 1, d, 12));
-  return new Intl.DateTimeFormat(LOCALES[lang], { timeZone: "UTC", weekday: "short", day: "numeric" }).format(noon);
+  const weekday = new Intl.DateTimeFormat(LOCALES[lang], { timeZone: "UTC", weekday: "short" }).format(noon);
+  return `${weekday} ${d}`;
 }

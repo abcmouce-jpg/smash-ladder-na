@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { recentWeekIds, weekBounds, weekIdFor, weekStartFor } from "@/lib/weekly-report";
+import { dayLabel } from "@/lib/week-label";
 
 // Weeks run Monday 00:00 to Monday 00:00 in ladder time (America/New_York),
 // which is 04:00 or 05:00 UTC depending on the season — so a Sunday-evening
@@ -48,5 +49,12 @@ describe("week boundaries", () => {
   it("is idempotent — the start of a week is its own week", () => {
     const start = weekStartFor(new Date("2026-11-14T16:00:00Z"));
     expect(weekStartFor(start).toISOString()).toBe(start.toISOString());
+  });
+});
+
+describe("day labels", () => {
+  it("puts the weekday first, the way a reader writes it", () => {
+    expect(dayLabel("2026-11-09", "en")).toBe("Mon 9");
+    expect(dayLabel("2026-11-15", "en")).toBe("Sun 15");
   });
 });
