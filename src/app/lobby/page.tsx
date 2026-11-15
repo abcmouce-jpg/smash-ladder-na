@@ -61,7 +61,14 @@ import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier, isRatingVisible } fro
 import { formatRating, formatTrackRating } from "@/lib/rating-format";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
-import { WIDEN_SCHEDULE, effectiveMaxMatchDistanceKm, effectiveMaxRatingGap } from "@/lib/match-compat";
+import {
+  DISTANCE_WIDEN_SCHEDULE,
+  GAP_WIDEN_INTERVAL_MS,
+  GAP_WIDEN_STEP,
+  effectiveMaxMatchDistanceKm,
+  effectiveMaxRatingGap,
+} from "@/lib/match-compat";
+import { formatInterval } from "@/lib/duration";
 import { SMASH_CHARACTERS, characterLabel, type SmashCharacter } from "@/lib/characters";
 import { cn } from "@/lib/utils";
 import { PageHeading } from "@/components/page-heading";
@@ -575,13 +582,25 @@ const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group)
 
 // ~miles, rounded the way the distance presets' own labels are (~150 / 400 /
 // 800 / 1,500 / 3,500 mi), so the two can never disagree about what 640 km is.
+// How far ahead the searching card is willing to narrate. The gap keeps
+// stepping past this, but a list of twenty future widenings is not a useful
+// thing to put under a spinner; by this point the player has either matched
+// or given up.
+const WIDENING_PREVIEW_HORIZON_MS = 30 * 60 * 1000;
+
 function approxMiles(km: number) {
   return (Math.round(km / 1.609 / 50) * 50).toLocaleString("en-US");
 }
 
 /**
- * What the search will have loosened to at each step of WIDEN_SCHEDULE, for a
- * player who opted into widening (see User.widenFiltersWhileWaiting).
+ * What the search will have loosened to, and when, for a player who opted
+ * into widening (see User.widenFiltersWhileWaiting).
+ *
+ * Sampled rather than read off a schedule: the gap and the distance widen on
+ * different clocks now — the gap every GAP_WIDEN_INTERVAL_MS for as long as
+ * the wait runs, the distance only at the three times in
+ * DISTANCE_WIDEN_SCHEDULE — so this walks every instant either of them could
+ * move at and keeps the ones that actually changed something.
  *
  * Run through the same two functions the matcher itself calls, so this can't
  * advertise a reach pairing isn't actually using — including the provisional
@@ -607,14 +626,22 @@ function wideningSteps(
     gamesPlayed: queueGames(me, mode),
     widenFiltersWhileWaiting: true,
   };
-  const baseGap = effectiveMaxRatingGap(gapUser);
-  const baseKm = effectiveMaxMatchDistanceKm(me);
   const steps: WideningStep[] = [];
-  // WIDEN_SCHEDULE is ordered longest wait first (it reads as a lookup table);
-  // QueueWidening walks its steps in ascending order.
-  for (const { afterMs } of [...WIDEN_SCHEDULE].reverse()) {
+  // Every instant either filter can move at, ascending, out to the horizon —
+  // QueueWidening walks them in that order.
+  const times = new Set<number>(DISTANCE_WIDEN_SCHEDULE.map((step) => step.afterMs));
+  for (let t = GAP_WIDEN_INTERVAL_MS; t <= WIDENING_PREVIEW_HORIZON_MS; t += GAP_WIDEN_INTERVAL_MS) {
+    times.add(t);
+  }
+  let lastGap = effectiveMaxRatingGap(gapUser);
+  let lastKm = effectiveMaxMatchDistanceKm(me);
+  for (const afterMs of [...times].sort((a, b) => a - b)) {
     const gap = effectiveMaxRatingGap(gapUser, afterMs);
     const km = effectiveMaxMatchDistanceKm(me, afterMs);
+    const baseGap = lastGap;
+    const baseKm = lastKm;
+    lastGap = gap;
+    lastKm = km;
     const parts: string[] = [];
     if (gap !== null && gap !== baseGap) {
       parts.push(tr(lang, { en: `rating ±${gap}`, es: `clasificación ±${gap}` }));
@@ -779,14 +806,14 @@ async function MatchmakingForm({ userId, lang, disabled = false }: { userId: str
             read as a fourth independent filter. */}
         <MatchSettingToggle
           name="widenFiltersWhileWaiting"
-          checked={me?.widenFiltersWhileWaiting ?? true}
+          checked={me?.widenFiltersWhileWaiting ?? false}
           label={tr(lang, {
             en: "Loosen the limits above if I'm waiting a while",
             es: "Flexibilizar los límites de arriba si llevo rato esperando",
           })}
           hint={tr(lang, {
-            en: "One step wider after 2 minutes with no opponent, two after 5, three after 10. Never goes past the widest option you could have picked yourself, and the other player's own limits still have to allow the match.",
-            es: "Un paso más amplio tras 2 minutos sin rival, dos tras 5 y tres tras 10. Nunca pasa de la opción más amplia que podrías haber elegido, y los límites del otro jugador también tienen que permitir la partida.",
+            en: `Your rating gap opens by ${GAP_WIDEN_STEP} points every ${formatInterval(GAP_WIDEN_INTERVAL_MS, "en")} with no opponent — 300 becomes 350, then 400 — and your distance opens a step after 2, 5 and 10 minutes. Neither goes past the widest option you could have picked yourself, and the other player's own limits still have to allow the match.`,
+            es: `Tu diferencia de clasificación se abre ${GAP_WIDEN_STEP} puntos cada ${formatInterval(GAP_WIDEN_INTERVAL_MS, "es")} sin rival — 300 pasa a 350 y luego a 400 — y tu distancia se abre un paso a los 2, 5 y 10 minutos. Ninguno pasa de la opción más amplia que podrías haber elegido, y los límites del otro jugador también tienen que permitir la partida.`,
           })}
           disabled={disabled}
         />

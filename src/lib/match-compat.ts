@@ -57,21 +57,44 @@ export function provisionalGapForWait(waitedMs: number) {
 // loosening of someone else's preference: it is each player's own setting,
 // applied to their own filters, measured from their own wait.
 //
-// Ordered longest wait first, so the lookup below can return on the first
-// match. Exported so the lobby can describe each step to the player it
-// applies to (see wideningSteps in app/lobby/page.tsx) from this list rather
-// than a copy of the schedule that could drift from it.
-export const WIDEN_SCHEDULE: readonly { afterMs: number; steps: number }[] = [
+// The distance schedule. Ordered longest wait first, so the lookup below can
+// return on the first match. Exported so the lobby can describe the steps to
+// the player they apply to (see wideningSteps in app/lobby/page.tsx) from this
+// list rather than a copy of it that could drift.
+export const DISTANCE_WIDEN_SCHEDULE: readonly { afterMs: number; steps: number }[] = [
   { afterMs: 10 * 60 * 1000, steps: 3 },
   { afterMs: 5 * 60 * 1000, steps: 2 },
   { afterMs: 2 * 60 * 1000, steps: 1 },
 ];
 
-export function widenStepsForWait(waitedMs: number) {
-  for (const step of WIDEN_SCHEDULE) {
+export function distanceStepsForWait(waitedMs: number) {
+  for (const step of DISTANCE_WIDEN_SCHEDULE) {
     if (waitedMs >= step.afterMs) return step.steps;
   }
   return 0;
+}
+
+// The rating gap does NOT widen along its preset list, unlike distance.
+//
+// The presets are the shape of a choice, not of a ramp: they run 150, 200,
+// 300, 500, so a player who picked 300 and waited would go straight from
+// "within 300" to "within 500" — there is no one at 350 or 400 for them to
+// meet on the way, and the first thing the wait buys them is an opponent
+// twice as far off as the one they asked for. Rating is a plain number and
+// can be stepped like one, so it is: GAP_WIDEN_STEP points at a time, every
+// GAP_WIDEN_INTERVAL_MS, for as long as the wait runs.
+//
+// Distance keeps the preset walk because distance is not a plain number here:
+// matching turns a radius into a list of regions (see regionReachFilter), so
+// 50km at a time would change nothing at all until it happened to cross a
+// region boundary. The presets are exactly where those boundaries are.
+export const GAP_WIDEN_STEP = 50;
+export const GAP_WIDEN_INTERVAL_MS = 150 * 1000; // two and a half minutes
+
+/** How many GAP_WIDEN_STEP increments a wait of this length has earned. */
+export function gapStepsForWait(waitedMs: number) {
+  if (waitedMs < GAP_WIDEN_INTERVAL_MS) return 0;
+  return Math.floor(waitedMs / GAP_WIDEN_INTERVAL_MS);
 }
 
 // The finite rungs of a preset list, ascending. The open-ended entry (null =
@@ -98,12 +121,20 @@ function widenAlong(rungs: readonly number[], value: number | null, steps: numbe
   return Math.max(value, rungs[Math.min(start + steps, rungs.length - 1)]);
 }
 
-export function widenedRatingGap(maxRatingGap: number | null, steps: number) {
-  return widenAlong(GAP_RUNGS, maxRatingGap, steps);
-}
-
 export function widenedMatchDistanceKm(maxMatchDistanceKm: number | null, steps: number) {
   return widenAlong(DISTANCE_RUNGS, maxMatchDistanceKm, steps);
+}
+
+// The widest band a player could have chosen from the preset list, which is
+// where the ramp stops: widening may reach the end of the list, never past it
+// into "any rating". A stored value already beyond it (an orphan from a past
+// renumbering) is left where it is rather than pulled back down.
+const WIDEST_GAP = GAP_RUNGS[GAP_RUNGS.length - 1];
+
+export function widenedRatingGap(maxRatingGap: number | null, waitedMs: number) {
+  if (maxRatingGap === null) return null;
+  const ceiling = Math.max(WIDEST_GAP, maxRatingGap);
+  return Math.min(maxRatingGap + GAP_WIDEN_STEP * gapStepsForWait(waitedMs), ceiling);
 }
 
 // waitedMs is how long this player has been sitting in the queue. Omitted
@@ -113,9 +144,7 @@ export function effectiveMaxRatingGap(
   user: { gamesPlayed: number; maxRatingGap: number | null; widenFiltersWhileWaiting: boolean },
   waitedMs = 0,
 ) {
-  const chosen = user.widenFiltersWhileWaiting
-    ? widenedRatingGap(user.maxRatingGap, widenStepsForWait(waitedMs))
-    : user.maxRatingGap;
+  const chosen = user.widenFiltersWhileWaiting ? widenedRatingGap(user.maxRatingGap, waitedMs) : user.maxRatingGap;
   if (user.gamesPlayed >= PROVISIONAL_GAMES_THRESHOLD) return chosen;
   const cap = provisionalGapForWait(waitedMs);
   // The cap is applied last, over whatever the player chose and whatever the
@@ -134,7 +163,7 @@ export function effectiveMaxMatchDistanceKm(
   waitedMs = 0,
 ) {
   if (!user.widenFiltersWhileWaiting) return user.maxMatchDistanceKm;
-  return widenedMatchDistanceKm(user.maxMatchDistanceKm, widenStepsForWait(waitedMs));
+  return widenedMatchDistanceKm(user.maxMatchDistanceKm, distanceStepsForWait(waitedMs));
 }
 
 // Not symmetric like distance/rating gap — this checks each side's
