@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CalendarClock, Swords, Users } from "lucide-react";
 import { getLadderActivity, getRatingDistribution, getStatsTotals } from "@/lib/public-stats";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
@@ -9,7 +10,7 @@ import { RatingDistributionChart } from "@/components/rating-distribution-chart"
 import { SectionHeading } from "@/components/section-heading";
 import { StatCard } from "@/components/stat-card";
 import type { Lang } from "@/lib/i18n";
-import { tr } from "@/lib/lang";
+import { tr, trNode } from "@/lib/lang";
 
 const WINDOW_DAYS = 90;
 
@@ -37,6 +38,31 @@ export async function StatsOverviewSection({ lang }: { lang: Lang }) {
         />
         <StatCard icon={Users} label={tr(lang, { en: "Players", es: "Jugadores" })} value={totals.players} />
       </div>
+
+      <p className="text-sm text-muted-foreground">
+        {trNode(lang, {
+          en: (
+            <>
+              These figures are live. For a week at a time — fighters picked, win rates, regions and the biggest rating
+              moves — see the{" "}
+              <Link className="underline" href="/reports">
+                weekly reports
+              </Link>
+              .
+            </>
+          ),
+          es: (
+            <>
+              Estas cifras son en vivo. Para ver una semana completa — personajes elegidos, tasas de victoria, regiones
+              y los mayores cambios de clasificación — mira los{" "}
+              <Link className="underline" href="/reports">
+                informes semanales
+              </Link>
+              .
+            </>
+          ),
+        })}
+      </p>
 
       <section>
         <SectionHeading
