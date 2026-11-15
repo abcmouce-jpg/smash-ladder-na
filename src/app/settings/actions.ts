@@ -17,6 +17,7 @@ import {
   setLiveStreamUrl,
   setQuickMessages,
   setUsername,
+  setWidenFiltersWhileWaiting,
   setYoutubeChannelUrl,
 } from "@/lib/account";
 import { disabledKeysFromEnabled } from "@/lib/notifications";
@@ -88,6 +89,7 @@ export async function updateLobbySettingsAction(
       userId,
       formData.getAll("quickMessage").map((m) => String(m)),
     );
+    await setWidenFiltersWhileWaiting(userId, formData.get("widenFiltersWhileWaiting") === "on");
     await setAvoidPracticeOpponents(userId, formData.get("avoidPracticeOpponents") === "on");
     await setAudioPingOnMatch(userId, formData.get("audioPingOnMatch") === "on");
     await setMatchFoundSound(userId, formData.get("matchFoundSound") === "CHIME" ? "CHIME" : "ANNOUNCER");

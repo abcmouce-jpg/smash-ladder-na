@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
+  GAP_WIDEN_INTERVAL_MS,
+  GAP_WIDEN_STEP,
   PROVISIONAL_RATING_GAP_CAP,
+  distanceStepsForWait,
   effectiveMaxMatchDistanceKm,
   effectiveMaxRatingGap,
+  gapStepsForWait,
   provisionalGapForWait,
-  widenStepsForWait,
   widenedMatchDistanceKm,
   widenedRatingGap,
 } from "@/lib/match-compat";
@@ -46,43 +49,36 @@ describe("provisional rating-gap cap relaxes with time waited", () => {
   });
 });
 
-describe("widenStepsForWait", () => {
-  it("holds the player's own settings for the first stretch", () => {
-    expect(widenStepsForWait(0)).toBe(0);
-    expect(widenStepsForWait(90 * 1000)).toBe(0);
+describe("distanceStepsForWait", () => {
+  it("holds the player's own radius for the first stretch", () => {
+    expect(distanceStepsForWait(0)).toBe(0);
+    expect(distanceStepsForWait(90 * 1000)).toBe(0);
   });
 
   it("adds a notch at each step of the schedule", () => {
-    expect(widenStepsForWait(2 * 60 * 1000)).toBe(1);
-    expect(widenStepsForWait(5 * 60 * 1000)).toBe(2);
-    expect(widenStepsForWait(10 * 60 * 1000)).toBe(3);
+    expect(distanceStepsForWait(2 * 60 * 1000)).toBe(1);
+    expect(distanceStepsForWait(5 * 60 * 1000)).toBe(2);
+    expect(distanceStepsForWait(10 * 60 * 1000)).toBe(3);
   });
 
   it("stops at the last step however long the wait runs", () => {
-    expect(widenStepsForWait(60 * 60 * 1000)).toBe(3);
+    expect(distanceStepsForWait(60 * 60 * 1000)).toBe(3);
   });
 });
 
-describe("widening walks the player's own preset list", () => {
+describe("distance widening walks the player's own preset list", () => {
   it("moves one preset per step", () => {
-    expect(widenedRatingGap(100, 1)).toBe(150);
-    expect(widenedRatingGap(100, 2)).toBe(200);
-    expect(widenedRatingGap(100, 3)).toBe(300);
     expect(widenedMatchDistanceKm(640, 1)).toBe(1300);
     expect(widenedMatchDistanceKm(640, 2)).toBe(2400);
     expect(widenedMatchDistanceKm(640, 3)).toBe(5600);
   });
 
-  it("leaves an unset limit unset — there is nothing to widen", () => {
-    expect(widenedRatingGap(null, 3)).toBeNull();
+  it("leaves an unset radius unset — there is nothing to widen", () => {
     expect(widenedMatchDistanceKm(null, 3)).toBeNull();
   });
 
-  it("never reaches the open-ended preset, so a limit stays a limit", () => {
-    const widestGap = MATCH_RATING_GAP_PRESETS.filter((p) => p.gap !== null).at(-1)?.gap;
+  it("never reaches the open-ended preset, so a radius stays a radius", () => {
     const widestKm = MATCH_DISTANCE_PRESETS.filter((p) => p.km !== null).at(-1)?.km;
-    expect(widenedRatingGap(300, 3)).toBe(widestGap);
-    expect(widenedRatingGap(widestGap ?? null, 3)).toBe(widestGap);
     expect(widenedMatchDistanceKm(2400, 3)).toBe(widestKm);
     expect(widenedMatchDistanceKm(widestKm ?? null, 3)).toBe(widestKm);
   });
@@ -96,17 +92,55 @@ describe("widening walks the player's own preset list", () => {
   });
 });
 
+describe("the rating gap steps by points, not by preset", () => {
+  const STEP = GAP_WIDEN_INTERVAL_MS;
+
+  it("earns a step per interval waited", () => {
+    expect(gapStepsForWait(0)).toBe(0);
+    expect(gapStepsForWait(STEP - 1)).toBe(0);
+    expect(gapStepsForWait(STEP)).toBe(1);
+    expect(gapStepsForWait(STEP * 4)).toBe(4);
+  });
+
+  it("opens the band a fixed number of points at a time", () => {
+    // The ask this was built for: after 300 comes 350, not 500.
+    expect(widenedRatingGap(300, STEP)).toBe(300 + GAP_WIDEN_STEP);
+    expect(widenedRatingGap(300, STEP * 2)).toBe(300 + GAP_WIDEN_STEP * 2);
+    expect(widenedRatingGap(300, STEP * 3)).toBe(300 + GAP_WIDEN_STEP * 3);
+  });
+
+  it("holds the player's own band until the first interval is up", () => {
+    expect(widenedRatingGap(300, 0)).toBe(300);
+    expect(widenedRatingGap(300, STEP - 1)).toBe(300);
+  });
+
+  it("leaves an unset band unset — there is nothing to widen", () => {
+    expect(widenedRatingGap(null, STEP * 10)).toBeNull();
+  });
+
+  it("stops at the widest band the player could have picked", () => {
+    const widestGap = MATCH_RATING_GAP_PRESETS.filter((p) => p.gap !== null).at(-1)?.gap;
+    expect(widenedRatingGap(300, STEP * 100)).toBe(widestGap);
+    expect(widenedRatingGap(widestGap ?? null, STEP * 100)).toBe(widestGap);
+  });
+
+  it("never pulls a stored band above that ceiling back down", () => {
+    expect(widenedRatingGap(900, STEP * 100)).toBe(900);
+  });
+});
+
 describe("opting into widening", () => {
   const PICKY = { gamesPlayed: 50, maxRatingGap: 200, widenFiltersWhileWaiting: true };
 
   it("holds the player's own settings until the schedule's first step", () => {
     expect(effectiveMaxRatingGap(PICKY, 0)).toBe(200);
-    expect(effectiveMaxRatingGap(PICKY, 90 * 1000)).toBe(200);
+    expect(effectiveMaxRatingGap(PICKY, GAP_WIDEN_INTERVAL_MS - 1)).toBe(200);
   });
 
   it("loosens the gap the longer nobody turns up", () => {
-    expect(effectiveMaxRatingGap(PICKY, 2 * 60 * 1000)).toBe(300);
-    expect(effectiveMaxRatingGap(PICKY, 10 * 60 * 1000)).toBe(500);
+    expect(effectiveMaxRatingGap(PICKY, GAP_WIDEN_INTERVAL_MS)).toBe(250);
+    expect(effectiveMaxRatingGap(PICKY, GAP_WIDEN_INTERVAL_MS * 2)).toBe(300);
+    expect(effectiveMaxRatingGap(PICKY, GAP_WIDEN_INTERVAL_MS * 60)).toBe(500);
   });
 
   it("loosens the distance on the same schedule", () => {
@@ -132,6 +166,8 @@ describe("opting into widening", () => {
     // Opted in with a band of their own: it widens, but only as far as the
     // cap for that wait allows.
     const bounded = { gamesPlayed: 0, maxRatingGap: 300, widenFiltersWhileWaiting: true };
-    expect(effectiveMaxRatingGap(bounded, 10 * 60 * 1000)).toBe(Math.min(500, provisionalGapForWait(10 * 60 * 1000)));
+    expect(effectiveMaxRatingGap(bounded, 10 * 60 * 1000)).toBe(
+      Math.min(widenedRatingGap(300, 10 * 60 * 1000)!, provisionalGapForWait(10 * 60 * 1000)),
+    );
   });
 });

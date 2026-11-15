@@ -10,6 +10,8 @@ import { PushNotificationsForm } from "@/components/push-notifications-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
 import { SectionTabs } from "@/components/section-tabs";
+import { formatInterval } from "@/lib/duration";
+import { GAP_WIDEN_INTERVAL_MS, GAP_WIDEN_STEP } from "@/lib/match-compat";
 import { SettingsSaveForm } from "@/components/settings-save-form";
 import { NOTIFICATION_DEFS, isNotificationEnabled, type NotificationDef } from "@/lib/notifications";
 import { type MatchFoundSound } from "@/lib/sound";
@@ -113,6 +115,7 @@ export default async function SettingsPage({
         liveStreamUrl: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
+        widenFiltersWhileWaiting: true,
         audioPingOnMatch: true,
         matchFoundSound: true,
         notifyQueueOpportunities: true,
@@ -189,6 +192,7 @@ export default async function SettingsPage({
 
       {tab === "lobby" && (
         <LobbyTab
+          widenFiltersWhileWaiting={me?.widenFiltersWhileWaiting ?? false}
           avoidPracticeOpponents={me?.avoidPracticeOpponents ?? false}
           audioPingOnMatch={me?.audioPingOnMatch ?? true}
           matchFoundSound={me?.matchFoundSound ?? "CHIME"}
@@ -396,6 +400,7 @@ function UserTab({
 }
 
 function LobbyTab({
+  widenFiltersWhileWaiting,
   avoidPracticeOpponents,
   audioPingOnMatch,
   matchFoundSound,
@@ -403,6 +408,7 @@ function LobbyTab({
   quickMessages,
   lang,
 }: {
+  widenFiltersWhileWaiting: boolean;
   avoidPracticeOpponents: boolean;
   audioPingOnMatch: boolean;
   matchFoundSound: MatchFoundSound;
@@ -417,6 +423,33 @@ function LobbyTab({
       <Card>
         <CardContent className="pt-4">
           <SettingsSaveForm action={updateLobbySettingsAction} lang={lang} className="flex flex-col gap-5">
+            {/* The same switch as the one in Match settings on the Lobby page,
+                writing the same column — someone who came here to turn it off
+                should not have to find the lobby form to do it. */}
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                key={String(widenFiltersWhileWaiting)}
+                type="checkbox"
+                name="widenFiltersWhileWaiting"
+                defaultChecked={widenFiltersWhileWaiting}
+                className="mt-0.5 size-4 rounded border-border"
+              />
+              <span>
+                <span className="font-medium">
+                  {tr(lang, {
+                    en: "Loosen my match limits while I'm waiting",
+                    es: "Flexibilizar mis límites de partida mientras espero",
+                  })}
+                </span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {tr(lang, {
+                    en: `My rating gap opens by ${GAP_WIDEN_STEP} points every ${formatInterval(GAP_WIDEN_INTERVAL_MS, "en")} with no opponent, up to the widest band I could have picked myself, and my match distance opens a step at 2, 5 and 10 minutes. The other player's own limits still have to allow the match.`,
+                    es: `Mi diferencia de clasificación se abre ${GAP_WIDEN_STEP} puntos cada ${formatInterval(GAP_WIDEN_INTERVAL_MS, "es")} sin rival, hasta el rango más amplio que podría haber elegido, y mi distancia se abre un paso a los 2, 5 y 10 minutos. Los límites del otro jugador también tienen que permitir la partida.`,
+                  })}
+                </span>
+              </span>
+            </label>
+
             <label className="flex items-start gap-2 text-sm">
               <input
                 key={String(avoidPracticeOpponents)}

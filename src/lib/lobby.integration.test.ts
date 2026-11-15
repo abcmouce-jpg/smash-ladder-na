@@ -861,16 +861,30 @@ describe("sweepLobbyPairing", () => {
 });
 
 describe("filters loosen the longer a player waits", () => {
-  // WIDEN_SCHEDULE's first step is 2 minutes; these back-date joinedAt rather
-  // than waiting for it. The whole point is the pairing paths reading each
-  // side's own wait, so the clock is the fixture here.
+  // The first step of either schedule lands inside three minutes; these
+  // back-date joinedAt rather than waiting for it. The whole point is the
+  // pairing paths reading each side's own wait, so the clock is the fixture
+  // here — as is widenFiltersWhileWaiting, which is off by default and has to
+  // be asked for.
   const PAST_FIRST_STEP = 3 * 60 * 1000;
 
   it("pairs two players whose own rating bands were too tight at join time", async () => {
     // 180 points apart with both bands at 100: nobody pairs at join time, and
     // on a queue this thin nobody ever would.
-    const a = await createTestUser({ region: "USA East", rating: 1500, gamesPlayed: 50, maxRatingGap: 100 });
-    const b = await createTestUser({ region: "USA East", rating: 1680, gamesPlayed: 50, maxRatingGap: 100 });
+    const a = await createTestUser({
+      region: "USA East",
+      rating: 1500,
+      gamesPlayed: 50,
+      maxRatingGap: 100,
+      widenFiltersWhileWaiting: true,
+    });
+    const b = await createTestUser({
+      region: "USA East",
+      rating: 1680,
+      gamesPlayed: 50,
+      maxRatingGap: 100,
+      widenFiltersWhileWaiting: true,
+    });
 
     await joinLobbyAndTryPair(a.id);
     await joinLobbyAndTryPair(b.id);
@@ -892,7 +906,13 @@ describe("filters loosen the longer a player waits", () => {
   });
 
   it("leaves the pair apart when either side opted out", async () => {
-    const a = await createTestUser({ region: "USA East", rating: 1500, gamesPlayed: 50, maxRatingGap: 100 });
+    const a = await createTestUser({
+      region: "USA East",
+      rating: 1500,
+      gamesPlayed: 50,
+      maxRatingGap: 100,
+      widenFiltersWhileWaiting: true,
+    });
     const b = await createTestUser({
       region: "USA East",
       rating: 1680,
@@ -914,8 +934,18 @@ describe("filters loosen the longer a player waits", () => {
   it("reaches a region outside the radius both players set", async () => {
     // USA East to USA Central is ~957 km, outside the ~400 mi (640 km) radius
     // both of them chose, inside the ~800 mi (1,300 km) one step widens to.
-    const a = await createTestUser({ region: "USA East", gamesPlayed: 50, maxMatchDistanceKm: 640 });
-    const b = await createTestUser({ region: "USA Central", gamesPlayed: 50, maxMatchDistanceKm: 640 });
+    const a = await createTestUser({
+      region: "USA East",
+      gamesPlayed: 50,
+      maxMatchDistanceKm: 640,
+      widenFiltersWhileWaiting: true,
+    });
+    const b = await createTestUser({
+      region: "USA Central",
+      gamesPlayed: 50,
+      maxMatchDistanceKm: 640,
+      widenFiltersWhileWaiting: true,
+    });
 
     await joinLobbyAndTryPair(a.id);
     await joinLobbyAndTryPair(b.id);
@@ -941,8 +971,18 @@ describe("filters loosen the longer a player waits", () => {
     // Hawaii to Ontario is far past every finite preset, so the widest option
     // a player could have picked still doesn't cover it. Only "Any distance",
     // which widening deliberately never reaches, would.
-    const a = await createTestUser({ region: "Hawaii", gamesPlayed: 50, maxMatchDistanceKm: 2400 });
-    const b = await createTestUser({ region: "Ontario", gamesPlayed: 50, maxMatchDistanceKm: 2400 });
+    const a = await createTestUser({
+      region: "Hawaii",
+      gamesPlayed: 50,
+      maxMatchDistanceKm: 2400,
+      widenFiltersWhileWaiting: true,
+    });
+    const b = await createTestUser({
+      region: "Ontario",
+      gamesPlayed: 50,
+      maxMatchDistanceKm: 2400,
+      widenFiltersWhileWaiting: true,
+    });
     await createWaitingEntry(a.id, null, new Date(Date.now() - 60 * 60 * 1000));
     await createWaitingEntry(b.id, null, new Date(Date.now() - 60 * 60 * 1000));
 
