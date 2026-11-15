@@ -70,7 +70,7 @@ describe("distance widening walks the player's own preset list", () => {
   it("moves one preset per step", () => {
     expect(widenedMatchDistanceKm(640, 1)).toBe(1300);
     expect(widenedMatchDistanceKm(640, 2)).toBe(2400);
-    expect(widenedMatchDistanceKm(640, 3)).toBe(5600);
+    expect(widenedMatchDistanceKm(640, 3)).toBe(4000);
   });
 
   it("leaves an unset radius unset — there is nothing to widen", () => {
@@ -87,7 +87,7 @@ describe("distance widening walks the player's own preset list", () => {
     // 2000 km sits between presets — an orphan from a past renumbering (see
     // the WARNING on MATCH_DISTANCE_PRESETS). It widens from the rung above
     // it rather than being stuck forever.
-    expect(widenedMatchDistanceKm(2000, 1)).toBe(5600);
+    expect(widenedMatchDistanceKm(2000, 1)).toBe(4000);
     expect(widenedMatchDistanceKm(2000, 0)).toBe(2000);
   });
 });
@@ -147,7 +147,7 @@ describe("opting into widening", () => {
     const far = { maxMatchDistanceKm: 640, widenFiltersWhileWaiting: true };
     expect(effectiveMaxMatchDistanceKm(far, 0)).toBe(640);
     expect(effectiveMaxMatchDistanceKm(far, 2 * 60 * 1000)).toBe(1300);
-    expect(effectiveMaxMatchDistanceKm(far, 10 * 60 * 1000)).toBe(5600);
+    expect(effectiveMaxMatchDistanceKm(far, 10 * 60 * 1000)).toBe(4000);
   });
 
   it("changes nothing for a player who left it off", () => {

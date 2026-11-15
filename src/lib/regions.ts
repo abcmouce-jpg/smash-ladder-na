@@ -317,6 +317,19 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // the company notes. Any future change here MUST ship with a migration
 // that snaps existing stored values to the nearest new preset.
 //
+// ~2,500 mi (4,000 km) added 2026-11-15. The step from 1,500 to 3,500 was
+// the widest jump on the list and it was doing too much work: of the 528
+// ordered region pairs, 141 sit between 2,400 and 4,000 km and only 46
+// between 4,000 and 5,600, so "I'll play the next time zone over but not
+// the far coast" had no setting — USA East to USA Mountain is 2,401 km, and
+// expressing that meant opting into 3,500 mi and everything under it.
+//
+// Adding a step is the safe direction of change for the WARNING above:
+// every km value anyone has stored (240, 640, 1300, 2400, 5600) is still on
+// the list, so setMaxMatchDistance keeps validating them and nothing needs
+// migrating. Removing or renumbering one would still need the migration
+// that warning describes.
+//
 // Reworked 2026-08-03 after player feedback that "Moderate" (formerly
 // 3,200km) was wide enough to span Canada to Mexico, or the US west coast
 // to the east coast — the mid tiers were too coarse to actually express
@@ -331,6 +344,7 @@ const NA_DISTANCE_PRESETS = [
   { label: { en: "Within ~400 mi", es: "Hasta ~400 mi" }, km: 640 },
   { label: { en: "Within ~800 mi", es: "Hasta ~800 mi" }, km: 1300 },
   { label: { en: "Within ~1,500 mi", es: "Hasta ~1,500 mi" }, km: 2400 },
+  { label: { en: "Within ~2,500 mi", es: "Hasta ~2,500 mi" }, km: 4000 },
   { label: { en: "Within ~3,500 mi", es: "Hasta ~3,500 mi" }, km: 5600 },
   { label: { en: "Any distance", es: "Cualquier distancia" }, km: null },
 ] as const;
