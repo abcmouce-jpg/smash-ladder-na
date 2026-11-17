@@ -1,7 +1,7 @@
 import { getLang } from "@/lib/i18n";
 import { SITE_NAME, instanceText } from "@/lib/site";
 import { MAX_RATING_DELTA, MIN_RATING_DELTA } from "@/lib/matches";
-import { PROVISIONAL_MIN_GAMES, RANK_TIERS } from "@/lib/rank-tier";
+import { PROVISIONAL_GAMES_THRESHOLD, RANK_TIERS } from "@/lib/rank-tier";
 
 export const metadata = {
   title: `${instanceText({ en: "How the rating works", es: "Cómo funciona la clasificación" })} — ${SITE_NAME}`,
@@ -102,10 +102,10 @@ export default async function RatingPage() {
 
         <Section title="Provisional: the first few sets">
           <p>
-            Your rating is hidden, from you and from everyone else, until you have played {PROVISIONAL_MIN_GAMES} rated
-            sets. A rating built on one or two results is mostly noise, and publishing it would invite people to read
-            meaning into a number that does not have any yet. You are still matched and still rated during that time —
-            only the display waits.
+            Your rating is hidden, from you and from everyone else, until you have played {PROVISIONAL_GAMES_THRESHOLD}{" "}
+            rated sets. A rating built on one or two results is mostly noise, and publishing it would invite people to
+            read meaning into a number that does not have any yet. You are still matched and still rated during that
+            time — only the display waits.
           </p>
         </Section>
 
@@ -231,7 +231,7 @@ function RatingPageEs() {
 
         <Section title="Provisional: los primeros sets">
           <p>
-            Tu clasificación está oculta, para ti y para los demás, hasta que juegues {PROVISIONAL_MIN_GAMES} sets
+            Tu clasificación está oculta, para ti y para los demás, hasta que juegues {PROVISIONAL_GAMES_THRESHOLD} sets
             clasificatorios. Una clasificación construida sobre uno o dos resultados es casi solo ruido, y publicarla
             invitaría a leer significado en un número que todavía no lo tiene. Durante ese tiempo sigues emparejándote y
             sigues siendo clasificado — solo espera lo que se muestra.

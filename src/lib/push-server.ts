@@ -228,6 +228,10 @@ export async function notifyQueueOpportunitySubscribers(
       gamesPlayed: true,
       wiredConnection: true,
       requireWiredOpponent: true,
+      // Only to satisfy effectiveMaxRatingGap below, which these candidates
+      // call with no wait at all: a queue-opportunity subscriber is by
+      // definition not in the queue, so nothing here ever widens.
+      widenFiltersWhileWaiting: true,
       preferredLanguage: true,
       discordId: true,
       notifyQueueOpportunities: true,

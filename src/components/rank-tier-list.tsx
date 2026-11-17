@@ -1,4 +1,4 @@
-import { PROVISIONAL_MIN_GAMES, RANK_TIERS, rankTierRatingRange, type RankTier } from "@/lib/rank-tier";
+import { PROVISIONAL_GAMES_THRESHOLD, RANK_TIERS, rankTierRatingRange, type RankTier } from "@/lib/rank-tier";
 import { TierBadge } from "@/components/rank-badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -63,8 +63,8 @@ export function RankTierList({ className, lang = "en" }: { className?: string; l
         tier={null}
         lang={lang}
         range={tr(lang, {
-          en: `First ${PROVISIONAL_MIN_GAMES} sets`,
-          es: `Primeras ${PROVISIONAL_MIN_GAMES} partidas`,
+          en: `First ${PROVISIONAL_GAMES_THRESHOLD} sets`,
+          es: `Primeras ${PROVISIONAL_GAMES_THRESHOLD} partidas`,
         })}
       >
         {tr(lang, {

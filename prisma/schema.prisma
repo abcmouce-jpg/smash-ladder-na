@@ -197,9 +197,24 @@ model User {
   secondaryCharacters        String[]        @default([]) // same source as mainCharacter
   region                     String? // self-declared match region; drives distance-based matchmaking
   preferredLanguage          String? // "es" | "ja" | null (English, the default). Keep in step with Lang in lib/i18n.ts, which is the source of truth; "ja" added 2026-10-23 for the Japanese version. Stored null rather than "en" so the column stays empty for the majority. Drives getLang() for signed-in viewers and which landing page "/" bounces to.
-  maxMatchDistanceKm         Int?            @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
+  maxMatchDistanceKm         Int?            @default(5600) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. THIS is the default players get, not any constant in regions.ts. Default matches MATCH_DISTANCE_PRESETS' "Extended" tier — raised from "Moderate" (2400) on 2026-11-12, see the note there.
   maxRatingGap               Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
   rematchCooldownHours       Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
+  // Self-declared opt-in: if no opponent turns up, let the two filters above
+  // this one (maxMatchDistanceKm and maxRatingGap) loosen the longer this
+  // player waits — the gap by a fixed number of points on a clock, the radius
+  // a preset at a time; see GAP_WIDEN_STEP and DISTANCE_WIDEN_SCHEDULE in
+  // lib/match-compat.ts. Never past the widest preset a player could have
+  // picked, so it cannot turn into "anyone, anywhere".
+  //
+  // Off by default. It shipped on by default on 2026-11-14 and that was the
+  // wrong call: a filter the player set themselves is a statement about who
+  // they want to play, and loosening it without being asked is the site
+  // overruling that statement — "nobody is online" is at least an honest
+  // answer. The flip set every row that still held the imposed default back
+  // to false; the nine accounts that had already turned it off kept their
+  // own answer either way.
+  widenFiltersWhileWaiting   Boolean         @default(false)
   wiredConnection            Boolean         @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
   requireWiredOpponent       Boolean         @default(false) // if set, only match with opponents who have wiredConnection on. Checked per-side against the OTHER side's actual wiredConnection fact — not symmetric like distance/rating gap, since this is a claim about the other person, not a shared value.
   arenaPassword              String? // self-declared in-game room password override; null means use the ladder-wide default (see DEFAULT_ARENA_PASSWORD in lib/arena.ts). Lets streamers keep theirs off a publicly-documented value.

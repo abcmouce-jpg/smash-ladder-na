@@ -4,7 +4,6 @@ import { GEAR_RECOMMENDATIONS } from "@/lib/gear-links";
 import { SITE_NAME, instanceText } from "@/lib/site";
 import { MATCH_TTL_MS } from "@/lib/match-games";
 import { MAX_RATING_DELTA, SMASHMATE_K_FACTOR } from "@/lib/matches";
-import { PROVISIONAL_MIN_GAMES } from "@/lib/rank-tier";
 
 const MATCH_TTL_HOURS = MATCH_TTL_MS / (60 * 60 * 1000);
 

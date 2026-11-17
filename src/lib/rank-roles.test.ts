@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { computeTierChange } from "./rank-roles";
+import { PROVISIONAL_GAMES_THRESHOLD } from "./rank-tier";
 
 describe("computeTierChange", () => {
   it("detects a tier change across a match", () => {
@@ -21,8 +22,9 @@ describe("computeTierChange", () => {
   });
 
   it("uses the pre-increment games count for oldTier so a provisional reveal is detected", () => {
-    // 4 games before this match (still provisional) -> 5 after (tiered for the first time).
-    const change = computeTierChange("u1", "d1", "Player", "m1", 1550, 1560, 4);
+    // One short of the threshold before this match, reaching it after — the
+    // first time this player has a tier at all.
+    const change = computeTierChange("u1", "d1", "Player", "m1", 1550, 1560, PROVISIONAL_GAMES_THRESHOLD - 1);
     expect(change.oldTier).toBeNull();
     expect(change.newTier).toBe("Fighter");
   });

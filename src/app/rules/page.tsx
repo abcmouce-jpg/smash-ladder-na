@@ -1,4 +1,4 @@
-import { LEADERBOARD_MIN_GAMES, PROVISIONAL_MIN_GAMES } from "@/lib/rank-tier";
+import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { SEASON_PRIZE_POOL_USD, PRIZE_AMOUNTS_USD, approxMxn } from "@/lib/prizes";
 import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { getLang } from "@/lib/i18n";

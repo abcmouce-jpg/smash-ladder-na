@@ -228,7 +228,7 @@ export async function getRatingDistribution(): Promise<RatingDistribution> {
 export type StatsTotals = {
   matchesThisSeason: number;
   matchesAllTime: number;
-  rankedPlayers: number;
+  players: number;
 };
 
 // Headline totals for the Stats overview cards.
@@ -239,16 +239,24 @@ export type StatsTotals = {
 // (stamped at confirm time, see applyEloAndConfirm), so the season figure is
 // simply the all-time count scoped to the active season and stays a clean
 // subset of it.
+//
+// "Players" is every registered account — the same number the home page has
+// always shown under the same word. It used to count RANKED_PLAYER_WHERE, i.e.
+// only those past the leaderboard floor, which made the site look a sixth of
+// its size on the page that exists to say how big it is, and contradicted the
+// home page one click away. The rating distribution below these cards still
+// charts only the players whose rating is public and says so in its own
+// caption; the two are different populations on purpose.
 export async function getStatsTotals(): Promise<StatsTotals> {
   const activeSeason = await getActiveSeason();
 
-  const [matchesThisSeason, matchesAllTime, rankedPlayers] = await Promise.all([
+  const [matchesThisSeason, matchesAllTime, players] = await Promise.all([
     activeSeason
       ? prisma.ratingMatch.count({ where: { status: MatchStatus.CONFIRMED, seasonId: activeSeason.id } })
       : Promise.resolve(0),
     prisma.ratingMatch.count({ where: { status: MatchStatus.CONFIRMED } }),
-    prisma.user.count({ where: RANKED_PLAYER_WHERE }),
+    prisma.user.count(),
   ]);
 
-  return { matchesThisSeason, matchesAllTime, rankedPlayers };
+  return { matchesThisSeason, matchesAllTime, players };
 }

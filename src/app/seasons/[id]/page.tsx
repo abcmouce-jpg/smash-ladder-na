@@ -112,8 +112,8 @@ export default async function SeasonStandingsPage({
         {standings.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">
             {tr(lang, {
-              en: "No ranked players that season.",
-              es: "Nadie jugó rankeado esa temporada.",
+              en: "No players on the board that season.",
+              es: "Nadie apareció en la tabla esa temporada.",
             })}
           </p>
         )}
@@ -139,8 +139,8 @@ function PaginationBar({
     <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
       <Badge variant="outline">
         {tr(lang, {
-          en: `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`,
-          es: `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`,
+          en: `${totalCount} player${totalCount === 1 ? "" : "s"}`,
+          es: `${totalCount} ${totalCount === 1 ? "jugador" : "jugadores"}`,
         })}
       </Badge>
       {totalPages > 1 && (

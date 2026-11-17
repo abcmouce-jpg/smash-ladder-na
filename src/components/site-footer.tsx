@@ -22,6 +22,9 @@ export async function SiteFooter() {
           <Link href="/about" prefetch={false} className="hover:text-foreground hover:underline">
             {tr(lang, { en: "About", es: "Acerca de" })}
           </Link>
+          <Link href="/reports" prefetch={false} className="hover:text-foreground hover:underline">
+            {tr(lang, { en: "Weekly reports", es: "Informes semanales" })}
+          </Link>
           <Link href="/rules" prefetch={false} className="hover:text-foreground hover:underline">
             {tr(lang, { en: "Rules", es: "Reglas" })}
           </Link>

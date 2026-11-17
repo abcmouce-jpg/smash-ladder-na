@@ -195,22 +195,24 @@ describe("getStatsTotals", () => {
     });
   }
 
-  it("counts confirmed matches for the active season and all time, plus ranked players", async () => {
+  it("counts confirmed matches for the active season and all time, plus every registered player", async () => {
     const active = await prisma.season.create({ data: { name: "Active" } });
     const past = await prisma.season.create({ data: { name: "Past", endsAt: new Date() } });
     const p1 = await createTestUser({ gamesPlayed: LEADERBOARD_MIN_GAMES });
     const p2 = await createTestUser({ gamesPlayed: LEADERBOARD_MIN_GAMES });
     const p3 = await createTestUser({ gamesPlayed: LEADERBOARD_MIN_GAMES });
-    await createTestUser({ gamesPlayed: LEADERBOARD_MIN_GAMES - 1 }); // below the leaderboard floor
+    // Below the leaderboard floor, and still a player: the card counts accounts,
+    // not who cleared the floor (see getStatsTotals).
+    await createTestUser({ gamesPlayed: LEADERBOARD_MIN_GAMES - 1 });
 
     await createConfirmedMatchInSeason(p1.id, p2.id, active.id);
     await createConfirmedMatchInSeason(p2.id, p3.id, active.id);
     await createConfirmedMatchInSeason(p1.id, p3.id, past.id);
 
-    const { matchesThisSeason, matchesAllTime, rankedPlayers } = await getStatsTotals();
+    const { matchesThisSeason, matchesAllTime, players } = await getStatsTotals();
     expect(matchesThisSeason).toBe(2);
     expect(matchesAllTime).toBe(3);
-    expect(rankedPlayers).toBe(3);
+    expect(players).toBe(4);
   });
 
   it("ignores unconfirmed matches", async () => {

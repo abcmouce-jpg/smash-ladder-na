@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { siteOrigin } from "@/lib/site-url";
 import { PUBLISHES_SPANISH, HAS_KOFI, HAS_COMMUNITY_GUIDES } from "@/lib/site";
 import { characterPageTarget, characterSlug, type SmashCharacter } from "@/lib/characters";
+import { weekIdFor, weeksWithSets } from "@/lib/weekly-report";
 
 // Profiles are deliberately NOT listed. They are templated stat pages — a
 // name, a rating and a match table, about 2,400 characters of which ~200 is
@@ -54,6 +55,31 @@ async function characterEntries(siteUrl: string): Promise<MetadataRoute.Sitemap>
   }));
 }
 
+/**
+ * The weekly reports, newest first.
+ *
+ * These are generated pages, like the profiles the comment at the top of this
+ * file refuses to list — but a week report is a few hundred words of prose
+ * over four tables of numbers that exist nowhere else, and there is one per
+ * week rather than one per account. Half a year of them is 26 URLs, not
+ * 5,900. The week still running is left out: it would change under the
+ * crawler every day and read as a different page each time.
+ */
+async function reportEntries(siteUrl: string): Promise<MetadataRoute.Sitemap> {
+  const current = weekIdFor(new Date());
+  const weeks = await weeksWithSets(REPORT_WEEKS_LISTED + 1);
+  return weeks
+    .filter((week) => week.id !== current)
+    .slice(0, REPORT_WEEKS_LISTED)
+    .map((week) => ({
+      url: `${siteUrl}/reports/${week.id}`,
+      changeFrequency: "yearly" as const,
+      priority: 0.5,
+    }));
+}
+
+const REPORT_WEEKS_LISTED = 26;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Resolved per request rather than hardcoded: a sitemap that names a
   // different origin than the one serving it is treated as cross-domain and
@@ -69,6 +95,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/leaderboard`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE_URL}/stats`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
+    { url: `${SITE_URL}/reports`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    ...(await reportEntries(SITE_URL)),
     { url: `${SITE_URL}/friendlies`, lastModified: now, changeFrequency: "hourly", priority: 0.5 },
     { url: `${SITE_URL}/tournaments`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/live`, lastModified: now, changeFrequency: "hourly", priority: 0.6 },

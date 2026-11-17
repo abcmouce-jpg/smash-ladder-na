@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { SITE_NAME, instanceText } from "@/lib/site";
 import { headers } from "next/headers";
 import { Activity, Radio, Swords } from "lucide-react";
 import { auth } from "@/auth";
@@ -11,6 +13,19 @@ import { LiveStreamStage } from "@/components/live-streams/stage";
 import { getLang } from "@/lib/i18n";
 import { SetRow } from "@/components/live-streams/set-row";
 import { tr, trNode } from "@/lib/lang";
+
+// Its own title and description rather than the layout's site-wide pair,
+// so this page is not one more of several thousand that introduce
+// themselves to a crawler with the same two lines. The canonical pins the
+// filtered and paginated variants of this URL to the plain one.
+export const metadata: Metadata = {
+  title: `${instanceText({ en: "Live sets", es: "Partidas en directo" })} — ${SITE_NAME}`,
+  description: instanceText({
+    en: "Sets being played right now, the streams carrying them, and the results as they are confirmed.",
+    es: "Las partidas que se están jugando ahora, los directos que las retransmiten y los resultados según se confirman.",
+  }),
+  alternates: { canonical: "/live" },
+};
 
 export default async function SetsFeedPage() {
   const [entries, { inProgress, matchesToday }, lang, session] = await Promise.all([

@@ -7,6 +7,7 @@ import { GAME_ONE_STAGES } from "@/lib/stages";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { isNotificationEnabled } from "@/lib/notifications";
 import { LocalizedError } from "@/lib/localized-error";
+import { isMainTrack, readTrack, trackFor, writeTrack } from "@/lib/rating-track";
 
 // A CONFIRMED match can still be corrected via adminSetGameWinner below, but
 // only a bounded number of times — this is a mod escape hatch for genuine
@@ -435,33 +436,40 @@ export async function adminCancelMatch(matchId: string) {
             es: "A esta partida le faltan las clasificaciones previas y no se puede revertir con seguridad",
           });
         }
+        // Back onto the track each side actually played on, never `rating`
+        // outright: a practising side's snapshots are practice-track numbers,
+        // and restoring those to the ladder columns is what wiped a 2163
+        // ladder rating with the practice track's untouched 1500 on
+        // 2026-11-11. A Glicko-2 match also needs its whole pre-match state
+        // restored, not just the rating — reversing only the rating would
+        // leave RD/volatility describing a game that no longer counts. An Elo
+        // match stores no rd/volatility snapshots, so writeTrack leaves those
+        // columns alone.
+        const p1Track = trackFor(match.mode, match.player1IsPracticing);
+        const p2Track = trackFor(match.mode, match.player2IsPracticing);
         await tx.user.update({
           where: { id: match.player1Id },
-          data: {
-            rating: match.player1RatingBefore,
-            gamesPlayed: { decrement: 1 },
-            // A Glicko-2 match needs its whole pre-match state restored, not
-            // just the rating — reversing only the rating would leave RD/
-            // volatility describing a game that no longer counts. An Elo match
-            // stores no rd/volatility snapshots, so those are left untouched.
-            ...(match.player1RdBefore !== null &&
-              match.player1VolatilityBefore !== null && {
-                ratingDeviation: match.player1RdBefore,
-                ratingVolatility: match.player1VolatilityBefore,
-              }),
-          },
+          data: writeTrack(
+            p1Track,
+            {
+              rating: match.player1RatingBefore,
+              rd: match.player1RdBefore,
+              volatility: match.player1VolatilityBefore,
+            },
+            "decrement",
+          ),
         });
         await tx.user.update({
           where: { id: match.player2Id },
-          data: {
-            rating: match.player2RatingBefore,
-            gamesPlayed: { decrement: 1 },
-            ...(match.player2RdBefore !== null &&
-              match.player2VolatilityBefore !== null && {
-                ratingDeviation: match.player2RdBefore,
-                ratingVolatility: match.player2VolatilityBefore,
-              }),
-          },
+          data: writeTrack(
+            p2Track,
+            {
+              rating: match.player2RatingBefore,
+              rd: match.player2RdBefore,
+              volatility: match.player2VolatilityBefore,
+            },
+            "decrement",
+          ),
         });
         await tx.ratingHistory.deleteMany({ where: { matchId } });
       }
@@ -516,24 +524,53 @@ export async function adminUndoOldMatch(matchId: string) {
         tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
         tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
       ]);
-      const p1NewRating = Math.round(p1.rating - p1Delta);
-      const p2NewRating = Math.round(p2.rating - p2Delta);
+      // The delta came off whichever track each side played on, so it has to
+      // go back onto that same one — see the comment in adminCancelMatch.
+      const p1Track = trackFor(match.mode, match.player1IsPracticing);
+      const p2Track = trackFor(match.mode, match.player2IsPracticing);
+      const p1Current = readTrack(p1, p1Track).rating;
+      const p2Current = readTrack(p2, p2Track).rating;
+      const p1NewRating = Math.round(p1Current - p1Delta);
+      const p2NewRating = Math.round(p2Current - p2Delta);
 
       await tx.user.update({
         where: { id: p1.id },
-        data: { rating: p1NewRating, gamesPlayed: { decrement: 1 } },
+        data: writeTrack(p1Track, { rating: p1NewRating }, "decrement"),
       });
       await tx.user.update({
         where: { id: p2.id },
-        data: { rating: p2NewRating, gamesPlayed: { decrement: 1 } },
+        data: writeTrack(p2Track, { rating: p2NewRating }, "decrement"),
       });
       await tx.ratingHistory.deleteMany({ where: { matchId } });
-      await tx.ratingHistory.createMany({
-        data: [
-          { userId: p1.id, matchId, ratingBefore: p1.rating, ratingAfter: p1NewRating, delta: p1NewRating - p1.rating },
-          { userId: p2.id, matchId, ratingBefore: p2.rating, ratingAfter: p2NewRating, delta: p2NewRating - p2.rating },
-        ],
-      });
+      // Same rule as applyEloAndConfirm: only the main track belongs in the
+      // rating chart, so a practice or randitto undo leaves no row behind.
+      const undoRows = [
+        ...(isMainTrack(p1Track)
+          ? [
+              {
+                userId: p1.id,
+                matchId,
+                ratingBefore: p1Current,
+                ratingAfter: p1NewRating,
+                delta: p1NewRating - p1Current,
+              },
+            ]
+          : []),
+        ...(isMainTrack(p2Track)
+          ? [
+              {
+                userId: p2.id,
+                matchId,
+                ratingBefore: p2Current,
+                ratingAfter: p2NewRating,
+                delta: p2NewRating - p2Current,
+              },
+            ]
+          : []),
+      ];
+      if (undoRows.length > 0) {
+        await tx.ratingHistory.createMany({ data: undoRows });
+      }
       await tx.ratingMatch.update({ where: { id: matchId }, data: { status: MatchStatus.CANCELLED } });
     }, TX_OPTIONS),
   );

@@ -15,6 +15,7 @@ import {
   setRematchCooldown,
   setRequireWiredOpponent,
   setUserRegion,
+  setWidenFiltersWhileWaiting,
   setWiredConnection,
   setZenMode,
 } from "@/lib/account";
@@ -493,6 +494,12 @@ export async function updateRequireWiredOpponent(requireWired: boolean) {
 export async function updateAvoidPracticeOpponents(avoid: boolean) {
   const userId = await requireUserId();
   await setAvoidPracticeOpponents(userId, avoid);
+  revalidatePath("/lobby");
+}
+
+export async function updateWidenFiltersWhileWaiting(widen: boolean) {
+  const userId = await requireUserId();
+  await setWidenFiltersWhileWaiting(userId, widen);
   revalidatePath("/lobby");
 }
 

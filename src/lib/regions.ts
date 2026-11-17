@@ -1,3 +1,4 @@
+import type { Lang } from "@/lib/lang";
 import { DISTANCE_MATCHMAKING } from "@/lib/site";
 
 // USA/Canada broad regions predate state/province-level granularity below —
@@ -293,6 +294,15 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // most of a large country in NA, but nearly all of Europe), so a label
 // claiming to match a specific unit reads wrong for a lot of players.
 //
+// The adjectives that used to lead each label ("Close", "Moderate",
+// "Extended", and "Worldwide" for no limit) were dropped on 2026-11-13.
+// Moderate compared to what? The word carried no information the distance
+// beside it did not already carry, and "Worldwide" oversold the top step
+// on a ladder whose population is NA — it reads as "match me to Japan"
+// rather than "do not filter on distance". What is left is the shape the
+// other two match filters already use: a concrete bound, and an "Any" for
+// no bound (see MATCH_RATING_GAP_PRESETS' "Within 300" / "Any rating").
+//
 // Displayed in miles since the target audience is NA — the underlying
 // `km` values are what's actually stored and compared against, unchanged.
 //
@@ -307,6 +317,19 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // the company notes. Any future change here MUST ship with a migration
 // that snaps existing stored values to the nearest new preset.
 //
+// ~2,500 mi (4,000 km) added 2026-11-15. The step from 1,500 to 3,500 was
+// the widest jump on the list and it was doing too much work: of the 528
+// ordered region pairs, 141 sit between 2,400 and 4,000 km and only 46
+// between 4,000 and 5,600, so "I'll play the next time zone over but not
+// the far coast" had no setting — USA East to USA Mountain is 2,401 km, and
+// expressing that meant opting into 3,500 mi and everything under it.
+//
+// Adding a step is the safe direction of change for the WARNING above:
+// every km value anyone has stored (240, 640, 1300, 2400, 5600) is still on
+// the list, so setMaxMatchDistance keeps validating them and nothing needs
+// migrating. Removing or renumbering one would still need the migration
+// that warning describes.
+//
 // Reworked 2026-08-03 after player feedback that "Moderate" (formerly
 // 3,200km) was wide enough to span Canada to Mexico, or the US west coast
 // to the east coast — the mid tiers were too coarse to actually express
@@ -316,24 +339,36 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // coarser top step instead, since that distinction rarely mattered in
 // practice — past a few thousand miles, ping is bad either way.
 const NA_DISTANCE_PRESETS = [
-  { label: "Same region only", km: 0 },
-  { label: "Very close (~150 mi)", km: 240 },
-  { label: "Close (~400 mi)", km: 640 },
-  { label: "Nearby (~800 mi)", km: 1300 },
-  { label: "Moderate (~1,500 mi)", km: 2400 },
-  { label: "Extended (~3,500 mi)", km: 5600 },
-  { label: "Worldwide", km: null },
+  { label: { en: "Same region only", es: "Solo mi región" }, km: 0 },
+  { label: { en: "Within ~150 mi", es: "Hasta ~150 mi" }, km: 240 },
+  { label: { en: "Within ~400 mi", es: "Hasta ~400 mi" }, km: 640 },
+  { label: { en: "Within ~800 mi", es: "Hasta ~800 mi" }, km: 1300 },
+  { label: { en: "Within ~1,500 mi", es: "Hasta ~1,500 mi" }, km: 2400 },
+  { label: { en: "Within ~2,500 mi", es: "Hasta ~2,500 mi" }, km: 4000 },
+  { label: { en: "Within ~3,500 mi", es: "Hasta ~3,500 mi" }, km: 5600 },
+  { label: { en: "Any distance", es: "Cualquier distancia" }, km: null },
 ] as const;
 
 export const MATCH_DISTANCE_PRESETS: readonly {
-  label: string;
+  label: Record<Lang, string>;
   km: number | null;
 }[] = NA_DISTANCE_PRESETS;
 
-// Both default to roughly half their region's span — wide enough that a
-// brand-new ladder with few players online still finds someone, which
-// matters more at launch than shaving latency.
-export const DEFAULT_MATCH_DISTANCE_KM = 2400;
+// The default radius is the column default on User.maxMatchDistanceKm, not
+// a constant here — a DEFAULT_MATCH_DISTANCE_KM used to sit at this spot,
+// read by nothing, and quietly disagreeing with the schema is a worse
+// starting point for the next person than no constant at all.
+//
+// It is "Extended" (5,600 km) as of 2026-11-12, raised from "Moderate"
+// (2,400). Of 14,078 confirmed sets over the preceding 30 days with both
+// regions known, 1,791 (12.7%) span more than 2,400 km, so they only
+// happened because somebody had widened their own radius by hand; actual
+// set distance runs to a median of 1,333 km and a p90 of 2,727, which puts
+// 2,400 at about the 87th percentile and 5,600 at the 99.9th. Of the
+// players who moved the setting at all, 80% loosened it. 2,395 queue sits
+// that failed had a candidate waiting, unpaired, within 5,600 km but
+// outside 2,400 — 18.9% of all failures, second only to nobody else being
+// in the queue.
 
 // Includes the region itself, so callers can treat this as the whole set of
 // regions worth matching against without a separate same-region check.

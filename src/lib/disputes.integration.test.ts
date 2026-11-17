@@ -612,6 +612,59 @@ describe("adminCancelMatch", () => {
     expect(history).toHaveLength(0);
   });
 
+  // The 2026-11-11 incident: a practising side's pre-match snapshot holds
+  // PRACTICE-track numbers, so restoring it to `rating`/`ratingDeviation`
+  // handed a 2163-rated player the practice track's untouched 1500/350 and
+  // lost their ladder rating outright. Each side reverts on the track it
+  // actually played on, and only that one.
+  it("reverts a practising side on the practice track and leaves its ladder rating alone", async () => {
+    const seasonId = await activeSeasonId();
+    const p1 = await createTestUser({
+      rating: 2163,
+      ratingDeviation: 88,
+      gamesPlayed: 72,
+      practiceRating: 1303,
+      practiceRatingDeviation: 250,
+      practiceGamesPlayed: 1,
+    });
+    const p2 = await createTestUser({ rating: 1468, ratingDeviation: 142, gamesPlayed: 11 });
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(),
+        expiresAt: new Date(),
+        player1IsPracticing: true,
+        player1RatingBefore: 1500,
+        player1RdBefore: 350,
+        player1VolatilityBefore: 0.06,
+        player2RatingBefore: 1457,
+        player2RdBefore: 148,
+        player2VolatilityBefore: 0.06,
+        seasonId,
+      },
+    });
+
+    await adminCancelMatch(match.id);
+
+    const [updatedP1, updatedP2] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    expect(updatedP1.rating).toBe(2163);
+    expect(updatedP1.ratingDeviation).toBe(88);
+    expect(updatedP1.gamesPlayed).toBe(72);
+    expect(updatedP1.practiceRating).toBe(1500);
+    expect(updatedP1.practiceRatingDeviation).toBe(350);
+    expect(updatedP1.practiceGamesPlayed).toBe(0);
+    // The non-practising side is a normal ladder revert.
+    expect(updatedP2.rating).toBe(1457);
+    expect(updatedP2.ratingDeviation).toBe(148);
+    expect(updatedP2.gamesPlayed).toBe(10);
+    expect(updatedP2.practiceGamesPlayed).toBe(0);
+  });
+
   it("throws for an already-cancelled match", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();

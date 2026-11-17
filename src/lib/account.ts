@@ -186,6 +186,14 @@ export async function setAvoidPracticeOpponents(userId: string, avoidPracticeOpp
   await prisma.user.update({ where: { id: userId }, data: { avoidPracticeOpponents } });
 }
 
+// Opt-in (default on) for letting this player's own distance and rating-gap
+// filters loosen a notch at a time while they sit in the queue with nobody to
+// pair with. See effectiveMaxRatingGap / effectiveMaxMatchDistanceKm in
+// lib/match-compat.ts for the schedule and the ceiling.
+export async function setWidenFiltersWhileWaiting(userId: string, widenFiltersWhileWaiting: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { widenFiltersWhileWaiting } });
+}
+
 // Privacy toggle for the Discord name synced from sign-in (see
 // User.discordUsername): the profile page shows it whenever it's set, so this
 // is the only way for a player to keep it off their public profile.

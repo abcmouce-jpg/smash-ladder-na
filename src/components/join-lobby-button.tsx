@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { JoinLobbyState } from "@/app/lobby/actions";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
+import { readLastRoomCode, writeLastRoomCode } from "@/lib/last-room-code";
 
 // This form fully remounts every time the lobby page re-renders around it —
 // e.g. cancel a match then requeue — so without this the checkbox silently
@@ -30,6 +31,7 @@ export function JoinLobbyForm({
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const [existingRoomCode, setExistingRoomCode] = useState("");
   const [isPracticing, setIsPracticing] = useState(false);
+  const [roomCodeOpen, setRoomCodeOpen] = useState(false);
 
   useEffect(() => {
     // Deferred a tick (rather than reading localStorage and calling
@@ -39,11 +41,25 @@ export function JoinLobbyForm({
     queueMicrotask(() => {
       try {
         if (localStorage.getItem(PRACTICING_KEY) === "1") setIsPracticing(true);
+        // A carried-over code makes its owner host, so it is never restored
+        // silently — restoring one opens the section it lives in, because a
+        // stale code (the arena was closed since) is worse than no code at
+        // all, and the player can only notice it if they can see it.
+        const storedRoomCode = readLastRoomCode();
+        if (storedRoomCode) {
+          setExistingRoomCode(storedRoomCode);
+          setRoomCodeOpen(true);
+        }
       } catch {
         /* localStorage unavailable */
       }
     });
   }, []);
+
+  function updateRoomCode(value: string) {
+    setExistingRoomCode(value);
+    writeLastRoomCode(value);
+  }
 
   function updatePracticing(checked: boolean) {
     setIsPracticing(checked);
@@ -80,7 +96,11 @@ export function JoinLobbyForm({
         </span>
       </label>
 
-      <details className="mt-2 rounded-lg border border-border bg-muted/20 px-3 py-2">
+      <details
+        open={roomCodeOpen}
+        onToggle={(e) => setRoomCodeOpen(e.currentTarget.open)}
+        className="mt-2 rounded-lg border border-border bg-muted/20 px-3 py-2"
+      >
         <summary className="cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground">
           {tr(lang, {
             en: "Already have a room set up? (optional)",
@@ -92,7 +112,7 @@ export function JoinLobbyForm({
             name="existingRoomCode"
             value={existingRoomCode}
             onChange={(e) =>
-              setExistingRoomCode(
+              updateRoomCode(
                 e.target.value
                   .toUpperCase()
                   .replace(/[^A-Z0-9]/g, "")
