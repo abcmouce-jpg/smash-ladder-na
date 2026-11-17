@@ -38,13 +38,36 @@ export function formatTwitchTime(totalSeconds: number): string {
   return `${hours}h${minutes}m${seconds}s`;
 }
 
+// Public watch URL for a VOD, opening at the set's start when known. Shared by
+// the profile's match details and the Live feed's expanded rows.
+export function twitchVideoUrl(videoId: string, offsetSeconds: number | null): string {
+  const base = `https://www.twitch.tv/videos/${videoId}`;
+  return offsetSeconds && offsetSeconds > 0 ? `${base}?t=${formatTwitchTime(offsetSeconds)}` : base;
+}
+
 // Twitch timestamps and ours can be a little apart; a set whose end sits just
 // outside a VOD's window is still treated as covered.
 const VOD_CLOCK_SLACK_MS = 5 * 60 * 1000;
 
+// The set's end can land a few seconds before the VOD's recorded start (clock
+// skew, or the report landing as the broadcast begins), but a VOD that started
+// well after the set finished cannot contain it. Keeping this much smaller than
+// VOD_CLOCK_SLACK_MS stops a later stream's broadcast from being mistaken for
+// the one the set was played on.
+const VOD_START_SLACK_MS = 60 * 1000;
+
 export interface CoveringVideo {
   video: TwitchVideo;
   offsetSeconds: number;
+}
+
+// Whether a VOD is still being written. Twitch lists the in-progress broadcast
+// in /videos while a channel is live, with a duration that grows as the stream
+// runs — so a window that reaches "now" isn't final yet, and an id/offset
+// resolved against it can change once Twitch finalizes the archive.
+export function isVideoStillOpen(video: TwitchVideo, now = Date.now()): boolean {
+  const videoEndMs = video.createdAt.getTime() + video.durationSeconds * 1000;
+  return videoEndMs >= now - VOD_CLOCK_SLACK_MS;
 }
 
 // Given a channel's archived VODs and a set's [start, end], picks the VOD that
@@ -62,7 +85,7 @@ export function findCoveringVideo(
   for (const video of videos) {
     const videoStartMs = video.createdAt.getTime();
     const videoEndMs = videoStartMs + video.durationSeconds * 1000;
-    if (endedMs < videoStartMs - VOD_CLOCK_SLACK_MS || endedMs > videoEndMs + VOD_CLOCK_SLACK_MS) continue;
+    if (endedMs < videoStartMs - VOD_START_SLACK_MS || endedMs > videoEndMs + VOD_CLOCK_SLACK_MS) continue;
     const offsetSeconds = Math.min(
       Math.max(Math.floor((matchStartedAt.getTime() - videoStartMs) / 1000), 0),
       video.durationSeconds,

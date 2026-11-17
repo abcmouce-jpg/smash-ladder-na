@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { findCoveringVideo, formatTwitchTime, parseTwitchDuration, type TwitchVideo } from "@/lib/twitch-vod";
+import {
+  findCoveringVideo,
+  formatTwitchTime,
+  isVideoStillOpen,
+  parseTwitchDuration,
+  twitchVideoUrl,
+  type TwitchVideo,
+} from "@/lib/twitch-vod";
 
 function video(overrides: Partial<TwitchVideo> & { createdAt: Date; durationSeconds: number }): TwitchVideo {
   return {
@@ -37,6 +44,17 @@ describe("formatTwitchTime", () => {
 
   it("clamps negative input to zero", () => {
     expect(formatTwitchTime(-5)).toBe("0h0m0s");
+  });
+});
+
+describe("twitchVideoUrl", () => {
+  it("opens the VOD at the set's start", () => {
+    expect(twitchVideoUrl("123", 3723)).toBe("https://www.twitch.tv/videos/123?t=1h2m3s");
+  });
+
+  it("omits the timestamp when there is no offset", () => {
+    expect(twitchVideoUrl("123", 0)).toBe("https://www.twitch.tv/videos/123");
+    expect(twitchVideoUrl("123", null)).toBe("https://www.twitch.tv/videos/123");
   });
 });
 
@@ -101,5 +119,60 @@ describe("findCoveringVideo", () => {
 
   it("returns null for an empty VOD list", () => {
     expect(findCoveringVideo([], new Date("2026-01-01T20:00:00.000Z"), new Date("2026-01-01T20:30:00.000Z"))).toBeNull();
+  });
+
+  it("does not match a VOD that started after the set ended", () => {
+    // A later stream's broadcast (starts 22:00) must not be reported as the VOD
+    // for a set that finished at 21:55 — the five-minute end-of-window slack is
+    // deliberately not applied to the VOD's start.
+    const vods = [video({ id: "later", createdAt: new Date("2026-01-01T22:00:00.000Z"), durationSeconds: 3600 })];
+    expect(
+      findCoveringVideo(vods, new Date("2026-01-01T21:50:00.000Z"), new Date("2026-01-01T21:55:00.000Z")),
+    ).toBeNull();
+  });
+
+  it("still matches when the set's end lands just before the VOD's start", () => {
+    // 30 seconds of clock skew at the boundary, not a different broadcast.
+    const vods = [video({ id: "boundary", createdAt: new Date("2026-01-01T20:00:30.000Z"), durationSeconds: 3600 })];
+    const result = findCoveringVideo(
+      vods,
+      new Date("2026-01-01T19:58:00.000Z"),
+      new Date("2026-01-01T20:00:00.000Z"),
+    );
+    expect(result?.video.id).toBe("boundary");
+    expect(result?.offsetSeconds).toBe(0);
+  });
+});
+
+describe("isVideoStillOpen", () => {
+  const now = new Date("2026-01-01T21:00:00.000Z").getTime();
+
+  it("is true while the recorded window reaches now (the live broadcast)", () => {
+    // Started 20:00, reported duration 60m -> ends 21:00, still running.
+    expect(
+      isVideoStillOpen(
+        video({ createdAt: new Date("2026-01-01T20:00:00.000Z"), durationSeconds: 3600 }),
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false once the window ended before now", () => {
+    expect(
+      isVideoStillOpen(
+        video({ createdAt: new Date("2026-01-01T20:00:00.000Z"), durationSeconds: 600 }),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("stays open through the clock slack after the recorded end", () => {
+    // Ends 20:58; still treated as open two minutes later at 21:00.
+    expect(
+      isVideoStillOpen(
+        video({ createdAt: new Date("2026-01-01T20:00:00.000Z"), durationSeconds: 3480 }),
+        now,
+      ),
+    ).toBe(true);
   });
 });

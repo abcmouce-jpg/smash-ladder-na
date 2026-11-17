@@ -1,8 +1,8 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { getLiveTwitchUsernames, getTwitchVideos } from "@/lib/twitch-helix";
-import { findCoveringVideo, type TwitchVideo } from "@/lib/twitch-vod";
-import type { MatchHistoryEntryData, MatchStreamSummary } from "@/lib/players";
+import { findCoveringVideo, isVideoStillOpen, type TwitchVideo } from "@/lib/twitch-vod";
+import type { MatchStreamSummary } from "@/lib/players";
 
 // One side of a match, with just what capture needs to know about them. Handed
 // in from applyEloAndConfirm, which already has both User rows loaded.
@@ -56,8 +56,8 @@ export async function captureMatchStreams(matchId: string, players: readonly Mat
 const VOD_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
 
 // How long to wait before re-asking Helix about a stream we already checked and
-// couldn't resolve. A VOD only appears once the stream ends, so a set confirmed
-// mid-stream resolves on a later view instead of never.
+// couldn't resolve. An archive isn't guaranteed to exist the moment a set is
+// confirmed, so a miss is retried on a later view instead of never.
 const VOD_RECHECK_MS = 30 * 60 * 1000;
 
 // In-process cache of a channel's recent VOD list, so one render that touches
@@ -91,8 +91,9 @@ type ResolvableStream = {
 // `entry.streams`, so every entry ends up with the field populated (empty when
 // the set had no captured stream). Callers that need replays call this; the
 // plain getPlayerMatchHistory that the lobby's streak badge and the stream
-// overlay use never does, so they pay for none of this.
-export async function attachMatchStreams(entries: MatchHistoryEntryData[]): Promise<void> {
+// overlay use never does, so they pay for none of this. Works on any entry with
+// an id and a streams slot, which lets the Live feed's rows use it too.
+export async function attachMatchStreams(entries: { id: string; streams: MatchStreamSummary[] }[]): Promise<void> {
   // Best-effort: a replay is a bonus, so a lookup failure (a network hiccup, or
   // the table not yet migrated on a stale deployment) must leave the history
   // rendering normally rather than 500 the whole profile.
@@ -179,6 +180,14 @@ async function resolveStreamVods(rows: ResolvableStream[], now = new Date()) {
         if (!confirmedAt) continue;
 
         const resolved = findCoveringVideo(videos, row.match.createdAt, confirmedAt);
+        // Twitch reports the in-progress broadcast in /videos with a duration
+        // that grows as the stream runs; freezing that entry can leave a stale
+        // id/offset once Twitch finalizes the archive (the replay looks fine
+        // while live, then breaks when the stream ends). Leaving the row
+        // unchecked means the first view after the broadcast ends resolves it
+        // against the final VOD — no VOD_RECHECK_MS wait.
+        if (resolved && isVideoStillOpen(resolved.video, nowMs)) continue;
+
         row.vodCheckedAt = now;
         if (resolved) {
           row.vodId = resolved.video.id;

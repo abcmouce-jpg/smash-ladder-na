@@ -3,6 +3,7 @@ import { MatchStatus } from "@/generated/prisma/enums";
 import { getLiveTwitchUsernames } from "@/lib/twitch-helix";
 import { isDeclarationFresh } from "@/lib/stream-links";
 import { getMatchesTodayCount } from "@/lib/public-stats";
+import type { MatchStreamSummary } from "@/lib/players";
 
 // "Recent" here means the public feed's finished-match tail, not the mod
 // live-matches page's week-long "did anyone miss reporting this" window
@@ -164,6 +165,9 @@ export async function getMatchFeed() {
       player1Live,
       player2Live,
       hasLiveStreamer: player1Live || player2Live,
+      // Empty by default — only the Live page calls attachMatchStreams to fill
+      // it in, so the home page's feed doesn't pay for VOD resolution.
+      streams: [] as MatchStreamSummary[],
     };
   });
 

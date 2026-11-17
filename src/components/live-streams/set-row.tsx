@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Dices, MapPin, Radio } from "lucide-react";
+import { Check, ChevronDown, Dices, ExternalLink, MapPin, Radio } from "lucide-react";
 import type { MatchFeedEntry } from "@/lib/match-feed";
 import type { Lang } from "@/lib/i18n";
 import { CharacterIcon } from "@/components/character-icon";
@@ -24,6 +24,9 @@ import {
 } from "@/lib/set-entry";
 import { useLiveStreamSelection } from "@/components/live-streams/selection";
 import { TwitchIcon } from "@/components/twitch-icon";
+import { TwitchVodEmbed } from "@/components/twitch-vod-embed";
+import { twitchVideoUrl } from "@/lib/twitch-vod";
+import type { MatchStreamSummary } from "@/lib/players";
 import { tr } from "@/lib/lang";
 import { playerStreamLink } from "@/lib/stream-links";
 import { USES_REGIONS } from "@/lib/site";
@@ -41,10 +44,13 @@ export function SetRow({
   entry,
   lang,
   viewerIsModerator = false,
+  parentHost,
 }: {
   entry: SerializedSetEntry;
   lang: Lang;
   viewerIsModerator?: boolean;
+  /** Hostname Twitch's VOD iframe requires as its `parent` query param. */
+  parentHost: string;
 }) {
   const [open, setOpen] = useState(false);
   const label = STATUS_LABEL[entry.status];
@@ -52,6 +58,11 @@ export function SetRow({
   const unfinishedGame = getUnfinishedGame(entry);
   const hasGames = decidedGames.length > 0 || unfinishedGame !== null;
   const unstreamedInProgress = !entry.hasLiveStreamer && isSetLive(entry.status);
+  // Only resolved VODs can be replayed; a captured stream whose broadcast is
+  // still being written (or never archived) has no vodId yet.
+  const vodStreams = (entry.streams ?? []).filter(
+    (s): s is MatchStreamSummary & { vodId: string } => s.vodId !== null,
+  );
 
   return (
     <Card className={cn("relative overflow-hidden py-0", entry.hasLiveStreamer && "border-red-500/30")}>
@@ -171,6 +182,53 @@ export function SetRow({
                 es: "Aún no se ha jugado ningún juego — esta partida no ha empezado.",
               })}
             </p>
+          )}
+
+          {vodStreams.length > 0 && (
+            <div className="mt-3 flex flex-col gap-3 border-t border-border/60 pt-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                {tr(lang, { en: "Twitch replays", es: "Repeticiones de Twitch" })}
+              </p>
+              {vodStreams.map((stream) => {
+                // Each side can have its own captured stream, so both are listed
+                // — the set is the same, but each player's point of view isn't.
+                const streamer = stream.userId === entry.player1.id ? entry.player1 : entry.player2;
+                const replayUrl = twitchVideoUrl(stream.vodId, stream.vodOffsetSeconds);
+                return (
+                  <div key={stream.userId} className="rounded-lg border border-border bg-card p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                      <span className="flex items-center gap-1.5 text-xs font-medium">
+                        <TwitchIcon className="size-3.5 text-[#9146FF]" aria-hidden />
+                        {tr(lang, {
+                          en: `${streamer.username}'s stream`,
+                          es: `Stream de ${streamer.username}`,
+                        })}
+                      </span>
+                      <a
+                        href={replayUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs font-medium text-[#9146FF] hover:underline"
+                      >
+                        {tr(lang, { en: "Watch on Twitch", es: "Ver en Twitch" })}
+                        <ExternalLink className="size-3" aria-hidden />
+                      </a>
+                    </div>
+                    <div className="mt-2">
+                      <TwitchVodEmbed
+                        videoId={stream.vodId}
+                        offsetSeconds={stream.vodOffsetSeconds ?? 0}
+                        parentHost={parentHost}
+                        title={tr(lang, {
+                          en: `${streamer.username}'s Twitch replay`,
+                          es: `Repetición de ${streamer.username} en Twitch`,
+                        })}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}

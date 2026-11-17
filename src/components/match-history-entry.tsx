@@ -3,7 +3,7 @@
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CharacterIcon } from "@/components/character-icon";
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import type { MatchHistoryEntryData, MatchStreamSummary } from "@/lib/players";
 import { formatRating, formatTrackRating } from "@/lib/rating-format";
 import { trackFor } from "@/lib/rating-track";
-import { formatTwitchTime } from "@/lib/twitch-vod";
+import { twitchVideoUrl } from "@/lib/twitch-vod";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 import { PROVISIONAL_LABEL } from "@/components/rank-badge";
@@ -118,7 +118,7 @@ export function MatchHistoryEntry({
 
   // A set can have at most two captured streams (one per side), but only the
   // ones whose VOD has actually been resolved can be replayed — that's what the
-  // row's Twitch mark and the modal's embeds both key off of.
+  // row's "Play Replay" action and the modal's embeds both key off of.
   const vodStreams = (match.streams ?? []).filter(
     (s): s is MatchStreamSummary & { vodId: string } => s.vodId !== null,
   );
@@ -205,14 +205,6 @@ export function MatchHistoryEntry({
                   {tr(lang, { en: "Randitto", es: "Randitto" })}
                 </Badge>
               )}
-              {hasVod && (
-                <TwitchIcon
-                  className="size-3.5 shrink-0 text-[#9146FF]"
-                  // Just a marker, not a link — the replay itself is one click
-                  // deeper, in the expanded set.
-                  aria-hidden
-                />
-              )}
             </p>
             <CharactersLine mine={match.characters} theirs={match.opponentCharacters} lang={lang} />
           </div>
@@ -250,6 +242,20 @@ export function MatchHistoryEntry({
         </div>
       </div>
 
+      {hasVod && (
+        // Sits under the result row, above any "Wrong result?" disclosure, so
+        // the replay affordance reads as an action on this match rather than a
+        // marker on the opponent line.
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Play className="size-3 fill-current" aria-hidden />
+          {tr(lang, { en: "Play Replay", es: "Reproducir repetición" })}
+        </button>
+      )}
+
       {children}
 
       {open && (
@@ -276,12 +282,6 @@ export function MatchHistoryEntry({
 // modal reflects the full set that was played. Kept as a plain internal
 // function (not exported) so its onClose callback never looks like a
 // server-action prop to Next's client-boundary checks.
-// Public Twitch replay link, opening at the same point as the embed.
-function twitchReplayUrl(vodId: string, offsetSeconds: number | null) {
-  const base = `https://www.twitch.tv/videos/${vodId}`;
-  return offsetSeconds && offsetSeconds > 0 ? `${base}?t=${formatTwitchTime(offsetSeconds)}` : base;
-}
-
 function MatchDetailsModal({
   match,
   viewedPlayerName,
@@ -420,7 +420,7 @@ function MatchDetailsModal({
                 // The streamer is one of the two players, so its name is already
                 // on hand — no need to store it alongside the capture.
                 const streamerName = stream.userId === match.opponent.id ? match.opponent.username : viewedPlayerName;
-                const replayUrl = twitchReplayUrl(stream.vodId, stream.vodOffsetSeconds);
+                const replayUrl = twitchVideoUrl(stream.vodId, stream.vodOffsetSeconds);
                 return (
                   <div key={stream.userId} className="rounded-lg border border-border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
