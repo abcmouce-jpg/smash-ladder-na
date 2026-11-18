@@ -1,5 +1,8 @@
+import { parseTwitchDuration, type TwitchVideo } from "@/lib/twitch-vod";
+
 const TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const STREAMS_URL = "https://api.twitch.tv/helix/streams";
+const VIDEOS_URL = "https://api.twitch.tv/helix/videos";
 
 // Dev-only showcase switch: when MOCK_LIVE_TWITCH=1 (see .env.development),
 // every queried channel counts as live without calling Twitch's API. Lets the
@@ -87,11 +90,13 @@ function rememberLiveStatus(login: string, live: boolean) {
 // closed on that blanked out every live stream site-wide until the process
 // happened to recycle, so a 401/403 drops the cached token and retries once
 // with a freshly minted one.
-async function queryLiveLogins(logins: string[], clientId: string, clientSecret: string): Promise<Set<string> | null> {
-  const params = new URLSearchParams({ first: String(STREAMS_BATCH_SIZE) });
-  for (const login of logins) params.append("user_login", login);
-  const url = `${STREAMS_URL}?${params.toString()}`;
-
+// Shared Helix GET: mints/caches an app access token, sends the request, and
+// transparently re-mints once on a 401/403 (see the token-cache note below).
+// Returns the parsed JSON body, or null on any failure so callers fail closed
+// — the same contract every Helix lookup here has. `cache: "no-store"` keeps
+// answers out of Next's fetch cache; the in-process caches in this module
+// handle rate-limit protection instead.
+async function helixGetJson(url: string, clientId: string, clientSecret: string): Promise<unknown | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await getAppAccessToken(clientId, clientSecret);
     if (!token) return null;
@@ -113,18 +118,40 @@ async function queryLiveLogins(logins: string[], clientId: string, clientSecret:
     if (!res.ok) return null;
 
     try {
-      const json = (await res.json()) as { data?: { user_login?: string }[] };
-      const live = new Set<string>();
-      for (const stream of json.data ?? []) {
-        if (stream.user_login) live.add(stream.user_login.toLowerCase());
-      }
-      return live;
+      return await res.json();
     } catch {
       return null;
     }
   }
 
   return null;
+}
+
+// Returns the subset of `logins` that are live, or null if the lookup failed
+// (network error, rate limit, unexpected status) — callers decide how to fail
+// closed. One request for the whole batch, retried once: Twitch hands out an
+// app access token per request and only keeps the ~25 most recent per client
+// ID, so minting a new one silently invalidates the oldest. Every serverless
+// cold start mints its own, which means a long-lived instance's cached token
+// can be pushed out from under it and start 401ing every call (see
+// https://discuss.dev.twitch.com/t/limit-on-access-tokens/26651). Failing
+// closed on that blanked out every live stream site-wide until the process
+// happened to recycle, so a 401/403 drops the cached token and retries once
+// with a freshly minted one.
+async function queryLiveLogins(logins: string[], clientId: string, clientSecret: string): Promise<Set<string> | null> {
+  const params = new URLSearchParams({ first: String(STREAMS_BATCH_SIZE) });
+  for (const login of logins) params.append("user_login", login);
+
+  const json = (await helixGetJson(`${STREAMS_URL}?${params.toString()}`, clientId, clientSecret)) as {
+    data?: { user_login?: string }[];
+  } | null;
+  if (json === null) return null;
+
+  const live = new Set<string>();
+  for (const stream of json.data ?? []) {
+    if (stream.user_login) live.add(stream.user_login.toLowerCase());
+  }
+  return live;
 }
 
 // Fails closed (false) on missing config or any API error — a stream embed
@@ -182,4 +209,41 @@ export async function getLiveTwitchUsernames(usernames: string[]): Promise<Set<s
   }
 
   return live;
+}
+
+// Recent archived broadcasts for one channel, newest first. `type=archive`
+// excludes highlights/uploads, which carry no real stream window. Fails closed
+// (null) on missing config or any API error, exactly like the live checks above
+// — a VOD that can't be resolved just means no replay link shows up.
+export async function getTwitchVideos(userId: string, limit = 20): Promise<TwitchVideo[] | null> {
+  const clientId = process.env.TWITCH_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.TWITCH_OAUTH_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  const params = new URLSearchParams({ user_id: userId, type: "archive", first: String(limit) });
+  const json = (await helixGetJson(`${VIDEOS_URL}?${params.toString()}`, clientId, clientSecret)) as {
+    data?: Array<{
+      id?: string;
+      user_id?: string;
+      user_login?: string;
+      created_at?: string;
+      duration?: string;
+      url?: string;
+    }>;
+  } | null;
+  if (json === null) return null;
+
+  const videos: TwitchVideo[] = [];
+  for (const v of json.data ?? []) {
+    if (!v.id || !v.created_at) continue;
+    videos.push({
+      id: v.id,
+      userId: v.user_id ?? "",
+      userLogin: (v.user_login ?? "").toLowerCase(),
+      createdAt: new Date(v.created_at),
+      durationSeconds: parseTwitchDuration(v.duration ?? ""),
+      url: v.url ?? `https://www.twitch.tv/videos/${v.id}`,
+    });
+  }
+  return videos;
 }

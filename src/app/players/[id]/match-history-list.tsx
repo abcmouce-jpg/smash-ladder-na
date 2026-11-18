@@ -31,6 +31,7 @@ export function MatchHistoryList({
   hiddenChangeIds,
   isOwnProfile,
   isModerator,
+  parentHost,
   lang,
 }: {
   playerId: string;
@@ -40,6 +41,7 @@ export function MatchHistoryList({
   hiddenChangeIds: Set<string>;
   isOwnProfile: boolean;
   isModerator: boolean;
+  parentHost: string;
   lang: Lang;
 }) {
   return (
@@ -57,6 +59,7 @@ export function MatchHistoryList({
             ratingRevealed: !hiddenChangeIds.has(match.id),
           }}
           viewedPlayerName={playerUsername}
+          parentHost={parentHost}
           canSeeHiddenRatings={isModerator}
           // Own profile reads their own chat log; a mod reviewing someone
           // else's profile gets the mod spectator path. The modal is the only

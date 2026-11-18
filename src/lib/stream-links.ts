@@ -39,6 +39,30 @@ const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
 const TWITCH_LOGIN = /^[A-Za-z0-9_]{3,25}$/;
 
+/**
+ * The `parent` value Twitch's player expects for the given Host header.
+ *
+ * Twitch validates `parent` against the exact hostname serving the iframe and
+ * rejects anything that isn't a bare hostname — the colon in the port that
+ * local dev puts in `Host` (`localhost:3000`) fails as InvalidCharInParent, so
+ * it has to be stripped. Loopback addresses are reported to Twitch as
+ * `localhost`, which is the one development hostname it accepts.
+ */
+export function twitchParent(parentHost: string): string {
+  const bare = parentHost
+    .trim()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//i, "") // defensive: a full origin, not just a host
+    .split(/[/?#]/)[0]; // and anything after it
+  if (!bare) return "";
+
+  // An IPv6 literal arrives bracketed, as "[::1]:3000".
+  const closeBracket = bare.indexOf("]");
+  const hostname = bare.startsWith("[") && closeBracket !== -1 ? bare.slice(0, closeBracket + 1) : bare.replace(/:\d+$/, "");
+
+  if (hostname === "127.0.0.1" || hostname === "[::1]") return "localhost";
+  return hostname.toLowerCase();
+}
+
 function youtubeVideoLink(videoId: string): StreamLink {
   return {
     platform: "youtube",
@@ -68,7 +92,7 @@ function twitchLink(login: string): StreamLink {
     // serving the iframe, which differs between production, a preview
     // deployment and localhost — hence the parameter.
     embedUrl: (parentHost) =>
-      `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${encodeURIComponent(parentHost)}&muted=true`,
+      `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${encodeURIComponent(twitchParent(parentHost))}&muted=true`,
     label: channel,
   };
 }

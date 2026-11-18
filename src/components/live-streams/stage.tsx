@@ -63,7 +63,7 @@ export function LiveStreamStage({
 
       {setCard ? (
         <div className="mt-3">
-          <SetRow entry={entry} lang={lang} viewerIsModerator={viewerIsModerator} />
+          <SetRow entry={entry} lang={lang} viewerIsModerator={viewerIsModerator} parentHost={parentHost} />
         </div>
       ) : (
         <MatchDetails entry={entry} />

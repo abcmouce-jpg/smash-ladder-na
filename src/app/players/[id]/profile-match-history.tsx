@@ -6,6 +6,7 @@ import { OptionSelect } from "@/components/option-select";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { getActiveSeason, listPastSeasons } from "@/lib/seasons";
 import { getHiddenRatingMatchIds, getPlayerMatchCount, getPlayerMatchHistory } from "@/lib/players";
+import { attachMatchStreams } from "@/lib/match-streams";
 import type { Lang } from "@/lib/i18n";
 import { MatchHistoryList } from "./match-history-list";
 import { tr } from "@/lib/lang";
@@ -28,6 +29,7 @@ export async function ProfileMatchHistorySection({
   againstParam,
   isOwnProfile,
   isModerator,
+  parentHost,
   lang,
 }: {
   id: string;
@@ -38,6 +40,7 @@ export async function ProfileMatchHistorySection({
   againstParam: string | null | undefined;
   isOwnProfile: boolean;
   isModerator: boolean;
+  parentHost: string;
   lang: Lang;
 }) {
   const [activeSeason, pastSeasons, { changeIds }] = await Promise.all([
@@ -70,6 +73,11 @@ export async function ProfileMatchHistorySection({
   ]);
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
   const hiddenChangeIds = new Set(changeIds);
+
+  // Resolves any captured Twitch replays for this page of sets (see
+  // attachMatchStreams) — only the profile's history pays for this, not every
+  // getPlayerMatchHistory caller.
+  await attachMatchStreams(history);
 
   // The correction / admin-override controls only ever attach to the player's
   // true most recent real match, so that anchor is resolved from an unfiltered
@@ -180,6 +188,7 @@ export async function ProfileMatchHistorySection({
           hiddenChangeIds={hiddenChangeIds}
           isOwnProfile={isOwnProfile}
           isModerator={isModerator}
+          parentHost={parentHost}
           lang={lang}
         />
       )}

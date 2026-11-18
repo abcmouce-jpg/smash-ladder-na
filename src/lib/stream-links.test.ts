@@ -55,6 +55,13 @@ describe("parseStreamUrl — Twitch", () => {
     expect(link?.embedUrl("localhost")).toContain("parent=localhost");
   });
 
+  it("drops the dev server's port, which Twitch rejects as InvalidCharInParent", () => {
+    const link = parseStreamUrl("twitch.tv/somestreamer");
+    expect(link?.embedUrl("localhost:3000")).toContain("parent=localhost");
+    expect(link?.embedUrl("127.0.0.1:3000")).toContain("parent=localhost");
+    expect(link?.embedUrl("smash-ladder-na.vercel.app:443")).toContain("parent=smash-ladder-na.vercel.app");
+  });
+
   it("rejects a sub-page that isn't a channel", () => {
     expect(parseStreamUrl("https://www.twitch.tv/directory/game/Super%20Smash%20Bros")).not.toBeNull();
     // ^ "directory" is a valid login shape, so this one does parse — the

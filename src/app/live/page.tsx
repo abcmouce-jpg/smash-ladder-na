@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { Activity, Radio, Swords } from "lucide-react";
 import { auth } from "@/auth";
 import { getMatchFeed, getMatchFeedStats } from "@/lib/match-feed";
+import { attachMatchStreams } from "@/lib/match-streams";
 import { serializeSetEntry } from "@/lib/set-entry";
 import { PageHeading } from "@/components/page-heading";
 import { SetsFeedPoller } from "@/components/sets-feed-poller";
@@ -37,6 +38,11 @@ export default async function SetsFeedPage() {
   // viewer is a moderator (see isRatingVisible).
   const viewerIsModerator = session?.user?.role === "MOD" || session?.user?.role === "ADMIN";
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
+
+  // Finished sets that were streamed can offer a VOD replay in their expanded
+  // row. Resolved here rather than in getMatchFeed so the home page's live
+  // section doesn't pay for the Helix lookups.
+  await attachMatchStreams(entries);
 
   // Dates can't cross the server→client boundary, so entries are serialized
   // once and reused for both the pinned live section and the SetRow list.
@@ -120,7 +126,13 @@ export default async function SetsFeedPage() {
             </p>
           )}
           {serializedEntries.map((entry) => (
-            <SetRow key={entry.id} entry={entry} lang={lang} viewerIsModerator={viewerIsModerator} />
+            <SetRow
+              key={entry.id}
+              entry={entry}
+              lang={lang}
+              viewerIsModerator={viewerIsModerator}
+              parentHost={parentHost}
+            />
           ))}
         </div>
       </LiveStreamProvider>

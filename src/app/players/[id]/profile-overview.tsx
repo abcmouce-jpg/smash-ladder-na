@@ -22,6 +22,7 @@ import { getHeadToHeadOpponents } from "@/lib/profile-stats";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
 import { getLeaderboardRank } from "@/lib/leaderboard";
 import { getPlayerSeasonAchievements } from "@/lib/seasons";
+import { attachMatchStreams } from "@/lib/match-streams";
 import {
   achievementComparator,
   computeAchievements,
@@ -128,6 +129,7 @@ export async function ProfileOverviewSection({
   practiceGamesPlayed,
   isOwnProfile,
   isModerator,
+  parentHost,
   lang,
 }: {
   id: string;
@@ -142,6 +144,7 @@ export async function ProfileOverviewSection({
   practiceGamesPlayed: number;
   isOwnProfile: boolean;
   isModerator: boolean;
+  parentHost: string;
   lang: Lang;
 }) {
   // The opening sets of the ACTIVE season are the only thing hidden: a returner
@@ -182,6 +185,10 @@ export async function ProfileOverviewSection({
   // The Overview's Head 2 Heads card previews only the three most-played
   // opponents; the full, paginated list lives on the Head 2 Heads tab.
   const rivals = rivalsResult.opponents;
+  // Resolves any captured Twitch replays for the recent strip below (see
+  // attachMatchStreams) so its rows carry the same replay affordance the full
+  // Match History tab has.
+  await attachMatchStreams(recentMatchHistory);
   // Practice matches still show up in the list below (clearly labeled) but
   // never count toward the record/win-rate/streak — same "never touches
   // your main profile" promise as everywhere else practice mode is handled.
@@ -560,6 +567,7 @@ export async function ProfileOverviewSection({
             hiddenChangeIds={hiddenChangeIds}
             isOwnProfile={isOwnProfile}
             isModerator={isModerator}
+            parentHost={parentHost}
             lang={lang}
           />
         )}

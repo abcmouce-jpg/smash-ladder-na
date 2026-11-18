@@ -4,10 +4,12 @@ import { existsSync } from "node:fs";
 import { config } from "dotenv";
 import { defineConfig } from "prisma/config";
 
-// Read env files in the same lookup order Next.js uses (.env.development.local,
-// .env.local, .env.development, .env). dotenv treats an already-set process.env
-// value as authoritative, so loading them in this order makes the first file to
-// define a key win — i.e. the same file Next.js itself would have picked.
+// Read env files in the same lookup order Next.js uses, keyed off NODE_ENV so
+// the per-environment file matches the environment being built:
+// `.env.$(NODE_ENV).local`, `.env.local`, `.env.$(NODE_ENV)`, `.env`. dotenv
+// treats an already-set process.env value as authoritative, so loading them in
+// this order makes the first file to define a key win — i.e. the same file
+// Next.js itself would have picked.
 //
 // This matters because `.env.development` is checked in pointing at the local
 // Docker database, while `.env` is normally a copy of `.env.example` holding
@@ -15,13 +17,15 @@ import { defineConfig } from "prisma/config";
 // to, meant `npx prisma migrate dev` — the setup step in the README — ran
 // against production while `next dev` talked to localhost.
 //
-// Deployments are unaffected: CI and Vercel inject DATABASE_URL into the
-// process environment, and none of these files override a value that's already
-// there. That's also why this matches the previous behavior in those
-// environments, where `.env` doesn't exist at all and the fallback did the work.
-// The existsSync guards only keep dotenv from logging a line for each file
-// that isn't there — the order and the first-wins behavior are what matter.
-for (const file of [".env.development.local", ".env.local", ".env.development", ".env"]) {
+// Keying off NODE_ENV is also what keeps the checked-in `.env.development` out
+// of deployments: Vercel builds with NODE_ENV=production, so only `.env.local`
+// and `.env` are considered and the injected DATABASE_URL is what gets used.
+// Scripts run directly through `tsx` leave NODE_ENV unset and fall back to the
+// development files. The existsSync guards only keep dotenv from logging a
+// line for each file that isn't there — the order and the first-wins behavior
+// are what matter.
+const nodeEnv = process.env.NODE_ENV ?? "development";
+for (const file of [`.env.${nodeEnv}.local`, ".env.local", `.env.${nodeEnv}`, ".env"]) {
   if (existsSync(file)) config({ path: file });
 }
 
