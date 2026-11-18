@@ -142,14 +142,36 @@ export function isMainTrack(track: RatingTrack): boolean {
  * kept two people who are both 1500 at randitto from matching because one of
  * them is 2300 on the main board — a restriction about a rating neither of
  * them had brought to that queue.
+ *
+ * Practice is the same idea one side at a time: a practising side's set is
+ * rated on the practice track (see trackFor), so the practice rating is the
+ * number that describes how strong that side is in the set being made. A
+ * practising player on 1900 main / 1500 practice is a 1500 opponent in the
+ * match about to happen, and a ladder player's gap setting has to see them as
+ * one — matching them as a 1900 would hand the practising side a set against
+ * someone 500 points off the only rating it will move.
  */
-export function queueRating(user: { rating: number; randittoRating: number }, mode: MatchMode): number {
-  return mode === MatchMode.RANDITTO ? user.randittoRating : user.rating;
+export function queueRating(
+  user: { rating: number; practiceRating: number; randittoRating: number },
+  mode: MatchMode,
+  isPracticing: boolean,
+): number {
+  if (mode === MatchMode.RANDITTO) return user.randittoRating;
+  return isPracticing ? user.practiceRating : user.rating;
 }
 
-/** Sets played on the queue's own ladder — feeds the provisional widening. */
-export function queueGames(user: { gamesPlayed: number; randittoGamesPlayed: number }, mode: MatchMode): number {
-  return mode === MatchMode.RANDITTO ? user.randittoGamesPlayed : user.gamesPlayed;
+/**
+ * Sets played on the ladder the queue is matching for — feeds the provisional
+ * widening, which is about how settled that particular number is rather than
+ * how many sets the player has played anywhere.
+ */
+export function queueGames(
+  user: { gamesPlayed: number; practiceGamesPlayed: number; randittoGamesPlayed: number },
+  mode: MatchMode,
+  isPracticing: boolean,
+): number {
+  if (mode === MatchMode.RANDITTO) return user.randittoGamesPlayed;
+  return isPracticing ? user.practiceGamesPlayed : user.gamesPlayed;
 }
 
 /** Just the two numbers a display needs: the rating, and the sets behind it. */

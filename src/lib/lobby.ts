@@ -33,6 +33,31 @@ function practiceMatchAllowed(
   return (!a.isPracticing || !b.avoidPracticeOpponents) && (!b.isPracticing || !a.avoidPracticeOpponents);
 }
 
+// The band one queue entry's own settings allow, judged on the track that entry
+// is playing for — a practising side is matched as its practice self, including
+// the provisional cap, which is about how settled that number is (see
+// queueRating/queueGames in lib/rating-track.ts).
+function entryGap(
+  user: {
+    maxRatingGap: number | null;
+    widenFiltersWhileWaiting: boolean;
+    gamesPlayed: number;
+    practiceGamesPlayed: number;
+    randittoGamesPlayed: number;
+  },
+  entry: { mode: MatchMode; isPracticing: boolean },
+  waitedMs = 0,
+) {
+  return effectiveMaxRatingGap(
+    {
+      maxRatingGap: user.maxRatingGap,
+      gamesPlayed: queueGames(user, entry.mode, entry.isPracticing),
+      widenFiltersWhileWaiting: user.widenFiltersWhileWaiting,
+    },
+    waitedMs,
+  );
+}
+
 // One query covers every candidate's cooldown check for this join attempt:
 // every match `userId` played within the longest possible cooldown window,
 // collapsed to each opponent's most recent one (results are already newest
@@ -219,8 +244,10 @@ async function attemptPairing(params: {
   myRegion: string | null;
   me: {
     rating: number;
+    practiceRating: number;
     randittoRating: number;
     gamesPlayed: number;
+    practiceGamesPlayed: number;
     randittoGamesPlayed: number;
     rematchCooldownHours: number | null;
     wiredConnection: boolean;
@@ -233,6 +260,9 @@ async function attemptPairing(params: {
   recentOpponents: Map<string, Date>;
 }) {
   const { userId, myEntry, myRegion, me, myReach, myEffectiveGap, blockedIds, recentOpponents } = params;
+  // My half of every rating comparison below — the number the queue I joined is
+  // playing for, which for a practising entry is the practice rating.
+  const myQueueRating = queueRating(me, myEntry.mode, myEntry.isPracticing);
   return withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
       // Claim myEntry alone first, atomically, before even looking for a
@@ -272,22 +302,26 @@ async function attemptPairing(params: {
             // candidate pool too, not just stop them re-queueing.
             status: { not: UserStatus.BANNED },
             ...(myReach ? { region: { in: myReach } } : {}),
-            // Narrowed in SQL on the same column the check below compares,
+            // Narrowed in SQL on the same columns the check below compares,
             // or the pre-filter would drop candidates the mode considers
-            // perfectly close before anything got to look at them.
+            // perfectly close before anything got to look at them. Which of
+            // the candidate's two 1v1 columns counts depends on their own
+            // isPracticing, which SQL can't see from here, so it keeps a
+            // candidate matching on either — the JS check below then judges
+            // them on the right one.
             ...(myEffectiveGap !== null
               ? myEntry.mode === MatchMode.RANDITTO
                 ? {
                     randittoRating: {
-                      gte: queueRating(me, myEntry.mode) - myEffectiveGap,
-                      lte: queueRating(me, myEntry.mode) + myEffectiveGap,
+                      gte: myQueueRating - myEffectiveGap,
+                      lte: myQueueRating + myEffectiveGap,
                     },
                   }
                 : {
-                    rating: {
-                      gte: me.rating - myEffectiveGap,
-                      lte: me.rating + myEffectiveGap,
-                    },
+                    OR: [
+                      { rating: { gte: myQueueRating - myEffectiveGap, lte: myQueueRating + myEffectiveGap } },
+                      { practiceRating: { gte: myQueueRating - myEffectiveGap, lte: myQueueRating + myEffectiveGap } },
+                    ],
                   }
               : {}),
           },
@@ -300,9 +334,11 @@ async function attemptPairing(params: {
               region: true,
               maxMatchDistanceKm: true,
               rating: true,
+              practiceRating: true,
               randittoRating: true,
               maxRatingGap: true,
               gamesPlayed: true,
+              practiceGamesPlayed: true,
               randittoGamesPlayed: true,
               rematchCooldownHours: true,
               wiredConnection: true,
@@ -331,35 +367,27 @@ async function attemptPairing(params: {
           }),
         );
       }
-      const candidate = candidates.find(
-        (c) =>
+      const candidate = candidates.find((c) => {
+        const waited = Date.now() - c.joinedAt.getTime();
+        // The number this candidate is queuing as — practice track included.
+        const candidateRating = queueRating(c.user, myEntry.mode, c.isPracticing);
+        return (
           c.mode === myEntry.mode &&
           // Measured from the candidate's own joinedAt, not mine: each side's
           // filters widen on their own wait, so a candidate who just arrived
           // is still judged by their strict radius while one who has been
           // sitting here for ten minutes is judged by their widened one.
-          regionReachAllows(
-            c.user.region,
-            effectiveMaxMatchDistanceKm(c.user, Date.now() - c.joinedAt.getTime()),
-            myRegion,
-          ) &&
-          // Compared on the rating the queue actually uses. Randitto has its
-          // own ladder, so gating it on the 1v1 one kept two players who are
-          // both 1500 at randitto apart because one of them is 2300 on the
-          // main board — a restriction about a rating neither of them is
-          // playing for.
-          ratingGapAllows(
-            queueRating(me, myEntry.mode),
-            queueRating(c.user, myEntry.mode),
-            effectiveMaxRatingGap(
-              {
-                maxRatingGap: c.user.maxRatingGap,
-                gamesPlayed: queueGames(c.user, myEntry.mode),
-                widenFiltersWhileWaiting: c.user.widenFiltersWhileWaiting,
-              },
-              Date.now() - c.joinedAt.getTime(),
-            ),
-          ) &&
+          regionReachAllows(c.user.region, effectiveMaxMatchDistanceKm(c.user, waited), myRegion) &&
+          // Both bands, checked here rather than left to the pre-filter above.
+          // The pre-filter cannot tell which of a candidate's 1v1 columns
+          // their isPracticing makes current, so it keeps them if either is in
+          // range — and my own band has to be applied to the number they are
+          // actually queuing as, not to whichever column let them through.
+          // See queueRating: randitto has its own ladder, and a practising
+          // candidate is judged on the practice rating they brought to this
+          // set rather than their main one.
+          ratingGapAllows(myQueueRating, candidateRating, myEffectiveGap) &&
+          ratingGapAllows(myQueueRating, candidateRating, entryGap(c.user, c, waited)) &&
           rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
           wiredRequirementAllows(me, c.user) &&
           practiceMatchAllowed(
@@ -371,8 +399,9 @@ async function attemptPairing(params: {
               isPracticing: c.isPracticing,
               avoidPracticeOpponents: c.user.avoidPracticeOpponents,
             },
-          ),
-      );
+          )
+        );
+      });
       // No one to pair with this tick — release the self-claim above so
       // this entry goes back to WAITING instead of getting stuck PAIRED
       // with no match to show for it.
@@ -526,9 +555,11 @@ export async function joinLobbyAndTryPair(
         region: true,
         maxMatchDistanceKm: true,
         rating: true,
+        practiceRating: true,
         randittoRating: true,
         maxRatingGap: true,
         gamesPlayed: true,
+        practiceGamesPlayed: true,
         randittoGamesPlayed: true,
         rematchCooldownHours: true,
         wiredConnection: true,
@@ -620,7 +651,7 @@ export async function joinLobbyAndTryPair(
   // through the same helpers as the retry path below purely so a future change
   // to the schedule cannot apply to one path and not the other.
   const myReach = regionReachFilter(myRegion, effectiveMaxMatchDistanceKm(me));
-  const myEffectiveGap = effectiveMaxRatingGap(me);
+  const myEffectiveGap = entryGap(me, { mode, isPracticing });
 
   const paired = await attemptPairing({
     userId,
@@ -657,7 +688,9 @@ export async function joinLobbyAndTryPair(
         userId,
         {
           region: myRegion,
-          rating: me.rating,
+          // The rating this join is queuing as, so the ping scores candidates
+          // against the same number the pairing itself will compare.
+          rating: queueRating(me, mode, isPracticing),
           maxMatchDistanceKm: me.maxMatchDistanceKm,
           wiredConnection: me.wiredConnection,
           requireWiredOpponent: me.requireWiredOpponent,
@@ -771,9 +804,11 @@ export async function retryPairForWaitingUser(userId: string) {
           region: true,
           maxMatchDistanceKm: true,
           rating: true,
+          practiceRating: true,
           randittoRating: true,
           maxRatingGap: true,
           gamesPlayed: true,
+          practiceGamesPlayed: true,
           randittoGamesPlayed: true,
           rematchCooldownHours: true,
           wiredConnection: true,
@@ -796,7 +831,7 @@ export async function retryPairForWaitingUser(userId: string) {
     // same wait drives their own opted-in distance/gap widening.
     const waitedMs = Date.now() - entry.joinedAt.getTime();
     const myReach = regionReachFilter(me.region, effectiveMaxMatchDistanceKm(me, waitedMs));
-    const myEffectiveGap = effectiveMaxRatingGap(me, waitedMs);
+    const myEffectiveGap = entryGap(me, entry, waitedMs);
 
     const paired = await attemptPairing({
       userId,
@@ -888,16 +923,26 @@ export async function createDirectMatch(
 // WAITING even though plenty of mutual partners exist. Rather than only
 // pairing opportunistically at join time, the cron finalizer sweeps the
 // queue periodically and pairs up whoever's left waiting.
+//
+// One side of a prospective pair: the entry's own practising/mode flags plus
+// the user columns the checks below read. Which rating a side is judged on is
+// not baked in here — see queueRating.
 type MatchCandidate = {
   region: string | null;
   maxMatchDistanceKm: number | null;
   rating: number;
+  practiceRating: number;
+  randittoRating: number;
   maxRatingGap: number | null;
   gamesPlayed: number;
+  practiceGamesPlayed: number;
+  randittoGamesPlayed: number;
   rematchCooldownHours: number | null;
   wiredConnection: boolean;
   requireWiredOpponent: boolean;
   widenFiltersWhileWaiting: boolean;
+  mode: MatchMode;
+  isPracticing: boolean;
 };
 
 function canMatch(
@@ -910,11 +955,16 @@ function canMatch(
   // widen on their own wait. Defaults to 0 = the original strict behaviour.
   waits: { a: number; b: number } = { a: 0, b: 0 },
 ) {
+  // The rating each side brings to the set, on the track its entry is playing
+  // for — a practising player is their practice rating here, exactly as in
+  // attemptPairing.
+  const aRating = queueRating(a, a.mode, a.isPracticing);
+  const bRating = queueRating(b, b.mode, b.isPracticing);
   return (
     regionReachAllows(a.region, effectiveMaxMatchDistanceKm(a, waits.a), b.region) &&
     regionReachAllows(b.region, effectiveMaxMatchDistanceKm(b, waits.b), a.region) &&
-    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(a, waits.a)) &&
-    ratingGapAllows(a.rating, b.rating, effectiveMaxRatingGap(b, waits.b)) &&
+    ratingGapAllows(aRating, bRating, entryGap(a, a, waits.a)) &&
+    ratingGapAllows(aRating, bRating, entryGap(b, b, waits.b)) &&
     rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours) &&
     wiredRequirementAllows(a, b)
   );
@@ -949,8 +999,12 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           region: true,
           maxMatchDistanceKm: true,
           rating: true,
+          practiceRating: true,
+          randittoRating: true,
           maxRatingGap: true,
           gamesPlayed: true,
+          practiceGamesPlayed: true,
+          randittoGamesPlayed: true,
           rematchCooldownHours: true,
           wiredConnection: true,
           requireWiredOpponent: true,
@@ -983,10 +1037,15 @@ export async function sweepLobbyPairing(maxPairs = 50) {
         // a thinly-used new mode consists of.
         a.mode !== b.mode ||
         blockedPairs.has(pairKey) ||
-        !canMatch(a.user, b.user, recentMatchPairs.get(pairKey), {
-          a: sweepNow - a.joinedAt.getTime(),
-          b: sweepNow - b.joinedAt.getTime(),
-        }) ||
+        !canMatch(
+          { ...a.user, mode: a.mode, isPracticing: a.isPracticing },
+          { ...b.user, mode: b.mode, isPracticing: b.isPracticing },
+          recentMatchPairs.get(pairKey),
+          {
+            a: sweepNow - a.joinedAt.getTime(),
+            b: sweepNow - b.joinedAt.getTime(),
+          },
+        ) ||
         !practiceMatchAllowed(
           {
             isPracticing: a.isPracticing,

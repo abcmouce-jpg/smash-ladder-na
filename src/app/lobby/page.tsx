@@ -210,6 +210,7 @@ export default async function LobbyPage() {
       maxMatchDistanceKm: true,
       maxRatingGap: true,
       gamesPlayed: true,
+      practiceGamesPlayed: true,
       randittoGamesPlayed: true,
       widenFiltersWhileWaiting: true,
       // Only whether one exists, never the rows: this decides how often a
@@ -330,10 +331,11 @@ export default async function LobbyPage() {
                           maxMatchDistanceKm: me?.maxMatchDistanceKm ?? null,
                           maxRatingGap: me?.maxRatingGap ?? null,
                           gamesPlayed: me?.gamesPlayed ?? 0,
+                          practiceGamesPlayed: me?.practiceGamesPlayed ?? 0,
                           randittoGamesPlayed: me?.randittoGamesPlayed ?? 0,
                           widenFiltersWhileWaiting: me?.widenFiltersWhileWaiting ?? false,
                         },
-                        entry.mode,
+                        entry,
                         lang,
                       )}
                     />
@@ -614,16 +616,20 @@ function wideningSteps(
     maxMatchDistanceKm: number | null;
     maxRatingGap: number | null;
     gamesPlayed: number;
+    practiceGamesPlayed: number;
     randittoGamesPlayed: number;
     widenFiltersWhileWaiting: boolean;
   },
-  mode: MatchMode,
+  entry: { mode: MatchMode; isPracticing: boolean },
   lang: Lang,
 ): WideningStep[] {
   if (!me.widenFiltersWhileWaiting) return [];
+  // Judged on the track this entry is playing for, same as the matcher (see
+  // queueGames): a practising player's provisional cap follows their practice
+  // set count, not their ladder one.
   const gapUser = {
     maxRatingGap: me.maxRatingGap,
-    gamesPlayed: queueGames(me, mode),
+    gamesPlayed: queueGames(me, entry.mode, entry.isPracticing),
     widenFiltersWhileWaiting: true,
   };
   const steps: WideningStep[] = [];
