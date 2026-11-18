@@ -89,8 +89,8 @@ export function JoinLobbyForm({
           </span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
             {tr(lang, {
-              en: "Find Match only. Results count toward a separate practice rating — your regular ladder rating and sets played don't move at all. Randitto ignores this; it has its own rating either way.",
-              es: "Solo en Buscar partida. Los resultados cuentan para una clasificación de práctica aparte — tu clasificación normal del ladder y tus partidas jugadas no se mueven en absoluto. Randitto lo ignora; tiene su propia clasificación igualmente.",
+              en: "Find Match only. Results count toward a separate practice rating — your regular ladder rating and sets played don't move at all. You're matched on the practice rating too, so your rating-gap setting applies to it. Randitto ignores this; it has its own rating either way.",
+              es: "Solo en Buscar partida. Los resultados cuentan para una clasificación de práctica aparte — tu clasificación normal del ladder y tus partidas jugadas no se mueven en absoluto. También te emparejamos con esa clasificación de práctica, así que tu ajuste de diferencia de clasificación se aplica a ella. Randitto lo ignora; tiene su propia clasificación igualmente.",
             })}
           </span>
         </span>

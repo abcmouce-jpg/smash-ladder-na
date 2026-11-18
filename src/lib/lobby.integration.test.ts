@@ -262,6 +262,50 @@ describe("joinLobbyAndTryPair", () => {
     expect(second?.status).toBe("PAIRED");
   });
 
+  // A practising side is rated on its practice track, so that is the rating a
+  // gap setting has to judge it by (see queueRating). The pair below is 100
+  // apart on the ladder and 500 apart on the track the set would actually use —
+  // matching them would hand the practising player a set against someone five
+  // hundred points off the only number it moves.
+  it("measures a practising opponent on their practice rating, not their ladder rating", async () => {
+    const practicing = await createTestUser({
+      region: "USA East",
+      rating: 1900,
+      gamesPlayed: 50,
+      practiceRating: 1500,
+      practiceGamesPlayed: 50,
+    });
+    const ladder = await createTestUser({ region: "USA East", rating: 2000, gamesPlayed: 50, maxRatingGap: 200 });
+
+    await joinLobbyAndTryPair(practicing.id, true);
+    await joinLobbyAndTryPair(ladder.id, false);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: practicing.id }, { player2Id: practicing.id }] },
+    });
+    expect(match).toBeNull();
+  });
+
+  // The other half of the same rule, and the one the candidate pre-filter can
+  // break on its own: on the ladder this practising player is 800 away and
+  // would be filtered out in SQL, but on the practice track they are 100 away
+  // and are exactly who the ladder player asked for.
+  it("pairs a practising player whose practice rating is inside the opponent's gap", async () => {
+    const practicing = await createTestUser({
+      region: "USA East",
+      rating: 1200,
+      gamesPlayed: 50,
+      practiceRating: 1900,
+      practiceGamesPlayed: 50,
+    });
+    const ladder = await createTestUser({ region: "USA East", rating: 2000, gamesPlayed: 50, maxRatingGap: 200 });
+
+    await joinLobbyAndTryPair(practicing.id, true);
+    const second = await joinLobbyAndTryPair(ladder.id, false);
+
+    expect(second?.status).toBe("PAIRED");
+  });
+
   it("rejects a malformed existing room code", async () => {
     const a = await createTestUser({ region: "USA East" });
     await expect(joinLobbyAndTryPair(a.id, false, "abc")).rejects.toThrow(/room code/i);
@@ -794,12 +838,18 @@ describe("notifyMatchFoundViaDiscord", () => {
   });
 });
 
-function createWaitingEntry(userId: string, existingRoomCode: string | null = null, joinedAt: Date = new Date()) {
+function createWaitingEntry(
+  userId: string,
+  existingRoomCode: string | null = null,
+  joinedAt: Date = new Date(),
+  isPracticing = false,
+) {
   return prisma.ratingLobbyEntry.create({
     data: {
       userId,
       status: LobbyEntryStatus.WAITING,
       existingRoomCode,
+      isPracticing,
       joinedAt,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     },
@@ -857,6 +907,50 @@ describe("sweepLobbyPairing", () => {
     });
     expect(match.roomCode).toBeNull();
     expect(match.roomCodeSetById).toBeNull();
+  });
+
+  // The sweep is a second implementation of the same compatibility rules, so
+  // the practice-track rating has to be judged here too — a pair blocked at
+  // join time must not slip through once the cron looks at it.
+  it("measures a practising waiter on their practice rating, not their ladder rating", async () => {
+    const now = Date.now();
+    const practicing = await createTestUser({
+      region: "USA East",
+      rating: 1900,
+      gamesPlayed: 50,
+      practiceRating: 1500,
+      practiceGamesPlayed: 50,
+    });
+    const ladder = await createTestUser({ region: "USA East", rating: 2000, gamesPlayed: 50, maxRatingGap: 200 });
+    await createWaitingEntry(practicing.id, null, new Date(now), true);
+    await createWaitingEntry(ladder.id, null, new Date(now + 1));
+
+    expect(await sweepLobbyPairing()).toBe(0);
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: practicing.id }, { player2Id: practicing.id }] },
+    });
+    expect(match).toBeNull();
+  });
+
+  it("pairs a practising waiter whose practice rating is inside the opponent's gap", async () => {
+    const now = Date.now();
+    const practicing = await createTestUser({
+      region: "USA East",
+      rating: 1200,
+      gamesPlayed: 50,
+      practiceRating: 1900,
+      practiceGamesPlayed: 50,
+    });
+    const ladder = await createTestUser({ region: "USA East", rating: 2000, gamesPlayed: 50, maxRatingGap: 200 });
+    await createWaitingEntry(practicing.id, null, new Date(now), true);
+    await createWaitingEntry(ladder.id, null, new Date(now + 1));
+
+    expect(await sweepLobbyPairing()).toBe(1);
+    const match = await prisma.ratingMatch.findFirstOrThrow({
+      where: { OR: [{ player1Id: practicing.id }, { player2Id: practicing.id }] },
+    });
+    const practicingIsPlayer1 = match.player1Id === practicing.id;
+    expect(practicingIsPlayer1 ? match.player1IsPracticing : match.player2IsPracticing).toBe(true);
   });
 });
 
