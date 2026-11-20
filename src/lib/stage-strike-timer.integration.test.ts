@@ -7,6 +7,7 @@ import {
   STRIKE_TIMEOUT_MS,
   CHARACTER_TIMEOUT_MS,
 } from "@/lib/match-games";
+import { COUNTERPICK_STAGES } from "@/lib/stages";
 import { createTestUser } from "@/test/factories";
 
 async function createMatch(p1: string, p2: string) {
@@ -324,6 +325,92 @@ describe("stale turn auto-resolution", () => {
     const games = await getMatchGames(match.id);
     expect(games[0].struckStages).toHaveLength(3); // all three owed bans, applied at once
     expect(games[0].stagesRemaining).toHaveLength(1); // loser still has a stage to pick
+  });
+
+  it("does not let a stale ban turn turn the staller's own pending proposal into the stage", async () => {
+    const winner = await createTestUser();
+    const loser = await createTestUser();
+    const match = await createMatch(winner.id, loser.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: winner.id,
+        actorAStrikes: 1,
+        actorACharacter: "Mario",
+        actorBId: loser.id,
+        actorBStrikes: 2,
+        actorBCharacter: "Luigi",
+        finalStage: "Small Battlefield",
+        winnerId: winner.id,
+      },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: winner.id,
+        actorAStrikes: 3,
+        actorACharacter: "Mario",
+        actorBId: loser.id,
+        actorBStrikes: 0,
+        actorBCharacter: "Luigi",
+        stagesRemaining: [...COUNTERPICK_STAGES],
+        // "Small?" — proposed instead of banning, then the clock run out.
+        proposedStage: "Small Battlefield",
+        proposedById: winner.id,
+        turnStartedAt: new Date(Date.now() - STRIKE_TIMEOUT_MS - 1000),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    const game2 = games.find((g) => g.gameNumber === 2)!;
+    expect(game2.finalStage).toBeNull(); // never set without the other side accepting
+    // Still on the table for the loser to accept or decline on their own time.
+    expect(game2.proposedStage).toBe("Small Battlefield");
+  });
+
+  it("clears a pending proposal once a stale picking turn settles the stage", async () => {
+    const winner = await createTestUser();
+    const loser = await createTestUser();
+    const match = await createMatch(winner.id, loser.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: winner.id,
+        actorAStrikes: 1,
+        actorACharacter: "Mario",
+        actorBId: loser.id,
+        actorBStrikes: 2,
+        actorBCharacter: "Luigi",
+        finalStage: "Smashville",
+        winnerId: winner.id,
+      },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: winner.id,
+        actorAStrikes: 3,
+        actorACharacter: "Mario",
+        actorBId: loser.id,
+        actorBStrikes: 0,
+        actorBCharacter: "Luigi",
+        struckStages: ["Battlefield", "Final Destination", "Hollow Bastion"], // striking done
+        stagesRemaining: ["Small Battlefield", "Smashville", "Town and City", "Pokémon Stadium 2"],
+        proposedStage: "Town and City",
+        proposedById: winner.id,
+        turnStartedAt: new Date(Date.now() - STRIKE_TIMEOUT_MS - 1000),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    const game2 = games.find((g) => g.gameNumber === 2)!;
+    expect(game2.finalStage).toBe("Smashville"); // the stalled pick runs it back
+    expect(game2.proposedStage).toBeNull(); // no proposal left dangling against a decided game
+    expect(game2.proposedById).toBeNull();
   });
 });
 

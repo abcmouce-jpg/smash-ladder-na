@@ -283,7 +283,7 @@ describe("a games-2+ character timeout defaults the stalled side", () => {
   });
 });
 
-describe("a games-2+ staging timeout defaults to the previous game's stage", () => {
+describe("a games-2+ staging timeout", () => {
   // Game 2 with both characters locked in and the turn clock already past
   // STRIKE_TIMEOUT_MS, so the next read of this match auto-resolves the stale
   // ban turn. Game 1 was played on Battlefield.
@@ -321,14 +321,18 @@ describe("a games-2+ staging timeout defaults to the previous game's stage", () 
     return { p1, p2, match, game };
   }
 
-  it("defaults a stalled ban turn straight to the previous stage", async () => {
+  // A stalled ban turn used to set the previous stage outright, skipping the
+  // rest of striking and the pick. On a counterpick game the striker IS the
+  // last game's winner, so that handed the staller a replay of the stage they
+  // had just won on and took the loser's counterpick away.
+  it("spends a stalled ban turn's bans and leaves the pick to the counterpicker", async () => {
     const { match } = await setupStaleStageGameTwo();
 
     const games = await getMatchGames(match.id);
     const resolved = games.find((g) => g.gameNumber === 2);
-    // No random bans, no pick phase — the set just carries the stage forward.
-    expect(resolved?.finalStage).toBe("Battlefield");
-    expect(resolved?.struckStages).toEqual([]);
+    expect(resolved?.finalStage).toBeNull();
+    expect(resolved?.struckStages).toHaveLength(3);
+    expect(resolved?.stagesRemaining).toHaveLength(COUNTERPICK_STAGES.length - 3);
     expect(resolved?.winnerId).toBeNull();
   });
 
@@ -348,9 +352,10 @@ describe("a games-2+ staging timeout defaults to the previous game's stage", () 
     expect(resolved?.finalStage).toBe("Battlefield");
   });
 
-  it("falls back to random bans once the previous stage has itself been banned", async () => {
+  it("still applies the owed bans once the previous stage has itself been banned", async () => {
     const { match, game } = await setupStaleStageGameTwo();
-    // actorA already banned Battlefield, so there's nothing to run back to.
+    // actorA already banned Battlefield, so there is nothing to run back to
+    // even at the pick.
     await prisma.matchGame.update({
       where: { id: game.id },
       data: {
@@ -361,7 +366,6 @@ describe("a games-2+ staging timeout defaults to the previous game's stage", () 
 
     const games = await getMatchGames(match.id);
     const resolved = games.find((g) => g.gameNumber === 2);
-    // The owed bans are applied instead of defaulting, so the pick is still open.
     expect(resolved?.struckStages).toHaveLength(3);
     expect(resolved?.finalStage).toBeNull();
   });

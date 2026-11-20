@@ -2240,6 +2240,20 @@ function GameSection({
   // the only deadline that applies here.
   const deadline = new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS).toISOString();
 
+  // What running the clock out actually does, spelled out rather than left as
+  // "it picks automatically" — a stalled ban turn and a stalled pick resolve
+  // differently (see autoResolveStaleTurn), and a player watching a pending
+  // stage proposal needs to know the clock is still the clock: it resolves the
+  // turn, it does not accept anything.
+  const timeoutConsequenceMine =
+    turn.phase === "striking"
+      ? tr(lang, { en: "your bans are made at random", es: "tus descartes se hacen al azar" })
+      : tr(lang, { en: "a stage is picked for you", es: "se elige un escenario por ti" });
+  const timeoutConsequenceTheirs =
+    turn.phase === "striking"
+      ? tr(lang, { en: "their bans are made at random", es: "sus descartes se hacen al azar" })
+      : tr(lang, { en: "a stage is picked in their place", es: "se elige un escenario en su lugar" });
+
   const lastStrikeIndex = current.struckStages.length - 1;
   const canUndoLastStrike =
     turn.phase === "striking" &&
@@ -2295,13 +2309,13 @@ function GameSection({
                         en: (
                           <>
                             Waiting for {opponentName} to {verbLocalized}… (
-                            <Countdown deadline={deadline} />s left)
+                            <Countdown deadline={deadline} />s left, then {timeoutConsequenceTheirs}).
                           </>
                         ),
                         es: (
                           <>
                             Esperando a que {opponentName} {verbLocalized}… (
-                            <Countdown deadline={deadline} />s restantes)
+                            <Countdown deadline={deadline} />s restantes, luego {timeoutConsequenceTheirs}).
                           </>
                         ),
                       })
@@ -2309,13 +2323,13 @@ function GameSection({
                         en: (
                           <>
                             Your turn — {turnDescription} (
-                            <Countdown deadline={deadline} />s left, or it picks automatically).
+                            <Countdown deadline={deadline} />s left, then {timeoutConsequenceMine}).
                           </>
                         ),
                         es: (
                           <>
                             Tu turno — {turnDescription} (
-                            <Countdown deadline={deadline} />s restantes, o se elige solo).
+                            <Countdown deadline={deadline} />s restantes, luego {timeoutConsequenceMine}).
                           </>
                         ),
                       })}
@@ -2325,6 +2339,8 @@ function GameSection({
           game={current}
           userId={userId}
           opponentName={opponentName}
+          myTurn={myTurn}
+          phase={turn.phase}
           lang={lang}
         />
         {sameBans && (
@@ -2430,6 +2446,8 @@ function StageProposalSection({
   game,
   userId,
   opponentName,
+  myTurn,
+  phase,
   lang,
 }: {
   matchId: string;
@@ -2441,23 +2459,45 @@ function StageProposalSection({
   };
   userId: string;
   opponentName: string;
+  myTurn: boolean;
+  phase: "striking" | "picking";
   lang: Lang;
 }) {
   if (game.proposedById) {
     const proposedByMe = game.proposedById === userId;
+    // Both halves of this caught players out. The proposer treated a proposal
+    // as their turn spent and stopped acting, so the turn clock resolved it
+    // for them; the other side then saw a stage appear right after a proposal
+    // and read it as the site forcing the proposal through. Neither is what
+    // happens: a proposal runs alongside the turn, and only an Accept sets a
+    // stage.
+    const note = proposedByMe
+      ? myTurn
+        ? tr(lang, {
+            en: `Proposing doesn't take your turn — your ${phase === "striking" ? "strike" : "pick"} clock is still running.`,
+            es: `Proponer no ocupa tu turno — tu tiempo para ${phase === "striking" ? "descartar" : "elegir"} sigue corriendo.`,
+          })
+        : null
+      : tr(lang, {
+          en: "Nothing is set unless you accept.",
+          es: "No se fija nada a menos que aceptes.",
+        });
     return (
       <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
-        <p className="text-sm">
-          {proposedByMe
-            ? tr(lang, {
-                en: `You proposed ${game.proposedStage} — waiting on ${opponentName}.`,
-                es: `Propusiste ${game.proposedStage} — esperando a ${opponentName}.`,
-              })
-            : tr(lang, {
-                en: `${opponentName} proposed ${game.proposedStage}.`,
-                es: `${opponentName} propuso ${game.proposedStage}.`,
-              })}
-        </p>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-sm">
+            {proposedByMe
+              ? tr(lang, {
+                  en: `You proposed ${game.proposedStage} — waiting on ${opponentName}.`,
+                  es: `Propusiste ${game.proposedStage} — esperando a ${opponentName}.`,
+                })
+              : tr(lang, {
+                  en: `${opponentName} proposed ${game.proposedStage}.`,
+                  es: `${opponentName} propuso ${game.proposedStage}.`,
+                })}
+          </p>
+          {note && <p className="text-xs text-muted-foreground">{note}</p>}
+        </div>
         {proposedByMe ? (
           <form action={withdrawStageProposal.bind(null, matchId, game.gameNumber)}>
             <Button type="submit" size="sm" variant="outline">
@@ -2501,8 +2541,8 @@ function StageProposalSection({
           ))}
           <span className="text-xs text-muted-foreground">
             {tr(lang, {
-              en: "Propose it and skip striking",
-              es: "Propón y sáltate el descarte",
+              en: "Skips striking if they accept",
+              es: "Se salta el descarte si acepta",
             })}
           </span>
         </div>

@@ -100,28 +100,26 @@ async function autoResolveStaleTurn(matchId: string) {
   if (Date.now() - game.turnStartedAt.getTime() < STRIKE_TIMEOUT_MS) return;
 
   // The stage the previous game was played on, if it's still on the table —
-  // the thing both the ban and pick branches below default a stalled game-2+
-  // turn to. Null on game 1 (nothing to repeat) or once it's been banned this
-  // game, in which case random resolution takes over. Same "run it back"
-  // stage as pickSameStage.
+  // what a stalled game-2+ FINAL PICK defaults to. Null on game 1 (nothing to
+  // repeat) or once it's been banned this game, in which case a random pick
+  // takes over. Same "run it back" stage as pickSameStage.
+  //
+  // Deliberately not used by the ban branch below. It used to be: a stale ban
+  // turn on games 2+ set this stage outright, skipping the rest of striking
+  // and the final pick. That handed the stalling player the result — on a
+  // counterpick game the striker IS the previous game's winner, so going quiet
+  // for the length of the clock guaranteed them a replay of the stage they had
+  // just won on, and took the loser's counterpick away entirely. Worse, the
+  // proposal shortcut ("Small?") names that stage, so suggesting it and then
+  // sitting out the clock looked — correctly — like the site forcing a
+  // suggestion through without the other side ever accepting it. A stalled ban
+  // now just spends the bans; the pick still belongs to whoever owns it.
   const allGames = await prisma.matchGame.findMany({ where: { matchId } });
   const previousStage = lastPlayedStage(allGames, game.gameNumber);
   const repeatStage = previousStage && game.stagesRemaining.includes(previousStage) ? previousStage : null;
 
   const striker = actorForStrike(game);
   if (striker) {
-    // Games 2+ with a stage to repeat skip the rest of striking AND the pick
-    // outright and set the stage directly — the same outcome as a stalled
-    // character pick (see replayPreviousGame), just reached from the ban clock
-    // instead. Falls through to random bans only on game 1, or when that stage
-    // has already been banned this game.
-    if (repeatStage) {
-      await prisma.matchGame.updateMany({
-        where: { id: game.id, finalStage: null, struckStages: { equals: game.struckStages } },
-        data: { finalStage: repeatStage, turnStartedAt: new Date() },
-      });
-      return;
-    }
     // A stale ban turn resolves wholesale: the player's ENTIRE allotment of
     // bans for this turn is applied at once, randomly from what's left, rather
     // than one strike per lazy check — the turn is one continuous window, so
@@ -152,7 +150,7 @@ async function autoResolveStaleTurn(matchId: string) {
   // in the pick actions) is what anchors the report clock for the game.
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
-    data: { finalStage: stage, turnStartedAt: new Date() },
+    data: { finalStage: stage, proposedStage: null, proposedById: null, turnStartedAt: new Date() },
   });
 }
 
@@ -228,7 +226,7 @@ async function replayPreviousGame(
       // stage the last game was played on, not a fresh round of striking. If the
       // previous game somehow has no stage recorded, this is left null and the
       // normal strike/pick phase runs instead.
-      ...(previous.finalStage ? { finalStage: previous.finalStage } : {}),
+      ...(previous.finalStage ? { finalStage: previous.finalStage, proposedStage: null, proposedById: null } : {}),
       // Anchors the report clock from now, same as picking a stage does.
       turnStartedAt: new Date(),
     },
@@ -919,7 +917,7 @@ export async function pickGameStage(userId: string, matchId: string, gameNumber:
   // starts the REPORT_TIMEOUT_MS window to report this game's result.
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
-    data: { finalStage: stage, turnStartedAt: new Date() },
+    data: { finalStage: stage, proposedStage: null, proposedById: null, turnStartedAt: new Date() },
   });
 }
 
@@ -965,7 +963,7 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
 
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
-    data: { finalStage: stage, turnStartedAt: new Date() },
+    data: { finalStage: stage, proposedStage: null, proposedById: null, turnStartedAt: new Date() },
   });
 }
 
