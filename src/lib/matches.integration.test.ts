@@ -553,6 +553,21 @@ describe("adminOverrideMatchResult", () => {
     expect(updatedP2.gamesPlayed).toBe(21);
   });
 
+  it("writes no ±0 history row when the correction keeps the standing result", async () => {
+    // Every rated set moves both sides by at least 1. A correction that lands
+    // on the winner already standing moves nobody, and a 0 row in history
+    // would read as a set that didn't count.
+    await prisma.season.create({ data: { name: "Elo Season", algorithm: RatingAlgorithm.ELO } });
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id); // p1 confirmed as winner
+
+    await adminOverrideMatchResult(match.id, p1.id);
+
+    const rows = await prisma.ratingHistory.findMany({ where: { matchId: match.id } });
+    expect(rows.every((row) => row.delta !== 0)).toBe(true);
+  });
+
   it("rejects a non-confirmed match", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();

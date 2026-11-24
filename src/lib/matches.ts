@@ -946,6 +946,8 @@ export async function applyCorrection(
   await tx.user.update({ where: { id: p2.id }, data: writeTrack(p2Track, p2Next, "keep") });
 
   // Only the main track feeds the rating chart — see applyEloAndConfirm.
+  // A correction that lands on the result already standing moves nobody, and
+  // a ±0 row would read as a rated set that didn't count — so it writes none.
   const correctionRows = [
     ...(isMainTrack(p1Track)
       ? [
@@ -969,7 +971,7 @@ export async function applyCorrection(
           },
         ]
       : []),
-  ];
+  ].filter((row) => row.delta !== 0);
   if (correctionRows.length > 0) {
     await tx.ratingHistory.createMany({ data: correctionRows });
   }
