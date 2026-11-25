@@ -74,7 +74,7 @@ export async function ProfileMatchHistorySection({
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
   const hiddenChangeIds = new Set(changeIds);
 
-  // Resolves any captured Twitch replays for this page of sets (see
+  // Resolves any captured replays for this page of sets (see
   // attachMatchStreams) — only the profile's history pays for this, not every
   // getPlayerMatchHistory caller.
   await attachMatchStreams(history);

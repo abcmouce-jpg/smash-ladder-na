@@ -7,6 +7,9 @@ import { createTestUser } from "@/test/factories";
 vi.mock("@/lib/twitch-helix", () => ({
   getLiveTwitchUsernames: vi.fn(),
 }));
+vi.mock("@/lib/youtube-oauth", () => ({
+  getLiveYouTubeStreams: vi.fn(async () => new Map()),
+}));
 
 describe("getMatchFeed", () => {
   afterEach(() => {

@@ -1,48 +1,58 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import type { LiveStreamInfo, StreamPlatform } from "@/lib/stream-links";
 import type { FeedPlayer, SerializedSetEntry } from "@/lib/set-entry";
 
-// A picked stream, identified by both the set and the side, so the two
-// channels of a doubly-streamed set are distinct selections.
-export type LiveStreamSelection = { matchId: string; playerId: string } | null;
+// A picked stream, identified by the set, the side, and which platform of that
+// side's streams — a player can be live on Twitch and YouTube at once, and the
+// two are distinct selections.
+export type LiveStreamSelection = { matchId: string; playerId: string; platform: StreamPlatform } | null;
 
-// The side to feature when nothing has been picked yet — player 1 when both
-// happen to be streaming. Both flags imply a Twitch channel (see match-feed).
-export function preferredStreamer(entry: SerializedSetEntry): FeedPlayer | null {
-  if (entry.player1Live) return entry.player1;
-  if (entry.player2Live) return entry.player2;
+// The stream to feature when nothing has been picked yet — player 1 when both
+// sides happen to be streaming. Twitch is listed first per side (see
+// match-feed), so a player live on both defaults to their Twitch channel.
+export function preferredStream(entry: SerializedSetEntry): { player: FeedPlayer; stream: LiveStreamInfo } | null {
+  const first = entry.player1.liveStreams?.[0];
+  if (first) return { player: entry.player1, stream: first };
+  const second = entry.player2.liveStreams?.[0];
+  if (second) return { player: entry.player2, stream: second };
   return null;
 }
 
 // Resolves a selection against the current live entries. Falls back to the
 // first live set when the picked stream is gone — e.g. its set finished and
 // dropped out of the list between polls.
-export function resolveLiveStream(entries: SerializedSetEntry[], selection: LiveStreamSelection) {
+export function resolveLiveStream(
+  entries: SerializedSetEntry[],
+  selection: LiveStreamSelection,
+): { entry: SerializedSetEntry; player: FeedPlayer; stream: LiveStreamInfo } | null {
   if (selection) {
     const entry = entries.find((e) => e.id === selection.matchId);
     if (entry) {
-      // Only a side the feed still reports as live. A stale pick — that channel
-      // went offline since the last poll, or the other side of the set is the
-      // one still streaming — must not keep an offline embed on screen.
-      if (selection.playerId === entry.player1.id && entry.player1Live && entry.player1.twitchUsername) {
-        return { entry, player: entry.player1 };
-      }
-      if (selection.playerId === entry.player2.id && entry.player2Live && entry.player2.twitchUsername) {
-        return { entry, player: entry.player2 };
-      }
+      const player =
+        entry.player1.id === selection.playerId
+          ? entry.player1
+          : entry.player2.id === selection.playerId
+            ? entry.player2
+            : null;
+      // Only a stream the feed still reports as live. A stale pick — that
+      // channel went offline since the last poll, or a different platform is
+      // the one still streaming — must not keep an offline embed on screen.
+      const stream = player?.liveStreams.find((s) => s.platform === selection.platform);
+      if (player && stream) return { entry, player, stream };
     }
   }
 
   const first = entries[0];
   if (!first) return null;
-  const player = preferredStreamer(first);
-  return player?.twitchUsername ? { entry: first, player } : null;
+  const preferred = preferredStream(first);
+  return preferred ? { entry: first, ...preferred } : null;
 }
 
 type LiveStreamContextValue = {
   selection: LiveStreamSelection;
-  select: (matchId: string, playerId: string) => void;
+  select: (matchId: string, playerId: string, platform: StreamPlatform) => void;
 };
 
 const LiveStreamContext = createContext<LiveStreamContextValue | null>(null);
@@ -63,7 +73,10 @@ export function LiveStreamProvider({
   initialSelection?: LiveStreamSelection;
 }) {
   const [selection, setSelection] = useState<LiveStreamSelection>(initialSelection);
-  const select = useCallback((matchId: string, playerId: string) => setSelection({ matchId, playerId }), []);
+  const select = useCallback(
+    (matchId: string, playerId: string, platform: StreamPlatform) => setSelection({ matchId, playerId, platform }),
+    [],
+  );
   const value = useMemo(() => ({ selection, select }), [selection, select]);
 
   return <LiveStreamContext.Provider value={value}>{children}</LiveStreamContext.Provider>;

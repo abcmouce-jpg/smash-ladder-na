@@ -833,14 +833,24 @@ export async function applyEloAndConfirm(
     await tx.matchComment.createMany({ data: signOffs });
   }
 
-  // Records which side(s) were live on Twitch as the set finished, so the
-  // profile's match history can offer the replay once Twitch publishes the
-  // VOD. Deferred past this transaction via after() (it's a network check) and
-  // best-effort there — a failure just means no replay link, never a failed
-  // confirm. p1/p2 are full User rows, so their Twitch fields are already here.
+  // Records which side(s) were live on Twitch or YouTube as the set finished,
+  // so the profile's match history can offer the replay once the broadcast is
+  // available. Deferred past this transaction via after() (it's a network
+  // check) and best-effort there — a failure just means no replay link, never a
+  // failed confirm. p1/p2 are full User rows, so their stream fields are here.
   deferMatchStreamCapture(match.id, [
-    { id: p1.id, twitchUserId: p1.twitchUserId, twitchLogin: p1.twitchUsername },
-    { id: p2.id, twitchUserId: p2.twitchUserId, twitchLogin: p2.twitchUsername },
+    {
+      id: p1.id,
+      twitchUserId: p1.twitchUserId,
+      twitchLogin: p1.twitchUsername,
+      youtubeUserId: p1.youtubeUserId,
+    },
+    {
+      id: p2.id,
+      twitchUserId: p2.twitchUserId,
+      twitchLogin: p2.twitchUsername,
+      youtubeUserId: p2.youtubeUserId,
+    },
   ]);
 }
 

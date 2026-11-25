@@ -153,6 +153,14 @@ enum MatchFoundSound {
   ANNOUNCER // the Smash announcer voice clips (the match-found sound as of PR #94)
 }
 
+// Which streaming platform a captured stream or a player's live link belongs to.
+// Twitch is detected via Helix (lib/twitch-helix.ts); YouTube is detected via
+// the connected account's own OAuth token (lib/youtube-oauth.ts).
+enum StreamPlatform {
+  TWITCH
+  YOUTUBE
+}
+
 // One-directional: A blocking B doesn't imply B blocked A. Matchmaking treats
 // a block as mutual either way (neither side should get paired with someone
 // who blocked them, whether or not they know about it), but only the blocker
@@ -258,9 +266,18 @@ model User {
   twitchDisplayName          String? // Twitch display name
   twitchProfileImageUrl      String? // Twitch profile image URL
   twitchConnectedAt          DateTime?
-  youtubeChannelUrl          String? // channel link shown on the profile, like twitchUsername; YouTube liveness is not detectable on the free quota (see lib/stream-links.ts)
-  liveStreamUrl              String? // the stream the player says they are running right now, Twitch or YouTube
-  liveStreamAt               DateTime? // when liveStreamUrl was set, so a forgotten link expires — see LIVE_DECLARATION_TTL_MS
+  // YouTube identity + OAuth tokens, set via the "Connect with Google" flow in
+  // lib/youtube-oauth.ts. The tokens let us ask YouTube whether this channel is
+  // live and which broadcast it is running — the same automatic detection
+  // Twitch gets from Helix, without the search.list quota problem that made an
+  // earlier version ask players to paste a link instead.
+  youtubeUserId              String?         @unique // the channel id (UC…)
+  youtubeChannelTitle        String? // channel display name
+  youtubeProfileImageUrl     String?
+  youtubeConnectedAt         DateTime?
+  youtubeRefreshToken        String?         @db.Text // long-lived; used to mint access tokens after they expire
+  youtubeAccessToken         String?         @db.Text // cached access token
+  youtubeAccessTokenExpiresAt DateTime? // when the cached access token stops working
   role                       UserRole        @default(USER)
   isSupporter                Boolean         @default(false) // true while supporter perks (ad-free, profile badge) are active — set by an admin (see admin/players, no expiry) or by a qualifying Ko-fi payment (see supporterExpiresAt, and the webhook at api/webhooks/kofi). Read isEffectiveSupporter's result, not this raw column, anywhere perks are gated.
   isGoldSupporter             Boolean         @default(false) // true when the payment that produced the current isSupporter/supporterExpiresAt cycle met the Gold threshold (see GOLD_SUPPORTER_MIN_AMOUNT_USD in the kofi webhook) — re-evaluated on every qualifying payment, not cumulative, so a lower renewal after a one-time Gold-tier tip drops back to base on its own expiry cycle. Shares supporterExpiresAt with the base tier rather than tracking its own. Read isEffectiveGoldSupporter's result, not this raw column.
@@ -492,23 +509,26 @@ model MatchGame {
   @@index([matchId])
 }
 
-// One side of a RatingMatch that was live on Twitch while the set was played
-// — captured (best-effort) when the match confirms, keyed to the streamer's
-// stable Twitch user id so a later ladder re-link/rename can't orphan it.
-// Twitch only publishes a past broadcast once the stream ends, so the replay
-// can't be known at confirm time: vodId / vodOffsetSeconds are filled in
-// lazily the first time the set is viewed in a profile's match history (see
-// lib/match-streams.ts). The row's existence alone is what marks the set as
-// "streamed"; the VOD fields are what make the replay available.
+// One side of a RatingMatch that was live on Twitch or YouTube while the set
+// was played — captured (best-effort) when the match confirms. Keyed to the
+// streamer's stable platform user id (Twitch user id / YouTube channel id) so a
+// later ladder re-link/rename can't orphan it. Twitch only publishes a past
+// broadcast once the stream ends, so the replay can't be known at confirm time:
+// vodId / vodOffsetSeconds are filled in lazily the first time the set is
+// viewed in a profile's match history (see lib/match-streams.ts). YouTube's
+// liveBroadcasts lookup returns the broadcast's video id up front, so a YouTube
+// row is resolved at capture time. The row's existence alone is what marks the
+// set as "streamed"; the VOD fields are what make the replay available.
 model MatchStream {
-  id           String      @id @default(cuid())
-  matchId      String
-  match        RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  twitchUserId String // the streamer's Twitch user id at capture time (stable across Twitch renames)
-  twitchLogin  String // lowercase login, used to build the replay/embed URL
-  capturedAt   DateTime    @default(now()) // when the live-status check ran (≈ match end)
+  id             String         @id @default(cuid())
+  matchId        String
+  match          RatingMatch    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform       StreamPlatform @default(TWITCH)
+  platformUserId String // Twitch user id or YouTube channel id at capture time
+  platformLogin  String // Twitch login or YouTube channel id, used to build URLs/labels
+  capturedAt     DateTime       @default(now()) // when the live-status check ran (≈ match end)
   // VOD resolution — null until a past broadcast covering this set is found.
   vodId            String?
   vodOffsetSeconds Int? // seconds into the VOD where the set starts
@@ -516,7 +536,7 @@ model MatchStream {
   vodCheckedAt     DateTime? // throttles re-lookups so a render doesn't hammer Helix
   createdAt        DateTime  @default(now())
 
-  @@unique([matchId, userId])
+  @@unique([matchId, userId, platform])
   @@index([matchId])
   @@index([userId])
 }

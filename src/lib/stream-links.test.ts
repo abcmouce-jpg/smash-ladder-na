@@ -1,124 +1,67 @@
 import { describe, it, expect } from "vitest";
-import { parseStreamUrl, twitchStreamLink, isDeclarationFresh, LIVE_DECLARATION_TTL_MS } from "./stream-links";
+import {
+  liveStreamEmbedUrl,
+  liveStreamWatchUrl,
+  streamVodEmbedUrl,
+  streamVodWatchUrl,
+  twitchParent,
+  twitchStream,
+  youtubeStream,
+  youtubeVideoUrl,
+} from "./stream-links";
 
-describe("parseStreamUrl — YouTube", () => {
-  it("reads the id out of every shape the share button produces", () => {
-    for (const url of [
-      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      "https://youtu.be/dQw4w9WgXcQ",
-      "https://www.youtube.com/live/dQw4w9WgXcQ",
-      "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
-    ]) {
-      const link = parseStreamUrl(url);
-      expect(link?.platform, url).toBe("youtube");
-      expect(link?.watchUrl, url).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-      expect(link?.embedUrl("example.com"), url).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
-    }
-  });
-
-  it("keeps extra query parameters out of the stored URL", () => {
-    // A copied link usually carries ?t=, &si=, &feature= — none of which
-    // should end up in the embed.
-    const link = parseStreamUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s&si=abc");
-    expect(link?.watchUrl).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-  });
-
-  it("accepts a channel's live page and embeds its current broadcast", () => {
-    const link = parseStreamUrl("https://www.youtube.com/channel/UCuAXFkgsw1L7xaCfnd5JJOw/live");
-    expect(link?.platform).toBe("youtube");
-    expect(link?.embedUrl("example.com")).toBe(
-      "https://www.youtube.com/embed/live_stream?channel=UCuAXFkgsw1L7xaCfnd5JJOw",
-    );
-  });
-
-  it("rejects a channel id pasted where a video id goes", () => {
-    // 24 characters, not 11 — embedding it would 404 for the viewer.
-    expect(parseStreamUrl("https://www.youtube.com/live/UCuAXFkgsw1L7xaCfnd5JJOw")).toBeNull();
-  });
-
-  it("rejects a bare channel or handle page, which is not a stream", () => {
-    expect(parseStreamUrl("https://www.youtube.com/@someone")).toBeNull();
-    expect(parseStreamUrl("https://www.youtube.com/channel/UCuAXFkgsw1L7xaCfnd5JJOw")).toBeNull();
-  });
-});
-
-describe("parseStreamUrl — Twitch", () => {
-  it("reads a channel URL and lower-cases the login", () => {
-    const link = parseStreamUrl("https://www.twitch.tv/SomeStreamer");
-    expect(link?.platform).toBe("twitch");
-    expect(link?.watchUrl).toBe("https://www.twitch.tv/somestreamer");
-  });
-
-  it("puts the embedding host in the player URL, which Twitch requires", () => {
-    const link = parseStreamUrl("twitch.tv/somestreamer");
-    expect(link?.embedUrl("smash-ladder-jp.vercel.app")).toContain("parent=smash-ladder-jp.vercel.app");
-    expect(link?.embedUrl("localhost")).toContain("parent=localhost");
-  });
-
+describe("twitchParent", () => {
   it("drops the dev server's port, which Twitch rejects as InvalidCharInParent", () => {
-    const link = parseStreamUrl("twitch.tv/somestreamer");
-    expect(link?.embedUrl("localhost:3000")).toContain("parent=localhost");
-    expect(link?.embedUrl("127.0.0.1:3000")).toContain("parent=localhost");
-    expect(link?.embedUrl("smash-ladder-na.vercel.app:443")).toContain("parent=smash-ladder-na.vercel.app");
+    expect(twitchParent("localhost:3000")).toBe("localhost");
+    expect(twitchParent("127.0.0.1:3000")).toBe("localhost");
+    expect(twitchParent("smash-ladder-na.vercel.app:443")).toBe("smash-ladder-na.vercel.app");
   });
 
-  it("rejects a sub-page that isn't a channel", () => {
-    expect(parseStreamUrl("https://www.twitch.tv/directory/game/Super%20Smash%20Bros")).not.toBeNull();
-    // ^ "directory" is a valid login shape, so this one does parse — the
-    // check below is the real guard against junk.
-    expect(parseStreamUrl("https://www.twitch.tv/")).toBeNull();
-  });
-});
-
-describe("parseStreamUrl — anything else", () => {
-  it("refuses platforms this cannot embed", () => {
-    for (const url of [
-      "https://www.nicovideo.jp/watch/sm9",
-      "https://kick.com/someone",
-      "https://example.com/stream",
-      "not a url at all",
-      "",
-      "   ",
-    ]) {
-      expect(parseStreamUrl(url), url).toBeNull();
-    }
+  it("reports loopback as localhost, the one dev hostname Twitch accepts", () => {
+    expect(twitchParent("127.0.0.1")).toBe("localhost");
+    expect(twitchParent("[::1]:3000")).toBe("localhost");
   });
 
-  it("refuses a javascript: URL", () => {
-    expect(parseStreamUrl("javascript:alert(1)")).toBeNull();
-  });
-
-  it("assumes https when the scheme is missing", () => {
-    expect(parseStreamUrl("youtube.com/watch?v=dQw4w9WgXcQ")?.platform).toBe("youtube");
+  it("strips a full origin down to a bare hostname", () => {
+    expect(twitchParent("https://example.com/path?q=1")).toBe("example.com");
   });
 });
 
-describe("twitchStreamLink", () => {
-  it("builds the same link as parsing that channel's URL", () => {
-    expect(twitchStreamLink("SomeStreamer").watchUrl).toBe(parseStreamUrl("twitch.tv/SomeStreamer")?.watchUrl);
+describe("twitch streams", () => {
+  it("lower-cases the login and builds watch/embed URLs", () => {
+    const stream = twitchStream("SomeStreamer");
+    expect(liveStreamWatchUrl(stream)).toBe("https://www.twitch.tv/somestreamer");
+    expect(liveStreamEmbedUrl(stream, "smash-ladder-jp.vercel.app")).toContain("parent=smash-ladder-jp.vercel.app");
+    expect(liveStreamEmbedUrl(stream, "localhost:3000")).toContain("parent=localhost");
+  });
+
+  it("falls back to the login when there is no display name", () => {
+    expect(twitchStream("SomeStreamer").displayName).toBe("somestreamer");
   });
 });
 
-describe("isDeclarationFresh", () => {
-  const now = Date.now();
+describe("youtube streams", () => {
+  it("builds the video watch/embed URLs", () => {
+    const stream = youtubeStream("dQw4w9WgXcQ", "UCabc", "My Channel");
+    expect(stream.displayName).toBe("My Channel");
+    expect(liveStreamWatchUrl(stream)).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    expect(liveStreamEmbedUrl(stream, "example.com")).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+  });
+});
 
-  it("counts a link set just now", () => {
-    expect(isDeclarationFresh(new Date(now), now)).toBe(true);
+describe("streamVod", () => {
+  it("builds a Twitch VOD URL with the 1h2m3s offset", () => {
+    expect(streamVodWatchUrl("twitch", "123", 3723)).toBe("https://www.twitch.tv/videos/123?t=1h2m3s");
+    expect(streamVodWatchUrl("twitch", "123", null)).toBe("https://www.twitch.tv/videos/123");
+    expect(streamVodEmbedUrl("twitch", "123", 3723, "localhost")).toContain("video=v123");
+    expect(streamVodEmbedUrl("twitch", "123", 3723, "localhost")).toContain("time=1h2m3s");
   });
 
-  it("stops counting one past the window", () => {
-    expect(isDeclarationFresh(new Date(now - LIVE_DECLARATION_TTL_MS), now)).toBe(false);
-    expect(isDeclarationFresh(new Date(now - LIVE_DECLARATION_TTL_MS + 1000), now)).toBe(true);
-  });
-
-  it("treats a missing timestamp as not live", () => {
-    expect(isDeclarationFresh(null, now)).toBe(false);
-    expect(isDeclarationFresh(undefined, now)).toBe(false);
-  });
-
-  it("ignores a timestamp in the future", () => {
-    // Clock skew between the writer and this check shouldn't grant an
-    // open-ended live badge.
-    expect(isDeclarationFresh(new Date(now + 60_000), now)).toBe(false);
+  it("builds a YouTube VOD URL with a whole-second start", () => {
+    expect(youtubeVideoUrl("dQw4w9WgXcQ", 3723)).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=3723s");
+    expect(youtubeVideoUrl("dQw4w9WgXcQ", 0)).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    expect(streamVodEmbedUrl("youtube", "dQw4w9WgXcQ", 3723, "localhost")).toBe(
+      "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&start=3723",
+    );
   });
 });

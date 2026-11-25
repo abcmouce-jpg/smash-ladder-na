@@ -14,11 +14,9 @@ import {
   setNotificationsDisabled,
   setNotifyQueueOpportunities,
   setNotifyQueueOpportunitiesDm,
-  setLiveStreamUrl,
   setQuickMessages,
   setUsername,
   setWidenFiltersWhileWaiting,
-  setYoutubeChannelUrl,
 } from "@/lib/account";
 import { disabledKeysFromEnabled } from "@/lib/notifications";
 import { setArenaPassword } from "@/lib/arena";
@@ -27,6 +25,7 @@ import { generateApiToken, revokeApiToken } from "@/lib/api-tokens";
 import { sendTestPushToUser } from "@/lib/push-server";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
 import { disconnectTwitchAccount } from "@/lib/twitch-oauth";
+import { disconnectYouTubeAccount } from "@/lib/youtube-oauth";
 import { errorMessage, LocalizedError } from "@/lib/localized-error";
 
 async function requireUserId() {
@@ -188,6 +187,13 @@ export async function disconnectTwitchAction() {
   revalidatePath(`/players/${userId}`);
 }
 
+export async function disconnectYouTubeAction() {
+  const userId = await requireUserId();
+  await disconnectYouTubeAccount(userId);
+  revalidatePath("/settings");
+  revalidatePath(`/players/${userId}`);
+}
+
 export type GenerateApiTokenState = { error: string | null; rawToken: string | null };
 
 // The raw token is only ever available here, in the state this returns —
@@ -211,39 +217,4 @@ export async function revokeApiTokenAction(tokenId: string) {
   const userId = await requireUserId();
   await revokeApiToken(userId, tokenId);
   revalidatePath("/settings");
-}
-
-export async function updateStreamLinksAction(
-  _prev: SettingsSaveState,
-  formData: FormData,
-): Promise<SettingsSaveState> {
-  const userId = await requireUserId();
-
-  // The live link is checked first: if it is wrong, nothing is written, so a
-  // typo there can't silently save the channel field and look like a success.
-  const live = await setLiveStreamUrl(userId, String(formData.get("liveStreamUrl") ?? ""));
-  if (!live.ok) {
-    return {
-      error: tr(await getLang(), {
-        en: "That stream link isn't a Twitch or YouTube URL we can embed.",
-        es: "Ese enlace no es una URL de Twitch o YouTube que podamos insertar.",
-      }),
-      saved: false,
-    };
-  }
-
-  const channel = await setYoutubeChannelUrl(userId, String(formData.get("youtubeChannelUrl") ?? ""));
-  if (!channel.ok) {
-    return {
-      error: tr(await getLang(), {
-        en: "That channel link isn't a YouTube URL we recognise.",
-        es: "Ese enlace de canal no es una URL de YouTube que reconozcamos.",
-      }),
-      saved: false,
-    };
-  }
-
-  revalidatePath("/settings");
-  revalidatePath("/live");
-  return { error: null, saved: true };
 }

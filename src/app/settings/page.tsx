@@ -9,6 +9,7 @@ import { CopyButton } from "@/components/copy-button";
 import { PushNotificationsForm } from "@/components/push-notifications-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { MatchFoundSoundPicker } from "@/components/match-found-sound-picker";
+import { YouTubeIcon } from "@/components/youtube-icon";
 import { SectionTabs } from "@/components/section-tabs";
 import { formatInterval } from "@/lib/duration";
 import { GAP_WIDEN_INTERVAL_MS, GAP_WIDEN_STEP } from "@/lib/match-compat";
@@ -33,20 +34,17 @@ import { ApiTokensPanel } from "@/components/api-tokens-panel";
 import {
   disconnectStartggAction,
   disconnectTwitchAction,
+  disconnectYouTubeAction,
   generateApiTokenAction,
   revokeApiTokenAction,
   updateLobbySettingsAction,
   updateNotificationSettingsAction,
   updateUserSettingsAction,
   updatePostMatchMessageAction,
-  updateStreamLinksAction,
 } from "./actions";
 import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 import { tr, trNode } from "@/lib/lang";
 import { HAS_COMMUNITY_GUIDES, HAS_KOFI, HAS_QUICK_MESSAGES, SITE_LANGS } from "@/lib/site";
-import { LIVE_DECLARATION_TTL_MS } from "@/lib/stream-links";
-
-const LIVE_DECLARATION_HOURS = LIVE_DECLARATION_TTL_MS / (60 * 60 * 1000);
 
 // ?tab= picks which group of settings renders, so each stays deep-linkable and
 // server-rendered — same pattern as the Stats, Notes, and profile pages.
@@ -75,10 +73,20 @@ export default async function SettingsPage({
     startggError?: string;
     twitchConnected?: string;
     twitchError?: string;
+    youtubeConnected?: string;
+    youtubeError?: string;
   }>;
 }) {
   const session = await auth();
-  const { tab: tabParam, startggConnected, startggError, twitchConnected, twitchError } = await searchParams;
+  const {
+    tab: tabParam,
+    startggConnected,
+    startggError,
+    twitchConnected,
+    twitchError,
+    youtubeConnected,
+    youtubeError,
+  } = await searchParams;
   const host = (await headers()).get("host") ?? "";
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
   const lang = await getLang();
@@ -111,8 +119,9 @@ export default async function SettingsPage({
         twitchUsername: true,
         twitchDisplayName: true,
         twitchProfileImageUrl: true,
-        youtubeChannelUrl: true,
-        liveStreamUrl: true,
+        youtubeUserId: true,
+        youtubeChannelTitle: true,
+        youtubeProfileImageUrl: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
         widenFiltersWhileWaiting: true,
@@ -228,11 +237,20 @@ export default async function SettingsPage({
           }
           twitchJustConnected={twitchConnected === "1"}
           twitchError={twitchError}
+          youtube={
+            me?.youtubeUserId && me.youtubeChannelTitle
+              ? {
+                  username: me.youtubeChannelTitle,
+                  displayName: me.youtubeChannelTitle,
+                  profileImageUrl: me.youtubeProfileImageUrl,
+                }
+              : null
+          }
+          youtubeJustConnected={youtubeConnected === "1"}
+          youtubeError={youtubeError}
           startgg={me?.startggUserId && me.startggSlug ? { slug: me.startggSlug, gamerTag: me.startggGamerTag } : null}
           startggJustConnected={startggConnected === "1"}
           startggError={startggError}
-          liveStreamUrl={me?.liveStreamUrl ?? null}
-          youtubeChannelUrl={me?.youtubeChannelUrl ?? null}
           apiTokens={apiTokens.map((token) => ({
             id: token.id,
             name: token.name,
@@ -697,12 +715,13 @@ function AppsTab({
   twitch,
   twitchJustConnected,
   twitchError,
+  youtube,
+  youtubeJustConnected,
+  youtubeError,
   startgg,
   startggJustConnected,
   startggError,
   apiTokens,
-  liveStreamUrl,
-  youtubeChannelUrl,
   lang,
 }: {
   userId: string;
@@ -711,12 +730,13 @@ function AppsTab({
   twitch: TwitchConnection;
   twitchJustConnected: boolean;
   twitchError?: string;
+  youtube: TwitchConnection;
+  youtubeJustConnected: boolean;
+  youtubeError?: string;
   startgg: StartggConnection;
   startggJustConnected: boolean;
   startggError?: string;
   apiTokens: ApiTokenSummary[];
-  liveStreamUrl: string | null;
-  youtubeChannelUrl: string | null;
   lang: Lang;
 }) {
   return (
@@ -729,7 +749,12 @@ function AppsTab({
 
       <Card>
         <CardContent className="pt-4">
-          <StreamLinksCard liveStreamUrl={liveStreamUrl} youtubeChannelUrl={youtubeChannelUrl} lang={lang} />
+          <YouTubeConnectCard
+            connected={youtube}
+            justConnected={youtubeJustConnected}
+            error={youtubeError}
+            lang={lang}
+          />
         </CardContent>
       </Card>
 
@@ -961,66 +986,74 @@ function StreamOverlayCard({
   );
 }
 
-// Twitch liveness is detected; YouTube's cannot be on the free quota (see
-// lib/stream-links.ts), so a player streaming there says so here. The same
-// field takes a Twitch URL too — someone streaming from an account they
-// haven't connected still gets to be listed.
-function StreamLinksCard({
-  liveStreamUrl,
-  youtubeChannelUrl,
+// YouTube liveness is detected automatically through the player's own Google
+// OAuth grant (see lib/youtube-oauth.ts), the same way Twitch is detected via
+// Helix — so there is no link to paste or clear any more. Only read-only access
+// to the channel's public data is requested.
+function YouTubeConnectCard({
+  connected,
+  justConnected,
+  error,
   lang,
 }: {
-  liveStreamUrl: string | null;
-  youtubeChannelUrl: string | null;
+  connected: TwitchConnection;
+  justConnected: boolean;
+  error?: string;
   lang: Lang;
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">{tr(lang, { en: "Stream links", es: "Enlaces de stream" })}</p>
-      <SettingsSaveForm action={updateStreamLinksAction} lang={lang} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="font-medium text-foreground">
+      <p className="flex items-center gap-1.5 font-medium">
+        <YouTubeIcon className="size-4 text-red-600" />
+        {tr(lang, {
+          en: "YouTube channel",
+          es: "Canal de YouTube",
+        })}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {tr(lang, {
+          en: "Connect your Google account and we'll automatically show when your YouTube channel is live — on your sets, the Live page and the home page. We only read your public channel and live status.",
+          es: "Conecta tu cuenta de Google y mostraremos automáticamente cuándo tu canal de YouTube está en vivo — en tus partidas, la página En vivo y la página principal. Solo leemos tu canal público y tu estado en vivo.",
+        })}
+      </p>
+      {connected ? (
+        <>
+          {justConnected && (
+            <p className="text-xs text-emerald-600">
+              {tr(lang, {
+                en: "Connected!",
+                es: "¡Conectado!",
+              })}
+            </p>
+          )}
+          <div className="mt-1 flex items-center gap-2">
+            {connected.profileImageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={connected.profileImageUrl} alt="" className="size-6 rounded-full" />
+            )}
+            <span className="font-medium">{connected.displayName ?? connected.username} ✓</span>
+            <form action={disconnectYouTubeAction}>
+              <Button type="submit" size="sm" variant="outline">
+                {tr(lang, {
+                  en: "Disconnect",
+                  es: "Desconectar",
+                })}
+              </Button>
+            </form>
+          </div>
+        </>
+      ) : (
+        <a href="/api/youtube/connect" className="mt-1 self-start">
+          <Button type="button" size="sm">
+            <YouTubeIcon className="size-4" />
             {tr(lang, {
-              en: "Streaming right now",
-              es: "Transmitiendo ahora",
+              en: "Connect with Google",
+              es: "Conectar con Google",
             })}
-          </span>
-          <span className="text-xs font-normal text-muted-foreground">
-            {tr(lang, {
-              en: `Paste the URL of the stream you're running and your sets get listed as live for ${LIVE_DECLARATION_HOURS} hours. Twitch or YouTube. Clear it when you stop.`,
-              es: `Pega la URL del stream que estés haciendo y tus partidas aparecerán como en vivo durante ${LIVE_DECLARATION_HOURS} horas. Twitch o YouTube. Bórralo cuando termines.`,
-            })}
-          </span>
-          <input
-            name="liveStreamUrl"
-            type="url"
-            defaultValue={liveStreamUrl ?? ""}
-            placeholder="https://www.youtube.com/watch?v=…"
-            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="font-medium text-foreground">
-            {tr(lang, {
-              en: "YouTube channel",
-              es: "Canal de YouTube",
-            })}
-          </span>
-          <span className="text-xs font-normal text-muted-foreground">
-            {tr(lang, {
-              en: "Shown on your profile, the same way a connected Twitch account is.",
-              es: "Se muestra en tu perfil, igual que una cuenta de Twitch conectada.",
-            })}
-          </span>
-          <input
-            name="youtubeChannelUrl"
-            type="url"
-            defaultValue={youtubeChannelUrl ?? ""}
-            placeholder="https://www.youtube.com/channel/UC…/live"
-            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-          />
-        </label>
-      </SettingsSaveForm>
+          </Button>
+        </a>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -1046,8 +1079,8 @@ function TwitchConnectCard({
       </p>
       <p className="text-xs text-muted-foreground">
         {tr(lang, {
-          en: "Connect your Twitch account to access a custom stream overlay page. The overlay shows your rating, rank, and recent matches — perfect as an OBS Browser Source for your stream.",
-          es: "Conecta tu cuenta de Twitch para acceder a una página de overlay personalizada. El overlay muestra tu clasificación, rango, y partidas recientes — perfecto como Browser Source de OBS para tu stream.",
+          en: "Connect your Twitch account and we'll automatically show when your channel is live — on your sets, the Live page and the home page. You also get a custom stream overlay page showing your rating, rank, and recent matches.",
+          es: "Conecta tu cuenta de Twitch y mostraremos automáticamente cuándo tu canal está en vivo — en tus partidas, la página En vivo y la página principal. También obtienes una página de overlay personalizada con tu clasificación, rango y partidas recientes.",
         })}
       </p>
       {connected ? (

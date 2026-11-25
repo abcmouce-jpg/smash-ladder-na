@@ -101,8 +101,8 @@ npm run start:local -- -p 3100
 
 A fresh local DB only has a handful of seeded test accounts — not enough to build or sanity-check
 something like a stats page against. If you were handed an anonymized snapshot file (production
-match/rating/season history with all emails, IPs, and Discord/Twitch/start.gg identities stripped
-or never included), import it with:
+match/rating/season history with all emails, IPs, and Discord/Twitch/YouTube/start.gg identities
+stripped or never included), import it with:
 
 ```bash
 psql "$(grep DATABASE_URL .env.development | cut -d= -f2- | tr -d '"')" < snapshot.sql

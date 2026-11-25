@@ -257,8 +257,8 @@ export default async function Home() {
         <div className="mt-10">
           <SectionHeading
             label={tr(lang, {
-              en: "Live on Twitch",
-              es: "En vivo en Twitch",
+              en: "Live",
+              es: "En vivo",
             })}
           />
           <LiveStreamProvider>

@@ -8,12 +8,19 @@ import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { DiscordIcon } from "@/components/discord-icon";
 import { StartggIcon } from "@/components/startgg-icon";
 import { TwitchIcon } from "@/components/twitch-icon";
+import { YouTubeIcon } from "@/components/youtube-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingHidden } from "@/components/rating-hidden";
 import { BlockUserButton } from "@/components/block-user-button";
 import { ShareMenu } from "@/components/share-menu";
-import { LiveStreamEmbed } from "@/components/live-stream-embed";
-import { playerStreamLink } from "@/lib/stream-links";
+import {
+  twitchChannelUrl,
+  twitchStream,
+  youtubeChannelUrl,
+  youtubeStream,
+  type LiveStreamInfo,
+} from "@/lib/stream-links";
+import { ProfileLiveCard } from "./profile-live-card";
 import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { getCurrentMatchForUser, getPlayerProfile, type CharacterUsage, type HeadToHead } from "@/lib/players";
 import { getRankTier, isRatingVisible } from "@/lib/rank-tier";
@@ -25,8 +32,8 @@ import type { BlockState } from "../actions";
 import { tr } from "@/lib/lang";
 
 // The profile header is shared chrome — it renders above every tab and is
-// identical no matter which one is active. The "currently in a match" card
-// and live-Twitch embed live here with it, since a live match is the most
+// identical no matter which one is active. The "currently in a match" card and
+// the live-stream card live here with it, since a live match is the most
 // important thing about the page and shouldn't disappear just because the
 // viewer switched to the Seasons tab.
 export function PlayerProfileHeader({
@@ -36,6 +43,7 @@ export function PlayerProfileHeader({
   blocked,
   currentMatch,
   isLiveOnTwitch,
+  youtubeLive,
   parentHost,
   viewerId,
   isOwnProfile,
@@ -49,6 +57,8 @@ export function PlayerProfileHeader({
   blocked: boolean;
   currentMatch: Awaited<ReturnType<typeof getCurrentMatchForUser>>;
   isLiveOnTwitch: boolean;
+  /** The channel's active YouTube broadcast, detected via its linked account. */
+  youtubeLive: { videoId: string; channelId: string; title: string } | null;
   parentHost: string;
   viewerId: string | null;
   isOwnProfile: boolean;
@@ -56,7 +66,21 @@ export function PlayerProfileHeader({
   blockAction: (prevState: BlockState, formData: FormData) => Promise<BlockState>;
   lang: Lang;
 }) {
-  const inMatch = currentMatch !== null;
+  // Both platforms are detected independently, so a player linked to both can
+  // have two live tabs. Order is Twitch first, matching the feed's pills.
+  const liveStreams: LiveStreamInfo[] = [];
+  if (isLiveOnTwitch && player.twitchUsername) {
+    liveStreams.push(twitchStream(player.twitchUsername, player.twitchDisplayName ?? player.username));
+  }
+  if (youtubeLive) {
+    liveStreams.push(
+      youtubeStream(
+        youtubeLive.videoId,
+        youtubeLive.channelId,
+        youtubeLive.title || player.youtubeChannelTitle || player.username,
+      ),
+    );
+  }
   // Hidden from the public (self-declared privacy, or an anonymized deleted
   // account — see getPlayerProfile) still reaches a mod/admin viewer, same
   // reasoning as the cancel-count/connection-report badges further down.
@@ -164,23 +188,24 @@ export function PlayerProfileHeader({
                 {discordHiddenFromPublic && <EyeOff className="size-3" />}
               </Badge>
             )}
-            {player.youtubeChannelUrl && (
+            {player.youtubeUserId && (
               <a
-                href={player.youtubeChannelUrl}
+                href={youtubeChannelUrl(player.youtubeUserId)}
                 target="_blank"
                 rel="noreferrer"
-                aria-label={tr(lang, {
-                  en: "YouTube channel",
-                  es: "Canal de YouTube",
-                })}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                aria-label={`${tr(lang, { en: "YouTube channel", es: "Canal de YouTube" })}: ${
+                  player.youtubeChannelTitle ?? player.youtubeUserId
+                }`}
               >
-                YouTube
+                <Badge variant="outline">
+                  <YouTubeIcon className="size-3 text-red-600" />
+                  {player.youtubeChannelTitle ?? "YouTube"}
+                </Badge>
               </a>
             )}
             {player.twitchUsername && (
               <a
-                href={`https://twitch.tv/${player.twitchUsername}`}
+                href={twitchChannelUrl(player.twitchUsername)}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${tr(lang, { en: "Twitch channel", es: "Canal de Twitch" })}: ${
@@ -270,16 +295,7 @@ export function PlayerProfileHeader({
         </div>
       </div>
 
-      {inMatch &&
-        (() => {
-          const link = playerStreamLink(player);
-          // A detected Twitch stream, or one the player declared — the second
-          // is the only way a YouTube stream can be known (see lib/stream-links.ts).
-          if (!link || (link.platform === "twitch" && !isLiveOnTwitch && !player.liveStreamUrl)) return null;
-          return (
-            <LiveStreamEmbed embedUrl={link.embedUrl(parentHost)} title={player.twitchDisplayName ?? player.username} />
-          );
-        })()}
+      {liveStreams.length > 0 && <ProfileLiveCard streams={liveStreams} parentHost={parentHost} lang={lang} />}
 
       {currentMatch && (
         <CurrentMatchCard

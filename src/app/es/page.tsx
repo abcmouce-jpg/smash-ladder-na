@@ -153,7 +153,7 @@ export default async function HomeEs() {
 
       {liveEntries.length > 0 && (
         <div className="mt-10">
-          <SectionHeading label="En vivo en Twitch" />
+          <SectionHeading label="En vivo" />
           <LiveStreamProvider>
             <div className="mt-3">
               <LiveStreamStage entries={liveEntries} parentHost={parentHost} />

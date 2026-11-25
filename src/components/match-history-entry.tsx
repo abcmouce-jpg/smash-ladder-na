@@ -9,13 +9,13 @@ import { Button } from "@/components/ui/button";
 import { CharacterIcon } from "@/components/character-icon";
 import { LocalTime } from "@/components/local-time";
 import { MatchChatLog } from "@/components/match-chat-log";
-import { TwitchIcon } from "@/components/twitch-icon";
-import { TwitchVodEmbed } from "@/components/twitch-vod-embed";
+import { StreamPlatformIcon } from "@/components/live-streams/platform-icon";
+import { StreamVodEmbed } from "@/components/stream-vod-embed";
 import { cn } from "@/lib/utils";
 import type { MatchHistoryEntryData, MatchStreamSummary } from "@/lib/players";
 import { formatRating, formatTrackRating } from "@/lib/rating-format";
 import { trackFor } from "@/lib/rating-track";
-import { twitchVideoUrl } from "@/lib/twitch-vod";
+import { streamPlatformName, streamVodWatchUrl } from "@/lib/stream-links";
 import type { Lang } from "@/lib/i18n";
 import { tr } from "@/lib/lang";
 import { PROVISIONAL_LABEL } from "@/components/rank-badge";
@@ -119,9 +119,7 @@ export function MatchHistoryEntry({
   // A set can have at most two captured streams (one per side), but only the
   // ones whose VOD has actually been resolved can be replayed — that's what the
   // row's "Play Replay" action and the modal's embeds both key off of.
-  const vodStreams = (match.streams ?? []).filter(
-    (s): s is MatchStreamSummary & { vodId: string } => s.vodId !== null,
-  );
+  const vodStreams = (match.streams ?? []).filter((s): s is MatchStreamSummary & { vodId: string } => s.vodId !== null);
   const hasVod = vodStreams.length > 0;
 
   const { score, delta } = match;
@@ -412,38 +410,50 @@ function MatchDetailsModal({
 
         {vodStreams.length > 0 && (
           <div className="mt-4">
-            <p className="text-xs font-medium text-muted-foreground">
-              {lang === "es" ? "Repetición en Twitch" : "Twitch replay"}
-            </p>
+            <p className="text-xs font-medium text-muted-foreground">{tr(lang, { en: "Replay", es: "Repetición" })}</p>
             <div className="mt-2 flex flex-col gap-3">
               {vodStreams.map((stream) => {
                 // The streamer is one of the two players, so its name is already
                 // on hand — no need to store it alongside the capture.
                 const streamerName = stream.userId === match.opponent.id ? match.opponent.username : viewedPlayerName;
-                const replayUrl = twitchVideoUrl(stream.vodId, stream.vodOffsetSeconds);
+                const platformName = streamPlatformName(stream.platform);
+                const replayUrl = streamVodWatchUrl(stream.platform, stream.vodId, stream.vodOffsetSeconds);
                 return (
                   <div key={stream.userId} className="rounded-lg border border-border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                       <span className="flex items-center gap-1.5 text-xs font-medium">
-                        <TwitchIcon className="size-3.5 text-[#9146FF]" aria-hidden />
-                        {lang === "es" ? `Repetición de ${streamerName}` : `${streamerName}'s stream`}
+                        <StreamPlatformIcon
+                          platform={stream.platform}
+                          className={cn("size-3.5", stream.platform === "twitch" ? "text-[#9146FF]" : "text-red-600")}
+                        />
+                        {tr(lang, {
+                          en: `${streamerName}'s stream`,
+                          es: `Stream de ${streamerName}`,
+                        })}
                       </span>
                       <a
                         href={replayUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs font-medium text-[#9146FF] hover:underline"
+                        className={cn(
+                          "flex items-center gap-1 text-xs font-medium hover:underline",
+                          stream.platform === "twitch" ? "text-[#9146FF]" : "text-red-600",
+                        )}
                       >
-                        {lang === "es" ? "Ver en Twitch" : "Watch on Twitch"}
+                        {tr(lang, { en: `Watch on ${platformName}`, es: `Ver en ${platformName}` })}
                         <ExternalLink className="size-3" aria-hidden />
                       </a>
                     </div>
                     <div className="mt-2">
-                      <TwitchVodEmbed
+                      <StreamVodEmbed
+                        platform={stream.platform}
                         videoId={stream.vodId}
                         offsetSeconds={stream.vodOffsetSeconds ?? 0}
                         parentHost={parentHost}
-                        title={lang === "es" ? `Repetición de ${streamerName}` : `${streamerName}'s Twitch replay`}
+                        title={tr(lang, {
+                          en: `${streamerName}'s ${platformName} replay`,
+                          es: `Repetición de ${streamerName} en ${platformName}`,
+                        })}
                       />
                     </div>
                   </div>

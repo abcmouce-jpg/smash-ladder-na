@@ -9,6 +9,7 @@ import { auth } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { getCharacterUsage, getCurrentMatchForUser, getHeadToHead, getPlayerProfile } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
+import { getLiveYouTubeStreams } from "@/lib/youtube-oauth";
 import { isBlockedByMe } from "@/lib/blocks";
 import { listReportsForUser } from "@/lib/reports";
 import { banPlayerIpAction, blockUserAction, deleteAccountAction, moderateUserAction } from "../actions";
@@ -144,7 +145,11 @@ export default async function PlayerProfilePage({
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
     session?.user?.id && !isOwnProfile ? getHeadToHead(session.user.id, id) : Promise.resolve(null),
   ]);
-  const isLiveOnTwitch = player.twitchUsername ? await isTwitchLive(player.twitchUsername) : false;
+  const [isLiveOnTwitch, liveYouTube] = await Promise.all([
+    player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
+    getLiveYouTubeStreams([id]),
+  ]);
+  const youtubeLive = liveYouTube.get(id) ?? null;
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
 
@@ -159,6 +164,7 @@ export default async function PlayerProfilePage({
         blocked={blocked}
         currentMatch={currentMatch}
         isLiveOnTwitch={isLiveOnTwitch}
+        youtubeLive={youtubeLive}
         parentHost={parentHost}
         viewerId={session?.user?.id ?? null}
         isOwnProfile={isOwnProfile}
