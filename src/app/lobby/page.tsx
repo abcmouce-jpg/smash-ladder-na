@@ -18,8 +18,11 @@ import { auth } from "@/auth";
 import { getMatchupNote } from "@/lib/matchup-notes";
 import { prisma } from "@/lib/db";
 import {
+  cancelLobbyEntry,
   getActiveLobbyEntry,
   getLobbyActivityStats,
+  QUEUE_CLOSED,
+  QUEUE_CLOSED_MESSAGE,
   retryPairForWaitingUser,
   touchWaitingLobbyEntry,
 } from "@/lib/lobby";
@@ -194,6 +197,18 @@ export default async function LobbyPage() {
 
   await retryPairForWaitingUser(session.user.id);
   const entry = await getActiveLobbyEntry(session.user.id);
+  // Off-season (see QUEUE_CLOSED): a player still finishing a set keeps the
+  // full lobby so they can play it out and report; everyone else gets the
+  // notice, and a spot left over from before the close is released.
+  if (QUEUE_CLOSED && entry?.status !== "PAIRED") {
+    if (entry?.status === "WAITING") await cancelLobbyEntry(session.user.id);
+    return (
+      <main className="mx-auto w-full max-w-3xl px-6 py-16">
+        <PageHeading icon={Swords} title={tr(lang, { en: "Lobby", es: "Sala" })} />
+        <p className="mt-2 text-sm text-muted-foreground">{tr(lang, QUEUE_CLOSED_MESSAGE)}</p>
+      </main>
+    );
+  }
   // This render is itself proof the player is still here (the poller refreshes
   // this page every ~5s while WAITING), so renew their queue spot — without
   // this, LOBBY_ENTRY_TTL_MS was a hard cap and an attentive player got dropped

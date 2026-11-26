@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasBearerSecret } from "@/lib/secret-compare";
 import { finalizeExpiredFreeBattlePosts, finalizeExpiredLobbyEntries, finalizeExpiredMatches } from "@/lib/finalize";
-import { sweepLobbyPairing } from "@/lib/lobby";
+import { QUEUE_CLOSED, sweepLobbyPairing } from "@/lib/lobby";
 import { autoSuspendWatchlistViolators } from "@/lib/admin-watchlist";
 import { endActiveSeasonIfDue } from "@/lib/seasons";
 
@@ -18,7 +18,10 @@ async function handle(request: Request) {
   // rolls over the moment it passes, cancelling any still-open match as part
   // of the same transaction before anything below gets a chance to touch it.
   // A season with no scheduledEndAt is untouched — still fully manual.
-  const seasonRolledOver = await endActiveSeasonIfDue();
+  // While the queue is closed (QUEUE_CLOSED) the rollover waits too: it
+  // would start the next season on whatever tick happened to run, not when
+  // play resumes. Reopening lets the next tick roll it over.
+  const seasonRolledOver = QUEUE_CLOSED ? false : await endActiveSeasonIfDue();
 
   // Pair off anyone still waiting before considering expiry, so a burst of
   // joins that missed each other at request time gets a second chance.
