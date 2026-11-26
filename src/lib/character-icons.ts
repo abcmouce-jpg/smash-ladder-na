@@ -1,4 +1,5 @@
 import type { SmashCharacter } from "@/lib/characters";
+import { SHOW_GAME_ART } from "@/lib/game-art";
 
 // Maps each fighter to its stock-icon file slug (public/characters/<slug>.png).
 // Slugs are Nintendo's internal codenames, ripped from the game files — not
@@ -97,5 +98,6 @@ export const CHARACTER_ICON_SLUGS: Partial<Record<SmashCharacter, string>> = {
 };
 
 export function characterIconSlug(name: string): string | undefined {
+  if (!SHOW_GAME_ART) return undefined;
   return (CHARACTER_ICON_SLUGS as Record<string, string>)[name];
 }

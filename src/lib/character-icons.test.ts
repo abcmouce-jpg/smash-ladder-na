@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import path from "path";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { CHARACTER_ICON_SLUGS, characterIconSlug } from "@/lib/character-icons";
+import { SHOW_GAME_ART } from "@/lib/game-art";
 
 describe("CHARACTER_ICON_SLUGS", () => {
   it("maps every roster character to a slug", () => {
@@ -22,8 +23,8 @@ describe("CHARACTER_ICON_SLUGS", () => {
 });
 
 describe("characterIconSlug", () => {
-  it("returns the mapped slug for a known character", () => {
-    expect(characterIconSlug("Mario")).toBe("mario");
+  it("returns the mapped slug for a known character while the art is on", () => {
+    expect(characterIconSlug("Mario")).toBe(SHOW_GAME_ART ? "mario" : undefined);
   });
 
   it("returns undefined for an unrecognized name", () => {

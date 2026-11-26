@@ -1,4 +1,5 @@
 import type { Lang } from "@/lib/lang";
+import { SHOW_GAME_ART } from "@/lib/game-art";
 
 // Every stage either instance can put in play. Stage names are stored in the
 // database and keyed on in STAGE_IMAGE_MAP, so these English strings are the
@@ -52,7 +53,8 @@ const STAGE_IMAGE_MAP: Record<string, string> = {
   "Kalos Pokémon League": "kalos.png",
 };
 
-export function stageImagePath(stage: string): string {
+export function stageImagePath(stage: string): string | null {
+  if (!SHOW_GAME_ART) return null;
   return STAGE_IMAGE_MAP[stage] ?? null;
 }
 
