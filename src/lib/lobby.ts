@@ -108,6 +108,22 @@ async function getRecentMatchPairTimestamps() {
 // being paired against at a match's start).
 export const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000;
 
+// Off-season switch: with QUEUE_CLOSED=1 set on the deployment, nobody can
+// join the queue and no new match is created — not from a join, the poll
+// retry, the cron sweep, or a rematch. Matches already in progress still
+// finish and report normally. Reopening is unsetting the variable and
+// redeploying.
+export const QUEUE_CLOSED = process.env.QUEUE_CLOSED === "1";
+
+export const QUEUE_CLOSED_MESSAGE = {
+  en: "The season has ended and the queue is closed until the next one starts.",
+  es: "La temporada terminó y la cola está cerrada hasta que empiece la siguiente.",
+};
+
+function assertQueueOpen() {
+  if (QUEUE_CLOSED) throw new LocalizedError(QUEUE_CLOSED_MESSAGE);
+}
+
 export const ROOM_CODE_PATTERN = /^[A-Z0-9]{5}$/;
 
 // If exactly one side of a pairing already had a room set up before
@@ -540,6 +556,7 @@ export async function joinLobbyAndTryPair(
   existingRoomCode: string | null = null,
   mode: MatchMode = MatchMode.STANDARD,
 ) {
+  assertQueueOpen();
   // Randitto has its own rating track (see trackFor), so the practice flag
   // has nothing to express on it — forced off rather than carried, to keep a
   // fourth "practising at randitto" ladder from existing by accident.
@@ -750,6 +767,7 @@ export async function updateLobbyRoomCode(userId: string, roomCode: string | nul
 // a player who was gone for a whole window gets the ordinary "your spot
 // expired" treatment and requeues instead of silently holding a stale spot.
 export async function touchWaitingLobbyEntry(userId: string) {
+  if (QUEUE_CLOSED) return;
   const now = Date.now();
   try {
     const entry = await prisma.ratingLobbyEntry.findFirst({
@@ -786,6 +804,7 @@ export async function touchWaitingLobbyEntry(userId: string) {
 // on a match. The 5-minute cron sweep is still there as a fallback if a
 // retry tick keeps failing.
 export async function retryPairForWaitingUser(userId: string) {
+  if (QUEUE_CLOSED) return;
   try {
     const now = new Date();
     const entry = await prisma.ratingLobbyEntry.findFirst({
@@ -878,6 +897,7 @@ export async function createDirectMatch(
   // players into an ordinary rated match without either of them asking.
   mode: MatchMode = MatchMode.STANDARD,
 ) {
+  assertQueueOpen();
   const now = new Date();
   const match = await tx.ratingMatch.create({
     data: {
@@ -971,6 +991,7 @@ function canMatch(
 }
 
 export async function sweepLobbyPairing(maxPairs = 50) {
+  if (QUEUE_CLOSED) return 0;
   let paired = 0;
   const now = new Date();
   const blockedPairs = await getAllBlockedPairKeys();
