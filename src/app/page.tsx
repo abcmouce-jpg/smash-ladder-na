@@ -18,6 +18,7 @@ import { RankBadge } from "@/components/rank-badge";
 import { FriendliesPosts } from "@/components/friendlies-posts";
 import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { Card, CardContent } from "@/components/ui/card";
+import { HomeIntro } from "@/components/home-intro";
 import { LiveStreamProvider } from "@/components/live-streams/selection";
 import { LiveStreamStage } from "@/components/live-streams/stage";
 import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
@@ -389,6 +390,8 @@ export default async function Home() {
           </CardContent>
         </Card>
       </div>
+
+      <HomeIntro lang={lang} />
     </main>
   );
 }

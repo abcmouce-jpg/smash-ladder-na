@@ -63,6 +63,28 @@ export default async function PrivacyPage() {
               . No colocamos anuncios en la sala clasificatoria ni durante una partida activa — esa experiencia se
               mantiene libre de anuncios.
             </p>
+            <p className="mt-2">
+              Proveedores externos, incluido Google, usan cookies para mostrar anuncios según tus visitas anteriores a
+              este u otros sitios web. Las cookies de publicidad de Google permiten que Google y sus socios muestren
+              anuncios basados en esas visitas. Puedes desactivar la publicidad personalizada en{" "}
+              <a href="https://adssettings.google.com" target="_blank" rel="noreferrer" className="underline">
+                la configuración de anuncios de Google
+              </a>{" "}
+              o, para otros proveedores, en{" "}
+              <a href="https://www.aboutads.info/choices" target="_blank" rel="noreferrer" className="underline">
+                aboutads.info
+              </a>
+              . Más detalles en{" "}
+              <a
+                href="https://policies.google.com/technologies/partner-sites"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                cómo usa Google los datos de los sitios que usan sus servicios
+              </a>
+              .
+            </p>
           </section>
 
           <section>
@@ -155,6 +177,28 @@ export default async function PrivacyPage() {
               adssettings.google.com
             </a>
             . We don&apos;t place ads on the lobby or an active match — that experience stays ad-free.
+          </p>
+          <p className="mt-2">
+            Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this website
+            or other websites. Google&apos;s use of advertising cookies enables it and its partners to serve ads based
+            on those visits. You can opt out of personalized advertising in{" "}
+            <a href="https://adssettings.google.com" target="_blank" rel="noreferrer" className="underline">
+              Google&apos;s Ads Settings
+            </a>{" "}
+            or, for other vendors, at{" "}
+            <a href="https://www.aboutads.info/choices" target="_blank" rel="noreferrer" className="underline">
+              aboutads.info
+            </a>
+            . For more, see{" "}
+            <a
+              href="https://policies.google.com/technologies/partner-sites"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              how Google uses data from sites that use its services
+            </a>
+            .
           </p>
         </section>
 

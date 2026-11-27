@@ -17,6 +17,7 @@ import { MatchesPerDayChart } from "@/components/matches-per-day-chart";
 import { SectionHeading } from "@/components/section-heading";
 import { FriendliesPosts } from "@/components/friendlies-posts";
 import { Card, CardContent } from "@/components/ui/card";
+import { HomeIntro } from "@/components/home-intro";
 import { LiveStreamProvider } from "@/components/live-streams/selection";
 import { LiveStreamStage } from "@/components/live-streams/stage";
 import { LiveStreamThumbnails } from "@/components/live-streams/thumbnails";
@@ -246,6 +247,8 @@ export default async function HomeEs() {
           </CardContent>
         </Card>
       </div>
+
+      <HomeIntro lang="es" />
     </main>
   );
 }
