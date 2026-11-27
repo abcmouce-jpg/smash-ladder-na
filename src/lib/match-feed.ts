@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { getLiveTwitchUsernames } from "@/lib/twitch-helix";
-import { isDeclarationFresh } from "@/lib/stream-links";
+import { getLiveYouTubeStreams } from "@/lib/youtube-oauth";
+import { twitchStream, youtubeStream, type LiveStreamInfo } from "@/lib/stream-links";
 import { getMatchesTodayCount } from "@/lib/public-stats";
 import type { MatchStreamSummary } from "@/lib/players";
 
@@ -25,8 +26,7 @@ const feedPlayerSelect = {
   mainCharacter: true,
   twitchUsername: true,
   twitchDisplayName: true,
-  liveStreamUrl: true,
-  liveStreamAt: true,
+  youtubeChannelTitle: true,
   region: true,
 } as const;
 
@@ -122,7 +122,13 @@ export async function getMatchFeed() {
   const twitchUsernames = matches.flatMap((m) =>
     [m.player1.twitchUsername, m.player2.twitchUsername].filter((u): u is string => !!u),
   );
-  const liveUsernames = await getLiveTwitchUsernames(twitchUsernames);
+  // Only in-progress sets can be "live", so only their players need a YouTube
+  // check — finished sets' rows never read the answer.
+  const liveCandidateUserIds = inProgressMatches.flatMap((m) => [m.player1.id, m.player2.id]);
+  const [liveUsernames, liveYouTube] = await Promise.all([
+    getLiveTwitchUsernames(twitchUsernames),
+    getLiveYouTubeStreams(liveCandidateUserIds),
+  ]);
 
   const entries = matches.map((match) => {
     const wins = { player1: 0, player2: 0 };
@@ -137,29 +143,50 @@ export async function getMatchFeed() {
     // stream of THIS set, so pinning it to the top and badging it live
     // would just send viewers to a stream with nothing left to watch.
     const isInProgress = match.status === MatchStatus.PENDING_REPORT || match.status === MatchStatus.REPORTED;
-    // Two ways to be live: Twitch said so, or the player told us. YouTube can
-    // only ever be the second — see lib/stream-links.ts for why there is no
-    // detecting it.
-    const liveFor = (player: {
+    // Both platforms are detected, just by different APIs. A player can be
+    // live on both at once, so each side carries a list of streams rather
+    // than a single flag.
+    const liveStreamsFor = (player: {
+      id: string;
+      username: string;
       twitchUsername: string | null;
-      liveStreamUrl: string | null;
-      liveStreamAt: Date | null;
-    }) =>
-      isInProgress &&
-      ((!!player.twitchUsername && liveUsernames.has(player.twitchUsername.toLowerCase())) ||
-        (!!player.liveStreamUrl && isDeclarationFresh(player.liveStreamAt)));
-    const player1Live = liveFor(match.player1);
-    const player2Live = liveFor(match.player2);
+      twitchDisplayName: string | null;
+      youtubeChannelTitle: string | null;
+    }): LiveStreamInfo[] => {
+      if (!isInProgress) return [];
+      const streams: LiveStreamInfo[] = [];
+      if (player.twitchUsername && liveUsernames.has(player.twitchUsername.toLowerCase())) {
+        streams.push(twitchStream(player.twitchUsername, player.twitchDisplayName ?? player.username));
+      }
+      const youtube = liveYouTube.get(player.id);
+      if (youtube) {
+        streams.push(
+          youtubeStream(
+            youtube.videoId,
+            youtube.channelId,
+            youtube.title || player.youtubeChannelTitle || player.username,
+          ),
+        );
+      }
+      return streams;
+    };
+
+    const player1Streams = liveStreamsFor(match.player1);
+    const player2Streams = liveStreamsFor(match.player2);
+    const player1Live = player1Streams.length > 0;
+    const player2Live = player2Streams.length > 0;
 
     return {
       ...match,
       player1: {
         ...match.player1,
         currentCharacter: characterForPlayer(match.games, match.player1.id, match.player1.mainCharacter),
+        liveStreams: player1Streams,
       },
       player2: {
         ...match.player2,
         currentCharacter: characterForPlayer(match.games, match.player2.id, match.player2.mainCharacter),
+        liveStreams: player2Streams,
       },
       wins,
       player1Live,

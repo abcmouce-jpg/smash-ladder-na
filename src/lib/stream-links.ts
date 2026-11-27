@@ -1,43 +1,32 @@
 // Where a player's stream lives, and how to embed it.
 //
-// Twitch liveness is detected automatically (lib/twitch-helix.ts batches up to
-// 100 channels into one Helix call, so checking every player in the feed costs
-// one request). YouTube has no equivalent: the only "is this channel live"
-// endpoint is search.list at 100 quota units per channel per call, against a
-// default allowance of 10,000 units a day — enough to poll a single channel
-// every five minutes for about four hours before the whole project is cut off
-// for the day. So YouTube streams are declared rather than detected: the
-// player pastes the URL of the stream they are running, and it expires on its
-// own so a forgotten link doesn't badge them live forever.
+// Both supported platforms are now detected automatically:
+//
+//   Twitch — lib/twitch-helix.ts batches up to 100 channels into one Helix call,
+//   so checking every player in the feed costs one request.
+//
+//   YouTube — lib/youtube-oauth.ts uses the connected account's own OAuth token
+//   to call liveBroadcasts.list?mine=true, which costs 1 quota unit. The
+//   search.list alternative (100 units per channel) is what made an earlier
+//   version ask players to paste a link instead of just connecting an account.
+//
+// This module holds the pure, testable part: the types and URL builders. The
+// network/database halves live in those two modules so they can fail closed
+// independently.
+
+import { formatTwitchTime, twitchVideoUrl } from "@/lib/twitch-vod";
 
 export type StreamPlatform = "twitch" | "youtube";
 
-export type StreamLink = {
-  platform: StreamPlatform;
-  /** Where a viewer goes to watch it. */
-  watchUrl: string;
-  /** What an <iframe> loads. Needs the embedding host for Twitch. */
-  embedUrl: (parentHost: string) => string;
-  /** For display: the channel or video this points at. */
-  label: string;
-};
-
 /**
- * How long a declared stream link counts as live.
+ * A stream a player is live on right now.
  *
- * Long enough to cover a session someone forgets to clear, short enough that a
- * stale link isn't still pinning them to the top of the feed the next day.
+ * Serialized across the server→client boundary in match-feed entries, so it is
+ * plain data only — no functions. Embed URLs are built from it where needed.
  */
-export const LIVE_DECLARATION_TTL_MS = 6 * 60 * 60 * 1000;
-
-const YOUTUBE_VIDEO_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"]);
-const TWITCH_HOSTS = new Set(["twitch.tv", "www.twitch.tv", "m.twitch.tv"]);
-
-// A YouTube video id is 11 characters of the URL-safe base64 alphabet. Pinning
-// the length rejects a channel id (UC… , 24 chars) pasted into a /live/ path.
-const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
-const YOUTUBE_CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
-const TWITCH_LOGIN = /^[A-Za-z0-9_]{3,25}$/;
+export type LiveStreamInfo =
+  | { platform: "twitch"; login: string; displayName: string }
+  | { platform: "youtube"; videoId: string; channelId: string; displayName: string };
 
 /**
  * The `parent` value Twitch's player expects for the given Host header.
@@ -57,127 +46,90 @@ export function twitchParent(parentHost: string): string {
 
   // An IPv6 literal arrives bracketed, as "[::1]:3000".
   const closeBracket = bare.indexOf("]");
-  const hostname = bare.startsWith("[") && closeBracket !== -1 ? bare.slice(0, closeBracket + 1) : bare.replace(/:\d+$/, "");
+  const hostname =
+    bare.startsWith("[") && closeBracket !== -1 ? bare.slice(0, closeBracket + 1) : bare.replace(/:\d+$/, "");
 
   if (hostname === "127.0.0.1" || hostname === "[::1]") return "localhost";
   return hostname.toLowerCase();
 }
 
-function youtubeVideoLink(videoId: string): StreamLink {
-  return {
-    platform: "youtube",
-    watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
-    embedUrl: () => `https://www.youtube.com/embed/${videoId}`,
-    label: videoId,
-  };
-}
-
-function youtubeChannelLink(channelId: string): StreamLink {
-  return {
-    platform: "youtube",
-    watchUrl: `https://www.youtube.com/channel/${channelId}/live`,
-    // YouTube's own "whatever this channel is streaming right now" embed, for
-    // a link that names a channel rather than one broadcast.
-    embedUrl: () => `https://www.youtube.com/embed/live_stream?channel=${channelId}`,
-    label: channelId,
-  };
-}
-
-function twitchLink(login: string): StreamLink {
+/** A Twitch channel detected as live, with no URL to parse. */
+export function twitchStream(login: string, displayName?: string | null): LiveStreamInfo {
   const channel = login.toLowerCase();
-  return {
-    platform: "twitch",
-    watchUrl: `https://www.twitch.tv/${channel}`,
-    // Twitch's player refuses to load unless `parent` matches the hostname
-    // serving the iframe, which differs between production, a preview
-    // deployment and localhost — hence the parameter.
-    embedUrl: (parentHost) =>
-      `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${encodeURIComponent(twitchParent(parentHost))}&muted=true`,
-    label: channel,
-  };
+  return { platform: "twitch", login: channel, displayName: displayName || channel };
 }
 
-/**
- * Reads a pasted stream URL. Returns null for anything that isn't a Twitch or
- * YouTube link this can actually embed — the caller shows that as a validation
- * error rather than storing a URL the player will find does nothing.
- */
-export function parseStreamUrl(input: string): StreamLink | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-
-  let url: URL;
-  try {
-    url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-
-  const host = url.hostname.toLowerCase();
-  const segments = url.pathname.split("/").filter(Boolean);
-
-  if (host === "youtu.be") {
-    const id = segments[0];
-    return id && YOUTUBE_VIDEO_ID.test(id) ? youtubeVideoLink(id) : null;
-  }
-
-  if (YOUTUBE_VIDEO_HOSTS.has(host)) {
-    const v = url.searchParams.get("v");
-    if (v && YOUTUBE_VIDEO_ID.test(v)) return youtubeVideoLink(v);
-
-    // /live/VIDEOID — what the share button gives during a broadcast.
-    if (segments[0] === "live" && segments[1] && YOUTUBE_VIDEO_ID.test(segments[1])) {
-      return youtubeVideoLink(segments[1]);
-    }
-    // /channel/UC…/live — the channel's current broadcast, whatever it is.
-    // The /live suffix is required: a bare channel page is not a stream, and
-    // embedding one as though it were shows the viewer nothing.
-    if (segments[0] === "channel" && segments[1] && segments[2] === "live" && YOUTUBE_CHANNEL_ID.test(segments[1])) {
-      return youtubeChannelLink(segments[1]);
-    }
-    return null;
-  }
-
-  if (TWITCH_HOSTS.has(host)) {
-    const login = segments[0];
-    return login && TWITCH_LOGIN.test(login) ? twitchLink(login) : null;
-  }
-
-  return null;
+/** A YouTube broadcast detected as live via the channel's OAuth grant. */
+export function youtubeStream(videoId: string, channelId: string, displayName?: string | null): LiveStreamInfo {
+  return { platform: "youtube", videoId, channelId, displayName: displayName || channelId };
 }
 
-/** The link for a Twitch channel detected as live, with no URL to parse. */
-export function twitchStreamLink(login: string): StreamLink {
-  return twitchLink(login);
+/** Stable identity for a stream, used by the feed's selection state. */
+export function liveStreamKey(stream: LiveStreamInfo): string {
+  return stream.platform === "twitch" ? `twitch:${stream.login}` : `youtube:${stream.videoId}`;
 }
 
-/**
- * Whether a declared link still counts. Separate from parsing so the feed can
- * ask about freshness without re-parsing, and so the TTL lives in one place.
- */
-export function isDeclarationFresh(setAt: Date | null | undefined, now = Date.now()): boolean {
-  if (!setAt) return false;
-  const age = now - setAt.getTime();
-  return age >= 0 && age < LIVE_DECLARATION_TTL_MS;
+/** Where a viewer goes to watch the stream directly on its platform. */
+export function liveStreamWatchUrl(stream: LiveStreamInfo): string {
+  return stream.platform === "twitch"
+    ? `https://www.twitch.tv/${stream.login}`
+    : `https://www.youtube.com/watch?v=${stream.videoId}`;
 }
 
-/**
- * The stream to show for a player in the feed.
- *
- * A declared link wins over a detected Twitch channel: someone who pasted a
- * URL is telling us where they are right now, which may well be a different
- * account from the one they connected.
- */
-export function playerStreamLink(player: {
-  twitchUsername?: string | null;
-  liveStreamUrl?: string | null;
-  liveStreamAt?: Date | string | null;
-}): StreamLink | null {
-  const setAt = typeof player.liveStreamAt === "string" ? new Date(player.liveStreamAt) : (player.liveStreamAt ?? null);
-  if (player.liveStreamUrl && isDeclarationFresh(setAt)) {
-    const link = parseStreamUrl(player.liveStreamUrl);
-    if (link) return link;
+/** What an <iframe> loads for a live stream. Twitch needs the embedding host. */
+export function liveStreamEmbedUrl(stream: LiveStreamInfo, parentHost: string): string {
+  if (stream.platform === "twitch") {
+    const params = new URLSearchParams({
+      channel: stream.login,
+      parent: twitchParent(parentHost),
+      muted: "true",
+    });
+    return `https://player.twitch.tv/?${params.toString()}`;
   }
-  return player.twitchUsername ? twitchStreamLink(player.twitchUsername) : null;
+  return `https://www.youtube.com/embed/${stream.videoId}`;
+}
+
+/** Human platform name, for labels and error copy. */
+export function streamPlatformName(platform: StreamPlatform): string {
+  return platform === "twitch" ? "Twitch" : "YouTube";
+}
+
+/** The URL a player's channel page uses, for the profile's badges. */
+export function twitchChannelUrl(login: string): string {
+  return `https://www.twitch.tv/${login.toLowerCase()}`;
+}
+
+export function youtubeChannelUrl(channelId: string): string {
+  return `https://www.youtube.com/channel/${channelId}`;
+}
+
+/** A YouTube video opened at the set's start, mirroring twitchVideoUrl. */
+export function youtubeVideoUrl(videoId: string, offsetSeconds: number | null): string {
+  const base = `https://www.youtube.com/watch?v=${videoId}`;
+  return offsetSeconds && offsetSeconds > 0 ? `${base}&t=${Math.floor(offsetSeconds)}s` : base;
+}
+
+/** Public watch URL for a captured replay, on either platform. */
+export function streamVodWatchUrl(platform: StreamPlatform, vodId: string, offsetSeconds: number | null): string {
+  return platform === "twitch" ? twitchVideoUrl(vodId, offsetSeconds) : youtubeVideoUrl(vodId, offsetSeconds);
+}
+
+/** Embed URL for a captured replay, on either platform. */
+export function streamVodEmbedUrl(
+  platform: StreamPlatform,
+  vodId: string,
+  offsetSeconds: number | null,
+  parentHost: string,
+): string {
+  if (platform === "twitch") {
+    // Twitch's player needs a "v" prefix on the id (Get Videos returns it
+    // unprefixed) and its own "1h2m3s" time format.
+    const params = new URLSearchParams({ video: `v${vodId}`, parent: twitchParent(parentHost), autoplay: "false" });
+    if (offsetSeconds && offsetSeconds > 0) params.set("time", formatTwitchTime(offsetSeconds));
+    return `https://player.twitch.tv/?${params.toString()}`;
+  }
+
+  const params = new URLSearchParams({ autoplay: "0" });
+  if (offsetSeconds && offsetSeconds > 0) params.set("start", String(Math.floor(offsetSeconds)));
+  return `https://www.youtube.com/embed/${vodId}?${params.toString()}`;
 }

@@ -7,6 +7,7 @@ import { getActiveSeason } from "@/lib/seasons";
 import { formatRating } from "@/lib/rating-format";
 import { PROVISIONAL_GAMES_THRESHOLD } from "@/lib/rank-tier";
 import { trackFor } from "@/lib/rating-track";
+import type { StreamPlatform } from "@/lib/stream-links";
 import { startOfDayInTimeZone } from "@/lib/timezone";
 
 // The rating a player has ever reached, not their current one — same
@@ -117,9 +118,10 @@ export async function getPlayerProfile(userId: string, viewerIsModerator = false
       startggGamerTag: true,
       twitchUsername: true,
       twitchDisplayName: true,
-      youtubeChannelUrl: true,
-      liveStreamUrl: true,
-      liveStreamAt: true,
+      twitchProfileImageUrl: true,
+      youtubeUserId: true,
+      youtubeChannelTitle: true,
+      youtubeProfileImageUrl: true,
       noShowCount: true,
       cancelCount: true,
       status: true,
@@ -335,7 +337,7 @@ export interface MatchHistoryEntryData {
   opponentCharacters: string[];
   games: MatchHistoryGame[];
   /**
-   * Twitch replays captured for this set, if any. Empty by default — it's only
+   * Streams captured for this set, if any. Empty by default — it's only
    * populated by attachMatchStreams (see lib/match-streams.ts), which the
    * profile's history callers run and the lobby's streak badge / stream
    * overlay don't. Entries here mark the set as streamed; `vodId` is null
@@ -344,12 +346,14 @@ export interface MatchHistoryEntryData {
   streams: MatchStreamSummary[];
 }
 
-/** One captured Twitch stream of a set, reduced to what the replay UI needs. */
+/** One captured stream of a set, reduced to what the replay UI needs. */
 export interface MatchStreamSummary {
   /** Ladder user id of the streamer — the viewed player or their opponent. */
   userId: string;
-  /** Lowercase Twitch login, for the replay URL. */
-  twitchLogin: string;
+  /** Which platform the capture came from. */
+  platform: StreamPlatform;
+  /** Lowercase Twitch login or YouTube channel id, for labels. */
+  platformLogin: string;
   /** Resolved VOD id, or null while no covering past broadcast is known. */
   vodId: string | null;
   /** Seconds into the VOD where the set starts. */

@@ -1,7 +1,14 @@
 import { prisma } from "@/lib/db";
 import { PostStatus } from "@/generated/prisma/enums";
 import { getLiveTwitchUsernames } from "@/lib/twitch-helix";
-import { isDeclarationFresh, parseStreamUrl, type StreamPlatform } from "@/lib/stream-links";
+import { getLiveYouTubeStreams } from "@/lib/youtube-oauth";
+import {
+  liveStreamWatchUrl,
+  twitchStream,
+  youtubeStream,
+  type LiveStreamInfo,
+  type StreamPlatform,
+} from "@/lib/stream-links";
 
 export type LiveStreamer = {
   userId: string;
@@ -15,24 +22,15 @@ export type LiveStreamer = {
   gamesPlayed: number;
 };
 
-// Home-page "live now" row. Two sources, because the two platforms are not
-// equally knowable:
-//
-//   Twitch — detected. The highest-rated players with a Twitch connection are
-//   checked in one batched Helix call (100 logins per request) rather than one
-//   round trip each.
-//
-//   YouTube and anything else — declared. The player pastes the URL of the
-//   stream they are running and it expires on its own; there is no polling it,
-//   for the quota reasons in lib/stream-links.ts.
-//
-// Ordered by rating so a sparse live field still shows the most recognisable
-// names. Fails closed to an empty list on an API error — getLiveTwitchUsernames
-// already skips bad batches — so the section hides rather than taking the
+// Home-page "live now" data. Both platforms are detected: Twitch in one batched
+// Helix call (100 logins per request), YouTube one liveBroadcasts call per
+// connected channel using that player's own OAuth token. Ordered by rating so a
+// sparse live field still shows the most recognisable names. Fails closed to an
+// empty list on an API error, so the section hides rather than taking the
 // landing page down with it.
 export async function getLiveStreamers(limit = 8): Promise<LiveStreamer[]> {
   const candidates = await prisma.user.findMany({
-    where: { OR: [{ twitchUsername: { not: null } }, { liveStreamUrl: { not: null } }] },
+    where: { OR: [{ twitchUsername: { not: null } }, { youtubeUserId: { not: null } }] },
     orderBy: { rating: "desc" },
     take: 200,
     select: {
@@ -43,34 +41,41 @@ export async function getLiveStreamers(limit = 8): Promise<LiveStreamer[]> {
       gamesPlayed: true,
       twitchUsername: true,
       twitchDisplayName: true,
-      liveStreamUrl: true,
-      liveStreamAt: true,
+      youtubeChannelTitle: true,
     },
   });
 
-  const live = await getLiveTwitchUsernames(candidates.flatMap((u) => (u.twitchUsername ? [u.twitchUsername] : [])));
+  const [liveTwitch, liveYouTube] = await Promise.all([
+    getLiveTwitchUsernames(candidates.flatMap((u) => (u.twitchUsername ? [u.twitchUsername] : []))),
+    getLiveYouTubeStreams(candidates.map((u) => u.id)),
+  ]);
 
   const streamers: LiveStreamer[] = [];
   for (const u of candidates) {
-    // A declared link wins: it says where this player is right now, which may
-    // be a different account from the one they connected.
-    const declared = u.liveStreamUrl && isDeclarationFresh(u.liveStreamAt) ? parseStreamUrl(u.liveStreamUrl) : null;
-    const detected = u.twitchUsername && live.has(u.twitchUsername.toLowerCase());
+    const streams: LiveStreamInfo[] = [];
+    if (u.twitchUsername && liveTwitch.has(u.twitchUsername.toLowerCase())) {
+      streams.push(twitchStream(u.twitchUsername, u.twitchDisplayName ?? u.username));
+    }
+    const youtube = liveYouTube.get(u.id);
+    if (youtube) {
+      streams.push(
+        youtubeStream(youtube.videoId, youtube.channelId, youtube.title || u.youtubeChannelTitle || u.username),
+      );
+    }
 
-    const link = declared ?? (detected && u.twitchUsername ? parseStreamUrl(`twitch.tv/${u.twitchUsername}`) : null);
-    if (!link) continue;
-
-    streamers.push({
-      userId: u.id,
-      name: u.username,
-      platform: link.platform,
-      watchUrl: link.watchUrl,
-      displayName: u.twitchDisplayName,
-      avatarUrl: u.avatarUrl,
-      rating: u.rating,
-      gamesPlayed: u.gamesPlayed,
-    });
-    if (streamers.length >= limit) break;
+    for (const stream of streams) {
+      streamers.push({
+        userId: u.id,
+        name: u.username,
+        platform: stream.platform,
+        watchUrl: liveStreamWatchUrl(stream),
+        displayName: stream.displayName,
+        avatarUrl: u.avatarUrl,
+        rating: u.rating,
+        gamesPlayed: u.gamesPlayed,
+      });
+      if (streamers.length >= limit) return streamers;
+    }
   }
   return streamers;
 }

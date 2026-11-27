@@ -53,9 +53,12 @@ export default async function SetsFeedPage() {
   // pick is made (see resolveLiveStream); seeding the provider with that same
   // pick lets the row for the open stream mark its button selected from load.
   const firstLive = liveEntries[0];
-  const initialSelection = firstLive
-    ? { matchId: firstLive.id, playerId: firstLive.player1Live ? firstLive.player1.id : firstLive.player2.id }
-    : null;
+  const firstLivePlayer = firstLive ? (firstLive.player1Live ? firstLive.player1 : firstLive.player2) : null;
+  const firstLiveStream = firstLivePlayer?.liveStreams?.[0];
+  const initialSelection =
+    firstLive && firstLivePlayer && firstLiveStream
+      ? { matchId: firstLive.id, playerId: firstLivePlayer.id, platform: firstLiveStream.platform }
+      : null;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-12">

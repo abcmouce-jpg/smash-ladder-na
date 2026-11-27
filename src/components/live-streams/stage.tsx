@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Dices, Radio } from "lucide-react";
 import { CharacterIcon } from "@/components/character-icon";
 import { LiveStreamEmbed } from "@/components/live-stream-embed";
-import { playerStreamLink } from "@/lib/stream-links";
+import { liveStreamEmbedUrl } from "@/lib/stream-links";
 import { cn } from "@/lib/utils";
 import { tr } from "@/lib/lang";
 import type { Lang } from "@/lib/i18n";
@@ -34,10 +34,9 @@ export function LiveStreamStage({
 }) {
   const { selection } = useLiveStreamSelection();
   const active = resolveLiveStream(entries, selection);
-  const link = active ? playerStreamLink(active.player) : null;
-  if (!active || !link) return null;
+  if (!active) return null;
 
-  const { entry, player } = active;
+  const { entry, stream } = active;
 
   return (
     <div>
@@ -55,9 +54,9 @@ export function LiveStreamStage({
         </div>
       )}
       <LiveStreamEmbed
-        key={`${entry.id}:${player.id}`}
-        embedUrl={link.embedUrl(parentHost)}
-        title={`${player.twitchDisplayName ?? player.username}`}
+        key={`${entry.id}:${stream.platform}:${stream.displayName}`}
+        embedUrl={liveStreamEmbedUrl(stream, parentHost)}
+        title={stream.displayName}
         collapsible={false}
       />
 

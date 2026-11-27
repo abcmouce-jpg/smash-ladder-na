@@ -23,12 +23,11 @@ import {
   type UnfinishedGame,
 } from "@/lib/set-entry";
 import { useLiveStreamSelection } from "@/components/live-streams/selection";
-import { TwitchIcon } from "@/components/twitch-icon";
-import { TwitchVodEmbed } from "@/components/twitch-vod-embed";
-import { twitchVideoUrl } from "@/lib/twitch-vod";
+import { StreamPlatformIcon } from "@/components/live-streams/platform-icon";
+import { StreamVodEmbed } from "@/components/stream-vod-embed";
+import { streamPlatformName, streamVodWatchUrl, type LiveStreamInfo } from "@/lib/stream-links";
 import type { MatchStreamSummary } from "@/lib/players";
 import { tr } from "@/lib/lang";
-import { playerStreamLink } from "@/lib/stream-links";
 import { USES_REGIONS } from "@/lib/site";
 
 // Expandable feed row. The collapsed header summarizes the set (both
@@ -36,10 +35,10 @@ import { USES_REGIONS } from "@/lib/site";
 // links reveals the per-game progress underneath, in the same compact
 // scoreboard style as a profile's match history. Rows with no games yet
 // still open — they just say the set hasn't started. The footer carries the
-// status line and, above it, a live line with one button per streaming side —
-// the Twitch mark plus the channel name — that drives the pinned player at the
-// top of the page. In-progress sets that nobody is streaming get a green
-// left-edge accent so scanners notice them among the finished rows.
+// status line and, above it, a live line with one button per streaming side and
+// platform — the platform mark plus the channel name — that drives the pinned
+// player at the top of the page. In-progress sets that nobody is streaming get
+// a green left-edge accent so scanners notice them among the finished rows.
 export function SetRow({
   entry,
   lang,
@@ -60,9 +59,7 @@ export function SetRow({
   const unstreamedInProgress = !entry.hasLiveStreamer && isSetLive(entry.status);
   // Only resolved VODs can be replayed; a captured stream whose broadcast is
   // still being written (or never archived) has no vodId yet.
-  const vodStreams = (entry.streams ?? []).filter(
-    (s): s is MatchStreamSummary & { vodId: string } => s.vodId !== null,
-  );
+  const vodStreams = (entry.streams ?? []).filter((s): s is MatchStreamSummary & { vodId: string } => s.vodId !== null);
 
   return (
     <Card className={cn("relative overflow-hidden py-0", entry.hasLiveStreamer && "border-red-500/30")}>
@@ -116,12 +113,21 @@ export function SetRow({
           />
         </div>
 
-        {/* Live line: one button per streaming side — Twitch mark + channel
-            name — sitting above the status divider. */}
+        {/* Live line: one button per streaming side and platform — the
+            platform mark + channel name — sitting above the status divider. */}
         {entry.hasLiveStreamer && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-3 pb-2.5 sm:px-4">
-            {entry.player1Live && <OpenStreamButton player={entry.player1} matchId={entry.id} lang={lang} />}
-            {entry.player2Live && <OpenStreamButton player={entry.player2} matchId={entry.id} lang={lang} />}
+            {[entry.player1, entry.player2].flatMap((player) =>
+              (player.liveStreams ?? []).map((stream) => (
+                <OpenStreamButton
+                  key={`${player.id}:${stream.platform}`}
+                  player={player}
+                  stream={stream}
+                  matchId={entry.id}
+                  lang={lang}
+                />
+              )),
+            )}
           </div>
         )}
 
@@ -187,18 +193,22 @@ export function SetRow({
           {vodStreams.length > 0 && (
             <div className="mt-3 flex flex-col gap-3 border-t border-border/60 pt-3">
               <p className="text-xs font-medium text-muted-foreground">
-                {tr(lang, { en: "Twitch replays", es: "Repeticiones de Twitch" })}
+                {tr(lang, { en: "Replays", es: "Repeticiones" })}
               </p>
               {vodStreams.map((stream) => {
                 // Each side can have its own captured stream, so both are listed
                 // — the set is the same, but each player's point of view isn't.
                 const streamer = stream.userId === entry.player1.id ? entry.player1 : entry.player2;
-                const replayUrl = twitchVideoUrl(stream.vodId, stream.vodOffsetSeconds);
+                const platformName = streamPlatformName(stream.platform);
+                const replayUrl = streamVodWatchUrl(stream.platform, stream.vodId, stream.vodOffsetSeconds);
                 return (
                   <div key={stream.userId} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                       <span className="flex items-center gap-1.5 text-xs font-medium">
-                        <TwitchIcon className="size-3.5 text-[#9146FF]" aria-hidden />
+                        <StreamPlatformIcon
+                          platform={stream.platform}
+                          className={cn("size-3.5", stream.platform === "twitch" ? "text-[#9146FF]" : "text-red-600")}
+                        />
                         {tr(lang, {
                           en: `${streamer.username}'s stream`,
                           es: `Stream de ${streamer.username}`,
@@ -208,20 +218,24 @@ export function SetRow({
                         href={replayUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs font-medium text-[#9146FF] hover:underline"
+                        className={cn(
+                          "flex items-center gap-1 text-xs font-medium hover:underline",
+                          stream.platform === "twitch" ? "text-[#9146FF]" : "text-red-600",
+                        )}
                       >
-                        {tr(lang, { en: "Watch on Twitch", es: "Ver en Twitch" })}
+                        {tr(lang, { en: `Watch on ${platformName}`, es: `Ver en ${platformName}` })}
                         <ExternalLink className="size-3" aria-hidden />
                       </a>
                     </div>
                     <div className="mt-2">
-                      <TwitchVodEmbed
+                      <StreamVodEmbed
+                        platform={stream.platform}
                         videoId={stream.vodId}
                         offsetSeconds={stream.vodOffsetSeconds ?? 0}
                         parentHost={parentHost}
                         title={tr(lang, {
-                          en: `${streamer.username}'s Twitch replay`,
-                          es: `Repetición de ${streamer.username} en Twitch`,
+                          en: `${streamer.username}'s ${platformName} replay`,
+                          es: `Repetición de ${streamer.username} en ${platformName}`,
                         })}
                       />
                     </div>
@@ -253,22 +267,43 @@ function unfinishedGameLabel({ gameNumber, inProgress }: UnfinishedGame, lang: L
   });
 }
 
-// Streams a side's channel in the pinned player: the Twitch mark plus the
+// Streams a side's channel in the pinned player: the platform mark plus the
 // channel name, as a button rather than a link out — clicking selects the
 // stream and scrolls back to the top so viewers stay on the page. Stops
-// propagation so it doesn't also toggle the row open. Styled as a Twitch-purple
-// pill that fills in while this side is the one embedded up top.
-function OpenStreamButton({ player, matchId, lang }: { player: FeedPlayer; matchId: string; lang: Lang }) {
+// propagation so it doesn't also toggle the row open. Styled as a
+// platform-coloured pill that fills in while this stream is the one embedded up
+// top.
+function OpenStreamButton({
+  player,
+  stream,
+  matchId,
+  lang,
+}: {
+  player: FeedPlayer;
+  stream: LiveStreamInfo;
+  matchId: string;
+  lang: Lang;
+}) {
   const { selection, select } = useLiveStreamSelection();
-  if (!playerStreamLink(player)) return null;
-  const name = player.twitchDisplayName ?? player.username;
-  const selected = selection?.matchId === matchId && selection?.playerId === player.id;
+  const name = stream.displayName;
+  const selected =
+    selection?.matchId === matchId && selection?.playerId === player.id && selection?.platform === stream.platform;
+  const palette =
+    stream.platform === "twitch"
+      ? {
+          selected: "border-twitch bg-twitch text-white",
+          idle: "border-twitch/50 text-twitch hover:border-twitch hover:bg-twitch/10",
+        }
+      : {
+          selected: "border-red-600 bg-red-600 text-white",
+          idle: "border-red-600/50 text-red-600 hover:border-red-600 hover:bg-red-600/10",
+        };
   return (
     <button
       type="button"
       onClick={(event) => {
         event.stopPropagation();
-        select(matchId, player.id);
+        select(matchId, player.id, stream.platform);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }}
       onKeyDown={(event) => event.stopPropagation()}
@@ -276,12 +311,10 @@ function OpenStreamButton({ player, matchId, lang }: { player: FeedPlayer; match
       aria-label={`${tr(lang, { en: "Open stream", es: "Abrir stream" })}: ${name}`}
       className={cn(
         "inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
-        selected
-          ? "border-twitch bg-twitch text-white"
-          : "border-twitch/50 text-twitch hover:border-twitch hover:bg-twitch/10",
+        selected ? palette.selected : palette.idle,
       )}
     >
-      <TwitchIcon className="size-3.5 shrink-0" />
+      <StreamPlatformIcon platform={stream.platform} className="size-3.5 shrink-0" />
       <span className="truncate">{name}</span>
     </button>
   );

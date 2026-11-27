@@ -5,8 +5,10 @@ import { ArrowRight, Radio } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import { CharacterIcon } from "@/components/character-icon";
 import { cn } from "@/lib/utils";
+import type { LiveStreamInfo } from "@/lib/stream-links";
 import type { FeedPlayer, SerializedSetEntry } from "@/lib/set-entry";
 import { resolveLiveStream, useLiveStreamSelection } from "./selection";
+import { StreamPlatformIcon } from "./platform-icon";
 import { tr } from "@/lib/lang";
 
 // How many live stream thumbnails the home page shows before pointing at the
@@ -14,12 +16,14 @@ import { tr } from "@/lib/lang";
 const MAX_THUMBNAILS = 10;
 
 // Every live channel, not every live set: a set both players are streaming
-// yields one thumbnail per player so either channel can be picked.
+// yields one thumbnail per player, and a player live on Twitch and YouTube at
+// once yields one per platform so either channel can be picked.
 function liveStreams(entries: SerializedSetEntry[]) {
-  const streams: { entry: SerializedSetEntry; player: FeedPlayer }[] = [];
+  const streams: { entry: SerializedSetEntry; player: FeedPlayer; stream: LiveStreamInfo }[] = [];
   for (const entry of entries) {
-    if (entry.player1Live) streams.push({ entry, player: entry.player1 });
-    if (entry.player2Live) streams.push({ entry, player: entry.player2 });
+    for (const player of [entry.player1, entry.player2]) {
+      for (const stream of player.liveStreams ?? []) streams.push({ entry, player, stream });
+    }
   }
   return streams;
 }
@@ -36,13 +40,18 @@ export function LiveStreamThumbnails({ entries, lang }: { entries: SerializedSet
 
   return (
     <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-slim sm:-mx-6 sm:px-6">
-      {shown.map(({ entry, player }) => (
+      {shown.map(({ entry, player, stream }) => (
         <Thumbnail
-          key={`${entry.id}:${player.id}`}
+          key={`${entry.id}:${player.id}:${stream.platform}`}
           entry={entry}
-          streamerId={player.id}
-          active={active?.entry.id === entry.id && active.player.id === player.id}
-          onSelect={() => select(entry.id, player.id)}
+          player={player}
+          stream={stream}
+          active={
+            active?.entry.id === entry.id &&
+            active.player.id === player.id &&
+            active.stream.platform === stream.platform
+          }
+          onSelect={() => select(entry.id, player.id, stream.platform)}
         />
       ))}
       {hasMore && (
@@ -58,17 +67,21 @@ export function LiveStreamThumbnails({ entries, lang }: { entries: SerializedSet
   );
 }
 
-// One channel's thumbnail. Both players and the score are shown so the set is
-// recognizable, but the live icon marks only the player this thumbnail's
-// stream belongs to — that's what tells two same-set thumbnails apart.
+// One channel's thumbnail. The platform mark and channel name sit above the two
+// players so the tile says whose stream it is before saying what set it carries.
+// Both players and the score are shown so the set is recognizable, but the live
+// icon marks only the player this thumbnail's stream belongs to — that's what
+// tells two same-set thumbnails apart.
 function Thumbnail({
   entry,
-  streamerId,
+  player,
+  stream,
   active,
   onSelect,
 }: {
   entry: SerializedSetEntry;
-  streamerId: string;
+  player: FeedPlayer;
+  stream: LiveStreamInfo;
   active: boolean;
   onSelect: () => void;
 }) {
@@ -78,16 +91,27 @@ function Thumbnail({
       onClick={onSelect}
       aria-pressed={active}
       className={cn(
-        "flex w-44 shrink-0 items-center gap-2 rounded-lg border bg-card p-2 text-left transition-colors hover:border-foreground/30",
+        "flex w-48 shrink-0 flex-col gap-1.5 rounded-lg border bg-card p-2 text-left transition-colors hover:border-foreground/30",
         active ? "border-red-500/60 ring-1 ring-red-500/40" : "border-border",
       )}
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <ThumbnailPlayer player={entry.player1} streaming={entry.player1.id === streamerId} />
-        <ThumbnailPlayer player={entry.player2} streaming={entry.player2.id === streamerId} />
+      <span
+        className={cn(
+          "flex min-w-0 items-center gap-1.5 text-xs font-medium",
+          stream.platform === "twitch" ? "text-twitch" : "text-red-600 dark:text-red-500",
+        )}
+      >
+        <StreamPlatformIcon platform={stream.platform} className="size-3.5 shrink-0" />
+        <span className="min-w-0 truncate">{stream.displayName}</span>
       </span>
-      <span className="shrink-0 text-sm font-semibold tabular-nums">
-        {entry.wins.player1}–{entry.wins.player2}
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <ThumbnailPlayer player={entry.player1} streaming={entry.player1.id === player.id} />
+          <ThumbnailPlayer player={entry.player2} streaming={entry.player2.id === player.id} />
+        </span>
+        <span className="shrink-0 text-sm font-semibold tabular-nums">
+          {entry.wins.player1}–{entry.wins.player2}
+        </span>
       </span>
     </button>
   );

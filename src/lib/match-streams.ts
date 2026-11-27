@@ -1,6 +1,8 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
+import { StreamPlatform } from "@/generated/prisma/enums";
 import { getLiveTwitchUsernames, getTwitchVideos } from "@/lib/twitch-helix";
+import { getLiveYouTubeStreams } from "@/lib/youtube-oauth";
 import { findCoveringVideo, isVideoStillOpen, type TwitchVideo } from "@/lib/twitch-vod";
 import type { MatchStreamSummary } from "@/lib/players";
 
@@ -10,11 +12,12 @@ export interface MatchStreamCandidate {
   id: string;
   twitchUserId: string | null;
   twitchLogin: string | null;
+  youtubeUserId: string | null;
 }
 
-// Defers the live-status check past the confirming transaction via
-// next/server's after() — it's a network call, so it must never run inside the
-// transaction or block the confirm response. after() throws outside a real
+// Defers the live-status checks past the confirming transaction via
+// next/server's after() — they're network calls, so they must never run inside
+// the transaction or block the confirm response. after() throws outside a real
 // request scope (integration tests, one-off scripts), which is a deliberate
 // no-op here, same reasoning as deferTierChange in rank-roles.ts.
 export function deferMatchStreamCapture(matchId: string, players: readonly MatchStreamCandidate[]) {
@@ -26,23 +29,69 @@ export function deferMatchStreamCapture(matchId: string, players: readonly Match
 }
 
 // Best-effort: records a MatchStream row for each side that was live on Twitch
-// as the set finished. A failure here only means the set won't offer a replay,
-// never a failed confirm — so it swallows everything rather than throwing out
-// of the deferred callback.
+// or YouTube as the set finished. A failure here only means the set won't offer
+// a replay, never a failed confirm — so it swallows everything rather than
+// throwing out of the deferred callback.
+//
+// Twitch's VOD id isn't knowable until the broadcast ends, so that row is
+// resolved later (resolveStreamVods). YouTube's liveBroadcasts lookup already
+// returns the broadcast's video id, and a live video keeps the same id once it
+// becomes a VOD — so the replay can be recorded immediately, with the offset
+// measured from the broadcast's actual start.
 export async function captureMatchStreams(matchId: string, players: readonly MatchStreamCandidate[]) {
-  const candidates = players.filter((p) => p.twitchUserId && p.twitchLogin);
-  if (candidates.length === 0) return;
-
   try {
-    const live = await getLiveTwitchUsernames(candidates.map((p) => p.twitchLogin as string));
-    const rows = candidates
-      .filter((p) => live.has((p.twitchLogin as string).toLowerCase()))
-      .map((p) => ({
+    const matchStartedAt =
+      (await prisma.ratingMatch.findUnique({ where: { id: matchId }, select: { createdAt: true } }))?.createdAt ??
+      new Date();
+
+    const twitchCandidates = players.filter((p) => p.twitchUserId && p.twitchLogin);
+    const youtubeCandidates = players.filter((p) => p.youtubeUserId);
+
+    const [liveTwitch, liveYouTube] = await Promise.all([
+      twitchCandidates.length > 0
+        ? getLiveTwitchUsernames(twitchCandidates.map((p) => p.twitchLogin as string))
+        : Promise.resolve(new Set<string>()),
+      getLiveYouTubeStreams(youtubeCandidates.map((p) => p.id)),
+    ]);
+
+    const now = new Date();
+    const rows: {
+      matchId: string;
+      userId: string;
+      platform: StreamPlatform;
+      platformUserId: string;
+      platformLogin: string;
+      vodId?: string;
+      vodOffsetSeconds?: number;
+      vodResolvedAt?: Date;
+    }[] = [];
+
+    for (const player of twitchCandidates) {
+      if (!liveTwitch.has((player.twitchLogin as string).toLowerCase())) continue;
+      rows.push({
         matchId,
-        userId: p.id,
-        twitchUserId: p.twitchUserId as string,
-        twitchLogin: (p.twitchLogin as string).toLowerCase(),
-      }));
+        userId: player.id,
+        platform: StreamPlatform.TWITCH,
+        platformUserId: player.twitchUserId as string,
+        platformLogin: (player.twitchLogin as string).toLowerCase(),
+      });
+    }
+
+    for (const player of players) {
+      const youtube = liveYouTube.get(player.id);
+      if (!youtube) continue;
+      rows.push({
+        matchId,
+        userId: player.id,
+        platform: StreamPlatform.YOUTUBE,
+        platformUserId: youtube.channelId,
+        platformLogin: youtube.channelId,
+        vodId: youtube.videoId,
+        vodOffsetSeconds: Math.max(0, Math.floor((matchStartedAt.getTime() - youtube.startedAt.getTime()) / 1000)),
+        vodResolvedAt: now,
+      });
+    }
+
     if (rows.length === 0) return;
     await prisma.matchStream.createMany({ data: rows, skipDuplicates: true });
   } catch (err) {
@@ -50,7 +99,7 @@ export async function captureMatchStreams(matchId: string, players: readonly Mat
   }
 }
 
-// A match older than this can't have a VOD any more — Twitch keeps past
+// A match older than this can't have a Twitch VOD any more — Twitch keeps past
 // broadcasts for at most ~60 days (Partners; everyone else gets 14) — so
 // there's no point asking Helix about it again.
 const VOD_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
@@ -67,6 +116,13 @@ const VOD_RECHECK_MS = 30 * 60 * 1000;
 const VIDEOS_CACHE_TTL_MS = 5 * 60 * 1000;
 const videosCache = new Map<string, { videos: TwitchVideo[]; expiresAt: number }>();
 
+// The UI-facing summary uses the lowercase platform union from stream-links
+// while the database stores Prisma's enum; map at the boundary so callers never
+// have to know about "TWITCH" vs "twitch".
+function platformFor(row: { platform: StreamPlatform }): "twitch" | "youtube" {
+  return row.platform === StreamPlatform.TWITCH ? "twitch" : "youtube";
+}
+
 async function getCachedVideos(twitchUserId: string): Promise<TwitchVideo[] | null> {
   const cached = videosCache.get(twitchUserId);
   if (cached && cached.expiresAt > Date.now()) return cached.videos;
@@ -78,8 +134,9 @@ async function getCachedVideos(twitchUserId: string): Promise<TwitchVideo[] | nu
 type ResolvableStream = {
   id: string;
   userId: string;
-  twitchUserId: string;
-  twitchLogin: string;
+  platform: StreamPlatform;
+  platformUserId: string;
+  platformLogin: string;
   vodId: string | null;
   vodOffsetSeconds: number | null;
   vodResolvedAt: Date | null;
@@ -116,8 +173,9 @@ async function resolveMatchStreams(matchIds: string[]): Promise<Map<string, Matc
       id: true,
       matchId: true,
       userId: true,
-      twitchUserId: true,
-      twitchLogin: true,
+      platform: true,
+      platformUserId: true,
+      platformLogin: true,
       vodId: true,
       vodOffsetSeconds: true,
       vodResolvedAt: true,
@@ -131,7 +189,8 @@ async function resolveMatchStreams(matchIds: string[]): Promise<Map<string, Matc
   for (const row of rows) {
     const summary: MatchStreamSummary = {
       userId: row.userId,
-      twitchLogin: row.twitchLogin,
+      platform: platformFor(row),
+      platformLogin: row.platformLogin,
       vodId: row.vodId,
       vodOffsetSeconds: row.vodOffsetSeconds,
     };
@@ -143,15 +202,17 @@ async function resolveMatchStreams(matchIds: string[]): Promise<Map<string, Matc
   return byMatch;
 }
 
-// Fills in vodId/vodOffsetSeconds for every row that's still pending, batching
-// the Helix lookups one call per streamer. Updates `rows` in place so the
-// caller can build its summaries straight off them. Wrapped so a network or DB
-// hiccup just leaves the rows unresolved (no replay shown) rather than failing
-// the whole profile render.
+// Fills in vodId/vodOffsetSeconds for every Twitch row that's still pending,
+// batching the Helix lookups one call per streamer. YouTube rows are resolved
+// at capture time and are skipped. Updates `rows` in place so the caller can
+// build its summaries straight off them. Wrapped so a network or DB hiccup just
+// leaves the rows unresolved (no replay shown) rather than failing the whole
+// profile render.
 async function resolveStreamVods(rows: ResolvableStream[], now = new Date()) {
   const nowMs = now.getTime();
   const pending = rows.filter(
     (r) =>
+      r.platform === StreamPlatform.TWITCH &&
       r.vodResolvedAt === null &&
       r.match.confirmedAt !== null &&
       nowMs - r.match.confirmedAt.getTime() <= VOD_RETENTION_MS &&
@@ -162,9 +223,9 @@ async function resolveStreamVods(rows: ResolvableStream[], now = new Date()) {
   // One Helix call per streamer, no matter how many of their sets are on the page.
   const byStreamer = new Map<string, ResolvableStream[]>();
   for (const row of pending) {
-    const list = byStreamer.get(row.twitchUserId);
+    const list = byStreamer.get(row.platformUserId);
     if (list) list.push(row);
-    else byStreamer.set(row.twitchUserId, [row]);
+    else byStreamer.set(row.platformUserId, [row]);
   }
 
   try {

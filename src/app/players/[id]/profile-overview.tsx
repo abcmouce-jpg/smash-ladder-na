@@ -185,7 +185,7 @@ export async function ProfileOverviewSection({
   // The Overview's Head 2 Heads card previews only the three most-played
   // opponents; the full, paginated list lives on the Head 2 Heads tab.
   const rivals = rivalsResult.opponents;
-  // Resolves any captured Twitch replays for the recent strip below (see
+  // Resolves any captured replays for the recent strip below (see
   // attachMatchStreams) so its rows carry the same replay affordance the full
   // Match History tab has.
   await attachMatchStreams(recentMatchHistory);
